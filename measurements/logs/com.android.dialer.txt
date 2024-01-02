@@ -1,0 +1,17 @@
+--------- beginning of crash
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: FATAL EXCEPTION: main
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: Process: com.android.dialer, PID: 13977
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: java.lang.ArrayIndexOutOfBoundsException: length=0; index=0
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: 	at com.android.dialer.CallDetailActivity$1.onGetCallDetails(CallDetailActivity.java:112)
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: 	at com.android.dialer.calllog.CallLogAsyncTaskUtil$1.onPostExecute(CallLogAsyncTaskUtil.java:171)
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: 	at com.android.dialer.calllog.CallLogAsyncTaskUtil$1.onPostExecute(CallLogAsyncTaskUtil.java:169)
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: 	at android.os.AsyncTask.finish(AsyncTask.java:771)
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: 	at android.os.AsyncTask.access$900(AsyncTask.java:199)
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: 	at android.os.AsyncTask$InternalHandler.handleMessage(AsyncTask.java:788)
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:27:50.005 13977 13977 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)

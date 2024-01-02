@@ -1,0 +1,151 @@
+--------- beginning of crash
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: FATAL EXCEPTION: main
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: Process: com.svox.pico, PID: 11960
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: java.lang.RuntimeException: Unable to start activity ComponentInfo{com.svox.pico/com.svox.pico.DownloadVoiceData}: android.content.ActivityNotFoundException: No Activity found to handle Intent { act=android.intent.action.VIEW dat=market://search?q=pname:com.svox.langpack.installer }
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3635)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3792)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2210)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: Caused by: android.content.ActivityNotFoundException: No Activity found to handle Intent { act=android.intent.action.VIEW dat=market://search?q=pname:com.svox.langpack.installer }
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Instrumentation.checkStartActivityResult(Instrumentation.java:2087)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Instrumentation.execStartActivity(Instrumentation.java:1747)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Activity.startActivityForResult(Activity.java:5404)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Activity.startActivityForResult(Activity.java:5362)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at com.svox.pico.DownloadVoiceData.onCreate(DownloadVoiceData.java:34)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:8051)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:8031)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1329)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3608)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	... 12 more
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: FATAL EXCEPTION: main
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: Process: com.svox.pico, PID: 12116
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: java.lang.RuntimeException: Unable to start activity ComponentInfo{com.svox.pico/com.svox.pico.GetSampleText}: java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.String android.os.Bundle.getString(java.lang.String)' on a null object reference
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3635)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3792)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2210)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: Caused by: java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.String android.os.Bundle.getString(java.lang.String)' on a null object reference
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at com.svox.pico.GetSampleText.onCreate(GetSampleText.java:40)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:8051)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:8031)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1329)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3608)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	... 12 more
+-15 12:26:16.306 11960 11960 E AndroidRuntime: FATAL EXCEPTION: main
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: Process: com.svox.pico, PID: 11960
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: java.lang.RuntimeException: Unable to start activity ComponentInfo{com.svox.pico/com.svox.pico.DownloadVoiceData}: android.content.ActivityNotFoundException: No Activity found to handle Intent { act=android.intent.action.VIEW dat=market://search?q=pname:com.svox.langpack.installer }
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3635)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3792)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2210)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: Caused by: android.content.ActivityNotFoundException: No Activity found to handle Intent { act=android.intent.action.VIEW dat=market://search?q=pname:com.svox.langpack.installer }
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Instrumentation.checkStartActivityResult(Instrumentation.java:2087)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Instrumentation.execStartActivity(Instrumentation.java:1747)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Activity.startActivityForResult(Activity.java:5404)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Activity.startActivityForResult(Activity.java:5362)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at com.svox.pico.DownloadVoiceData.onCreate(DownloadVoiceData.java:34)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:8051)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:8031)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1329)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3608)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	... 12 more
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: FATAL EXCEPTION: main
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: Process: com.svox.pico, PID: 12116
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: java.lang.RuntimeException: Unable to start activity ComponentInfo{com.svox.pico/com.svox.pico.GetSampleText}: java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.String android.os.Bundle.getString(java.lang.String)' on a null object reference
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3635)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3792)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2210)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: Caused by: java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.String android.os.Bundle.getString(java.lang.String)' on a null object reference
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at com.svox.pico.GetSampleText.onCreate(GetSampleText.java:40)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:8051)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:8031)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1329)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3608)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	... 12 more
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: FATAL EXCEPTION: main
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: Process: com.svox.pico, PID: 11960
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: java.lang.RuntimeException: Unable to start activity ComponentInfo{com.svox.pico/com.svox.pico.DownloadVoiceData}: android.content.ActivityNotFoundException: No Activity found to handle Intent { act=android.intent.action.VIEW dat=market://search?q=pname:com.svox.langpack.installer }
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3635)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3792)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2210)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: Caused by: android.content.ActivityNotFoundException: No Activity found to handle Intent { act=android.intent.action.VIEW dat=market://search?q=pname:com.svox.langpack.installer }
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Instrumentation.checkStartActivityResult(Instrumentation.java:2087)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Instrumentation.execStartActivity(Instrumentation.java:1747)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Activity.startActivityForResult(Activity.java:5404)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Activity.startActivityForResult(Activity.java:5362)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at com.svox.pico.DownloadVoiceData.onCreate(DownloadVoiceData.java:34)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:8051)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:8031)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1329)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3608)
+12-15 12:26:16.306 11960 11960 E AndroidRuntime: 	... 12 more
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: FATAL EXCEPTION: main
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: Process: com.svox.pico, PID: 12116
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: java.lang.RuntimeException: Unable to start activity ComponentInfo{com.svox.pico/com.svox.pico.GetSampleText}: java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.String android.os.Bundle.getString(java.lang.String)' on a null object reference
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3635)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3792)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2210)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: Caused by: java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.String android.os.Bundle.getString(java.lang.String)' on a null object reference
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at com.svox.pico.GetSampleText.onCreate(GetSampleText.java:40)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:8051)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:8031)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1329)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3608)
+12-15 12:26:21.912 12116 12116 E AndroidRuntime: 	... 12 more

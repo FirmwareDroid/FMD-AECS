@@ -1,0 +1,144 @@
+--------- beginning of crash
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: FATAL EXCEPTION: main
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: Process: com.android.settings, PID: 16483
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: java.lang.NoClassDefFoundError: Failed resolution of: Lcom/android/settings/display/NightDisplaySettings;
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at com.android.settings.SettingsActivity.<clinit>(SettingsActivity.java:382)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at java.lang.Class.newInstance(Native Method)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at android.app.AppComponentFactory.instantiateActivity(AppComponentFactory.java:95)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at android.app.Instrumentation.newActivity(Instrumentation.java:1273)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3532)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3792)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2210)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: Caused by: java.lang.ClassNotFoundException: com.android.settings.display.NightDisplaySettings
+12-15 12:29:58.049 16483 16483 E AndroidRuntime: 	... 17 more
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: FATAL EXCEPTION: main
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: Process: com.android.settings, PID: 16563
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: java.lang.NoClassDefFoundError: Failed resolution of: Lcom/android/settings/display/NightDisplaySettings;
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at com.android.settings.SettingsActivity.<clinit>(SettingsActivity.java:382)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at java.lang.Class.newInstance(Native Method)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at android.app.AppComponentFactory.instantiateActivity(AppComponentFactory.java:95)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at android.app.Instrumentation.newActivity(Instrumentation.java:1273)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3532)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3792)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2210)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: Caused by: java.lang.ClassNotFoundException: com.android.settings.display.NightDisplaySettings
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	... 17 more
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: FATAL EXCEPTION: main
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: Process: com.android.settings, PID: 16713
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: java.lang.RuntimeException: Unable to instantiate activity ComponentInfo{com.android.settings/com.android.settings.SystemSettings}: java.lang.ClassNotFoundException: Didn't find class "com.android.settings.SystemSettings" on path: DexPathList[[zip file "/system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7.apk"],nativeLibraryDirectories=[/system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/lib/x86_64, /system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7.apk!/lib/x86_64, /system/lib64, /system_ext/lib64, /system/lib64, /system_ext/lib64]]
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3545)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3792)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2210)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: Caused by: java.lang.ClassNotFoundException: Didn't find class "com.android.settings.SystemSettings" on path: DexPathList[[zip file "/system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7.apk"],nativeLibraryDirectories=[/system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/lib/x86_64, /system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7.apk!/lib/x86_64, /system/lib64, /system_ext/lib64, /system/lib64, /system_ext/lib64]]
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at dalvik.system.BaseDexClassLoader.findClass(BaseDexClassLoader.java:218)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at java.lang.ClassLoader.loadClass(ClassLoader.java:379)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at java.lang.ClassLoader.loadClass(ClassLoader.java:312)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.AppComponentFactory.instantiateActivity(AppComponentFactory.java:95)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.Instrumentation.newActivity(Instrumentation.java:1273)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3532)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	... 12 more
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: FATAL EXCEPTION: ApplicationsState.Loader
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: Process: com.android.storagemanager, PID: 17051
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: java.lang.NullPointerException: Attempt to read from field 'int android.content.pm.PackageStats.userHandle' on a null object reference
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at com.android.settingslib.applications.ApplicationsState$BackgroundHandler$1.onGetStatsCompleted(ApplicationsState.java:969)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.app.ApplicationPackageManager.getPackageSizeInfoAsUser(ApplicationPackageManager.java:2661)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at com.android.settingslib.applications.ApplicationsState$BackgroundHandler.handleMessage(ApplicationsState.java:944)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+id.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2210)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: Caused by: java.lang.ClassNotFoundException: Didn't find class "com.android.settings.SystemSettings" on path: DexPathList[[zip file "/system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7.apk"],nativeLibraryDirectories=[/system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/lib/x86_64, /system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7.apk!/lib/x86_64, /system/lib64, /system_ext/lib64, /system/lib64, /system_ext/lib64]]
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at dalvik.system.BaseDexClassLoader.findClass(BaseDexClassLoader.java:218)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at java.lang.ClassLoader.loadClass(ClassLoader.java:379)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at java.lang.ClassLoader.loadClass(ClassLoader.java:312)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.AppComponentFactory.instantiateActivity(AppComponentFactory.java:95)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.Instrumentation.newActivity(Instrumentation.java:1273)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3532)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	... 12 more
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: FATAL EXCEPTION: ApplicationsState.Loader
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: Process: com.android.storagemanager, PID: 17051
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: java.lang.NullPointerException: Attempt to read from field 'int android.content.pm.PackageStats.userHandle' on a null object reference
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at com.android.settingslib.applications.ApplicationsState$BackgroundHandler$1.onGetStatsCompleted(ApplicationsState.java:969)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.app.ApplicationPackageManager.getPackageSizeInfoAsUser(ApplicationPackageManager.java:2661)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at com.android.settingslib.applications.ApplicationsState$BackgroundHandler.handleMessage(ApplicationsState.java:944)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+: java.lang.ClassNotFoundException: com.android.settings.display.NightDisplaySettings
+12-15 12:30:01.325 16563 16563 E AndroidRuntime: 	... 17 more
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: FATAL EXCEPTION: main
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: Process: com.android.settings, PID: 16713
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: java.lang.RuntimeException: Unable to instantiate activity ComponentInfo{com.android.settings/com.android.settings.SystemSettings}: java.lang.ClassNotFoundException: Didn't find class "com.android.settings.SystemSettings" on path: DexPathList[[zip file "/system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7.apk"],nativeLibraryDirectories=[/system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/lib/x86_64, /system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7.apk!/lib/x86_64, /system/lib64, /system_ext/lib64, /system/lib64, /system_ext/lib64]]
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3545)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3792)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2210)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: Caused by: java.lang.ClassNotFoundException: Didn't find class "com.android.settings.SystemSettings" on path: DexPathList[[zip file "/system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7.apk"],nativeLibraryDirectories=[/system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/lib/x86_64, /system/app/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7/ib_ddc7635535a20ec8cc5ed4d1ceefc2a7.apk!/lib/x86_64, /system/lib64, /system_ext/lib64, /system/lib64, /system_ext/lib64]]
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at dalvik.system.BaseDexClassLoader.findClass(BaseDexClassLoader.java:218)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at java.lang.ClassLoader.loadClass(ClassLoader.java:379)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at java.lang.ClassLoader.loadClass(ClassLoader.java:312)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.AppComponentFactory.instantiateActivity(AppComponentFactory.java:95)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.Instrumentation.newActivity(Instrumentation.java:1273)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3532)
+12-15 12:30:07.181 16713 16713 E AndroidRuntime: 	... 12 more
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: FATAL EXCEPTION: ApplicationsState.Loader
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: Process: com.android.storagemanager, PID: 17051
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: java.lang.NullPointerException: Attempt to read from field 'int android.content.pm.PackageStats.userHandle' on a null object reference
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at com.android.settingslib.applications.ApplicationsState$BackgroundHandler$1.onGetStatsCompleted(ApplicationsState.java:969)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.app.ApplicationPackageManager.getPackageSizeInfoAsUser(ApplicationPackageManager.java:2661)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at com.android.settingslib.applications.ApplicationsState$BackgroundHandler.handleMessage(ApplicationsState.java:944)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:30:24.543 17051 17075 E AndroidRuntime: 	at android.os.HandlerThread.run(HandlerThread.java:67)
