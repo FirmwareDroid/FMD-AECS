@@ -1,5 +1,4 @@
-
-
+#!/bin/bash
 
 setup_pulse_audio() {
   # We need pulse audio for the webrtc video bridge, let's configure it.
@@ -27,7 +26,7 @@ forward_loggers
 /android/sdk/platform-tools/adb start-server &
 socat -d tcp-listen:5555,reuseaddr,fork tcp:127.0.0.1:5557 &
 
-# Forward gRPC for older emulator versions
+# Forward gRPC port
 socat -d tcp-listen:8554,reuseaddr,fork tcp:127.0.0.1:8556 &
 
 # Start the emulator with the custom image
