@@ -1,0 +1,47 @@
+--------- beginning of main
+12-15 12:29:24.719  1218  2968 E ActivityManager: Sending non-protected broadcast org.omnirom.omniswitch.ACTION_TOGGLE_OVERLAY from system 1847:org.omnirom.omniswitch/u0a53 pkg org.omnirom.omniswitch
+12-15 12:29:24.719  1218  2968 E ActivityManager: java.lang.Throwable
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at com.android.server.am.ActivityManagerService.checkBroadcastFromSystem(ActivityManagerService.java:12776)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at com.android.server.am.ActivityManagerService.broadcastIntentLocked(ActivityManagerService.java:13473)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at com.android.server.am.ActivityManagerService.broadcastIntentLocked(ActivityManagerService.java:12794)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at com.android.server.am.ActivityManagerService.broadcastIntentWithFeature(ActivityManagerService.java:13632)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at android.app.IActivityManager$Stub.onTransact(IActivityManager.java:2328)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at com.android.server.am.ActivityManagerService.onTransact(ActivityManagerService.java:2496)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at android.os.Binder.execTransactInternal(Binder.java:1179)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at android.os.Binder.execTransact(Binder.java:1143)
+12-15 12:29:24.861  1847  1847 E SwitchService: onReceive
+12-15 12:29:24.861  1847  1847 E SwitchService: java.lang.NullPointerException: Attempt to invoke virtual method 'boolean org.omnirom.omniswitch.SwitchManager.isShowing()' on a null object reference
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at org.omnirom.omniswitch.SwitchService$RecentsReceiver.onReceive(SwitchService.java:192)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.app.ActivityThread.handleReceiver(ActivityThread.java:4308)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.app.ActivityThread.access$1600(ActivityThread.java:247)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2064)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)
+12-15 12:29:24.719  1218  2968 E ActivityManager: Sending non-protected broadcast org.omnirom.omniswitch.ACTION_TOGGLE_OVERLAY from system 1847:org.omnirom.omniswitch/u0a53 pkg org.omnirom.omniswitch
+12-15 12:29:24.719  1218  2968 E ActivityManager: java.lang.Throwable
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at com.android.server.am.ActivityManagerService.checkBroadcastFromSystem(ActivityManagerService.java:12776)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at com.android.server.am.ActivityManagerService.broadcastIntentLocked(ActivityManagerService.java:13473)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at com.android.server.am.ActivityManagerService.broadcastIntentLocked(ActivityManagerService.java:12794)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at com.android.server.am.ActivityManagerService.broadcastIntentWithFeature(ActivityManagerService.java:13632)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at android.app.IActivityManager$Stub.onTransact(IActivityManager.java:2328)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at com.android.server.am.ActivityManagerService.onTransact(ActivityManagerService.java:2496)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at android.os.Binder.execTransactInternal(Binder.java:1179)
+12-15 12:29:24.719  1218  2968 E ActivityManager: 	at android.os.Binder.execTransact(Binder.java:1143)
+12-15 12:29:24.861  1847  1847 E SwitchService: onReceive
+12-15 12:29:24.861  1847  1847 E SwitchService: java.lang.NullPointerException: Attempt to invoke virtual method 'boolean org.omnirom.omniswitch.SwitchManager.isShowing()' on a null object reference
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at org.omnirom.omniswitch.SwitchService$RecentsReceiver.onReceive(SwitchService.java:192)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.app.ActivityThread.handleReceiver(ActivityThread.java:4308)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.app.ActivityThread.access$1600(ActivityThread.java:247)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2064)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.os.Looper.loopOnce(Looper.java:201)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.os.Looper.loop(Looper.java:288)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at android.app.ActivityThread.main(ActivityThread.java:7838)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at java.lang.reflect.Method.invoke(Native Method)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+12-15 12:29:24.861  1847  1847 E SwitchService: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)

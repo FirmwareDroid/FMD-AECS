@@ -1,0 +1,5 @@
+--------- beginning of main
+12-15 12:30:25.435 17146 17146 E TagViewer: Unknown intent Intent { flg=0x10000000 cmp=com.android.apps.tag/.TagViewer }
+12-15 12:30:29.104 17249 17249 E TagViewer: Unknown intent Intent { flg=0x10000000 cmp=com.android.apps.tag/.TagViewer }
+12-15 12:30:29.104 17249 17249 E TagViewer: Unknown intent Intent { flg=0x10000000 cmp=com.android.apps.tag/.TagViewer }
+12-15 12:30:29.104 17249 17249 E TagViewer: Unknown intent Intent { flg=0x10000000 cmp=com.android.apps.tag/.TagViewer }
