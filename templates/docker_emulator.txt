@@ -1,0 +1,17 @@
+{{ service_name }}:
+    platform: "linux/amd64"
+    container_name: {{ container_name }}
+    build:
+      context: .
+      dockerfile: emulator/Dockerfile
+    command: bash -c "/android/emulator_start.sh"
+    devices: [/dev/kvm]
+    env_file:
+      - ./env/.env
+    volumes:
+      - {{ host_volume_path }}:/android/aosp/
+    ports:
+      - "{{ grpc_port_host }}:8554"
+      - "{{ adb_port_host }}:5555"
+    networks:
+      - frontend

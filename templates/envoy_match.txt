@@ -1,0 +1,8 @@
+- match:
+                  prefix: "/{{ emulator_id }}/"
+                route:
+                  cluster: emulator_service_grpc_{{ emulator_id }}
+                  timeout: 0s
+                  prefix_rewrite: "/"
+                  max_stream_duration:
+                      grpc_timeout_header_max: 0s

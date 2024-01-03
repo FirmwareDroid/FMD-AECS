@@ -1,0 +1,29 @@
+version: '3.7'
+services:
+  envoy:
+    platform: "linux/amd64"
+    image: envoyproxy/envoy:v1.27-latest
+    restart: unless-stopped
+    volumes:
+      - ./env/envoy/envoy.yaml:/etc/envoy/envoy.yaml
+      - ./env/envoy/fmd-aosp.init-lab.ch/:/etc/envoy/certs/
+    ports:
+      - "443:443"
+    networks:
+      - frontend
+
+  coturn:
+    platform: "linux/amd64"
+    image: coturn/coturn
+    restart: unless-stopped
+    volumes:
+      - ./env/coturn/turnserver.conf:/etc/coturn/turnserver.conf
+    network_mode: "host"
+{% for line in emulator_content_list %}
+  {{ line }}
+{% endfor %}
+
+
+networks:
+  frontend:
+    driver: bridge
