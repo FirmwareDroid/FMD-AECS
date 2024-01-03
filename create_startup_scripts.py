@@ -29,7 +29,7 @@ def main():
     parser.add_argument("-v",
                         "--volume-path",
                         nargs="?",
-                        default="/home/ubuntu/aosp_12",
+                        default="/home/ubuntu/aosp_images/12/",
                         help="Path to the AOSP source code on the host machine.")
     parser.add_argument("-g",
                         "--grpc-start-port",
@@ -74,7 +74,7 @@ def create_docker_template(template_variables_dict, instance_count, environment)
 
         service_name = template_variables_dict["service_name"] + str(x)
         container_name = template_variables_dict["container_name"] + str(x)
-        host_volume_path = template_variables_dict["host_volume_path"]
+        host_volume_path = template_variables_dict["host_volume_path"] + str(x)
         grpc_port_host = template_variables_dict["grpc_port_host"] + x
         adb_port_host = template_variables_dict["adb_port_host"] + x
         content = template.render(
