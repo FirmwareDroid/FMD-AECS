@@ -9,7 +9,7 @@
     env_file:
       - ./env/.env
     volumes:
-      - {{ host_volume_path }}:/android/aosp/
+      - {{ host_volume_path }}:/android/image/
     ports:
       - "{{ grpc_port_host }}:8554"
       - "{{ adb_port_host }}:5555"
