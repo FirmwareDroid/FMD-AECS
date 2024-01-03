@@ -1,0 +1,14 @@
+  - name: emulator_service_grpc_{{ emulator_id }}
+    connect_timeout: 0.250s
+    type: STRICT_DNS
+    lb_policy: ROUND_ROBIN
+    http2_protocol_options: {}
+    load_assignment:
+      cluster_name: emulator_service_grpc_{{ emulator_id }}
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: android_emulator_{{ emulator_id }}
+                port_value: {{ grpc_port_host }}
