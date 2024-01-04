@@ -29,7 +29,7 @@ def main():
     parser.add_argument("-v",
                         "--volume-path",
                         nargs="?",
-                        default="/home/ubuntu/aosp_images/12/",
+                        default="/home/suth/aosp_images/12/",
                         help="Path to the AOSP source code on the host machine.")
     parser.add_argument("-g",
                         "--grpc-start-port",
