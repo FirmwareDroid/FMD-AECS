@@ -30,7 +30,10 @@ def main():
                         "--volume-path",
                         nargs="?",
                         default="/home/suth/aosp_images/12/",
-                        help="Path to the AOSP source code on the host machine.")
+                        help="Path to root of the Android images directory. "
+                             "Every image needs to be stored in a numbered subfolder. "
+                             "For instance, subfolder '1' will be used by the first emulator"
+                             " and the subfolder named '2' by the second.")
     parser.add_argument("-g",
                         "--grpc-start-port",
                         type=int,
