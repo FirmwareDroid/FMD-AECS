@@ -22,9 +22,11 @@ forward_loggers
 
 # Forward adb port
 /android/sdk/platform-tools/adb start-server &
+sleep 1
 socat -d tcp-listen:5555,reuseaddr,fork tcp:127.0.0.1:5557 &
 # Forward gRPC port
 socat -d tcp-listen:8554,reuseaddr,fork tcp:127.0.0.1:8556 &
 
 /android/sdk/emulator/emulator -sysdir /android/image/ -kernel /android/image/kernel-ranchu -no-window -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -logcat "*:V" -show-kernel -logcat-output "/tmp/android-unknown/logcat.log" -shell-serial "file:/tmp/android-unknown/kernel.log" -no-boot-anim -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1" &
-wait
+pid=$!
+wait $pid
