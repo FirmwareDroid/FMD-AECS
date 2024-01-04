@@ -74,17 +74,37 @@ def main():
     parser = argparse.ArgumentParser(prog='fmd_build_injector',
                                      description="A cli tool to download and store build files from FirmwareDroid.")
 
-    parser.add_argument("-r", "--read", type=str, nargs=1,
-                        metavar="file_name", default=None,
+    parser.add_argument("-r", "--read",
+                        type=str,
+                        nargs=1,
+                        metavar="file_name",
+                        default=None,
                         help="Opens and reads the specified text file.")
-    parser.add_argument("-u", "--url", type=str, nargs=1, metavar="t", default=None, required=True,
+    parser.add_argument("-u", "--url",
+                        type=str,
+                        nargs=1,
+                        metavar="t",
+                        default=None,
+                        required=True,
                         help="HTTP/HTTPS url to the FirmwareDroid instance. "
                              "Example: https://firmwaredroid.cloudlab.zhaw.ch")
-    parser.add_argument("-a", "--account", type=str, nargs=1, default=None, required=True,
+    parser.add_argument("-a", "--account",
+                        type=str,
+                        nargs=1,
+                        default=None,
+                        required=True,
                         help="Username for JWT authentication.")
-    parser.add_argument("-o", "--output", type=str, nargs=1, default=None, required=True,
+    parser.add_argument("-o", "--output",
+                        type=str,
+                        nargs=1,
+                        default=None,
+                        required=True,
                         help="Destination path to store the files. For every apk a new subfolder will be created.")
-    parser.add_argument("-f", "--firmware_id", type=str, nargs=1, default=None, required=True,
+    parser.add_argument("-f", "--firmware_id",
+                        type=str,
+                        nargs=1,
+                        default=None,
+                        required=True,
                         help="Specify the document object id for the firmware to prepare.")
     args = parser.parse_args()
 
@@ -101,5 +121,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # calling the main function
     main()

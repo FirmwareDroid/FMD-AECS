@@ -21,7 +21,7 @@ ENV PATH=$JAVA_HOME/bin:$PATH
 ################################
 # Install pulse audio default config
 ################################
-COPY ./emulator_build_service/default.pa /etc/pulse/default.pa
+COPY ./emulator/default.pa /etc/pulse/default.pa
 
 ################################
 # Install Android SDK and tools
@@ -56,5 +56,5 @@ RUN /android/sdk/cmdline-tools/latest/bin/sdkmanager emulator
 ###################################
 # Create start script
 ###################################
-COPY ./emulator_build_service/emulator_start.sh /android/
+COPY ./emulator/emulator_start.sh /android/
 RUN chmod +x /android/emulator_start.sh
