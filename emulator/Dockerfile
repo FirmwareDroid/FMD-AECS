@@ -44,14 +44,14 @@ ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
 ENV PATH=$ANDROID_HOME/platform-tools:$PATH
 ENV PATH=$ANDROID_HOME/emulator/:$PATH
 
+
+################################
+# Prepare Android emulator
+################################
 # Installing latest version of the emulator
 RUN yes | /android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses
 RUN /android/sdk/cmdline-tools/latest/bin/sdkmanager emulator
-
-#RUN /android/sdk/cmdline-tools/latest/bin/sdkmanager "system-images;android-31;default;x86_64"
-#RUN /android/sdk/cmdline-tools/latest/bin/avdmanager create avd -n test -k "system-images;android-31;default;x86_64"
-#RUN /android/sdk/cmdline-tools/latest/bin/sdkmanager "system-images;android-31;google_apis;x86_64"
-#RUN /android/sdk/cmdline-tools/latest/bin/avdmanager create avd -n test2 -k "system-images;android-31;google_apis;x86_64"
+COPY ./emulator/avd/ /android/sdk/avd/
 
 ###################################
 # Create start script
