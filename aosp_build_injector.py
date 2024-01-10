@@ -66,7 +66,7 @@ def start_aosp_build(aosp_path, aosp_packages_path):
 
 def extract_emulator_image(aosp_path):
     """
-    Extracts the aosp packed emulator images to the image artefacts folder for further usage.
+    Extracts the aosp emulator images to the image artefacts folder for further usage.
     """
     image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_PATH, AOSP_EMU_ZIP_FILENAME)
     print(f"Extract image_source_path: {image_source_path} to {IMAGE_ARTEFACTS_ABS_PATH}")
@@ -87,7 +87,8 @@ def inject_packages(aosp_path, aosp_packages_path, exclude_list=[]):
         aosp_packages_path: str - path to the prebuilt package folder of aosp.
         aosp_path: str -  path to aosp root folder.
     """
-    meta_build_path = os.path.join(aosp_packages_path, META_BUILD_FILENAME)
+    meta_build_path = os.path.join(aosp_path, aosp_packages_path, META_BUILD_FILENAME)
+    print(meta_build_path)
     if not os.path.exists(meta_build_path):
         raise RuntimeError(f"Could not find file: {META_BUILD_FILENAME} from {meta_build_path}")
     with open(meta_build_path, 'r') as meta_build_file:
