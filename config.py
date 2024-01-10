@@ -3,17 +3,17 @@ from pathlib import Path
 
 AECS_ROOT_DIR = str(Path().absolute())
 SCRIPT_ROOT_PATH = os.path.dirname(os.path.realpath(__file__))
-AOSP_PACKAGES_APPS_PATH = "/packages/apps/"
+AOSP_PACKAGES_APPS_PATH = "packages/apps/"
 META_BUILD_FILENAME = "meta_build.txt"
 TEMPLATE_FOLDER = "templates/12/"
-BASE_PATH = "/build/make/target/product/"
+BASE_PATH = "build/make/target/product/"
 BASE_PRODUCT_FILE_NAME = "base_product.mk"
 BASE_SYSTEM_FILE_NAME = "base_system.mk"
 BASE_VENDOR_FILE_NAME = "base_vendor.mk"
 BUILD_OUT_PATH = os.path.join(SCRIPT_ROOT_PATH, "/out/")
 IMAGE_ARTEFACTS_X86_64_PATH = "/image_artefacts/x86_64/"
 IMAGE_ARTEFACTS_PATH = "/image_artefacts/"
-AOSP_BUILD_OUT_PATH = "/out/host/linux-x86/sdk/sdk_phone_x86"
+AOSP_BUILD_OUT_PATH = "out/host/linux-x86/sdk/sdk_phone_x86"
 AOSP_EMU_ZIP_FILENAME = "sdk-repo-linux-system-images-eng.ubuntu.zip"
 IMAGE_ARTEFACTS_X86_64_ABS_PATH = os.path.join(SCRIPT_ROOT_PATH, IMAGE_ARTEFACTS_X86_64_PATH)
 IMAGE_ARTEFACTS_ABS_PATH = os.path.join(SCRIPT_ROOT_PATH, IMAGE_ARTEFACTS_PATH)
