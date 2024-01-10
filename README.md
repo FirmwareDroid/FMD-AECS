@@ -5,6 +5,13 @@ in docker and expose their gRPC API via an envoy reverse proxy. In addition, to 
 WebRTC, a coturn server is started by default.
 
 
+### Requirements
+
+- python3
+- docker
+- docker-compose
+- docker cli tools
+
 ### Quick-Start
 
 1. Create startup files. Assure that your firmware images are in the current working directory under

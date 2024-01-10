@@ -1,6 +1,8 @@
 import os
-from jinja2 import Environment, FileSystemLoader
 import argparse
+from jinja2 import Environment, FileSystemLoader
+from getpass import getpass
+from fmd_backend_requests import get_csrf_token, authenticate_fmd, get_firmware_ids, get_graphql_url
 
 COMPOSE_TEMPLATE_NAME = "docker-compose.yaml"
 EMULATOR_TEMPLATE_NAME = "docker_emulator.txt"
@@ -20,20 +22,6 @@ def main():
         description="Creates necessary files to startup the proxy service. "
                     "A new docker-compose YAML file will be written to the current working directory.",
         add_help=True)
-
-    parser.add_argument("-n",
-                        "--instance-count",
-                        type=int,
-                        default=1,
-                        help="Number of emulator instances to create.")
-    parser.add_argument("-v",
-                        "--volume-path",
-                        nargs="?",
-                        default="/home/suth/aosp_images/12/",
-                        help="Path to root of the Android images directory. "
-                             "Every image needs to be stored in a numbered subfolder. "
-                             "For instance, subfolder '1' will be used by the first emulator"
-                             " and the subfolder named '2' by the second.")
     parser.add_argument("-g",
                         "--grpc-start-port",
                         type=int,
@@ -44,25 +32,63 @@ def main():
                         type=int,
                         default=5555,
                         help="Starting port for the adb service.")
+    parser.add_argument("-u", "--fmd-username",
+                        type=str,
+                        default=None,
+                        required=True,
+                        help="Username for the authentication to the fmd service.")
+    parser.add_argument("-f", "--fmd-url",
+                        type=str,
+                        default=None,
+                        required=True,
+                        help="HTTP/HTTPS url to the FMD instance to grab the packages."
+                             "Example: https://firmwaredroid.cloudlab.zhaw.ch")
+    parser.add_argument("-r", "--docker-repo-url",
+                        type=str,
+                        default=None,
+                        help="Specifies the url to a docker registry, "
+                             "where the emulator images will be pushed to. "
+                             "Example: 127.0.0.1:8082/repository/docker-test/")
     args = parser.parse_args()
 
     template_variables_dict = {"service_name": "android_emulator_",
                                "container_name": "android_emulator_",
-                               "host_volume_path": args.volume_path,
                                "grpc_port_host": args.grpc_start_port,
                                "adb_port_host": args.adb_start_port,
                                }
+    fmd_password = getpass()
+    docker_repo_url = args.docker_repo_url.replace("http://", "").replace("https://", "")
+    if not docker_repo_url.endswith("/"):
+        raise ValueError("--docker-repo-url must end with a slash (/). Example: 127.0.0.1:8082/repository/docker-test/")
     environment = Environment(loader=FileSystemLoader("templates/"))
-    create_docker_template(template_variables_dict, args.instance_count, environment)
-    create_envoy_template(template_variables_dict, args.instance_count, environment)
+    firmware_id_list = request_firmware_ids(args.fmd_url, args.fmd_username, fmd_password)
+    create_docker_template(template_variables_dict, firmware_id_list, environment, docker_repo_url)
+    create_envoy_template(template_variables_dict, firmware_id_list, environment)
 
 
-def create_docker_template(template_variables_dict, instance_count, environment):
+def request_firmware_ids(fmd_url, fmd_username, fmd_password):
+    """
+    Fetches the list of firmware ids from the aecs-job.
+    Args:
+        fmd_url: str - URL to the fmd backend service.
+        fmd_username: str - username to authenticate to the fmd service.
+        fmd_password: str - password to authenticate to the fmd service.
+
+    Returns: list(str) - list of firmware ids.
+
+    """
+    csrf_cookie = get_csrf_token(fmd_url)
+    graphql_url = get_graphql_url(fmd_url)
+    cookies = authenticate_fmd(graphql_url, fmd_username, fmd_password, csrf_cookie)
+    firmware_id_list = get_firmware_ids(graphql_url, cookies)
+    return firmware_id_list
+
+
+def create_docker_template(template_variables_dict, firmware_id_list, environment, docker_repo_url):
     """
     Creates a docker compose file with a container for every Android emulator.
     Args:
-        template_variables_dict: dict - variables to configure the containers
-        instance_count: int - number of containers to insert.
+        template_variables_dict: dict - variables to configure the containers'
         environment: jinja2 template engine
     """
     try:
@@ -72,22 +98,23 @@ def create_docker_template(template_variables_dict, instance_count, environment)
         pass
 
     emulator_template_content_list = []
-    for x in range(0, instance_count):
+    x = 0
+    for firmware_id in firmware_id_list:
         template = environment.get_template(EMULATOR_TEMPLATE_NAME)
-
+        image_name = docker_repo_url + firmware_id
         service_name = template_variables_dict["service_name"] + str(x)
         container_name = template_variables_dict["container_name"] + str(x)
-        host_volume_path = template_variables_dict["host_volume_path"] + str(x)
         grpc_port_host = template_variables_dict["grpc_port_host"] + x
         adb_port_host = template_variables_dict["adb_port_host"] + x
         content = template.render(
             service_name=service_name,
             container_name=container_name,
-            host_volume_path=host_volume_path,
+            image_name=image_name,
             grpc_port_host=grpc_port_host,
             adb_port_host=adb_port_host
         )
         emulator_template_content_list.append(content)
+        x += 1
 
     template = environment.get_template(COMPOSE_TEMPLATE_NAME)
     content = template.render(
@@ -99,7 +126,7 @@ def create_docker_template(template_variables_dict, instance_count, environment)
         print(f"... wrote {OUTPUT_FILENAME}")
 
 
-def create_envoy_template(template_variables_dict, instance_count, environment):
+def create_envoy_template(template_variables_dict, firmware_id_list, environment):
     """
     Creates an envoy.yaml configuration path with routes and clusters for every emulator
     Args:
@@ -116,7 +143,7 @@ def create_envoy_template(template_variables_dict, instance_count, environment):
 
     envoy_match_list = []
     cluster_config_list = []
-    for x in range(0, instance_count):
+    for x in range(0, len(firmware_id_list)):
         grpc_port_host = template_variables_dict["grpc_port_host"] + x
 
         envoy_match_template = environment.get_template(ENVOY_MATCH_TEMPLATE_NAME)
