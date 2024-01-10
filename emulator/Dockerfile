@@ -49,12 +49,19 @@ ENV PATH=$ANDROID_HOME/emulator/:$PATH
 # Prepare Android emulator
 ################################
 # Installing latest version of the emulator
-RUN yes | /android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-RUN /android/sdk/cmdline-tools/latest/bin/sdkmanager emulator
+RUN yes | /android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses ; exit 0 # Workaround against exit code 133
+RUN /android/sdk/cmdline-tools/latest/bin/sdkmanager emulator ; exit 0 # Workaround against exit code 133
 COPY ./emulator/avd/ /android/sdk/avd/
+
+################################
+# Copy system image
+################################
+COPY ./image_artefacts/x86_64/ /android/sdk/system-images/android/x86_64/
 
 ###################################
 # Create start script
 ###################################
 COPY ./emulator/emulator_start.sh /android/
 RUN chmod +x /android/emulator_start.sh
+
+CMD ["bash", "-c", "/android/emulator_start.sh"]
