@@ -14,6 +14,7 @@ import docker
 from string import Template
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
+import logging
 
 from config import AOSP_BUILD_OUT_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_ARTEFACTS_ABS_PATH, META_BUILD_FILENAME, \
     TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, AECS_ROOT_DIR, EMULATOR_DOCKERFILE_ABS_PATH, \
@@ -51,7 +52,7 @@ def delete_files(dir_path):
         os.remove(f)
 
 
-def start_aosp_build(aosp_path, aosp_packages_path):
+def start_aosp_build(aosp_path, aosp_packages_path, firmware_id):
     """
     Wrapper method to start the firmware injection and build process.
     Args:
@@ -59,7 +60,7 @@ def start_aosp_build(aosp_path, aosp_packages_path):
         aosp_path: str -  path to aosp root folder.
     """
     inject_packages(aosp_path, aosp_packages_path)
-    is_build_success = execute_build_command(aosp_path)
+    is_build_success = execute_build_command(aosp_path, firmware_id)
     if is_build_success:
         extract_emulator_image(aosp_path)
 
@@ -69,7 +70,7 @@ def extract_emulator_image(aosp_path):
     Extracts the aosp emulator images to the image artefacts folder for further usage.
     """
     image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_PATH, AOSP_EMU_ZIP_FILENAME)
-    print(f"Extract image_source_path: {image_source_path} to {IMAGE_ARTEFACTS_ABS_PATH}")
+    logging.info(f"Extract image_source_path: {image_source_path} to {IMAGE_ARTEFACTS_ABS_PATH}")
     if os.path.exists(image_source_path):
         #shutil.copy(image_source_path, IMAGE_ARTEFACTS_ABS_PATH)
         extract_zip(image_source_path, IMAGE_ARTEFACTS_ABS_PATH)
@@ -88,7 +89,7 @@ def inject_packages(aosp_path, aosp_packages_path, exclude_list=[]):
         aosp_path: str -  path to aosp root folder.
     """
     meta_build_path = os.path.join(aosp_path, aosp_packages_path, META_BUILD_FILENAME)
-    print(meta_build_path)
+    logging.info(meta_build_path)
     if not os.path.exists(meta_build_path):
         raise RuntimeError(f"Could not find file: {META_BUILD_FILENAME} from {meta_build_path}")
     with open(meta_build_path, 'r') as meta_build_file:
@@ -109,7 +110,7 @@ def inject_packages(aosp_path, aosp_packages_path, exclude_list=[]):
         raise RuntimeError(f"AOSP build file does not exist: {aosp_base_system_path}")
 
 
-def execute_build_command(aosp_path):
+def execute_build_command(aosp_path, firmware_id):
     """
     Start the aosp build process.
     Pack all Android images with ("m emu_img_zip"). Copy the artefacts to the local image folder. Unzips the artefacts.
@@ -119,10 +120,15 @@ def execute_build_command(aosp_path):
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_path)
     aosp_root = shlex.quote(aosp_path)
+    logging.info("Starting build process...")
     command = f"bash -c 'source {aosp_root}/build/envsetup.sh && lunch sdk_x86_64-userdebug && m && m emu_img_zip'"
+
     try:
-        subprocess.run(command, capture_output=True, shell=True, check=True)
-        is_build_success = True
+        log_name = firmware_id + ".txt"
+        os.path.join(BUILD_OUT_PATH, log_name)
+        with open(log_name, "w") as outfile:
+            subprocess.run(command, capture_output=True, shell=True, check=True, stdout=outfile, stderr=outfile)
+            is_build_success = True
     except subprocess.CalledProcessError as err:
         print(f"Got an error building firmware: {err}")
     os.chdir(current_directory)
@@ -203,16 +209,16 @@ def fetch_build_files(firmware_id, graphql_url, cookies, fmd_url, aosp_packages_
         aosp_packages_path: str - path to extract the data to.
 
     """
-    print(f"Process firmware: {firmware_id}")
+    logging.info(f"Process firmware: {firmware_id}")
     android_app_id_list = get_android_app_ids(graphql_url, firmware_id, cookies)
-    print(f"Fetched Android ids: {len(android_app_id_list)}")
+    logging.info(f"Fetched Android ids: {len(android_app_id_list)}")
     zip_file_path = download_firmware_build_files(fmd_url,
                                                   android_app_id_list,
                                                   cookies,
                                                   aosp_packages_path)
     extract_zip(zip_file_path, aosp_packages_path)
     os.remove(zip_file_path)
-    print(f"\nCompleted firmware build file download to {aosp_packages_path}")
+    logging.info(f"\nCompleted firmware build file download to {aosp_packages_path}")
 
 
 def start_injection():
@@ -222,7 +228,7 @@ def start_injection():
     cookies = authenticate_fmd(graphql_url, args.fmd_username, fmd_password, csrf_cookie)
 
     firmware_id_list = get_firmware_ids(graphql_url, cookies)
-    print(f"Got {len(firmware_id_list)} firmware ids to process...")
+    logging.info(f"Got {len(firmware_id_list)} firmware ids to process...")
 
     temp_obj = Template(AOSP_PACKAGES_APPS_PATH)
     aosp_packages_path = temp_obj.substitute(aosp_path=args.aosp_path)
@@ -270,7 +276,7 @@ def main():
     args = parser.parse_args()
 
     if not (args.fmd_url.startswith("https://") or args.fmd_url.startswith("http://")):
-        print(f"Error: Incorrect FMD URL: {args.fmd_url}")
+        logging.error(f"Error: Incorrect FMD URL: {args.fmd_url}")
         exit(1)
 
     start_aosp_build(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
