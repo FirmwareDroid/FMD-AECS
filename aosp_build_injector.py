@@ -115,6 +115,7 @@ def inject_packages(aosp_path, aosp_packages_path, exclude_list=[]):
         with open(out_file_path, mode="w", encoding="utf-8") as out_file:
             out_file.write(content)
         shutil.copyfile(out_file_path, aosp_base_system_path)
+        logging.info(f"Placed base_system.md {aosp_base_system_path} in aosp source")
     else:
         raise RuntimeError(f"AOSP build file does not exist: {aosp_base_system_path}")
 
@@ -131,7 +132,6 @@ def execute_build_command(aosp_path, firmware_id):
     aosp_root = shlex.quote(aosp_path)
     logging.info("Starting build process...")
     command = f"bash -c 'source {aosp_root}/build/envsetup.sh && lunch sdk_x86_64-userdebug && m && m emu_img_zip'"
-
     try:
         log_name = firmware_id + ".txt"
         os.path.join(BUILD_OUT_PATH, log_name)
@@ -139,7 +139,8 @@ def execute_build_command(aosp_path, firmware_id):
             subprocess.run(command, shell=True, check=True, stdout=outfile, stderr=outfile)
             is_build_success = True
     except subprocess.CalledProcessError as err:
-        print(f"Got an error building firmware: {err}")
+        logging.error(f"Got an error building firmware: {err}")
+        raise err
     os.chdir(current_directory)
     return is_build_success
 
