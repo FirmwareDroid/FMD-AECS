@@ -279,7 +279,7 @@ def main():
         logging.error(f"Error: Incorrect FMD URL: {args.fmd_url}")
         exit(1)
 
-    start_aosp_build(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
+    start_aosp_build(args.aosp_path, AOSP_PACKAGES_APPS_PATH, firmware_id="656f20cea91ec7163e85281b")
 
 
 
