@@ -127,7 +127,7 @@ def execute_build_command(aosp_path, firmware_id):
         log_name = firmware_id + ".txt"
         os.path.join(BUILD_OUT_PATH, log_name)
         with open(log_name, "w") as outfile:
-            subprocess.run(command, capture_output=True, shell=True, check=True, stdout=outfile, stderr=outfile)
+            subprocess.run(command, shell=True, check=True, stdout=outfile, stderr=outfile)
             is_build_success = True
     except subprocess.CalledProcessError as err:
         print(f"Got an error building firmware: {err}")
