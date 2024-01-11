@@ -1,5 +1,5 @@
-image_artefacts/
-out/
+image_artefacts/*
+out/*
 venv/
 env/envoy/envoy.yaml
 docker-compose.yaml

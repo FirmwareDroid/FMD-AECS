@@ -67,7 +67,7 @@ PRODUCT_PACKAGES += \
     passwd_vendor \
     selinux_policy_nonsystem \
     shell_and_utilities_vendor \ {% for line in vendor_package_name_list %}
-	{{ line \}}{% endfor %}
+{{ line \ }}{% endfor %}
 
 # Base module when shipping api level is less than or equal to 29
 PRODUCT_PACKAGES_SHIPPING_API_LEVEL_29 += \

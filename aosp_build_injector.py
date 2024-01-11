@@ -119,7 +119,7 @@ def execute_build_command(aosp_path):
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_path)
     aosp_root = shlex.quote(aosp_path)
-    command = f"source {aosp_root}/build/envsetup.sh && lunch sdk_x86_64-userdebug && m && m emu_img_zip"
+    command = f"bash -c 'source {aosp_root}/build/envsetup.sh && lunch sdk_x86_64-userdebug && m && m emu_img_zip'"
     try:
         subprocess.run(command, capture_output=True, shell=True, check=True)
         is_build_success = True

@@ -278,8 +278,8 @@ PRODUCT_PACKAGES += \
     watchdogd \
     wificond \
     wifi.rc \
-    wm \ {% for line in system_package_name_list %}
-	{{ line \}}{% endfor %}
+    wm \
+{% for line in system_package_name_list -%}{{ line }}{%- endfor -%}
 
 # VINTF data for system image
 PRODUCT_PACKAGES += \
