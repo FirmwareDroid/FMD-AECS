@@ -6,21 +6,30 @@ import os
 import argparse
 import shlex
 import zipfile
-from tqdm import tqdm
+import logging
 import shutil
 import subprocess
 import glob
 import docker
+import sys
+from tqdm import tqdm
 from string import Template
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
-import logging
 
 from config import AOSP_BUILD_OUT_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_ARTEFACTS_ABS_PATH, META_BUILD_FILENAME, \
     TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, AECS_ROOT_DIR, EMULATOR_DOCKERFILE_ABS_PATH, \
     DOCKER_PLATFORM, AOSP_PACKAGES_APPS_PATH
 from fmd_backend_requests import get_android_app_ids, download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url
+
+root = logging.getLogger()
+root.setLevel(logging.DEBUG)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+root.addHandler(handler)
 
 
 def extract_zip(file_path, destination):
