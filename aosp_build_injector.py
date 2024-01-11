@@ -68,6 +68,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id):
         aosp_packages_path: str - path to the prebuilt package folder of aosp.
         aosp_path: str -  path to aosp root folder.
     """
+    logging.info(f"Start aosp build injection with firmware: {firmware_id}")
     inject_packages(aosp_path, aosp_packages_path)
     is_build_success = execute_build_command(aosp_path, firmware_id)
     if is_build_success:
@@ -134,8 +135,8 @@ def execute_build_command(aosp_path, firmware_id):
     command = f"bash -c 'source {aosp_root}/build/envsetup.sh && lunch sdk_x86_64-userdebug && m && m emu_img_zip'"
     try:
         log_name = firmware_id + ".txt"
-        os.path.join(BUILD_OUT_PATH, log_name)
-        with open(log_name, "w") as outfile:
+        log_path = os.path.join(BUILD_OUT_PATH, log_name)
+        with open(log_path, "w") as outfile:
             subprocess.run(command, shell=True, check=True, stdout=outfile, stderr=outfile)
             is_build_success = True
     except subprocess.CalledProcessError as err:
