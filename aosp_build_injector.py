@@ -132,9 +132,13 @@ def execute_build_command(aosp_path, firmware_id):
     os.chdir(aosp_path)
     aosp_root = shlex.quote(aosp_path)
     logging.info("Starting build process...")
-    command = f"bash -c 'source {aosp_root}/build/envsetup.sh && lunch sdk_x86_64-userdebug && m && m emu_img_zip'"
+    command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+              f"&& lunch sdk_x86_64-userdebug " \
+              f"&& m " \
+              f"&& m sdk sdk_repo " \
+              f"&& m emu_img_zip'"
     try:
-        log_name = firmware_id + ".txt"
+        log_name = firmware_id + ".log"
         log_path = os.path.join(BUILD_OUT_PATH, log_name)
         with open(log_path, "w") as outfile:
             subprocess.run(command, shell=True, check=True, stdout=outfile, stderr=outfile)

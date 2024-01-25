@@ -1,0 +1,17 @@
+version: '3.7'
+services:
+  nexus:
+    platform: "linux/amd64"
+    image: sonatype/nexus3
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    volumes:
+      - ${NEXUS_REPOSITORY_PATH}nexus_data:/nexus-data
+    ports:
+      - "8081:8081"
+      - "8082:8082"
+
+networks:
+  frontend:
+    driver: bridge
