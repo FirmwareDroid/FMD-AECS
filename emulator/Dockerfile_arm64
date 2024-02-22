@@ -1,0 +1,65 @@
+FROM debian:12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libc6 libdbus-1-3 libfontconfig1 libgcc1 \
+    libpulse0 libtinfo5 libx11-6 libxcb1 libxdamage1 \
+    libnss3 libxcomposite1 libxcursor1 libxi6 \
+    libxext6 libxfixes3 zlib1g libgl1 pulseaudio pulseaudio-utils socat \
+    iputils-ping curl ca-certificates wget unzip procps rsync net-tools \
+    xz-utils python3 bison make gawk gcc dbus
+
+################################
+# Install Java
+################################
+RUN mkdir -p /usr/local/jdk-21
+WORKDIR /usr/local/jdk-21
+RUN wget https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_linux-aarch64_bin.tar.gz
+RUN tar -xf openjdk-21.0.2_linux-aarch64_bin.tar.gz
+RUN mv jdk-21.0.2/* ./
+ENV JAVA_HOME=/usr/local/jdk-21
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+################################
+# Install pulse audio default config
+################################
+COPY ./emulator/default.pa /etc/pulse/default.pa
+
+################################
+# Install Android SDK and tools
+################################
+RUN mkdir -p /android/sdk/cmdline-tools/latest && mkdir -p /android/sdk/avd && mkdir -p /android/sdk/platforms  \
+    && mkdir -p /android/sdk/platform-tools && mkdir -p /android/sdk/system-images  \
+    && mkdir /android/tmp && mkdir -p /android/user_home/ && mkdir -p /android/sdk/system-images/android/arm64-v8a/
+WORKDIR /android
+
+RUN apt install -y android-sdk-platform-tools
+RUN cp /usr/lib/android-sdk/platform-tools/* /android/sdk/platform-tools/
+
+ENV ANDROID_HOME=/android/sdk
+ENV ANDROID_SDK_ROOT=/android/sdk
+ENV ANDROID_AVD_HOME=/android/sdk/avd
+ENV ANDROID_EMULATOR_HOME=/android/sdk/emulator
+ENV ANDROID_USER_HOME=/android/user_home/
+ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+ENV PATH=$ANDROID_HOME/platform-tools:$PATH
+ENV PATH=$ANDROID_HOME/emulator/:$PATH
+
+################################
+# Prepare Android emulator using prebuilt ARM64 binary
+################################
+COPY ./emulator/prebuilts/arm64/sdk-repo-linux_aarch64-emulator-11411100.zip /android/
+RUN unzip /android/sdk-repo-linux_aarch64-emulator-11411100.zip -d /android/sdk/
+COPY ./emulator/avd/ /android/sdk/avd/
+
+################################
+# Copy system image
+################################
+COPY ./image_artefacts/arm64-v8a/ /android/sdk/system-images/android/
+RUN unzip /android/sdk/system-images/android/*.zip -d /android/sdk/system-images/android/
+
+###################################
+# Create start script
+###################################
+COPY ./emulator/emulator_start.sh /android/
+RUN chmod +x /android/emulator_start.sh
+CMD ["bash", "-c", "/android/emulator_start.sh"]

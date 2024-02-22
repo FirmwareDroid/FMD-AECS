@@ -1,6 +1,7 @@
 #!/bin/bash
 
 setup_pulse_audio() {
+  # Setups pulse audio for the emulator
   mkdir -p /root/.config/pulse
   export PULSE_SERVER=unix:/tmp/pulse-socket
   pulseaudio -D -vvvv --log-time=1 --log-target=newfile:/tmp/pulseverbose.log --log-time=1 --exit-idle-time=-1
@@ -8,7 +9,8 @@ setup_pulse_audio() {
   pactl list || exit 1
 }
 
-forward_loggers() {
+setup_logger_forwarding() {
+  # Forward logcat and kernel logs to stdout
   mkdir /tmp/android-unknown
   mkfifo /tmp/android-unknown/kernel.log
   mkfifo /tmp/android-unknown/logcat.log
@@ -17,16 +19,41 @@ forward_loggers() {
   cat /tmp/android-unknown/logcat.log | sed -u 's/^/logcat: /g' &
 }
 
+setup_port_forwarding() {
+  # Setups port forwarding for adb and gRPC
+
+  sleep 1
+  # Forward adb port
+  socat -d tcp-listen:5555,reuseaddr,fork tcp:127.0.0.1:5557 &
+  # Forward gRPC port
+  socat -d tcp-listen:8554,reuseaddr,fork tcp:127.0.0.1:8556 &
+}
+
+
+architecture=$(uname -m)
+setup_port_forwarding
 setup_pulse_audio
-forward_loggers
 
-# Forward adb port
-/android/sdk/platform-tools/adb start-server &
-sleep 1
-socat -d tcp-listen:5555,reuseaddr,fork tcp:127.0.0.1:5557 &
-# Forward gRPC port
-socat -d tcp-listen:8554,reuseaddr,fork tcp:127.0.0.1:8556 &
+while true; do
+  setup_logger_forwarding
 
-/android/sdk/emulator/emulator -avd Test -no-window -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -no-boot-anim -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1"
-pid=$!
-wait $pid
+  /android/sdk/platform-tools/adb start-server &
+
+  if [[ $architecture == "x86_64" ]]; then
+    AVD="x86_64"
+    /android/sdk/emulator/emulator -avd $AVD -no-window -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -no-boot-anim -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1" &
+    pid=$!
+  elif [[ $architecture == "aarch64" ]]; then
+    AVD="Arm64"
+    /android/sdk/emulator/emulator -avd Arm64 -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "/tmp/android-unknown/logcat.log" -shell-serial "file:/tmp/android-unknown/kernel.log" -no-boot-anim -wipe-data -show-kernel -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max &
+    pid=$!
+  else
+    echo "Unsupported architecture"
+    exit 1
+  fi
+
+  wait $pid
+
+  echo "Emulator crashed, restarting..."
+  sleep 10
+done
