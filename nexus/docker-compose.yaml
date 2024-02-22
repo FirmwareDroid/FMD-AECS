@@ -7,11 +7,9 @@ services:
     env_file:
       - ./.env
     volumes:
-      - ${NEXUS_REPOSITORY_PATH}nexus_data:/nexus-data
+      - ${NEXUS_REPOSITORY_PATH}:/nexus-data
     ports:
       - "8081:8081"
       - "8082:8082"
 
-networks:
-  frontend:
-    driver: bridge
+# On linux: sudo chown -R 200:200 ./nexus_data

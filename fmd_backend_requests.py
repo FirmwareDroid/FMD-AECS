@@ -115,14 +115,14 @@ def get_android_app_ids(graphql_url, firmware_id, cookies):
     return object_id_list
 
 
-def download_firmware_build_files(fmd_url, android_app_id_list, cookies, aosp_packages_path):
+def download_firmware_build_files(fmd_url, android_app_id_list, cookies, aosp_packages_abs_path):
     """
     Downloads the build files for the given Android app (object id) and shows a progress bar of the download.
 
     :param fmd_url: str - base url of the FirmwareDroid backend.
     :param android_app_id_list: list(str) - document reference to the Android app to download.
     :param cookies: str - cookie jar for http requests.
-    :param aosp_packages_path: str - folder of the aosp app packages.
+    :param aosp_packages_abs_path: str - folder of the aosp app packages.
 
     :return: str - path to the downloaded file.
 
@@ -146,7 +146,7 @@ def download_firmware_build_files(fmd_url, android_app_id_list, cookies, aosp_pa
     filename_unsafe = re.findall("filename=(.+)", content_disposition_header)[0]
     filename = secure_filename(filename_unsafe)
 
-    output_file_path = os.path.join(aosp_packages_path, filename)
+    output_file_path = os.path.join(aosp_packages_abs_path, filename)
     with open(output_file_path, mode="wb") as file:
         for chunk in response.iter_content(chunk_size=10 * 1024):
             progress_bar.update(len(chunk))
