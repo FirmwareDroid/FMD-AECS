@@ -275,11 +275,6 @@ def main():
                         default=None,
                         required=True,
                         help="Username for the authentication to the docker registry.")
-    parser.add_argument("-p", "--docker-repo-password",
-                        type=str,
-                        default=None,
-                        required=True,
-                        help="Password for the authentication to the docker registry.")
     parser.add_argument("-r", "--docker-repo-url",
                         type=str,
                         default=None,
@@ -294,7 +289,8 @@ def main():
         logging.error(f"Error: Incorrect FMD URL: {args.fmd_url}")
         exit(1)
 
-    fmd_password = getpass()
+    fmd_password = getpass(f"Please enter your FirmwareDroid password {args.fmd_username}: ")
+    docker_repo_password = getpass(f"Please enter your Docker registry password {args.docker_repo_username}: ")
     graphql_url = get_graphql_url(args.fmd_url)
     csrf_cookie = get_csrf_token(args.fmd_url)
     cookies = authenticate_fmd(graphql_url, args.fmd_username, fmd_password, csrf_cookie)
@@ -321,7 +317,7 @@ def main():
         handle_docker_images(args.docker_repo_url,
                              firmware_id,
                              args.docker_repo_username,
-                             args.docker_repo_password,
+                             docker_repo_password,
                              docker_build_arch)
         # clear_environment(aosp_packages_path)
 
