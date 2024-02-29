@@ -150,8 +150,9 @@ def execute_build_command(aosp_path, firmware_id, build_arch):
               f"&& lunch {build_arch}" \
               f"&& m " \
               f"&& m sdk " \
-              f"&& m sdk_repo " \
               f"&& m emu_img_zip'"
+              #f"&& m sdk_repo " \
+
     try:
         log_name = firmware_id + ".log"
         log_path = os.path.join(BUILD_OUT_PATH, log_name)
@@ -284,9 +285,9 @@ def main():
                         default=None,
                         help="Specifies the url to a docker registry, where the emulator images will be pushed to.")
     parser.add_argument("-a", "--arch",
-                        action="store_true",
-                        default=False,
-                        help="Specifies the CPU arch to use for the build process. True = ARM64, False = x86_64")
+                        type=str,
+                        default="x86_64",
+                        help='Specifies the CPU architecture ("arm64" or "x86_64") to use for the build process.')
     args = parser.parse_args()
 
     if not (args.fmd_url.startswith("https://") or args.fmd_url.startswith("http://")):

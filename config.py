@@ -22,7 +22,7 @@ EMULATOR_DOCKERFILE_ABS_PATH = os.path.join(AECS_ROOT_DIR, "emulator/Dockerfile"
 DOCKER_PLATFORM_X86_64 = "linux/amd64"
 DOCKER_PLATFORM_ARM64 = "linux/arm64"
 FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE = "${url}/download/android_app/build_files"
-SUPPORTED_ARCHITECTURES = ["arm64", "x86_64"]
+SUPPORTED_ARCHITECTURES = ["x86_64", "arm64"]
 SUPPORTED_LUNCH_TARGETS = ["sdk_x86_64-userdebug", "sdk_phone_arm64"]
 
 # String templates
