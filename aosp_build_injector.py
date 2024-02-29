@@ -289,8 +289,8 @@ def main():
         logging.error(f"Error: Incorrect FMD URL: {args.fmd_url}")
         exit(1)
 
-    fmd_password = getpass(f"Please enter your FirmwareDroid password {args.fmd_username}: ")
-    docker_repo_password = getpass(f"Please enter your Docker registry password {args.docker_repo_username}: ")
+    fmd_password = getpass(f"Please enter your FirmwareDroid password ({args.fmd_username}): ")
+    docker_repo_password = getpass(f"Please enter your Docker registry password ({args.docker_repo_username}): ")
     graphql_url = get_graphql_url(args.fmd_url)
     csrf_cookie = get_csrf_token(args.fmd_url)
     cookies = authenticate_fmd(graphql_url, args.fmd_username, fmd_password, csrf_cookie)
