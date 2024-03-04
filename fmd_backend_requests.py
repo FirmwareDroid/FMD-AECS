@@ -4,9 +4,7 @@ import re
 import requests
 from werkzeug.utils import secure_filename
 from string import Template
-
 from tqdm import tqdm
-
 from config import FMD_AUTH_QUERY_TEMPLATE, VERIFY_SSL, FMD_CSRF_URL_TEMPLATE, FMD_AECS_FIRMWARE_QUERY_TEMPLATE, \
     FMD_APP_ID_QUERY_TEMPLATE, FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE, FMD_GRAPHQL_URL_TEMPLATE
 
