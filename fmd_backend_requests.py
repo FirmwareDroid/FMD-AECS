@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import requests
@@ -132,12 +133,15 @@ def download_firmware_build_files(fmd_url, android_app_id_list, cookies, aosp_pa
                "Content-Type": "application/json"}
     android_app_dict = {"object_id_list": android_app_id_list}
     android_app_dict = json.dumps(android_app_dict)
+    logging.info(f"Downloading firmware build files from {download_url}...this may take a while.")
     response = requests.post(download_url,
                              data=android_app_dict,
                              headers=headers,
                              stream=True,
                              verify=VERIFY_SSL,
                              cookies=cookies)
+    if response.status_code != 200:
+        raise RuntimeError(f"Could not download firmware build files. Status code: {response.status_code}")
     total_size_in_bytes = int(response.headers.get('Content-Length', 0))
     progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
     content_disposition_header = response.headers['Content-Disposition']
