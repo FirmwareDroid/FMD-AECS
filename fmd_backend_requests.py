@@ -102,6 +102,8 @@ def get_android_app_ids(graphql_url, firmware_id, cookies):
     params = temp_obj.substitute(firmware_id=firmware_id)
     params = json.loads(params)
     headers = {"X-CSRFToken": cookies["csrftoken"], "Referer": graphql_url}
+    logging.info(f"Fetching Android app ids for firmware id {firmware_id}...")
+    logging.info(f"URL: {graphql_url}, params: {params}")
     with requests.post(graphql_url,
                        headers=headers,
                        params=params,
