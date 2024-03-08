@@ -32,8 +32,10 @@ FMD_AUTH_QUERY_TEMPLATE = '{"query": "query Auth ' \
                           '"operationName": "Auth"}'
 FMD_AECS_FIRMWARE_QUERY_TEMPLATE = '{"query": "query GetFirmwareIdList {aecs_firmware_id_list}",' \
                                    '"operationName": "GetFirmwareIdList"}'
-FMD_APP_ID_QUERY_TEMPLATE = '{"query": "query GetAppIds {android_app_id_list_by_firmware(objectIdList: [\\\"${' \
-                            'firmware_id}\\\"])}",' \
+FMD_APP_ID_QUERY_TEMPLATE = '{"query": "query GetAppIds {' \
+                            'android_app_id_list(' \
+                            'fieldFilter: ' \
+                            '{firmwareIdReference: [\\\"${firmware_id}\\\"]})",' \
                             '"operationName": "GetAppIds"}'
 FMD_CSRF_URL_TEMPLATE = "${url}/csrf/"
 VERIFY_SSL = False  # You can suppress warnings with: export PYTHONWARNINGS="ignore:Unverified HTTPS request"
