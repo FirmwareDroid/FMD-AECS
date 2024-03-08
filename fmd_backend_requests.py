@@ -107,6 +107,8 @@ def get_android_app_ids(graphql_url, firmware_id, cookies):
                        params=params,
                        cookies=cookies,
                        verify=VERIFY_SSL) as response:
+        if response.status_code != 200:
+            raise RuntimeError(f"Could not fetch Android app ids. Status code: {response}")
         resp_dict = response.json()
         object_id_list = resp_dict["data"]["android_app_id_list"]
         if not object_id_list:
