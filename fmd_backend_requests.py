@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 from string import Template
 from tqdm import tqdm
 from config import FMD_AUTH_QUERY_TEMPLATE, VERIFY_SSL, FMD_CSRF_URL_TEMPLATE, FMD_AECS_FIRMWARE_QUERY_TEMPLATE, \
-    FMD_APP_ID_QUERY_TEMPLATE, FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE, FMD_GRAPHQL_URL_TEMPLATE
+    FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE, FMD_GRAPHQL_URL_TEMPLATE
 
 
 def authenticate_fmd(graphql_url, username, password, csrf_cookie):
@@ -31,14 +31,14 @@ def authenticate_fmd(graphql_url, username, password, csrf_cookie):
                        headers=headers,
                        verify=VERIFY_SSL,
                        params=params) as response:
-        try:
+        if response.status_code != 200:
+            raise RuntimeError(f"Could not authenticate. Status code: {response.status_code}")
+        else:
             resp_dict = response.json()
             jwt_token = resp_dict["data"]["tokenAuth"]["token"]
             if not jwt_token:
                 raise RuntimeError("Could not authenticate.")
-        except KeyError:
-            raise RuntimeError("Could not authenticate. Maybe wrong username or password?")
-        auth_cookie = response.cookies
+            auth_cookie = response.cookies
     return auth_cookie
 
 
@@ -55,6 +55,8 @@ def get_csrf_token(url):
     temp_obj = Template(FMD_CSRF_URL_TEMPLATE)
     fetch_url = temp_obj.substitute(url=url)
     with requests.get(fetch_url, verify=VERIFY_SSL) as response:
+        if response.status_code != 200:
+            raise RuntimeError(f"Could not fetch CSRF-Token. Status code: {response.status_code}")
         resp_dict = response.json()
         csrf_token = resp_dict["csrfToken"]
         if not csrf_token:
@@ -80,6 +82,9 @@ def get_firmware_ids(graphql_url, cookies):
                        params=params,
                        headers=headers,
                        verify=VERIFY_SSL) as response:
+        if response.status_code != 200:
+            raise RuntimeError(f"Could not fetch firmware ids. Status code: {response.status_code};"
+                               f"response: {response.text}")
         resp_dict = response.json()
         object_id_list = resp_dict["data"]["aecs_firmware_id_list"]
         if not object_id_list:
@@ -87,43 +92,12 @@ def get_firmware_ids(graphql_url, cookies):
     return object_id_list
 
 
-def get_android_app_ids(graphql_url, firmware_id, cookies):
-    """
-    Fetches a list of Android app ids from the fmd service.
-    Args:
-        graphql_url: str - URL to the fmd service api
-        firmware_id: str - id of the firmware to fetch the Android apps from.
-        cookies: str - cookie-jar for requests.
-
-    Returns: list(str) - list of object id for AndroidApp documents.
-
-    """
-    temp_obj = Template(FMD_APP_ID_QUERY_TEMPLATE)
-    params = temp_obj.substitute(firmware_id=firmware_id)
-    params = json.loads(params)
-    headers = {"X-CSRFToken": cookies["csrftoken"], "Referer": graphql_url}
-    logging.info(f"Fetching Android app ids for firmware id {firmware_id}...")
-    logging.info(f"URL: {graphql_url}, params: {params}")
-    with requests.post(graphql_url,
-                       headers=headers,
-                       params=params,
-                       cookies=cookies,
-                       verify=VERIFY_SSL) as response:
-        if response.status_code != 200:
-            raise RuntimeError(f"Could not fetch Android app ids. Status code: {response}")
-        resp_dict = response.json()
-        object_id_list = resp_dict["data"]["android_app_id_list"]
-        if not object_id_list:
-            raise RuntimeError("Could not fetch Android app ids.")
-    return object_id_list
-
-
-def download_firmware_build_files(fmd_url, android_app_id_list, cookies, aosp_packages_abs_path):
+def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_abs_path):
     """
     Downloads the build files for the given Android app (object id) and shows a progress bar of the download.
 
     :param fmd_url: str - base url of the FirmwareDroid backend.
-    :param android_app_id_list: list(str) - document reference to the Android app to download.
+    :param firmware_id: str - id of the firmware to fetch the Android apps from.
     :param cookies: str - cookie jar for http requests.
     :param aosp_packages_abs_path: str - folder of the aosp app packages.
 
@@ -135,17 +109,18 @@ def download_firmware_build_files(fmd_url, android_app_id_list, cookies, aosp_pa
     headers = {"X-CSRFToken": cookies["csrftoken"],
                "Referer": fmd_url,
                "Content-Type": "application/json"}
-    android_app_dict = {"object_id_list": android_app_id_list}
-    android_app_dict = json.dumps(android_app_dict)
-    logging.info(f"Downloading firmware build files from {download_url}...this may take a while.")
+    request_body = {"object_id_list": [firmware_id]}
+    request_body = json.dumps(request_body)
+    logging.info(f"Initialize build file download from {download_url}... this may take a while.")
     response = requests.post(download_url,
-                             data=android_app_dict,
+                             data=request_body,
                              headers=headers,
                              stream=True,
                              verify=VERIFY_SSL,
                              cookies=cookies)
     if response.status_code != 200:
         raise RuntimeError(f"Could not download firmware build files. Status code: {response.status_code}")
+    logging.info(f"Got firmware build files from {download_url}.")
     total_size_in_bytes = int(response.headers.get('Content-Length', 0))
     progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
     content_disposition_header = response.headers['Content-Disposition']
