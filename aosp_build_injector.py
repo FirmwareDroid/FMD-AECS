@@ -19,7 +19,7 @@ from config import AOSP_BUILD_OUT_SDKx86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_A
     TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, AECS_ROOT_DIR, EMULATOR_DOCKERFILE_ABS_PATH, \
     DOCKER_PLATFORM_X86_64, AOSP_PACKAGES_APPS_PATH, DOCKER_PLATFORM_ARM64, SUPPORTED_ARCHITECTURES, \
     SUPPORTED_LUNCH_TARGETS
-from fmd_backend_requests import get_android_app_ids, download_firmware_build_files, get_csrf_token, authenticate_fmd, \
+from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url
 
 
@@ -227,22 +227,19 @@ def clear_environment(aosp_packages_path):
         shutil.copy(template_path, aosp_product_path)
 
 
-def fetch_build_files(firmware_id, graphql_url, cookies, fmd_url, aosp_packages_abs_path):
+def fetch_build_files(firmware_id, cookies, fmd_url, aosp_packages_abs_path):
     """
     Main wrapper routine to download and extract firmware build files for aosp.
     Args:
         firmware_id: str - id of the firmware packages to fetch.
-        graphql_url: str - url to the fmd api.
         cookies: cookie jar for requests.
         fmd_url: str - url to the main fmd backend
         aosp_packages_abs_path: str - path to extract the app packages to.
 
     """
     logging.info(f"Process firmware: {firmware_id}")
-    android_app_id_list = get_android_app_ids(graphql_url, firmware_id, cookies)
-    logging.info(f"Fetched Android ids: {len(android_app_id_list)}")
     zip_file_path = download_firmware_build_files(fmd_url,
-                                                  android_app_id_list,
+                                                  firmware_id,
                                                   cookies,
                                                   aosp_packages_abs_path)
     extract_zip(zip_file_path, aosp_packages_abs_path)
@@ -307,7 +304,7 @@ def main():
     logging.info(f"Downloading and extracting app packages to: {AOSP_PACKAGES_APPS_PATH}")
     for firmware_id in tqdm(firmware_id_list):
         logging.info(f"Start fetching for build files for firmware-id: {firmware_id}")
-        fetch_build_files(firmware_id, graphql_url, cookies, args.fmd_url, aosp_packages_abs_path)
+        fetch_build_files(firmware_id, cookies, args.fmd_url, aosp_packages_abs_path)
         logging.info(f"Start emulator image build process for firmware-id: {firmware_id}")
         start_aosp_build(args.aosp_path, AOSP_PACKAGES_APPS_PATH,
                          firmware_id="656f20cea91ec7163e85281b",
