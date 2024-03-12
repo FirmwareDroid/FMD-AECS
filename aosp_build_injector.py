@@ -299,10 +299,13 @@ def main():
     logging.info(f"Got {len(firmware_id_list)} firmware ids to process...")
     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
 
-    if args.arch in SUPPORTED_ARCHITECTURES:
+    if args.arch not in SUPPORTED_ARCHITECTURES:
+        raise RuntimeError(f"Unsupported architecture: {args.arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
+
+    if args.arch == SUPPORTED_ARCHITECTURES[0]:
         build_arch = SUPPORTED_LUNCH_TARGETS[1]
         docker_build_arch = DOCKER_PLATFORM_X86_64
-    else:
+    elif args.arch == SUPPORTED_ARCHITECTURES[1]:
         build_arch = SUPPORTED_LUNCH_TARGETS[0]
         docker_build_arch = DOCKER_PLATFORM_ARM64
 
