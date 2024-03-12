@@ -22,7 +22,6 @@ from config import AOSP_BUILD_OUT_SDKx86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_A
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url
 
-
 root = logging.getLogger()
 root.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
@@ -52,8 +51,8 @@ def authenticate_docker_registry(repo_url, docker_user, docker_password):
 def delete_files(dir_path):
     """
     Deletes all files in the given directory.
-    Args:
-        dir_path: str - path of the directory to delete files from.
+
+    :param dir_path: str - path of the directory to delete files from.
 
     """
     files = glob.glob(dir_path)
@@ -64,20 +63,26 @@ def delete_files(dir_path):
 def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, build_arch):
     """
     Wrapper method to start the firmware injection and build process.
-    Args:
-        build_arch: str - aosp build argument to select the build arch.
-        firmware_id: str - object-id of the firmware
-        aosp_packages_path: str - path to the prebuilt package folder of aosp.
-        aosp_path: str - path to aosp root folder.
+
+    :param build_arch: str - aosp build argument to select the build arch.
+    :param firmware_id: str - object-id of the firmware
+    :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
+    :param aosp_path: str - path to aosp root folder.
+
+    :returns: bool - True if the build process was successful.
+
     """
+    is_successful = False
     logging.info(f"Start aosp build injection with firmware: {firmware_id}")
     inject_packages(aosp_path, aosp_packages_path)
     try:
         execute_build_command(aosp_path, firmware_id, build_arch)
         extract_emulator_image(aosp_path)
+        is_successful = True
     except Exception as err:
         logging.error(err)
         # TODO ADD EXCEPTION HANDLING FOR BUILD ERRORS
+    return is_successful
 
 
 def extract_emulator_image(aosp_path):
@@ -87,7 +92,6 @@ def extract_emulator_image(aosp_path):
     image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDKx86_64_PATH, AOSP_EMU_ZIP_FILENAME)
     logging.info(f"Extract image_source_path: {image_source_path} to {IMAGE_ARTEFACTS_ABS_PATH}")
     if os.path.exists(image_source_path):
-        # shutil.copy(image_source_path, IMAGE_ARTEFACTS_ABS_PATH)
         extract_zip(image_source_path, IMAGE_ARTEFACTS_ABS_PATH)
     else:
         raise RuntimeError(f"Could not find image zip file: {image_source_path}")
@@ -140,7 +144,7 @@ def execute_build_command(aosp_path, firmware_id, build_arch):
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_path)
     aosp_root = shlex.quote(aosp_path)
-    logging.info("Starting build process...")
+    logging.info(f"Starting build process for {build_arch}... this will take a long time.")
 
     if build_arch not in SUPPORTED_LUNCH_TARGETS:
         raise RuntimeError("Unsupported build CPU architecture specified.")
@@ -150,11 +154,12 @@ def execute_build_command(aosp_path, firmware_id, build_arch):
               f"&& m " \
               f"&& m sdk " \
               f"&& m emu_img_zip'"
-              #f"&& m sdk_repo " \
+    # f"&& m sdk_repo " \
 
     try:
         log_name = firmware_id + ".log"
         log_path = os.path.join(BUILD_OUT_PATH, log_name)
+        logging.info(f"Build logs will be written to: {log_path}")
         with open(log_path, "w") as outfile:
             subprocess.run(command, shell=True, check=True, stdout=outfile, stderr=outfile)
     except subprocess.CalledProcessError as err:
@@ -302,20 +307,27 @@ def main():
         docker_build_arch = DOCKER_PLATFORM_ARM64
 
     logging.info(f"Downloading and extracting app packages to: {AOSP_PACKAGES_APPS_PATH}")
+    failed_firmware_ids = []
     for firmware_id in tqdm(firmware_id_list):
         logging.info(f"Start fetching for build files for firmware-id: {firmware_id}")
         fetch_build_files(firmware_id, cookies, args.fmd_url, aosp_packages_abs_path)
         logging.info(f"Start emulator image build process for firmware-id: {firmware_id}")
-        start_aosp_build(args.aosp_path, AOSP_PACKAGES_APPS_PATH,
-                         firmware_id="656f20cea91ec7163e85281b",
-                         build_arch=build_arch)
-        logging.info(f"Create emulator docker images for: {firmware_id}")
-        handle_docker_images(args.docker_repo_url,
-                             firmware_id,
-                             args.docker_repo_username,
-                             docker_repo_password,
-                             docker_build_arch)
+        is_build_success = start_aosp_build(args.aosp_path, AOSP_PACKAGES_APPS_PATH,
+                                            firmware_id=firmware_id,
+                                            build_arch=build_arch)
+        if is_build_success:
+            logging.info(f"Create emulator docker images for: {firmware_id}")
+            handle_docker_images(args.docker_repo_url,
+                                 firmware_id,
+                                 args.docker_repo_username,
+                                 docker_repo_password,
+                                 docker_build_arch)
+        else:
+            logging.error(f"Build process for firmware-id: {firmware_id} failed. Continue with next firmware.")
+            failed_firmware_ids.append(firmware_id)
         # clear_environment(aosp_packages_path)
+    if len(failed_firmware_ids) > 0:
+        logging.error(f"Failed to build the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
 
 
 if __name__ == "__main__":
