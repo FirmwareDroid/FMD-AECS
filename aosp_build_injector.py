@@ -309,10 +309,10 @@ def main():
         raise RuntimeError(f"Unsupported architecture: {args.arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
 
     if args.arch == SUPPORTED_ARCHITECTURES[0]:
-        build_arch = SUPPORTED_LUNCH_TARGETS[1]
-        docker_build_arch = DOCKER_PLATFORM_X86_64
-    elif args.arch == SUPPORTED_ARCHITECTURES[1]:
         build_arch = SUPPORTED_LUNCH_TARGETS[0]
+        docker_build_arch = DOCKER_PLATFORM_X86_64
+    else:
+        build_arch = SUPPORTED_LUNCH_TARGETS[1]
         docker_build_arch = DOCKER_PLATFORM_ARM64
 
     logging.info(f"Downloading and extracting app packages to: {AOSP_PACKAGES_APPS_PATH}")
