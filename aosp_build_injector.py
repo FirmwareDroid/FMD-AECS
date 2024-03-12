@@ -15,10 +15,10 @@ import sys
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
-from config import AOSP_BUILD_OUT_SDKx86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_ARTEFACTS_ABS_PATH, META_BUILD_FILENAME, \
+from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_ARTEFACTS_ABS_PATH, META_BUILD_FILENAME, \
     TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, AECS_ROOT_DIR, EMULATOR_DOCKERFILE_ABS_PATH, \
     DOCKER_PLATFORM_X86_64, AOSP_PACKAGES_APPS_PATH, DOCKER_PLATFORM_ARM64, SUPPORTED_ARCHITECTURES, \
-    SUPPORTED_LUNCH_TARGETS
+    SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url
 
@@ -77,7 +77,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, build_arch):
     inject_packages(aosp_path, aosp_packages_path)
     try:
         execute_build_command(aosp_path, firmware_id, build_arch)
-        extract_emulator_image(aosp_path)
+        extract_emulator_image(aosp_path, build_arch)
         is_successful = True
     except Exception as err:
         logging.error(err)
@@ -85,11 +85,17 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, build_arch):
     return is_successful
 
 
-def extract_emulator_image(aosp_path):
+def extract_emulator_image(aosp_path, build_arch):
     """
     Extracts the aosp emulator images to the image artefacts folder for further usage.
     """
-    image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDKx86_64_PATH, AOSP_EMU_ZIP_FILENAME)
+    if build_arch == SUPPORTED_ARCHITECTURES[0]:
+        image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME)
+    elif build_arch == SUPPORTED_ARCHITECTURES[1]:
+        image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME)
+    else:
+        raise RuntimeError(f"Unsupported build architecture: {build_arch}")
+
     logging.info(f"Extract image_source_path: {image_source_path} to {IMAGE_ARTEFACTS_ABS_PATH}")
     if os.path.exists(image_source_path):
         extract_zip(image_source_path, IMAGE_ARTEFACTS_ABS_PATH)
