@@ -19,7 +19,7 @@ from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_
     TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, AECS_ROOT_DIR, EMULATOR_DOCKERFILE_ABS_PATH, \
     DOCKER_PLATFORM_X86_64, AOSP_PACKAGES_APPS_PATH, DOCKER_PLATFORM_ARM64, SUPPORTED_ARCHITECTURES, \
     SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
-    BASE_VENDOR_FILE_NAME, BASE_FILENAMES
+    BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url
 
@@ -164,7 +164,10 @@ def inject_packages(aosp_path, aosp_packages_path, exclude_list=[]):
     for meta_build_filename in META_BUILD_FILENAMES:
         meta_build_path = os.path.join(aosp_path, aosp_packages_path, meta_build_filename)
         if not os.path.exists(meta_build_path):
-            raise RuntimeError(f"Could not find file: {meta_build_filename} from {meta_build_path}")
+            if meta_build_filename == META_BUILD_SYSTEM_FILENAME:
+                raise RuntimeError(f"Could not find file: {meta_build_filename} from {meta_build_path}")
+            else:
+                continue
 
         base_filename = get_base_filename(meta_build_filename)
         content = read_and_render_template(meta_build_path, base_filename)
@@ -268,7 +271,6 @@ def clear_packages(aosp_packages_path):
         os.remove(aosp_packages_path + "meta_build_system.txt")
         os.remove(aosp_packages_path + "meta_build_vendor.txt")
         os.remove(aosp_packages_path + "meta_build_product.txt")
-        os.remove(aosp_packages_path + "apk_meta.txt")
         logging.info("Cleared app packages from aosp source code.")
     except Exception as err:
         logging.error(err)
