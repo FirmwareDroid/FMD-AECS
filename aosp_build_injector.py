@@ -60,11 +60,11 @@ def delete_files(dir_path):
         os.remove(f)
 
 
-def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, build_arch):
+def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target):
     """
     Wrapper method to start the firmware injection and build process.
 
-    :param build_arch: str - aosp build argument to select the build arch.
+    :param lunch_target: str - aosp build argument to select the build arch.
     :param firmware_id: str - object-id of the firmware
     :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
     :param aosp_path: str - path to aosp root folder.
@@ -76,8 +76,8 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, build_arch):
     logging.info(f"Start aosp build injection with firmware: {firmware_id}")
     inject_packages(aosp_path, aosp_packages_path)
     try:
-        execute_build_command(aosp_path, firmware_id, build_arch)
-        extract_emulator_image(aosp_path, build_arch)
+        execute_build_command(aosp_path, firmware_id, lunch_target)
+        extract_emulator_image(aosp_path, lunch_target)
         is_successful = True
     except Exception as err:
         logging.error(err)
@@ -85,16 +85,16 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, build_arch):
     return is_successful
 
 
-def extract_emulator_image(aosp_path, build_arch):
+def extract_emulator_image(aosp_path, lunch_target):
     """
     Extracts the aosp emulator images to the image artefacts folder for further usage.
     """
-    if build_arch == SUPPORTED_ARCHITECTURES[0]:
+    if lunch_target == SUPPORTED_LUNCH_TARGETS[0]:
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME)
-    elif build_arch == SUPPORTED_ARCHITECTURES[1]:
+    elif lunch_target == SUPPORTED_LUNCH_TARGETS[1]:
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME)
     else:
-        raise RuntimeError(f"Unsupported build architecture: {build_arch}")
+        raise RuntimeError(f"Unsupported build architecture: {lunch_target}")
 
     logging.info(f"Extract image_source_path: {image_source_path} to {IMAGE_ARTEFACTS_ABS_PATH}")
     if os.path.exists(image_source_path):
@@ -136,27 +136,27 @@ def inject_packages(aosp_path, aosp_packages_path, exclude_list=[]):
         raise RuntimeError(f"AOSP build file does not exist: {aosp_base_system_path}")
 
 
-def execute_build_command(aosp_path, firmware_id, build_arch):
+def execute_build_command(aosp_path, firmware_id, lunch_target):
     """
     Start the aosp build process.
     Pack all Android images with ("m emu_img_zip"). Copy the artefacts to the local image folder. Unzips the artefacts.
     # https://source.android.com/docs/setup/create/avd#sharing_avd_system_images_for_others_to_use_with_android_studio
 
     Args:
-        build_arch: str - aosp build argument to select the build arch.
+        lunch_target: str - aosp build argument to select the build arch.
         firmware_id: str - object-id of the firmware
         aosp_path: str - path to aosp root folder.
     """
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_path)
     aosp_root = shlex.quote(aosp_path)
-    logging.info(f"Starting build process for {build_arch}... this will take a long time.")
+    logging.info(f"Starting build process for {lunch_target}... this will take a long time.")
 
-    if build_arch not in SUPPORTED_LUNCH_TARGETS:
+    if lunch_target not in SUPPORTED_LUNCH_TARGETS:
         raise RuntimeError("Unsupported build CPU architecture specified.")
 
     command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
-              f"&& lunch {build_arch}" \
+              f"&& lunch {lunch_target}" \
               f"&& m " \
               f"&& m sdk " \
               f"&& m emu_img_zip'"
@@ -309,10 +309,10 @@ def main():
         raise RuntimeError(f"Unsupported architecture: {args.arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
 
     if args.arch == SUPPORTED_ARCHITECTURES[0]:
-        build_arch = SUPPORTED_LUNCH_TARGETS[0]
+        lunch_target = SUPPORTED_LUNCH_TARGETS[0]
         docker_build_arch = DOCKER_PLATFORM_X86_64
     else:
-        build_arch = SUPPORTED_LUNCH_TARGETS[1]
+        lunch_target = SUPPORTED_LUNCH_TARGETS[1]
         docker_build_arch = DOCKER_PLATFORM_ARM64
 
     logging.info(f"Downloading and extracting app packages to: {AOSP_PACKAGES_APPS_PATH}")
@@ -323,7 +323,7 @@ def main():
         logging.info(f"Start emulator image build process for firmware-id: {firmware_id}")
         is_build_success = start_aosp_build(args.aosp_path, AOSP_PACKAGES_APPS_PATH,
                                             firmware_id=firmware_id,
-                                            build_arch=build_arch)
+                                            lunch_target=lunch_target)
         if is_build_success:
             logging.info(f"Create emulator docker images for: {firmware_id}")
             handle_docker_images(args.docker_repo_url,
