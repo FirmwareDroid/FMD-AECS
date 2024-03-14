@@ -120,19 +120,19 @@ def get_base_filename(meta_build_filename):
         return BASE_SYSTEM_FILE_NAME
 
 
-def read_and_render_template(meta_build_path):
+def read_and_render_template(meta_build_path, base_filename):
     """
     Reads the meta_build.txt file and renders the aosp build file template with the package names.
 
     :param meta_build_path: str - path to the meta_build.txt file.
+    :param base_filename: str - base filename of the aosp build file to use as template.
 
-    Returns: str - rendered aosp build file template.
-
+    :returns: str - rendered aosp build file template.
     """
     with open(meta_build_path, 'r') as meta_build_file:
         system_package_name_list = meta_build_file.readlines()
         environment = Environment(loader=FileSystemLoader(TEMPLATE_FOLDER))
-        template = environment.get_template()
+        template = environment.get_template(base_filename)
         return template.render(system_package_name_list=system_package_name_list)
 
 
@@ -167,7 +167,7 @@ def inject_packages(aosp_path, aosp_packages_path, exclude_list=[]):
             raise RuntimeError(f"Could not find file: {meta_build_filename} from {meta_build_path}")
 
         base_filename = get_base_filename(meta_build_filename)
-        content = read_and_render_template(meta_build_path)
+        content = read_and_render_template(meta_build_path, base_filename)
 
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
         if not os.path.exists(aosp_base_file_path):
