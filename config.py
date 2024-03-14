@@ -4,12 +4,17 @@ from pathlib import Path
 AECS_ROOT_DIR = str(Path().absolute())
 SCRIPT_ROOT_PATH = os.path.dirname(os.path.realpath(__file__))
 AOSP_PACKAGES_APPS_PATH = "packages/apps/"
-META_BUILD_FILENAME = "meta_build.txt"
+META_BUILD_SYSTEM_FILENAME = "meta_build_system.txt"
+META_BUILD_VENDOR_FILENAME = "meta_build_vendor.txt"
+META_BUILD_PRODUCT_FILENAME = "meta_build_product.txt"
+META_BUILD_FILENAMES = [META_BUILD_SYSTEM_FILENAME, META_BUILD_VENDOR_FILENAME, META_BUILD_PRODUCT_FILENAME]
 TEMPLATE_FOLDER = "templates/12/"
 BASE_PATH = "build/make/target/product/"
 BASE_PRODUCT_FILE_NAME = "base_product.mk"
 BASE_SYSTEM_FILE_NAME = "base_system.mk"
 BASE_VENDOR_FILE_NAME = "base_vendor.mk"
+BASE_FILENAMES = [BASE_PRODUCT_FILE_NAME, BASE_SYSTEM_FILE_NAME, BASE_VENDOR_FILE_NAME]
+
 BUILD_OUT_PATH = os.path.join(SCRIPT_ROOT_PATH, "out/")
 IMAGE_ARTEFACTS_ARM64_PATH = "image_artefacts/arm64-v8a/"
 IMAGE_ARTEFACTS_X86_64_PATH = "image_artefacts/x86_64/"

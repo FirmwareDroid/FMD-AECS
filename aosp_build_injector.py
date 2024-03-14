@@ -15,10 +15,11 @@ import sys
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
-from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_ARTEFACTS_ABS_PATH, META_BUILD_FILENAME, \
+from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_ARTEFACTS_ABS_PATH, \
     TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, AECS_ROOT_DIR, EMULATOR_DOCKERFILE_ABS_PATH, \
     DOCKER_PLATFORM_X86_64, AOSP_PACKAGES_APPS_PATH, DOCKER_PLATFORM_ARM64, SUPPORTED_ARCHITECTURES, \
-    SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH
+    SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
+    BASE_VENDOR_FILE_NAME, BASE_FILENAMES
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url
 
@@ -103,37 +104,77 @@ def extract_emulator_image(aosp_path, lunch_target):
         raise RuntimeError(f"Could not find image zip file: {image_source_path}")
 
 
+def get_base_filename(meta_build_filename):
+    """
+    Returns the base filename of the aosp build file based on the meta_build_filename.
+
+    :param meta_build_filename:
+
+    :returns: str - base filename of the aosp build file.
+    """
+    if "product" in meta_build_filename:
+        return BASE_PRODUCT_FILE_NAME
+    elif "vendor" in meta_build_filename:
+        return BASE_VENDOR_FILE_NAME
+    else:
+        return BASE_SYSTEM_FILE_NAME
+
+
+def read_and_render_template(meta_build_path):
+    """
+    Reads the meta_build.txt file and renders the aosp build file template with the package names.
+
+    :param meta_build_path: str - path to the meta_build.txt file.
+
+    Returns: str - rendered aosp build file template.
+
+    """
+    with open(meta_build_path, 'r') as meta_build_file:
+        system_package_name_list = meta_build_file.readlines()
+        environment = Environment(loader=FileSystemLoader(TEMPLATE_FOLDER))
+        template = environment.get_template()
+        return template.render(system_package_name_list=system_package_name_list)
+
+
+def write_and_copy_file(content, out_file_path, aosp_base_file_path):
+    """
+    Writes the rendered aosp build file to the out_file_path and copies it to the aosp source code.
+
+    :param content: str - rendered aosp build file template to be written to file.
+    :param out_file_path: str - path to write the rendered aosp build file to.
+    :param aosp_base_file_path: str - path to the aosp base file to copy the rendered file to.
+
+    """
+    with open(out_file_path, mode="w", encoding="utf-8") as out_file:
+        out_file.write(content)
+    shutil.copyfile(out_file_path, aosp_base_file_path)
+    logging.info(f"Placed {os.path.basename(out_file_path)} {aosp_base_file_path} in aosp source")
+
+
 def inject_packages(aosp_path, aosp_packages_path, exclude_list=[]):
     """
     Replaces the original base_system.mk of the AOSP source code with a modified version.
     The modified version includes all the packages to inject into the build process.
 
-    Args:
-        exclude_list: list(str) - contains the packages to exclude from the injection.
-        aosp_packages_path: str - path to the prebuilt package folder of aosp.
-        aosp_path: str -  path to aosp root folder.
-    """
-    meta_build_path = os.path.join(aosp_path, aosp_packages_path, META_BUILD_FILENAME)
-    logging.info(meta_build_path)
-    if not os.path.exists(meta_build_path):
-        raise RuntimeError(f"Could not find file: {META_BUILD_FILENAME} from {meta_build_path}")
-    with open(meta_build_path, 'r') as meta_build_file:
-        system_package_name_list = meta_build_file.readlines()
-        environment = Environment(loader=FileSystemLoader(TEMPLATE_FOLDER))
-        template = environment.get_template(BASE_SYSTEM_FILE_NAME)
-        content = template.render(
-            system_package_name_list=system_package_name_list
-        )
+    :param exclude_list: list(str) - contains the packages to exclude from the injection.
+    :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
+    :param aosp_path: str -  path to aosp root folder.
 
-    aosp_base_system_path = os.path.join(aosp_path, BASE_PATH, BASE_SYSTEM_FILE_NAME)
-    if os.path.exists(aosp_base_system_path):
-        out_file_path = os.path.join(BUILD_OUT_PATH, BASE_SYSTEM_FILE_NAME)
-        with open(out_file_path, mode="w", encoding="utf-8") as out_file:
-            out_file.write(content)
-        shutil.copyfile(out_file_path, aosp_base_system_path)
-        logging.info(f"Placed base_system.md {aosp_base_system_path} in aosp source")
-    else:
-        raise RuntimeError(f"AOSP build file does not exist: {aosp_base_system_path}")
+    """
+    for meta_build_filename in META_BUILD_FILENAMES:
+        meta_build_path = os.path.join(aosp_path, aosp_packages_path, meta_build_filename)
+        if not os.path.exists(meta_build_path):
+            raise RuntimeError(f"Could not find file: {meta_build_filename} from {meta_build_path}")
+
+        base_filename = get_base_filename(meta_build_filename)
+        content = read_and_render_template(meta_build_path)
+
+        aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
+        if not os.path.exists(aosp_base_file_path):
+            raise RuntimeError(f"AOSP build file does not exist: {aosp_base_file_path}")
+
+        out_file_path = os.path.join(BUILD_OUT_PATH, base_filename)
+        write_and_copy_file(content, out_file_path, aosp_base_file_path)
 
 
 def execute_build_command(aosp_path, firmware_id, lunch_target):
@@ -142,10 +183,9 @@ def execute_build_command(aosp_path, firmware_id, lunch_target):
     Pack all Android images with ("m emu_img_zip"). Copy the artefacts to the local image folder. Unzips the artefacts.
     # https://source.android.com/docs/setup/create/avd#sharing_avd_system_images_for_others_to_use_with_android_studio
 
-    Args:
-        lunch_target: str - aosp build argument to select the build arch.
-        firmware_id: str - object-id of the firmware
-        aosp_path: str - path to aosp root folder.
+    :param lunch_target: str - aosp build argument to select the build arch.
+    :param firmware_id: str - object-id of the firmware
+    :param aosp_path: str - path to aosp root folder.
     """
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_path)
@@ -214,28 +254,64 @@ def push_container_image(docker_repository_url, firmware_id):
     subprocess.run(command, capture_output=True, shell=True, check=True)
 
 
-def clear_environment(aosp_packages_path):
+def clear_packages(aosp_packages_path):
+    """
+    Deletes injected apk packages from the aosp source code.
+
+    :param aosp_packages_path:
+
+    """
+    logging.info(f"Clearing packages from {aosp_packages_path}")
+    try:
+        package_file_paths = aosp_packages_path + "/ib_*"
+        delete_files(package_file_paths)
+        os.remove(aosp_packages_path + "meta_build_system.txt")
+        os.remove(aosp_packages_path + "meta_build_vendor.txt")
+        os.remove(aosp_packages_path + "meta_build_product.txt")
+        os.remove(aosp_packages_path + "apk_meta.txt")
+        logging.info("Cleared app packages from aosp source code.")
+    except Exception as err:
+        logging.error(err)
+
+
+def clear_image_artefacts():
+    """
+    Deletes the image artefacts.
+    """
+    logging.info(f"Image artefacts will be deleted from {IMAGE_ARTEFACTS_ABS_PATH}")
+    try:
+        if os.path.exists(IMAGE_ARTEFACTS_ABS_PATH):
+            delete_files(IMAGE_ARTEFACTS_ABS_PATH)
+            logging.info("Cleared image artefacts from aosp source code.")
+    except Exception as err:
+        logging.error(err)
+
+
+def clear_base_files(aosp_path):
+    """
+    Deletes the base files from the aosp source code.
+
+    :param aosp_path: str - path to the root of the aosp source code.
+    """
+    try:
+        for base_filename in BASE_FILENAMES:
+            aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
+            if os.path.exists(aosp_base_file_path):
+                os.remove(aosp_base_file_path)
+                logging.info(f"Removed {aosp_base_file_path} from aosp source code.")
+    except Exception as err:
+        logging.error(err)
+
+
+def clear_environment(aosp_path, aosp_packages_path):
     """
     Reverts the build environment
     Returns:
 
     """
-    # TODO finish development of this function
-    # Delete app packages
-    package_file_paths = aosp_packages_path + "/ib_*"
-    delete_files(package_file_paths)
-    os.remove(aosp_packages_path + "/meta_build.txt")
-    os.remove(aosp_packages_path + "/apk_meta.txt")
-
-    # Delete image artefacts
-    current_directory = os.path.dirname(os.path.realpath(__file__))
-    if os.path.exists(IMAGE_ARTEFACTS_ABS_PATH):
-        delete_files(IMAGE_ARTEFACTS_ABS_PATH)
-
-    # Revert aosp template files
-    aosp_product_path = os.path.join(aosp_root, "/build/make/target/product/")
-    for template_path in template_path_list:
-        shutil.copy(template_path, aosp_product_path)
+    clear_packages(aosp_packages_path)
+    clear_image_artefacts()
+    clear_base_files(aosp_path)
 
 
 def fetch_build_files(firmware_id, cookies, fmd_url, aosp_packages_abs_path):
@@ -325,6 +401,7 @@ def main():
                                             firmware_id=firmware_id,
                                             lunch_target=lunch_target)
         if is_build_success:
+            logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
             logging.info(f"Create emulator docker images for: {firmware_id}")
             handle_docker_images(args.docker_repo_url,
                                  firmware_id,
@@ -334,7 +411,7 @@ def main():
         else:
             logging.error(f"Build process for firmware-id: {firmware_id} failed. Continue with next firmware.")
             failed_firmware_ids.append(firmware_id)
-        # clear_environment(aosp_packages_path)
+        clear_environment(args.aosp_path, aosp_packages_abs_path)
     if len(failed_firmware_ids) > 0:
         logging.error(f"Failed to build the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
 
