@@ -1,7 +1,6 @@
 import os
-from pathlib import Path
 
-AECS_ROOT_DIR = str(Path().absolute())
+AECS_ROOT_DIR = os.path.abspath(__file__)
 SCRIPT_ROOT_PATH = os.path.dirname(os.path.realpath(__file__))
 AOSP_PACKAGES_APPS_PATH = "packages/apps/"
 META_BUILD_SYSTEM_FILENAME = "meta_build_system.txt"
