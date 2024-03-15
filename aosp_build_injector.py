@@ -132,6 +132,7 @@ def read_and_render_template(meta_build_path, base_filename):
     with open(meta_build_path, 'r') as meta_build_file:
         system_package_name_list = meta_build_file.readlines()
         template_folder_abs_path = os.path.join(AECS_ROOT_DIR, TEMPLATE_FOLDER)
+        logging.info(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
         environment = Environment(loader=FileSystemLoader(template_folder_abs_path))
         template = environment.get_template(base_filename)
         return template.render(system_package_name_list=system_package_name_list)
