@@ -16,7 +16,7 @@ from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
 from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_ARTEFACTS_ABS_PATH, \
-    TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, AECS_ROOT_DIR, EMULATOR_DOCKERFILE_ABS_PATH, \
+    TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, ROOT_PATH, EMULATOR_DOCKERFILE_ABS_PATH, \
     DOCKER_PLATFORM_X86_64, AOSP_PACKAGES_APPS_PATH, DOCKER_PLATFORM_ARM64, SUPPORTED_ARCHITECTURES, \
     SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
     BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME
@@ -131,7 +131,7 @@ def read_and_render_template(meta_build_path, base_filename):
     """
     with open(meta_build_path, 'r') as meta_build_file:
         system_package_name_list = meta_build_file.readlines()
-        template_folder_abs_path = os.path.join(AECS_ROOT_DIR, TEMPLATE_FOLDER)
+        template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER)
         logging.info(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
         environment = Environment(loader=FileSystemLoader(template_folder_abs_path))
         template = environment.get_template(base_filename)
@@ -239,7 +239,7 @@ def build_container_image(tag, docker_build_arch):
     Builds a docker container image that includes the image files from the image_artefacts directory.
     """
     docker_client = docker.from_env()
-    image = docker_client.images.build(path=AECS_ROOT_DIR,
+    image = docker_client.images.build(path=ROOT_PATH,
                                        tag=tag,
                                        dockerfile=EMULATOR_DOCKERFILE_ABS_PATH,
                                        platform=docker_build_arch)
