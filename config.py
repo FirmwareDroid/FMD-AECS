@@ -1,7 +1,6 @@
 import os
 
-AECS_ROOT_DIR = os.path.abspath(__file__)
-SCRIPT_ROOT_PATH = os.path.dirname(os.path.realpath(__file__))
+ROOT_PATH = os.path.dirname(os.path.realpath(__file__))
 AOSP_PACKAGES_APPS_PATH = "packages/apps/"
 META_BUILD_SYSTEM_FILENAME = "meta_build_system.txt"
 META_BUILD_VENDOR_FILENAME = "meta_build_vendor.txt"
@@ -14,16 +13,16 @@ BASE_SYSTEM_FILE_NAME = "base_system.mk"
 BASE_VENDOR_FILE_NAME = "base_vendor.mk"
 BASE_FILENAMES = [BASE_PRODUCT_FILE_NAME, BASE_SYSTEM_FILE_NAME, BASE_VENDOR_FILE_NAME]
 
-BUILD_OUT_PATH = os.path.join(SCRIPT_ROOT_PATH, "out/")
+BUILD_OUT_PATH = os.path.join(ROOT_PATH, "out/")
 IMAGE_ARTEFACTS_ARM64_PATH = "image_artefacts/arm64-v8a/"
 IMAGE_ARTEFACTS_X86_64_PATH = "image_artefacts/x86_64/"
 IMAGE_ARTEFACTS_PATH = "image_artefacts/"
 AOSP_BUILD_OUT_SDK_ARM64_PATH = "out/target/product/emulator_arm64/"
 AOSP_BUILD_OUT_SDK_x86_64_PATH = "out/host/linux-x86/sdk/sdk_phone_x86"
 AOSP_EMU_ZIP_FILENAME = "sdk-repo-linux-system-images-eng.ubuntu.zip"
-IMAGE_ARTEFACTS_X86_64_ABS_PATH = os.path.join(SCRIPT_ROOT_PATH, IMAGE_ARTEFACTS_X86_64_PATH)
-IMAGE_ARTEFACTS_ABS_PATH = os.path.join(SCRIPT_ROOT_PATH, IMAGE_ARTEFACTS_PATH)
-EMULATOR_DOCKERFILE_ABS_PATH = os.path.join(AECS_ROOT_DIR, "emulator/Dockerfile")
+IMAGE_ARTEFACTS_X86_64_ABS_PATH = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_X86_64_PATH)
+IMAGE_ARTEFACTS_ABS_PATH = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_PATH)
+EMULATOR_DOCKERFILE_ABS_PATH = os.path.join(ROOT_PATH, "emulator/Dockerfile")
 DOCKER_PLATFORM_X86_64 = "linux/amd64"
 DOCKER_PLATFORM_ARM64 = "linux/arm64"
 FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE = "${url}/download/android_app/build_files"
