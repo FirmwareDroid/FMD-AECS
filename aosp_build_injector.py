@@ -239,8 +239,9 @@ def build_container_image(tag, docker_build_arch, target_build_arch):
     """
     Builds a docker container image that includes the image files from the image_artefacts directory.
     """
-    logging.info(f"Building docker image for firmware: {tag}")
+    logging.info(f"Building docker image for firmware: {tag}, arch: {docker_build_arch}, target: {target_build_arch}")
     docker_client = docker.from_env()
+    os.chdir(ROOT_PATH)
     if target_build_arch not in SUPPORTED_ARCHITECTURES:
         raise RuntimeError(f"Unsupported architecture: {docker_build_arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
     if target_build_arch == SUPPORTED_ARCHITECTURES[0]:
