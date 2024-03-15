@@ -16,10 +16,10 @@ from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
 from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_ARTEFACTS_ABS_PATH, \
-    TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, ROOT_PATH, EMULATOR_DOCKERFILE_ABS_PATH, \
+    TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, ROOT_PATH, EMULATOR_DOCKERFILE_X8664_ABS_PATH, \
     DOCKER_PLATFORM_X86_64, AOSP_PACKAGES_APPS_PATH, DOCKER_PLATFORM_ARM64, SUPPORTED_ARCHITECTURES, \
     SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
-    BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME
+    BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, EMULATOR_DOCKERFILE_ARM64_ABS_PATH
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url
 
@@ -219,14 +219,15 @@ def execute_build_command(aosp_path, firmware_id, lunch_target):
     os.chdir(current_directory)
 
 
-def handle_docker_images(docker_repository_url, firmware_id, docker_user, docker_password, docker_build_arch):
+def handle_docker_images(docker_repository_url, firmware_id, docker_user, docker_password, docker_build_arch,
+                         target_build_arch):
     """
     Wrapper script to create and push docker container images of the build process.
     Returns:
 
     """
     authenticate_docker_registry(docker_repository_url, docker_user, docker_password)
-    image = build_container_image(firmware_id, docker_build_arch)
+    image = build_container_image(firmware_id, docker_build_arch, target_build_arch)
     if image:
         docker_repo_url_without_schema = docker_repository_url.replace("http://", "").replace("https://", "")
         push_container_image(docker_repo_url_without_schema, firmware_id)
@@ -234,14 +235,22 @@ def handle_docker_images(docker_repository_url, firmware_id, docker_user, docker
         raise RuntimeError(f"Could not build docker image for firmware {firmware_id}")
 
 
-def build_container_image(tag, docker_build_arch):
+def build_container_image(tag, docker_build_arch, target_build_arch):
     """
     Builds a docker container image that includes the image files from the image_artefacts directory.
     """
+    logging.info(f"Building docker image for firmware: {tag}")
     docker_client = docker.from_env()
+    if target_build_arch not in SUPPORTED_ARCHITECTURES:
+        raise RuntimeError(f"Unsupported architecture: {docker_build_arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
+    if target_build_arch == SUPPORTED_ARCHITECTURES[0]:
+        dockerfile_path = EMULATOR_DOCKERFILE_X8664_ABS_PATH
+    else:
+        dockerfile_path = EMULATOR_DOCKERFILE_ARM64_ABS_PATH
+
     image = docker_client.images.build(path=ROOT_PATH,
                                        tag=tag,
-                                       dockerfile=EMULATOR_DOCKERFILE_ABS_PATH,
+                                       dockerfile=dockerfile_path,
                                        platform=docker_build_arch)
     return image
 
@@ -417,7 +426,8 @@ def main():
                                  firmware_id,
                                  args.docker_repo_username,
                                  docker_repo_password,
-                                 docker_build_arch)
+                                 docker_build_arch,
+                                 args.arch)
         else:
             logging.error(f"Build process for firmware-id: {firmware_id} failed. Continue with next firmware.")
             failed_firmware_ids.append(firmware_id)

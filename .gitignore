@@ -7,3 +7,4 @@ env/envoy/envoy.yaml
 docker-compose.yaml
 nexus/.env
 nexus/nexus_data/*
+.idea/*
