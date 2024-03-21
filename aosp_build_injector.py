@@ -289,21 +289,6 @@ def clear_packages(aosp_packages_path):
             shutil.rmtree(directory)
     except Exception as err:
         logging.error(err)
-    try:
-        os.remove(aosp_packages_path + "meta_build_system.txt")
-    except FileNotFoundError:
-        pass
-
-    try:
-        os.remove(aosp_packages_path + "meta_build_vendor.txt")
-    except FileNotFoundError:
-        pass
-
-    try:
-        os.remove(aosp_packages_path + "meta_build_product.txt")
-    except FileNotFoundError:
-        pass
-
     logging.info("Cleared app packages from aosp source code.")
 
 
