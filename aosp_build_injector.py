@@ -160,12 +160,11 @@ def write_and_copy_file(content, out_file_path, aosp_base_file_path):
     logging.info(f"Placed {os.path.basename(out_file_path)} {aosp_base_file_path} in aosp source")
 
 
-def inject_packages(aosp_path, aosp_packages_path, exclude_list=[]):
+def inject_packages(aosp_path, aosp_packages_path):
     """
     Replaces the original base_system.mk of the AOSP source code with a modified version.
     The modified version includes all the packages to inject into the build process.
 
-    :param exclude_list: list(str) - contains the packages to exclude from the injection.
     :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
     :param aosp_path: str -  path to aosp root folder.
 
@@ -175,7 +174,9 @@ def inject_packages(aosp_path, aosp_packages_path, exclude_list=[]):
         if not os.path.exists(meta_build_path):
             if meta_build_filename == META_BUILD_SYSTEM_FILENAME:
                 raise RuntimeError(f"Could not find file: {meta_build_filename} from {meta_build_path}")
-
+            else:
+                with open(meta_build_path, 'w'):
+                    pass
         base_filename = get_base_filename(meta_build_filename)
         content = read_and_render_template(meta_build_path, base_filename)
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
