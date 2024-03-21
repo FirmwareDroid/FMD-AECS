@@ -91,16 +91,22 @@ def extract_emulator_image(aosp_path, lunch_target):
     """
     Extracts the aosp emulator images to the image artefacts folder for further usage.
     """
+    x86_64_artefact_path = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_X86_64_ABS_PATH)
+    arm64_artefact_path = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_ARM64_PATH)
     if lunch_target == SUPPORTED_LUNCH_TARGETS[0]:
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME)
+        extract_dir = x86_64_artefact_path
     elif lunch_target == SUPPORTED_LUNCH_TARGETS[1]:
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME)
+        extract_dir = arm64_artefact_path
     else:
         raise RuntimeError(f"Unsupported build architecture: {lunch_target}")
 
     logging.info(f"Extract image_source_path: {image_source_path} to {IMAGE_ARTEFACTS_ABS_PATH}")
     if os.path.exists(image_source_path):
-        extract_zip(image_source_path, IMAGE_ARTEFACTS_ABS_PATH)
+        if not os.path.exists(extract_dir):
+            os.makedirs(extract_dir)
+        extract_zip(image_source_path, extract_dir)
     else:
         raise RuntimeError(f"Could not find image zip file: {image_source_path}")
 
