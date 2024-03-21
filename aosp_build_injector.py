@@ -19,7 +19,8 @@ from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_
     TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, ROOT_PATH, EMULATOR_DOCKERFILE_X8664_ABS_PATH, \
     DOCKER_PLATFORM_X86_64, AOSP_PACKAGES_APPS_PATH, DOCKER_PLATFORM_ARM64, SUPPORTED_ARCHITECTURES, \
     SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
-    BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, EMULATOR_DOCKERFILE_ARM64_ABS_PATH
+    BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, EMULATOR_DOCKERFILE_ARM64_ABS_PATH, \
+    IMAGE_ARTEFACTS_X86_64_ABS_PATH, IMAGE_ARTEFACTS_ARM64_PATH
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url
 
@@ -175,11 +176,11 @@ def inject_packages(aosp_path, aosp_packages_path, exclude_list=[]):
         content = read_and_render_template(meta_build_path, base_filename)
 
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
-        if not os.path.exists(aosp_base_file_path):
-            raise RuntimeError(f"AOSP build file does not exist: {aosp_base_file_path}")
-
         out_file_path = os.path.join(BUILD_OUT_PATH, base_filename)
         write_and_copy_file(content, out_file_path, aosp_base_file_path)
+        if not os.path.exists(aosp_base_file_path):
+            raise RuntimeError(f"AOSP build file does not exist: {aosp_base_file_path}. Something went wrong injecting "
+                               f"the packages into the aosp source code.")
 
 
 def execute_build_command(aosp_path, firmware_id, lunch_target):
@@ -243,7 +244,8 @@ def build_container_image(tag, docker_build_arch, target_build_arch):
     docker_client = docker.from_env()
     os.chdir(ROOT_PATH)
     if target_build_arch not in SUPPORTED_ARCHITECTURES:
-        raise RuntimeError(f"Unsupported architecture: {docker_build_arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
+        raise RuntimeError(
+            f"Unsupported architecture: {docker_build_arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
     if target_build_arch == SUPPORTED_ARCHITECTURES[0]:
         dockerfile_path = EMULATOR_DOCKERFILE_X8664_ABS_PATH
     else:
@@ -301,15 +303,20 @@ def clear_packages(aosp_packages_path):
     logging.info("Cleared app packages from aosp source code.")
 
 
-
 def clear_image_artefacts():
     """
     Deletes the image artefacts.
     """
     logging.info(f"Image artefacts will be deleted from {IMAGE_ARTEFACTS_ABS_PATH}")
     try:
-        if os.path.exists(IMAGE_ARTEFACTS_ABS_PATH):
-            delete_files(IMAGE_ARTEFACTS_ABS_PATH)
+        x86_64_artefact_path = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_X86_64_ABS_PATH)
+        arm64_artefact_path = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_ARM64_PATH)
+        if os.path.exists(x86_64_artefact_path):
+            logging.info(f"Clearing image artefacts from {x86_64_artefact_path}")
+            shutil.rmtree(x86_64_artefact_path)
+        if os.path.exists(arm64_artefact_path):
+            logging.info(f"Clearing image artefacts from {arm64_artefact_path}")
+            shutil.rmtree(arm64_artefact_path)
             logging.info("Cleared image artefacts from aosp source code.")
     except Exception as err:
         logging.error(err)
@@ -328,7 +335,7 @@ def clear_base_files(aosp_path):
                 os.remove(aosp_base_file_path)
                 logging.info(f"Removed {aosp_base_file_path} from aosp source code.")
     except Exception as err:
-        logging.error(err)
+        pass
 
 
 def clear_environment(aosp_path, aosp_packages_path):
