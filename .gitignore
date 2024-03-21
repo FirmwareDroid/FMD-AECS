@@ -10,3 +10,4 @@ nexus/nexus_data/*
 .idea/*
 .idea
 .idea/
+start_fmd-aecs.sh

@@ -278,14 +278,28 @@ def clear_packages(aosp_packages_path):
     """
     logging.info(f"Clearing packages from {aosp_packages_path}")
     try:
-        package_file_paths = aosp_packages_path + "/ib_*"
-        delete_files(package_file_paths)
-        os.remove(aosp_packages_path + "meta_build_system.txt")
-        os.remove(aosp_packages_path + "meta_build_vendor.txt")
-        os.remove(aosp_packages_path + "meta_build_product.txt")
-        logging.info("Cleared app packages from aosp source code.")
+        directories = glob.glob(os.path.join(aosp_packages_path, 'ib_*'))
+        for directory in directories:
+            shutil.rmtree(directory)
     except Exception as err:
         logging.error(err)
+    try:
+        os.remove(aosp_packages_path + "meta_build_system.txt")
+    except FileNotFoundError:
+        pass
+
+    try:
+        os.remove(aosp_packages_path + "meta_build_vendor.txt")
+    except FileNotFoundError:
+        pass
+
+    try:
+        os.remove(aosp_packages_path + "meta_build_product.txt")
+    except FileNotFoundError:
+        pass
+
+    logging.info("Cleared app packages from aosp source code.")
+
 
 
 def clear_image_artefacts():
@@ -414,25 +428,30 @@ def main():
     logging.info(f"Downloading and extracting app packages to: {AOSP_PACKAGES_APPS_PATH}")
     failed_firmware_ids = []
     for firmware_id in tqdm(firmware_id_list):
-        logging.info(f"Start fetching for build files for firmware-id: {firmware_id}")
-        fetch_build_files(firmware_id, cookies, args.fmd_url, aosp_packages_abs_path)
-        logging.info(f"Start emulator image build process for firmware-id: {firmware_id}")
-        is_build_success = start_aosp_build(args.aosp_path, AOSP_PACKAGES_APPS_PATH,
-                                            firmware_id=firmware_id,
-                                            lunch_target=lunch_target)
-        if is_build_success:
-            logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
-            logging.info(f"Create emulator docker images for: {firmware_id}")
-            handle_docker_images(args.docker_repo_url,
-                                 firmware_id,
-                                 args.docker_repo_username,
-                                 docker_repo_password,
-                                 docker_build_arch,
-                                 args.arch)
-        else:
-            logging.error(f"Build process for firmware-id: {firmware_id} failed. Continue with next firmware.")
+        try:
+            logging.info(f"Start fetching for build files for firmware-id: {firmware_id}")
+            fetch_build_files(firmware_id, cookies, args.fmd_url, aosp_packages_abs_path)
+            logging.info(f"Start emulator image build process for firmware-id: {firmware_id}")
+            is_build_success = start_aosp_build(args.aosp_path, AOSP_PACKAGES_APPS_PATH,
+                                                firmware_id=firmware_id,
+                                                lunch_target=lunch_target)
+            if is_build_success:
+                logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
+                logging.info(f"Create emulator docker images for: {firmware_id}")
+                handle_docker_images(args.docker_repo_url,
+                                     firmware_id,
+                                     args.docker_repo_username,
+                                     docker_repo_password,
+                                     docker_build_arch,
+                                     args.arch)
+            else:
+                raise RuntimeError(f"Build process for firmware-id: {firmware_id} failed.")
+        except Exception as err:
+            logging.error(f"Got an error processing firmware-id: {firmware_id}. Error: {err}")
             failed_firmware_ids.append(firmware_id)
-        clear_environment(args.aosp_path, aosp_packages_abs_path)
+        finally:
+            clear_environment(args.aosp_path, aosp_packages_abs_path)
+
     if len(failed_firmware_ids) > 0:
         logging.error(f"Failed to build the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
 
