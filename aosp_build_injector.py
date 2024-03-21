@@ -169,12 +169,9 @@ def inject_packages(aosp_path, aosp_packages_path, exclude_list=[]):
         if not os.path.exists(meta_build_path):
             if meta_build_filename == META_BUILD_SYSTEM_FILENAME:
                 raise RuntimeError(f"Could not find file: {meta_build_filename} from {meta_build_path}")
-            else:
-                continue
 
         base_filename = get_base_filename(meta_build_filename)
         content = read_and_render_template(meta_build_path, base_filename)
-
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
         out_file_path = os.path.join(BUILD_OUT_PATH, base_filename)
         write_and_copy_file(content, out_file_path, aosp_base_file_path)
