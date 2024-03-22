@@ -113,10 +113,19 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
     request_body = {"object_id_list": [firmware_id]}
     request_body = json.dumps(request_body)
 
+    content_disposition_header = None
+    filename_unsafe = None
+    filename = None
+    output_file_path = None
     response = None
+    total_size_in_bytes = 0
     for attempt in range(max_attempts):
         try:
             logging.info(f"Attempt {attempt+1} to download build file from {download_url}...")
+            if output_file_path and os.path.exists(output_file_path):
+                # If the file already exists, get the size and set the Range header
+                current_size = os.path.getsize(output_file_path)
+                headers["Range"] = f"bytes={current_size}-"
             response = requests.post(download_url,
                                      data=request_body,
                                      headers=headers,
@@ -124,29 +133,26 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
                                      verify=VERIFY_SSL,
                                      cookies=cookies)
             response.raise_for_status()  # Raises a HTTPError if the status is 4xx, 5xx
+            if not content_disposition_header:
+                content_disposition_header = response.headers['Content-Disposition']
+                filename_unsafe = re.findall("filename=(.+)", content_disposition_header)[0]
+                filename = secure_filename(filename_unsafe)
+                output_file_path = os.path.join(aosp_packages_abs_path, filename)
+            total_size_in_bytes = int(response.headers.get('Content-Length', 0))
+            logging.info(f"Downloading firmware build files to {output_file_path}...")
+            with open(output_file_path, mode="ab") as file:
+                for chunk in response.iter_content(chunk_size=10 * 1024):
+                    file.write(chunk)
             break  # If the download was successful, exit the loop
         except requests.HTTPError as err:
             logging.error(f"Attempt {attempt+1} failed: {err}")
             if attempt + 1 == max_attempts:
                 raise RuntimeError(f"Failed to download firmware build files after {max_attempts} attempts.")
-    if not response or response.status_code != 200:
+    if not response or response.status_code not in (200, 206):
         raise RuntimeError(f"Could not download firmware build files. Status code: {response.status_code}")
 
     logging.info(f"Got firmware build files from {download_url}.")
-    total_size_in_bytes = int(response.headers.get('Content-Length', 0))
-    progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
-    content_disposition_header = response.headers['Content-Disposition']
-    filename_unsafe = re.findall("filename=(.+)", content_disposition_header)[0]
-    filename = secure_filename(filename_unsafe)
-
-    output_file_path = os.path.join(aosp_packages_abs_path, filename)
-    logging.info(f"Downloading firmware build files to {output_file_path}...")
-    with open(output_file_path, mode="wb") as file:
-        for chunk in response.iter_content(chunk_size=10 * 1024):
-            progress_bar.update(len(chunk))
-            file.write(chunk)
-    progress_bar.close()
-    if total_size_in_bytes != 0 and progress_bar.n != total_size_in_bytes:
+    if total_size_in_bytes != 0 and os.path.getsize(output_file_path) != total_size_in_bytes:
         print("ERROR, something went wrong downloading the firmware build files")
         print("Continue with remaining firmware.")
     return output_file_path
