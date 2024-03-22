@@ -469,37 +469,24 @@ def fetch_build_files(firmware_id, cookies, fmd_url, aosp_packages_abs_path):
     logging.info(f"\nCompleted firmware build file download to {aosp_packages_abs_path}")
 
 
-def main():
+def parse_arguments():
+    """
+    Parse the command line arguments.
+    """
     parser = argparse.ArgumentParser(prog='fmd_build_injector',
                                      description="A cli tool to download and store build files from FirmwareDroid.")
-
-    parser.add_argument("-s", "--aosp-path",
-                        type=str,
-                        default="/home/ubuntu/aosp_12/",
+    parser.add_argument("-s", "--aosp-path", type=str, default="/home/ubuntu/aosp_12/",
                         help="Specifies the path to the root of the aosp source code.")
-    parser.add_argument("-f", "--fmd-url",
-                        type=str,
-                        default=None,
-                        required=True,
+    parser.add_argument("-f", "--fmd-url", type=str, default=None, required=True,
                         help="HTTP/HTTPS url to the FMD instance to grab the packages."
                              "Example: https://firmwaredroid.cloudlab.zhaw.ch")
-    parser.add_argument("-u", "--fmd-username",
-                        type=str,
-                        default=None,
-                        required=True,
+    parser.add_argument("-u", "--fmd-username", type=str, default=None, required=True,
                         help="Username for the authentication to the fmd service.")
-    parser.add_argument("-d", "--docker-repo-username",
-                        type=str,
-                        default=None,
-                        required=True,
+    parser.add_argument("-d", "--docker-repo-username", type=str, default=None, required=True,
                         help="Username for the authentication to the docker registry.")
-    parser.add_argument("-r", "--docker-repo-url",
-                        type=str,
-                        default=None,
+    parser.add_argument("-r", "--docker-repo-url", type=str, default=None,
                         help="Specifies the url to a docker registry, where the emulator images will be pushed to.")
-    parser.add_argument("-a", "--arch",
-                        type=str,
-                        default="x86_64",
+    parser.add_argument("-a", "--arch", type=str, default="x86_64",
                         help='Specifies the CPU architecture ("arm64" or "x86_64") to use for the build process.')
     args = parser.parse_args()
 
@@ -507,6 +494,18 @@ def main():
         logging.error(f"Error: Incorrect FMD URL: {args.fmd_url}")
         exit(1)
 
+    return args
+
+
+def get_passwords(args):
+    """
+    Get the passwords for the FirmwareDroid and Docker registry.
+
+    :param args:
+
+    :returns: tuple - tuple of the FirmwareDroid and Docker registry passwords.
+
+    """
     fmd_password = os.getenv('FMD_PASSWORD')
     if not fmd_password:
         fmd_password = getpass(f"Please enter your FirmwareDroid password ({args.fmd_username}): ")
@@ -515,11 +514,28 @@ def main():
     if not docker_repo_password:
         docker_repo_password = getpass(f"Please enter your Docker registry password ({args.docker_repo_username}): ")
 
+    return fmd_password, docker_repo_password
+
+
+def fetch_firmware_ids(args, fmd_password, csrf_cookie):
+    """
+    Get the firmware ids from the FirmwareDroid service.
+
+    args: dict - command line arguments.
+    fmd_password: str - password for the FirmwareDroid service.
+    csrf_cookie: cookie jar for requests.
+
+    :returns: tuple - tuple of the firmware ids and cookies.
+
+    """
     graphql_url = get_graphql_url(args.fmd_url)
-    csrf_cookie = get_csrf_token(args.fmd_url)
     cookies = authenticate_fmd(graphql_url, args.fmd_username, fmd_password, csrf_cookie)
     firmware_id_list = get_firmware_ids(graphql_url, cookies)
     logging.info(f"Got {len(firmware_id_list)} firmware ids to process...")
+    return firmware_id_list, cookies
+
+
+def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
 
     if args.arch not in SUPPORTED_ARCHITECTURES:
@@ -532,7 +548,7 @@ def main():
         lunch_target = SUPPORTED_LUNCH_TARGETS[1]
         docker_build_arch = DOCKER_PLATFORM_ARM64
 
-    logging.info(f"Downloading and extracting app packages to: {AOSP_PACKAGES_APPS_PATH}")
+    logging.info(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
     failed_firmware_ids = []
     for firmware_id in tqdm(firmware_id_list):
         try:
@@ -561,6 +577,113 @@ def main():
 
     if len(failed_firmware_ids) > 0:
         logging.error(f"Failed to build the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
+
+
+def main():
+    args = parse_arguments()
+    fmd_password, docker_repo_password = get_passwords(args)
+    csrf_cookie = get_csrf_token(args.fmd_url)
+    firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
+    process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password)
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+# def main():
+#     parser = argparse.ArgumentParser(prog='fmd_build_injector',
+#                                      description="A cli tool to download and store build files from FirmwareDroid.")
+#
+#     parser.add_argument("-s", "--aosp-path",
+#                         type=str,
+#                         default="/home/ubuntu/aosp_12/",
+#                         help="Specifies the path to the root of the aosp source code.")
+#     parser.add_argument("-f", "--fmd-url",
+#                         type=str,
+#                         default=None,
+#                         required=True,
+#                         help="HTTP/HTTPS url to the FMD instance to grab the packages."
+#                              "Example: https://firmwaredroid.cloudlab.zhaw.ch")
+#     parser.add_argument("-u", "--fmd-username",
+#                         type=str,
+#                         default=None,
+#                         required=True,
+#                         help="Username for the authentication to the fmd service.")
+#     parser.add_argument("-d", "--docker-repo-username",
+#                         type=str,
+#                         default=None,
+#                         required=True,
+#                         help="Username for the authentication to the docker registry.")
+#     parser.add_argument("-r", "--docker-repo-url",
+#                         type=str,
+#                         default=None,
+#                         help="Specifies the url to a docker registry, where the emulator images will be pushed to.")
+#     parser.add_argument("-a", "--arch",
+#                         type=str,
+#                         default="x86_64",
+#                         help='Specifies the CPU architecture ("arm64" or "x86_64") to use for the build process.')
+#     args = parser.parse_args()
+#
+#     if not (args.fmd_url.startswith("https://") or args.fmd_url.startswith("http://")):
+#         logging.error(f"Error: Incorrect FMD URL: {args.fmd_url}")
+#         exit(1)
+#
+#     fmd_password = os.getenv('FMD_PASSWORD')
+#     if not fmd_password:
+#         fmd_password = getpass(f"Please enter your FirmwareDroid password ({args.fmd_username}): ")
+#
+#     docker_repo_password = os.getenv('DOCKER_REPO_PASSWORD')
+#     if not docker_repo_password:
+#         docker_repo_password = getpass(f"Please enter your Docker registry password ({args.docker_repo_username}): ")
+#
+#     graphql_url = get_graphql_url(args.fmd_url)
+#     csrf_cookie = get_csrf_token(args.fmd_url)
+#     cookies = authenticate_fmd(graphql_url, args.fmd_username, fmd_password, csrf_cookie)
+#     firmware_id_list = get_firmware_ids(graphql_url, cookies)
+#     logging.info(f"Got {len(firmware_id_list)} firmware ids to process...")
+#     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
+#
+#     if args.arch not in SUPPORTED_ARCHITECTURES:
+#         raise RuntimeError(f"Unsupported architecture: {args.arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
+#
+#     if args.arch == SUPPORTED_ARCHITECTURES[0]:
+#         lunch_target = SUPPORTED_LUNCH_TARGETS[0]
+#         docker_build_arch = DOCKER_PLATFORM_X86_64
+#     else:
+#         lunch_target = SUPPORTED_LUNCH_TARGETS[1]
+#         docker_build_arch = DOCKER_PLATFORM_ARM64
+#
+#     logging.info(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
+#     failed_firmware_ids = []
+#     for firmware_id in tqdm(firmware_id_list):
+#         try:
+#             logging.info(f"Start fetching for build files for firmware-id: {firmware_id}")
+#             fetch_build_files(firmware_id, cookies, args.fmd_url, aosp_packages_abs_path)
+#             logging.info(f"Start emulator image build process for firmware-id: {firmware_id}")
+#             is_build_success = start_aosp_build(args.aosp_path, AOSP_PACKAGES_APPS_PATH,
+#                                                 firmware_id=firmware_id,
+#                                                 lunch_target=lunch_target)
+#             if is_build_success:
+#                 logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
+#                 logging.info(f"Create emulator docker images for: {firmware_id}")
+#                 handle_docker_images(args.docker_repo_url,
+#                                      firmware_id,
+#                                      args.docker_repo_username,
+#                                      docker_repo_password,
+#                                      docker_build_arch,
+#                                      args.arch)
+#             else:
+#                 raise RuntimeError(f"Build process for firmware-id: {firmware_id} failed.")
+#         except Exception as err:
+#             logging.error(f"Got an error processing firmware-id: {firmware_id}. Error: {err}")
+#             failed_firmware_ids.append(firmware_id)
+#         finally:
+#             clear_environment(args.aosp_path, aosp_packages_abs_path)
+#
+#     if len(failed_firmware_ids) > 0:
+#         logging.error(f"Failed to build the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
 
 
 if __name__ == "__main__":
