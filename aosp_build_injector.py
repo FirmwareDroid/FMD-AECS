@@ -174,6 +174,7 @@ def get_packages_to_filter(aosp_path):
     dirnames_filtered = []
     for dirpath, dirnames, filenames in os.walk(aosp_packages_abs_path):
         for file_name in filenames:
+            logging.info(f"Checking file: {file_name} in {dirpath}")
             if file_name in FILTERED_APK_FILES:
                 logging.info(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
                 dirnames_filtered.append(str(os.path.basename(dirpath)))
