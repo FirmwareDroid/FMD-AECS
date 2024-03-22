@@ -54,8 +54,8 @@ COPY ./emulator/avd/ /android/sdk/avd/
 ################################
 # Copy system image
 ################################
-COPY ./image_artefacts/arm64-v8a/ /android/sdk/system-images/android/
-RUN unzip /android/sdk/system-images/android/*.zip -d /android/sdk/system-images/android/
+COPY ./image_artefacts/ /android/sdk/system-images/android/
+#RUN unzip /android/sdk/system-images/android/*.zip -d /android/sdk/system-images/android/
 
 ###################################
 # Create start script
