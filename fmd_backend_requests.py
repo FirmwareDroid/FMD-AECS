@@ -114,8 +114,6 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
     request_body = json.dumps(request_body)
 
     content_disposition_header = None
-    filename_unsafe = None
-    filename = None
     output_file_path = None
     response = None
     total_size_in_bytes = 0
@@ -144,7 +142,7 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
                 for chunk in response.iter_content(chunk_size=10 * 1024):
                     file.write(chunk)
             break  # If the download was successful, exit the loop
-        except requests.HTTPError as err:
+        except Exception as err:
             logging.error(f"Attempt {attempt+1} failed: {err}")
             if attempt + 1 == max_attempts:
                 raise RuntimeError(f"Failed to download firmware build files after {max_attempts} attempts.")
