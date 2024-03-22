@@ -20,7 +20,7 @@ from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_
     DOCKER_PLATFORM_X86_64, AOSP_PACKAGES_APPS_PATH, DOCKER_PLATFORM_ARM64, SUPPORTED_ARCHITECTURES, \
     SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
     BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, EMULATOR_DOCKERFILE_ARM64_ABS_PATH, \
-    IMAGE_ARTEFACTS_X86_64_ABS_PATH, IMAGE_ARTEFACTS_ARM64_PATH
+    IMAGE_ARTEFACTS_X86_64_ABS_PATH, IMAGE_ARTEFACTS_ARM64_PATH, FILTERED_APK_FILES
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url
 
@@ -77,13 +77,14 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target):
     is_successful = False
     logging.info(f"Start aosp build injection with firmware: {firmware_id}")
     inject_packages(aosp_path, aosp_packages_path)
-    try:
-        execute_build_command(aosp_path, firmware_id, lunch_target)
-        extract_emulator_image(aosp_path, lunch_target)
-        is_successful = True
-    except Exception as err:
-        logging.error(err)
-        # TODO ADD EXCEPTION HANDLING FOR BUILD ERRORS
+    retry_attempts = 0
+    while not is_successful and retry_attempts < 2:
+        try:
+            execute_build_command(aosp_path, firmware_id, lunch_target)
+            extract_emulator_image(aosp_path, lunch_target)
+            is_successful = True
+        except Exception as err:
+            logging.error(err)
     return is_successful
 
 
@@ -160,6 +161,46 @@ def write_and_copy_file(content, out_file_path, aosp_base_file_path):
     logging.info(f"Placed {os.path.basename(out_file_path)} {aosp_base_file_path} in aosp source")
 
 
+def get_packages_to_filter(aosp_path):
+    """
+    Filters the packages based on the filter list.
+
+    :param aosp_path: str - path to the root of the aosp source code.
+
+    :returns: list - list of filtered packages.
+
+    """
+    aosp_packages_abs_path = os.path.join(aosp_path, AOSP_PACKAGES_APPS_PATH)
+    dirnames_filtered = []
+    for dirpath, dirnames, filenames in os.walk(aosp_packages_abs_path):
+        for file_name in filenames:
+            if file_name in FILTERED_APK_FILES:
+                logging.info(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
+                dirnames_filtered.append(str(os.path.basename(dirpath)))
+    return dirnames_filtered
+
+
+def filter_packages(meta_build_path, aosp_packages_path):
+    """
+    Removes the packages based on the filter list from the meta file.
+
+    :param meta_build_path: str - path to the meta_build.txt file.
+    :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
+
+    :returns: list - list of filtered packages.
+
+    """
+    with open(meta_build_path, 'r') as meta_build_file:
+        lines = meta_build_file.readlines()
+
+    package_name_list = get_packages_to_filter(aosp_packages_path)
+    logging.info(f"Filtering packages: {package_name_list} from {meta_build_path}")
+    lines = [line for line in lines if not any(s in line for s in package_name_list)]
+
+    with open(meta_build_path, 'w') as file:
+        file.writelines(lines)
+
+
 def inject_packages(aosp_path, aosp_packages_path):
     """
     Replaces the original base_system.mk of the AOSP source code with a modified version.
@@ -178,6 +219,7 @@ def inject_packages(aosp_path, aosp_packages_path):
                 with open(meta_build_path, 'w'):
                     pass
         base_filename = get_base_filename(meta_build_filename)
+        filter_packages(meta_build_path, aosp_packages_path)
         content = read_and_render_template(meta_build_path, base_filename)
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
         out_file_path = os.path.join(BUILD_OUT_PATH, base_filename)
@@ -205,13 +247,13 @@ def execute_build_command(aosp_path, firmware_id, lunch_target):
     if lunch_target not in SUPPORTED_LUNCH_TARGETS:
         raise RuntimeError("Unsupported build CPU architecture specified.")
 
+
     command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
               f"&& lunch {lunch_target}" \
-              f"&& m " \
-              f"&& m sdk " \
+              f"&& m sdk -j 80" \
               f"&& m emu_img_zip'"
     # f"&& m sdk_repo " \
-
+    # f"&& m" \
     try:
         log_name = firmware_id + ".log"
         log_path = os.path.join(BUILD_OUT_PATH, log_name)
