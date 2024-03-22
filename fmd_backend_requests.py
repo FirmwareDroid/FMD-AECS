@@ -137,10 +137,13 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
                 filename = secure_filename(filename_unsafe)
                 output_file_path = os.path.join(aosp_packages_abs_path, filename)
             total_size_in_bytes = int(response.headers.get('Content-Length', 0))
+            progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
             logging.info(f"Downloading firmware build files to {output_file_path}...")
             with open(output_file_path, mode="ab") as file:
                 for chunk in response.iter_content(chunk_size=10 * 1024):
+                    progress_bar.update(len(chunk))
                     file.write(chunk)
+            progress_bar.close()
             break  # If the download was successful, exit the loop
         except Exception as err:
             logging.error(f"Attempt {attempt+1} failed: {err}")
