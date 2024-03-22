@@ -20,7 +20,7 @@ from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_
     DOCKER_PLATFORM_X86_64, AOSP_PACKAGES_APPS_PATH, DOCKER_PLATFORM_ARM64, SUPPORTED_ARCHITECTURES, \
     SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
     BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, EMULATOR_DOCKERFILE_ARM64_ABS_PATH, \
-    IMAGE_ARTEFACTS_X86_64_ABS_PATH, IMAGE_ARTEFACTS_ARM64_PATH, FILTERED_APK_FILES
+    IMAGE_ARTEFACTS_X86_64_ABS_PATH, IMAGE_ARTEFACTS_ARM64_PATH, FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url
 
@@ -76,6 +76,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target):
     """
     is_successful = False
     logging.info(f"Start aosp build injection with firmware: {firmware_id}")
+    overwrite_partition_size(aosp_path, aosp_packages_path)
     inject_packages(aosp_path, aosp_packages_path)
     retry_attempts = 0
     while not is_successful and retry_attempts < 2:
@@ -92,18 +93,15 @@ def extract_emulator_image(aosp_path, lunch_target):
     """
     Extracts the aosp emulator images to the image artefacts folder for further usage.
     """
-    x86_64_artefact_path = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_X86_64_ABS_PATH)
-    arm64_artefact_path = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_ARM64_PATH)
     if lunch_target == SUPPORTED_LUNCH_TARGETS[0]:
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME)
-        extract_dir = x86_64_artefact_path
     elif lunch_target == SUPPORTED_LUNCH_TARGETS[1]:
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME)
-        extract_dir = arm64_artefact_path
     else:
         raise RuntimeError(f"Unsupported build architecture: {lunch_target}")
+    extract_dir = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_PATH)
 
-    logging.info(f"Extract image_source_path: {image_source_path} to {IMAGE_ARTEFACTS_ABS_PATH}")
+    logging.info(f"Extract image_source_path: {image_source_path} to {extract_dir}")
     if os.path.exists(image_source_path):
         if not os.path.exists(extract_dir):
             os.makedirs(extract_dir)
@@ -195,11 +193,75 @@ def filter_packages(meta_build_path, aosp_packages_path):
         lines = meta_build_file.readlines()
 
     package_name_list = get_packages_to_filter(aosp_packages_path)
-    logging.info(f"Filtering packages: {package_name_list} from {meta_build_path}")
-    lines = [line for line in lines if not any(s in line for s in package_name_list)]
+    if package_name_list and len(package_name_list) > 0:
+        logging.info(f"Filtering packages: {package_name_list} from {meta_build_path}")
+        lines = [line for line in lines if not any(s in line for s in package_name_list)]
 
-    with open(meta_build_path, 'w') as file:
-        file.writelines(lines)
+        with open(meta_build_path, 'w') as file:
+            file.writelines(lines)
+
+
+def get_directory_size(directory_path):
+    """
+    Calculate the size of a directory in bytes.
+
+    :param directory_path: str - path to the directory to calculate the size of.
+
+    :returns: int - size of the directory in bytes.
+
+    """
+    total = 0
+    for dirpath, dirnames, filenames in os.walk(directory_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            if not os.path.islink(fp):
+                total += os.path.getsize(fp)
+
+    return total
+
+
+def get_minimal_partition_size(aosp_path, aosp_packages_path):
+    """
+    Calculates the minimal partition size based on the size of the packages to inject.
+
+    :param aosp_path: str - path to the root of the aosp source code.
+    :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
+
+    :returns: int - minimal partition size in bytes.
+
+    """
+    packages_abs_path = os.path.join(aosp_path, aosp_packages_path)
+    total_bytes = get_directory_size(packages_abs_path)
+    default_size = 4294967296   # 4GB
+    one_gb = 1073741824
+    while default_size < total_bytes:
+        default_size += one_gb
+        logging.info(f"Increasing Default size: {default_size} Total bytes: {total_bytes}")
+    return default_size
+
+
+def overwrite_partition_size(aosp_path, aosp_packages_path):
+    """
+    Overwrites the partition size in the aosp source code.
+
+    :param aosp_path: str - path to the root of the aosp source code.
+    :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
+
+    """
+    minimal_partition_size = get_minimal_partition_size(aosp_path, aosp_packages_path)
+    super_partition_size = minimal_partition_size + 8388608  # 8MB
+    dynamic_partition_size = minimal_partition_size
+    board_config_file_path = os.path.join(aosp_path, "build/make/target/board/BoardConfigEmuCommon.mk")
+    logging.info(f"Overwriting partition size to: {minimal_partition_size} in {board_config_file_path}")
+    with open(board_config_file_path, 'r') as base_file:
+        lines = base_file.readlines()
+    for i, line in enumerate(lines):
+        if "BOARD_SUPER_PARTITION_SIZE" in line:
+            lines[i] = f"BOARD_SUPER_PARTITION_SIZE := {super_partition_size}\n"
+        if "BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE" in line:
+            lines[i] = f"BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
+    with open(board_config_file_path, 'w') as base_file:
+        base_file.writelines(lines)
 
 
 def inject_packages(aosp_path, aosp_packages_path):
@@ -233,12 +295,12 @@ def inject_packages(aosp_path, aosp_packages_path):
 def execute_build_command(aosp_path, firmware_id, lunch_target):
     """
     Start the aosp build process.
-    Pack all Android images with ("m emu_img_zip"). Copy the artefacts to the local image folder. Unzips the artefacts.
-    # https://source.android.com/docs/setup/create/avd#sharing_avd_system_images_for_others_to_use_with_android_studio
+    Pack all Android images with ("m emu_img_zip"). Copy the artefacts to the local image folder.
 
     :param lunch_target: str - aosp build argument to select the build arch.
     :param firmware_id: str - object-id of the firmware
     :param aosp_path: str - path to aosp root folder.
+
     """
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_path)
@@ -298,10 +360,16 @@ def build_container_image(tag, docker_build_arch, target_build_arch):
     else:
         dockerfile_path = EMULATOR_DOCKERFILE_ARM64_ABS_PATH
 
-    image = docker_client.images.build(path=ROOT_PATH,
+    image, logs = docker_client.images.build(path=ROOT_PATH,
                                        tag=tag,
                                        dockerfile=dockerfile_path,
                                        platform=docker_build_arch)
+    log_name = tag + "_docker.log"
+    log_path = os.path.join(BUILD_OUT_PATH, log_name)
+    logging.info(f"Docker build logs will be written to: {log_path}")
+    with open(log_path, "w") as outfile:
+        for log in logs:
+           outfile.write(log)
     return image
 
 
