@@ -92,7 +92,7 @@ def get_firmware_ids(graphql_url, cookies):
     return object_id_list
 
 
-def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_abs_path):
+def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_abs_path, max_attempts=3):
     """
     Downloads the build files for the given Android app (object id) and shows a progress bar of the download.
 
@@ -100,6 +100,7 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
     :param firmware_id: str - id of the firmware to fetch the Android apps from.
     :param cookies: str - cookie jar for http requests.
     :param aosp_packages_abs_path: str - folder of the aosp app packages.
+    :param max_attempts: int - maximum number of download attempts.
 
     :return: str - path to the downloaded file.
 
@@ -111,15 +112,26 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
                "Content-Type": "application/json"}
     request_body = {"object_id_list": [firmware_id]}
     request_body = json.dumps(request_body)
-    logging.info(f"Initialize build file download from {download_url}... this may take a while.")
-    response = requests.post(download_url,
-                             data=request_body,
-                             headers=headers,
-                             stream=True,
-                             verify=VERIFY_SSL,
-                             cookies=cookies)
-    if response.status_code != 200:
+
+    response = None
+    for attempt in range(max_attempts):
+        try:
+            logging.info(f"Attempt {attempt+1} to download build file from {download_url}...")
+            response = requests.post(download_url,
+                                     data=request_body,
+                                     headers=headers,
+                                     stream=True,
+                                     verify=VERIFY_SSL,
+                                     cookies=cookies)
+            response.raise_for_status()  # Raises a HTTPError if the status is 4xx, 5xx
+            break  # If the download was successful, exit the loop
+        except requests.HTTPError as err:
+            logging.error(f"Attempt {attempt+1} failed: {err}")
+            if attempt + 1 == max_attempts:
+                raise RuntimeError(f"Failed to download firmware build files after {max_attempts} attempts.")
+    if not response or response.status_code != 200:
         raise RuntimeError(f"Could not download firmware build files. Status code: {response.status_code}")
+
     logging.info(f"Got firmware build files from {download_url}.")
     total_size_in_bytes = int(response.headers.get('Content-Length', 0))
     progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
