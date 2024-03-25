@@ -47,6 +47,6 @@ ENV PATH=$ANDROID_HOME/emulator/:$PATH
 ################################
 # Prepare Android emulator using prebuilt ARM64 binary
 ################################
-COPY ./prebuilts/arm64/sdk-repo-linux_aarch64-emulator-11411100.zip /android/
+COPY ./emulator/prebuilts/arm64/sdk-repo-linux_aarch64-emulator-11411100.zip /android/
 RUN unzip /android/sdk-repo-linux_aarch64-emulator-11411100.zip -d /android/sdk/
 COPY ./avd/ /android/sdk/avd/
