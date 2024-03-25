@@ -311,8 +311,8 @@ def execute_build_command(aosp_path, firmware_id, lunch_target):
         raise RuntimeError("Unsupported build CPU architecture specified.")
 
     command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
-              f"&& lunch {lunch_target}" \
-              f"&& m sdk -j 80" \
+              f"&& lunch {lunch_target} " \
+              f"&& m sdk -j 80 " \
               f"&& m emu_img_zip'"
     # f"&& m sdk_repo " \
     # f"&& m" \
