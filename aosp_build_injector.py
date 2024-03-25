@@ -257,9 +257,9 @@ def overwrite_partition_size(aosp_path, aosp_packages_path):
         lines = base_file.readlines()
     for i, line in enumerate(lines):
         if "BOARD_SUPER_PARTITION_SIZE" in line:
-            lines[i] = f"BOARD_SUPER_PARTITION_SIZE := {super_partition_size}\n"
+            lines[i] = f"  BOARD_SUPER_PARTITION_SIZE := {super_partition_size}\n"
         if "BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE" in line:
-            lines[i] = f"BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
+            lines[i] = f"  BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
     with open(board_config_file_path, 'w') as base_file:
         base_file.writelines(lines)
 
