@@ -232,7 +232,7 @@ def get_minimal_partition_size(aosp_path, aosp_packages_path):
     """
     packages_abs_path = os.path.join(aosp_path, aosp_packages_path)
     total_bytes = get_directory_size(packages_abs_path)
-    default_size = 4294967296   # 4GB
+    default_size = 4294967296  # 4GB
     one_gb = 1073741824
     while default_size < total_bytes:
         default_size += one_gb
@@ -310,7 +310,6 @@ def execute_build_command(aosp_path, firmware_id, lunch_target):
     if lunch_target not in SUPPORTED_LUNCH_TARGETS:
         raise RuntimeError("Unsupported build CPU architecture specified.")
 
-
     command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
               f"&& lunch {lunch_target}" \
               f"&& m sdk -j 80" \
@@ -359,17 +358,20 @@ def build_container_image(tag, docker_build_arch, target_build_arch):
         dockerfile_path = EMULATOR_DOCKERFILE_X8664_ABS_PATH
     else:
         dockerfile_path = EMULATOR_DOCKERFILE_ARM64_ABS_PATH
-
-    image, logs = docker_client.images.build(path=ROOT_PATH,
-                                       tag=tag,
-                                       dockerfile=dockerfile_path,
-                                       platform=docker_build_arch)
-    log_name = tag + "_docker.log"
-    log_path = os.path.join(BUILD_OUT_PATH, log_name)
-    logging.info(f"Docker build logs will be written to: {log_path}")
-    with open(log_path, "w") as outfile:
-        for log in logs:
-           outfile.write(log)
+    try:
+        image, logs = docker_client.images.build(path=ROOT_PATH,
+                                                 tag=tag,
+                                                 dockerfile=dockerfile_path,
+                                                 platform=docker_build_arch)
+        log_name = tag + "_docker.log"
+        log_path = os.path.join(BUILD_OUT_PATH, log_name)
+        logging.info(f"Docker build logs will be written to: {log_path}")
+        with open(log_path, "w") as outfile:
+            for log in logs:
+                outfile.write(log)
+    except Exception as err:
+        logging.error(f"Got an error building docker image: {err}")
+        raise err
     return image
 
 
@@ -589,8 +591,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
 
 # def main():
 #     parser = argparse.ArgumentParser(prog='fmd_build_injector',
