@@ -3,7 +3,7 @@ FROM fmd-emulator_arm64
 ################################
 # Copy system image
 ################################
-COPY ./emulator/image_artefacts/ /android/sdk/system-images/android/
+COPY ./image_artefacts/ /android/sdk/system-images/android/
 #RUN unzip /android/sdk/system-images/android/*.zip -d /android/sdk/system-images/android/
 
 ###################################
