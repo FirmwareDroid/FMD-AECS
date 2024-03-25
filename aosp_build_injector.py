@@ -321,11 +321,10 @@ def execute_build_command(aosp_path, firmware_id, lunch_target):
         log_path = os.path.join(BUILD_OUT_PATH, log_name)
         logging.info(f"Build logs will be written to: {log_path}")
         with open(log_path, "w") as outfile:
-            process = subprocess.run(command, shell=True, check=True, stdout=outfile, stderr=outfile)
+            subprocess.run(command, shell=True, check=True, stdout=outfile, stderr=outfile)
     except subprocess.CalledProcessError as err:
         logging.error(f"Got an error building firmware: {err}")
-        if process.returncode != 2:
-            raise err
+        raise err
     os.chdir(current_directory)
 
 
