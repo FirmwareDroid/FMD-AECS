@@ -1,4 +1,4 @@
-FROM fmd-emulator_arm64
+FROM --platform="linux/arm64" fmd-emulator_arm64
 
 ################################
 # Copy system image
