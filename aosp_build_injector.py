@@ -553,6 +553,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
 
     logging.info(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
     failed_firmware_ids = []
+    clear_environment(args.aosp_path, aosp_packages_abs_path)
     for firmware_id in tqdm(firmware_id_list):
         try:
             logging.info(f"Start fetching for build files for firmware-id: {firmware_id}")
