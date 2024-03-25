@@ -1,8 +1,8 @@
 FROM --platform="linux/arm64" debian:12-slim as fmd-emulator_arm64
 
 # add arm64 architecture as workaround for apt-get update on linux amd64
-RUN dpkg --add-architecture arm64
-RUN sed -i "s/deb h/deb [arch=amd64] h/g" /etc/apt/sources.list
+#RUN dpkg --add-architecture arm64
+#RUN sed -i "s/deb h/deb [arch=amd64] h/g" /etc/apt/sources.list
 RUN apt-get update
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
