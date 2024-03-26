@@ -2,6 +2,7 @@
 A command-line tool that downloads files related to the build process of an Android firmware image and stores them
 on disk. Directly extract the downloaded zip content.
 """
+import json
 import os
 import argparse
 import shlex
@@ -22,7 +23,7 @@ from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_
     BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, EMULATOR_DOCKERFILE_ARM64_ABS_PATH, \
     IMAGE_ARTEFACTS_X86_64_ABS_PATH, IMAGE_ARTEFACTS_ARM64_PATH, FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
-    get_firmware_ids, get_graphql_url
+    get_firmware_ids, get_graphql_url, upload_image_as_raw
 
 root = logging.getLogger()
 root.setLevel(logging.INFO)
@@ -82,16 +83,22 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target):
     while not is_successful and retry_attempts < 2:
         try:
             execute_build_command(aosp_path, firmware_id, lunch_target)
-            extract_emulator_image(aosp_path, lunch_target)
+            #extract_emulator_image(aosp_path, lunch_target)
             is_successful = True
         except Exception as err:
             logging.error(err)
     return is_successful
 
 
-def extract_emulator_image(aosp_path, lunch_target):
+def get_emulator_image_path(aosp_path, lunch_target):
     """
-    Extracts the aosp emulator images to the image artefacts folder for further usage.
+    Returns the path to the emulator image zip file based on the lunch target.
+
+    :param aosp_path: str - path to the root of the aosp source code.
+    :param lunch_target: str - aosp build argument to select the build arch.
+
+    :returns: str - path to the emulator image zip file.
+
     """
     if lunch_target == SUPPORTED_LUNCH_TARGETS[0]:
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME)
@@ -99,6 +106,14 @@ def extract_emulator_image(aosp_path, lunch_target):
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME)
     else:
         raise RuntimeError(f"Unsupported build architecture: {lunch_target}")
+    return image_source_path
+
+
+def extract_emulator_image(aosp_path, lunch_target):
+    """
+    Extracts the aosp emulator images to the image artefacts folder for further usage.
+    """
+    image_source_path = get_emulator_image_path(aosp_path, lunch_target)
     extract_dir = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_PATH)
 
     logging.info(f"Extract image_source_path: {image_source_path} to {extract_dir}")
@@ -359,16 +374,21 @@ def build_container_image(tag, docker_build_arch, target_build_arch):
     else:
         dockerfile_path = EMULATOR_DOCKERFILE_ARM64_ABS_PATH
     try:
-        image, logs = docker_client.images.build(path=ROOT_PATH,
-                                                 tag=tag,
-                                                 dockerfile=dockerfile_path,
-                                                 platform=docker_build_arch)
         log_name = tag + "_docker.log"
         log_path = os.path.join(BUILD_OUT_PATH, log_name)
         logging.info(f"Docker build logs will be written to: {log_path}")
-        with open(log_path, "w") as outfile:
-            for log in logs:
-                outfile.write(log)
+        image, log_generator = docker_client.images.build(path=ROOT_PATH,
+                                                          tag=tag,
+                                                          dockerfile=dockerfile_path,
+                                                          platform=docker_build_arch,
+                                                          quiet=False)
+        try:
+            with open(log_path, "w") as outfile:
+                for log in log_generator:
+                    dict_string = json.dumps(log)
+                    outfile.write(dict_string)
+        except Exception as log_error:
+            pass
     except Exception as err:
         logging.error(f"Got an error building docker image: {err}")
         raise err
@@ -563,13 +583,28 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                                                 lunch_target=lunch_target)
             if is_build_success:
                 logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
-                logging.info(f"Create emulator docker images for: {firmware_id}")
-                handle_docker_images(args.docker_repo_url,
-                                     firmware_id,
-                                     args.docker_repo_username,
-                                     docker_repo_password,
-                                     docker_build_arch,
-                                     args.arch)
+                #logging.info(f"Create emulator docker images for: {firmware_id}")
+                # handle_docker_images(args.docker_repo_url,
+                #                      firmware_id,
+                #                      args.docker_repo_username,
+                #                      docker_repo_password,
+                #                      docker_build_arch,
+                #                      args.arch)
+                emulator_image_zip_path = get_emulator_image_path(args.aosp_path, lunch_target)
+                is_upload_success = False
+                max_attempts = 5
+                while not is_upload_success and max_attempts > 0:
+                    is_upload_success = upload_image_as_raw(args.docker_repo_url,
+                                                            firmware_id,
+                                                            args.docker_repo_username,
+                                                            docker_repo_password,
+                                                            args.arch,
+                                                            emulator_image_zip_path)
+                    max_attempts -= 1
+                    if not is_upload_success:
+                        logging.error(f"Failed to upload image {firmware_id} to repo. Retrying...{max_attempts}")
+                if not is_upload_success:
+                    raise RuntimeError(f"Failed to upload image {firmware_id} to repo.")
             else:
                 raise RuntimeError(f"Build process for firmware-id: {firmware_id} failed.")
         except Exception as err:
@@ -588,103 +623,6 @@ def main():
     csrf_cookie = get_csrf_token(args.fmd_url)
     firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
     process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password)
-
-
-if __name__ == "__main__":
-    main()
-
-# def main():
-#     parser = argparse.ArgumentParser(prog='fmd_build_injector',
-#                                      description="A cli tool to download and store build files from FirmwareDroid.")
-#
-#     parser.add_argument("-s", "--aosp-path",
-#                         type=str,
-#                         default="/home/ubuntu/aosp_12/",
-#                         help="Specifies the path to the root of the aosp source code.")
-#     parser.add_argument("-f", "--fmd-url",
-#                         type=str,
-#                         default=None,
-#                         required=True,
-#                         help="HTTP/HTTPS url to the FMD instance to grab the packages."
-#                              "Example: https://firmwaredroid.cloudlab.zhaw.ch")
-#     parser.add_argument("-u", "--fmd-username",
-#                         type=str,
-#                         default=None,
-#                         required=True,
-#                         help="Username for the authentication to the fmd service.")
-#     parser.add_argument("-d", "--docker-repo-username",
-#                         type=str,
-#                         default=None,
-#                         required=True,
-#                         help="Username for the authentication to the docker registry.")
-#     parser.add_argument("-r", "--docker-repo-url",
-#                         type=str,
-#                         default=None,
-#                         help="Specifies the url to a docker registry, where the emulator images will be pushed to.")
-#     parser.add_argument("-a", "--arch",
-#                         type=str,
-#                         default="x86_64",
-#                         help='Specifies the CPU architecture ("arm64" or "x86_64") to use for the build process.')
-#     args = parser.parse_args()
-#
-#     if not (args.fmd_url.startswith("https://") or args.fmd_url.startswith("http://")):
-#         logging.error(f"Error: Incorrect FMD URL: {args.fmd_url}")
-#         exit(1)
-#
-#     fmd_password = os.getenv('FMD_PASSWORD')
-#     if not fmd_password:
-#         fmd_password = getpass(f"Please enter your FirmwareDroid password ({args.fmd_username}): ")
-#
-#     docker_repo_password = os.getenv('DOCKER_REPO_PASSWORD')
-#     if not docker_repo_password:
-#         docker_repo_password = getpass(f"Please enter your Docker registry password ({args.docker_repo_username}): ")
-#
-#     graphql_url = get_graphql_url(args.fmd_url)
-#     csrf_cookie = get_csrf_token(args.fmd_url)
-#     cookies = authenticate_fmd(graphql_url, args.fmd_username, fmd_password, csrf_cookie)
-#     firmware_id_list = get_firmware_ids(graphql_url, cookies)
-#     logging.info(f"Got {len(firmware_id_list)} firmware ids to process...")
-#     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
-#
-#     if args.arch not in SUPPORTED_ARCHITECTURES:
-#         raise RuntimeError(f"Unsupported architecture: {args.arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
-#
-#     if args.arch == SUPPORTED_ARCHITECTURES[0]:
-#         lunch_target = SUPPORTED_LUNCH_TARGETS[0]
-#         docker_build_arch = DOCKER_PLATFORM_X86_64
-#     else:
-#         lunch_target = SUPPORTED_LUNCH_TARGETS[1]
-#         docker_build_arch = DOCKER_PLATFORM_ARM64
-#
-#     logging.info(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
-#     failed_firmware_ids = []
-#     for firmware_id in tqdm(firmware_id_list):
-#         try:
-#             logging.info(f"Start fetching for build files for firmware-id: {firmware_id}")
-#             fetch_build_files(firmware_id, cookies, args.fmd_url, aosp_packages_abs_path)
-#             logging.info(f"Start emulator image build process for firmware-id: {firmware_id}")
-#             is_build_success = start_aosp_build(args.aosp_path, AOSP_PACKAGES_APPS_PATH,
-#                                                 firmware_id=firmware_id,
-#                                                 lunch_target=lunch_target)
-#             if is_build_success:
-#                 logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
-#                 logging.info(f"Create emulator docker images for: {firmware_id}")
-#                 handle_docker_images(args.docker_repo_url,
-#                                      firmware_id,
-#                                      args.docker_repo_username,
-#                                      docker_repo_password,
-#                                      docker_build_arch,
-#                                      args.arch)
-#             else:
-#                 raise RuntimeError(f"Build process for firmware-id: {firmware_id} failed.")
-#         except Exception as err:
-#             logging.error(f"Got an error processing firmware-id: {firmware_id}. Error: {err}")
-#             failed_firmware_ids.append(firmware_id)
-#         finally:
-#             clear_environment(args.aosp_path, aosp_packages_abs_path)
-#
-#     if len(failed_firmware_ids) > 0:
-#         logging.error(f"Failed to build the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
 
 
 if __name__ == "__main__":
