@@ -511,6 +511,8 @@ def parse_arguments():
                         help="Specifies the url to a docker registry, where the emulator images will be pushed to.")
     parser.add_argument("-a", "--arch", type=str, default="x86_64",
                         help='Specifies the CPU architecture ("arm64" or "x86_64") to use for the build process.')
+    parser.add_argument("-e", "--version", type=str, default="12",
+                        help='Specifies Android version to build for. Example: "12"')
     args = parser.parse_args()
 
     if not (args.fmd_url.startswith("https://") or args.fmd_url.startswith("http://")):
@@ -596,7 +598,10 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     if args.arch == SUPPORTED_ARCHITECTURES[0]:
         lunch_target = SUPPORTED_LUNCH_TARGETS[0]
     else:
-        lunch_target = SUPPORTED_LUNCH_TARGETS[1]
+        if args.version == "12":
+            lunch_target = SUPPORTED_LUNCH_TARGETS[1]
+        else:
+            lunch_target = SUPPORTED_LUNCH_TARGETS[2]
 
     logging.info(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
     failed_firmware_ids = []
