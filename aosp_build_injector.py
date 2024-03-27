@@ -79,14 +79,14 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target):
     logging.info(f"Start aosp build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path, aosp_packages_path)
     inject_packages(aosp_path, aosp_packages_path)
-    retry_attempts = 0
-    while not is_successful and retry_attempts < 2:
+    retry_attempts = 5
+    while not is_successful and retry_attempts > 0:
         try:
             execute_build_command(aosp_path, firmware_id, lunch_target)
-            #extract_emulator_image(aosp_path, lunch_target)
             is_successful = True
         except Exception as err:
             logging.error(err)
+            retry_attempts -= 1
     return is_successful
 
 
@@ -557,6 +557,35 @@ def fetch_firmware_ids(args, fmd_password, csrf_cookie):
     return firmware_id_list, cookies
 
 
+def upload_build_artefact(firmware_id, repo_url, username, password, arch, artefact_path):
+    """
+    Uploads the build artefact to the docker registry. Retries the upload process if it fails.
+
+    :param firmware_id: str - object-id of the firmware
+    :param repo_url: str - URL to the docker registry.
+    :param username: str - username for the docker registry.
+    :param password: str - password for the docker registry.
+    :param arch: str - architecture of the build artefact.
+    :param artefact_path: str - path to the build artefact.
+
+    :returns: bool - True if the upload was successful.
+    """
+    is_upload_success = False
+    max_attempts = 5
+    while not is_upload_success and max_attempts > 0:
+        logging.info(f"Uploading image {firmware_id} to repo. Attempt: {max_attempts}")
+        is_upload_success = upload_image_as_raw(repo_url,
+                                                firmware_id,
+                                                username,
+                                                password,
+                                                arch,
+                                                artefact_path)
+        max_attempts -= 1
+        if not is_upload_success:
+            logging.error(f"Failed to upload image {firmware_id} to repo. Retrying...{max_attempts}")
+    return is_upload_success
+
+
 def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
 
@@ -583,28 +612,17 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                                                 lunch_target=lunch_target)
             if is_build_success:
                 logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
-                #logging.info(f"Create emulator docker images for: {firmware_id}")
-                # handle_docker_images(args.docker_repo_url,
-                #                      firmware_id,
-                #                      args.docker_repo_username,
-                #                      docker_repo_password,
-                #                      docker_build_arch,
-                #                      args.arch)
                 emulator_image_zip_path = get_emulator_image_path(args.aosp_path, lunch_target)
-                is_upload_success = False
-                max_attempts = 5
-                while not is_upload_success and max_attempts > 0:
-                    is_upload_success = upload_image_as_raw(args.docker_repo_url,
-                                                            firmware_id,
-                                                            args.docker_repo_username,
-                                                            docker_repo_password,
-                                                            args.arch,
-                                                            emulator_image_zip_path)
-                    max_attempts -= 1
-                    if not is_upload_success:
-                        logging.error(f"Failed to upload image {firmware_id} to repo. Retrying...{max_attempts}")
-                if not is_upload_success:
-                    raise RuntimeError(f"Failed to upload image {firmware_id} to repo.")
+                is_upload_success = upload_build_artefact(firmware_id,
+                                                          args.docker_repo_url,
+                                                          args.docker_repo_username,
+                                                          docker_repo_password,
+                                                          args.arch,
+                                                          emulator_image_zip_path)
+                if is_upload_success:
+                    logging.info(f"Upload of firmware-id: {firmware_id} was successful.")
+                else:
+                    raise RuntimeError(f"Upload process for firmware-id: {firmware_id} failed.")
             else:
                 raise RuntimeError(f"Build process for firmware-id: {firmware_id} failed.")
         except Exception as err:
