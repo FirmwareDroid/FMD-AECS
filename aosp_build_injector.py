@@ -639,14 +639,9 @@ def main():
     args = parse_arguments()
     fmd_password, docker_repo_password = get_passwords(args)
     csrf_cookie = get_csrf_token(args.fmd_url)
-    #firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
-    #process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password)
-    is_upload_success = upload_build_artefact("test",
-                                              args.docker_repo_url,
-                                              args.docker_repo_username,
-                                              docker_repo_password,
-                                              args.arch,
-                                              "./test2.zip")
+    firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
+    process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password)
+
 
 
 if __name__ == "__main__":
