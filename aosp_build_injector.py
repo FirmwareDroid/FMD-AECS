@@ -251,7 +251,7 @@ def get_minimal_partition_size(aosp_path, aosp_packages_path):
     two_gb = 1073741824 * 2
     while default_size < total_bytes:
         default_size += two_gb
-        logging.info(f"Increasing Default size: {default_size} Total bytes: {total_bytes}")
+        logging.info(f"Increasing Default size to: {default_size} Total bytes of packages to inject is: {total_bytes}")
     return default_size
 
 
@@ -639,8 +639,14 @@ def main():
     args = parse_arguments()
     fmd_password, docker_repo_password = get_passwords(args)
     csrf_cookie = get_csrf_token(args.fmd_url)
-    firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
-    process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password)
+    #firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
+    #process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password)
+    is_upload_success = upload_build_artefact("test",
+                                              args.docker_repo_url,
+                                              args.docker_repo_username,
+                                              docker_repo_password,
+                                              args.arch,
+                                              "./test2.zip")
 
 
 if __name__ == "__main__":

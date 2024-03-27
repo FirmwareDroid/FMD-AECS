@@ -165,14 +165,14 @@ def get_graphql_url(fmd_url):
     return graphql_url
 
 
-def upload_image_as_raw(repo_url, firmware_id, docker_repo_username, docker_repo_password, arch, file_path):
+def upload_image_as_raw(repo_url, firmware_id, username, password, arch, file_path):
     """
     Uploads an image as raw to the given repository.
 
     :param repo_url: str - URL of the repository.
     :param firmware_id: str - ID of the firmware.
-    :param docker_repo_username: str - Username to authenticate to the repository.
-    :param docker_repo_password: str - Password to authenticate to the repository.
+    :param username: str - Username to authenticate to the repository.
+    :param password: str - Password to authenticate to the repository.
     :param arch: str - CPU Architecture of the image.
     :param file_path: str - Path to the image file.
 
@@ -182,11 +182,11 @@ def upload_image_as_raw(repo_url, firmware_id, docker_repo_username, docker_repo
     url = f'{repo_url}/{firmware_id}_{arch}.zip'
     logging.info(f'Uploading image {file_path} as raw to {url}')
     with open(file_path, 'rb') as f:
-        response = requests.post(url, auth=(docker_repo_username, docker_repo_password), files={'file': f})
+        response = requests.put(url, auth=(username, password), files={'file': f})
 
-    if response.status_code == 200:
+    if response.status_code == 200 or response.status_code == 201:
         logging.info('File uploaded successfully')
         is_successful = True
     else:
-        logging.error('Failed to upload file')
+        logging.error(f'Failed to upload file: {response.text}')
     return is_successful
