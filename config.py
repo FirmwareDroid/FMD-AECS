@@ -28,7 +28,7 @@ DOCKER_PLATFORM_X86_64 = "linux/amd64"
 DOCKER_PLATFORM_ARM64 = "linux/arm64"
 FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE = "${url}/download/android_app/build_files"
 SUPPORTED_ARCHITECTURES = ["x86_64", "arm64"]
-SUPPORTED_LUNCH_TARGETS = ["sdk_x86_64-userdebug", "sdk_phone_arm64"]
+SUPPORTED_LUNCH_TARGETS = ["sdk_x86_64-userdebug", "sdk_phone_arm64", "sdk_arm64-userdebug"]
 # String templates
 FMD_GRAPHQL_URL_TEMPLATE = '${url}/graphql/'
 FMD_AUTH_QUERY_TEMPLATE = '{"query": "query Auth ' \
