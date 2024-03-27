@@ -248,9 +248,9 @@ def get_minimal_partition_size(aosp_path, aosp_packages_path):
     packages_abs_path = os.path.join(aosp_path, aosp_packages_path)
     total_bytes = get_directory_size(packages_abs_path)
     default_size = 4294967296  # 4GB
-    one_gb = 1073741824
+    two_gb = 1073741824 * 2
     while default_size < total_bytes:
-        default_size += one_gb
+        default_size += two_gb
         logging.info(f"Increasing Default size: {default_size} Total bytes: {total_bytes}")
     return default_size
 
