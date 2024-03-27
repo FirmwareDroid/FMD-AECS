@@ -5,6 +5,7 @@ on disk. Directly extract the downloaded zip content.
 import json
 import os
 import argparse
+import re
 import shlex
 import zipfile
 import logging
@@ -329,10 +330,10 @@ def execute_build_command(aosp_path, firmware_id, lunch_target):
               f"&& lunch {lunch_target} " \
               f"&& m sdk -j 80 " \
               f"&& m emu_img_zip'"
-    # f"&& m sdk_repo " \
-    # f"&& m" \
     try:
-        log_name = firmware_id + ".log"
+        firmware_id = re.sub(r'\W+', '', firmware_id)
+        lunch_target = re.sub(r'\W+', '', lunch_target)
+        log_name = firmware_id + "_" + lunch_target + ".log"
         log_path = os.path.join(BUILD_OUT_PATH, log_name)
         logging.info(f"Build logs will be written to: {log_path}")
         with open(log_path, "w") as outfile:
@@ -594,10 +595,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
 
     if args.arch == SUPPORTED_ARCHITECTURES[0]:
         lunch_target = SUPPORTED_LUNCH_TARGETS[0]
-        docker_build_arch = DOCKER_PLATFORM_X86_64
     else:
         lunch_target = SUPPORTED_LUNCH_TARGETS[1]
-        docker_build_arch = DOCKER_PLATFORM_ARM64
 
     logging.info(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
     failed_firmware_ids = []
@@ -607,7 +606,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             logging.info(f"Start fetching for build files for firmware-id: {firmware_id}")
             fetch_build_files(firmware_id, cookies, args.fmd_url, aosp_packages_abs_path)
             logging.info(f"Start emulator image build process for firmware-id: {firmware_id}")
-            is_build_success = start_aosp_build(args.aosp_path, AOSP_PACKAGES_APPS_PATH,
+            is_build_success = start_aosp_build(args.aosp_path,
+                                                AOSP_PACKAGES_APPS_PATH,
                                                 firmware_id=firmware_id,
                                                 lunch_target=lunch_target)
             if is_build_success:
@@ -641,7 +641,6 @@ def main():
     csrf_cookie = get_csrf_token(args.fmd_url)
     firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
     process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password)
-
 
 
 if __name__ == "__main__":
