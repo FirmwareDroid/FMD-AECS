@@ -1,4 +1,4 @@
-.#
+#
 # Copyright (C) 2018 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -69,6 +69,7 @@ PRODUCT_PACKAGES += \
     selinux_policy_nonsystem \
     shell_and_utilities_vendor \
 {% for line in vendor_package_name_list -%}{{ line }}{%- endfor %}
+
 
 # Base module when shipping api level is less than or equal to 29
 PRODUCT_PACKAGES_SHIPPING_API_LEVEL_29 += \
