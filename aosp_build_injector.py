@@ -332,9 +332,10 @@ def execute_build_command(aosp_path, firmware_id, lunch_target):
               f"&& m sdk -j 80 " \
               f"&& m emu_img_zip'"
     try:
+        firmware_id = re.sub(r'\W+', '', firmware_id)
         lunch_target = re.sub(r'\W+', '', lunch_target)
         unique_id = uuid.uuid4()
-        log_name = str(unique_id) + "_" + lunch_target + ".log"
+        log_name = str(unique_id) + "_" + firmware_id + lunch_target + ".log"
         log_path = os.path.join(BUILD_OUT_PATH, log_name)
         logging.info(f"Build logs will be written to: {log_path}")
         with open(log_path, "w") as outfile:
