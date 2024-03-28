@@ -165,7 +165,7 @@ def get_graphql_url(fmd_url):
     return graphql_url
 
 
-def upload_image_as_raw(repo_url, firmware_id, username, password, arch, file_path):
+def upload_image_as_raw(repo_url, firmware_id, username, password, arch, aosp_version, file_path):
     """
     Uploads an image as raw to the given repository.
 
@@ -175,11 +175,14 @@ def upload_image_as_raw(repo_url, firmware_id, username, password, arch, file_pa
     :param password: str - Password to authenticate to the repository.
     :param arch: str - CPU Architecture of the image.
     :param file_path: str - Path to the image file.
+    :param aosp_version: str - Android version of the image.
 
     :return: bool - True if the upload was successful, False otherwise.
+
+
     """
     is_successful = False
-    url = f'{repo_url}/{firmware_id}_{arch}.zip'.replace("//", "/")
+    url = f'{repo_url}/{firmware_id}_{arch}_{aosp_version}.zip'.replace("//", "/")
     logging.info(f'Uploading image {file_path} as raw to {url}')
     with open(file_path, 'rb') as f:
         response = requests.put(url, auth=(username, password), files={'file': f})

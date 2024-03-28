@@ -65,7 +65,7 @@ def delete_files(dir_path):
         os.remove(f)
 
 
-def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target):
+def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version):
     """
     Wrapper method to start the firmware injection and build process.
 
@@ -73,6 +73,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target):
     :param firmware_id: str - object-id of the firmware
     :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
     :param aosp_path: str - path to aosp root folder.
+    :param aosp_version: str - version of the aosp build.
 
     :returns: bool - True if the build process was successful.
 
@@ -80,7 +81,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target):
     is_successful = False
     logging.info(f"Start aosp build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path, aosp_packages_path)
-    inject_packages(aosp_path, aosp_packages_path)
+    inject_packages(aosp_path, aosp_packages_path, aosp_version)
     retry_attempts = 5
     while not is_successful and retry_attempts > 0:
         try:
@@ -143,18 +144,25 @@ def get_base_filename(meta_build_filename):
         return BASE_SYSTEM_FILE_NAME
 
 
-def read_and_render_template(meta_build_path, base_filename):
+def read_and_render_template(meta_build_path, base_filename, aosp_version):
     """
     Reads the meta_build.txt file and renders the aosp build file template with the package names.
 
     :param meta_build_path: str - path to the meta_build.txt file.
     :param base_filename: str - base filename of the aosp build file to use as template.
+    :param aosp_version: str - version of the aosp build.
 
     :returns: str - rendered aosp build file template.
+
     """
     with open(meta_build_path, 'r') as meta_build_file:
         system_package_name_list = meta_build_file.readlines()
-        template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER)
+        if aosp_version == "12":
+            template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "12/")
+        elif aosp_version == "13":
+            template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "13/")
+        else:
+            raise RuntimeError(f"Unsupported aosp version: {aosp_version}")
         logging.info(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
         environment = Environment(loader=FileSystemLoader(template_folder_abs_path))
         template = environment.get_template(base_filename)
@@ -281,7 +289,7 @@ def overwrite_partition_size(aosp_path, aosp_packages_path):
         base_file.writelines(lines)
 
 
-def inject_packages(aosp_path, aosp_packages_path):
+def inject_packages(aosp_path, aosp_packages_path, aosp_version):
     """
     Replaces the original base_system.mk of the AOSP source code with a modified version.
     The modified version includes all the packages to inject into the build process.
@@ -300,7 +308,7 @@ def inject_packages(aosp_path, aosp_packages_path):
                     pass
         base_filename = get_base_filename(meta_build_filename)
         filter_packages(meta_build_path, aosp_packages_path)
-        content = read_and_render_template(meta_build_path, base_filename)
+        content = read_and_render_template(meta_build_path, base_filename, aosp_version)
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
         out_file_path = os.path.join(BUILD_OUT_PATH, base_filename)
         write_and_copy_file(content, out_file_path, aosp_base_file_path)
@@ -562,7 +570,7 @@ def fetch_firmware_ids(args, fmd_password, csrf_cookie):
     return firmware_id_list, cookies
 
 
-def upload_build_artefact(firmware_id, repo_url, username, password, arch, artefact_path):
+def upload_build_artefact(firmware_id, repo_url, username, password, arch, aosp_version, artefact_path):
     """
     Uploads the build artefact to the docker registry. Retries the upload process if it fails.
 
@@ -572,6 +580,7 @@ def upload_build_artefact(firmware_id, repo_url, username, password, arch, artef
     :param password: str - password for the docker registry.
     :param arch: str - architecture of the build artefact.
     :param artefact_path: str - path to the build artefact.
+    :param aosp_version: str - version of the aosp build.
 
     :returns: bool - True if the upload was successful.
     """
@@ -585,6 +594,7 @@ def upload_build_artefact(firmware_id, repo_url, username, password, arch, artef
                                                     username,
                                                     password,
                                                     arch,
+                                                    aosp_version,
                                                     artefact_path)
         except Exception as err:
             logging.error(f"Error uploading image: {err}")
@@ -605,8 +615,10 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     else:
         if args.version == "12":
             lunch_target = SUPPORTED_LUNCH_TARGETS[1]
-        else:
+        elif args.version == "13":
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]
+        else:
+            raise RuntimeError(f"Unsupported Android version: {args.version}")
 
     logging.info(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
     failed_firmware_ids = []
@@ -619,7 +631,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             is_build_success = start_aosp_build(args.aosp_path,
                                                 AOSP_PACKAGES_APPS_PATH,
                                                 firmware_id=firmware_id,
-                                                lunch_target=lunch_target)
+                                                lunch_target=lunch_target,
+                                                aosp_version=args.version)
             if is_build_success:
                 logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
                 emulator_image_zip_path = get_emulator_image_path(args.aosp_path, lunch_target)
@@ -628,6 +641,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                                                           args.docker_repo_username,
                                                           docker_repo_password,
                                                           args.arch,
+                                                          args.version,
                                                           emulator_image_zip_path)
                 if is_upload_success:
                     logging.info(f"Upload of firmware-id: {firmware_id} was successful.")
