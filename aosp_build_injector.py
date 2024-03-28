@@ -577,12 +577,15 @@ def upload_build_artefact(firmware_id, repo_url, username, password, arch, artef
     max_attempts = 5
     while not is_upload_success and max_attempts > 0:
         logging.info(f"Uploading image {firmware_id} to repo. Attempt: {max_attempts}")
-        is_upload_success = upload_image_as_raw(repo_url,
-                                                firmware_id,
-                                                username,
-                                                password,
-                                                arch,
-                                                artefact_path)
+        try:
+            is_upload_success = upload_image_as_raw(repo_url,
+                                                    firmware_id,
+                                                    username,
+                                                    password,
+                                                    arch,
+                                                    artefact_path)
+        except Exception as err:
+            logging.error(f"Error uploading image: {err}")
         max_attempts -= 1
         if not is_upload_success:
             logging.error(f"Failed to upload image {firmware_id} to repo. Retrying...{max_attempts}")
