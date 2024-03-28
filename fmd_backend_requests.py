@@ -179,7 +179,7 @@ def upload_image_as_raw(repo_url, firmware_id, username, password, arch, file_pa
     :return: bool - True if the upload was successful, False otherwise.
     """
     is_successful = False
-    url = f'{repo_url}/{firmware_id}_{arch}.zip'
+    url = f'{repo_url}/{firmware_id}_{arch}.zip'.replace("//", "/")
     logging.info(f'Uploading image {file_path} as raw to {url}')
     with open(file_path, 'rb') as f:
         response = requests.put(url, auth=(username, password), files={'file': f})
