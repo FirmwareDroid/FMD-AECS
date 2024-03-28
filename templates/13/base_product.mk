@@ -24,3 +24,4 @@ PRODUCT_PACKAGES += \
     product_compatibility_matrix.xml \
     product_manifest.xml \
     selinux_policy_product \
+{% for line in product_package_name_list -%}{{ line }}{%- endfor %}
