@@ -85,7 +85,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     retry_attempts = 5
     while not is_successful and retry_attempts > 0:
         try:
-            execute_build_command(aosp_path, firmware_id, lunch_target)
+            execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version)
             is_successful = True
         except Exception as err:
             logging.error(err)
@@ -317,7 +317,7 @@ def inject_packages(aosp_path, aosp_packages_path, aosp_version):
                                f"the packages into the aosp source code.")
 
 
-def execute_build_command(aosp_path, firmware_id, lunch_target):
+def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
     """
     Start the aosp build process.
     Pack all Android images with ("m emu_img_zip"). Copy the artefacts to the local image folder.
@@ -325,6 +325,7 @@ def execute_build_command(aosp_path, firmware_id, lunch_target):
     :param lunch_target: str - aosp build argument to select the build arch.
     :param firmware_id: str - object-id of the firmware
     :param aosp_path: str - path to aosp root folder.
+    :param aosp_version: str - version of the aosp build.
 
     """
     current_directory = os.path.dirname(os.path.realpath(__file__))
@@ -335,10 +336,19 @@ def execute_build_command(aosp_path, firmware_id, lunch_target):
     if lunch_target not in SUPPORTED_LUNCH_TARGETS:
         raise RuntimeError("Unsupported build CPU architecture specified.")
 
-    command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
-              f"&& lunch {lunch_target} " \
-              f"&& m sdk -j 80 " \
-              f"&& m emu_img_zip'"
+    if aosp_version == "12":
+        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+                  f"&& lunch {lunch_target} " \
+                  f"&& m sdk -j 32 " \
+                  f"&& m emu_img_zip'"
+    elif aosp_version == "13":
+        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+                  f"&& lunch {lunch_target} " \
+                  f"&& m -j 32'" \
+                  f"&& m emu_img_zip'"
+    else:
+        raise RuntimeError(f"Unsupported Android version: {aosp_version}")
+
     try:
         firmware_id = re.sub(r'\W+', '', firmware_id)
         lunch_target = re.sub(r'\W+', '', lunch_target)
