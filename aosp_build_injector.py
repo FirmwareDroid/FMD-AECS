@@ -344,7 +344,7 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
     elif aosp_version == "13":
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
-                  f"&& m -j 32'" \
+                  f"&& m -j 32 " \
                   f"&& m emu_img_zip'"
     else:
         raise RuntimeError(f"Unsupported Android version: {aosp_version}")
@@ -509,7 +509,7 @@ def fetch_build_files(firmware_id, cookies, fmd_url, aosp_packages_abs_path):
                                                   aosp_packages_abs_path)
     extract_zip(zip_file_path, aosp_packages_abs_path)
     os.remove(zip_file_path)
-    logging.info(f"\nCompleted firmware build file download to {aosp_packages_abs_path}")
+    logging.info(f"Completed firmware build file download to {aosp_packages_abs_path}")
 
 
 def parse_arguments():
