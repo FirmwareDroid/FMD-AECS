@@ -105,7 +105,7 @@ def get_emulator_image_path(aosp_path, lunch_target):
     """
     if lunch_target == SUPPORTED_LUNCH_TARGETS[0]:
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME)
-    elif lunch_target == SUPPORTED_LUNCH_TARGETS[1]:
+    elif lunch_target == SUPPORTED_LUNCH_TARGETS[1] or lunch_target == SUPPORTED_LUNCH_TARGETS[2]:
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME)
     else:
         raise RuntimeError(f"Unsupported build architecture: {lunch_target}")
