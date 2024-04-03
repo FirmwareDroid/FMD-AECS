@@ -580,7 +580,7 @@ def fetch_firmware_ids(args, fmd_password, csrf_cookie):
     return firmware_id_list, cookies
 
 
-def upload_build_artefact(firmware_id, repo_url, username, password, arch, aosp_version, artefact_path):
+def upload_build_artefact(firmware_id, repo_url, username, password, arch, aosp_version, lunch_target, artefact_path):
     """
     Uploads the build artefact to the docker registry. Retries the upload process if it fails.
 
@@ -605,6 +605,7 @@ def upload_build_artefact(firmware_id, repo_url, username, password, arch, aosp_
                                                     password,
                                                     arch,
                                                     aosp_version,
+                                                    lunch_target,
                                                     artefact_path)
         except Exception as err:
             logging.error(f"Error uploading image: {err}")
@@ -652,6 +653,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                                                           docker_repo_password,
                                                           args.arch,
                                                           args.version,
+                                                          lunch_target,
                                                           emulator_image_zip_path)
                 if is_upload_success:
                     logging.info(f"Upload of firmware-id: {firmware_id} was successful.")
