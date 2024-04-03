@@ -20,7 +20,7 @@ from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
 from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_ARTEFACTS_ABS_PATH, \
     TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, ROOT_PATH, EMULATOR_DOCKERFILE_X8664_ABS_PATH, \
-    DOCKER_PLATFORM_X86_64, AOSP_PACKAGES_APPS_PATH, DOCKER_PLATFORM_ARM64, SUPPORTED_ARCHITECTURES, \
+    AOSP_PACKAGES_APPS_PATH, SUPPORTED_ARCHITECTURES, \
     SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
     BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, EMULATOR_DOCKERFILE_ARM64_ABS_PATH, \
     IMAGE_ARTEFACTS_X86_64_ABS_PATH, IMAGE_ARTEFACTS_ARM64_PATH, FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH
@@ -119,7 +119,7 @@ def extract_emulator_image(aosp_path, lunch_target):
     image_source_path = get_emulator_image_path(aosp_path, lunch_target)
     extract_dir = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_PATH)
 
-    logging.info(f"Extract image_source_path: {image_source_path} to {extract_dir}")
+    logging.debug(f"Extract image_source_path: {image_source_path} to {extract_dir}")
     if os.path.exists(image_source_path):
         if not os.path.exists(extract_dir):
             os.makedirs(extract_dir)
@@ -163,7 +163,7 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version):
             template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "13/")
         else:
             raise RuntimeError(f"Unsupported aosp version: {aosp_version}")
-        logging.info(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
+        logging.debug(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
         environment = Environment(loader=FileSystemLoader(template_folder_abs_path))
         template = environment.get_template(base_filename)
         return template.render(system_package_name_list=system_package_name_list)
@@ -181,7 +181,7 @@ def write_and_copy_file(content, out_file_path, aosp_base_file_path):
     with open(out_file_path, mode="w", encoding="utf-8") as out_file:
         out_file.write(content)
     shutil.copyfile(out_file_path, aosp_base_file_path)
-    logging.info(f"Placed {os.path.basename(out_file_path)} {aosp_base_file_path} in aosp source")
+    logging.debug(f"Placed {os.path.basename(out_file_path)} {aosp_base_file_path} in aosp source")
 
 
 def get_packages_to_filter(aosp_path):
@@ -197,9 +197,9 @@ def get_packages_to_filter(aosp_path):
     dirnames_filtered = []
     for dirpath, dirnames, filenames in os.walk(aosp_packages_abs_path):
         for file_name in filenames:
-            logging.info(f"Checking file: {file_name} in {dirpath}")
+            logging.debug(f"Checking file: {file_name} in {dirpath}")
             if file_name in FILTERED_APK_FILES:
-                logging.info(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
+                logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
                 dirnames_filtered.append(str(os.path.basename(dirpath)))
     return dirnames_filtered
 
@@ -219,7 +219,7 @@ def filter_packages(meta_build_path, aosp_packages_path):
 
     package_name_list = get_packages_to_filter(aosp_packages_path)
     if package_name_list and len(package_name_list) > 0:
-        logging.info(f"Filtering packages: {package_name_list} from {meta_build_path}")
+        logging.debug(f"Filtering packages: {package_name_list} from {meta_build_path}")
         lines = [line for line in lines if not any(s in line for s in package_name_list)]
 
         with open(meta_build_path, 'w') as file:
@@ -261,7 +261,7 @@ def get_minimal_partition_size(aosp_path, aosp_packages_path):
     two_gb = 1073741824 * 2
     while default_size < total_bytes:
         default_size += two_gb
-        logging.info(f"Increasing Default size to: {default_size} Total bytes of packages to inject is: {total_bytes}")
+        logging.debug(f"Increasing Default size to: {default_size} Total bytes of packages to inject is: {total_bytes}")
     return default_size
 
 
@@ -277,7 +277,7 @@ def overwrite_partition_size(aosp_path, aosp_packages_path):
     super_partition_size = minimal_partition_size + 8388608  # 8MB
     dynamic_partition_size = minimal_partition_size
     board_config_file_path = os.path.join(aosp_path, "build/make/target/board/BoardConfigEmuCommon.mk")
-    logging.info(f"Overwriting partition size to: {minimal_partition_size} in {board_config_file_path}")
+    logging.debug(f"Overwriting partition size to: {minimal_partition_size} in {board_config_file_path}")
     with open(board_config_file_path, 'r') as base_file:
         lines = base_file.readlines()
     for i, line in enumerate(lines):
@@ -384,7 +384,7 @@ def build_container_image(tag, docker_build_arch, target_build_arch):
     """
     Builds a docker container image that includes the image files from the image_artefacts directory.
     """
-    logging.info(f"Building docker image for firmware: {tag}, arch: {docker_build_arch}, target: {target_build_arch}")
+    logging.debug(f"Building docker image for firmware: {tag}, arch: {docker_build_arch}, target: {target_build_arch}")
     docker_client = docker.from_env()
     os.chdir(ROOT_PATH)
     if target_build_arch not in SUPPORTED_ARCHITECTURES:
@@ -397,7 +397,7 @@ def build_container_image(tag, docker_build_arch, target_build_arch):
     try:
         log_name = tag + "_docker.log"
         log_path = os.path.join(BUILD_OUT_PATH, log_name)
-        logging.info(f"Docker build logs will be written to: {log_path}")
+        logging.debug(f"Docker build logs will be written to: {log_path}")
         image, log_generator = docker_client.images.build(path=ROOT_PATH,
                                                           tag=tag,
                                                           dockerfile=dockerfile_path,
@@ -436,31 +436,31 @@ def clear_packages(aosp_packages_path):
     :param aosp_packages_path:
 
     """
-    logging.info(f"Clearing packages from {aosp_packages_path}")
+    logging.debug(f"Clearing packages from {aosp_packages_path}")
     try:
         directories = glob.glob(os.path.join(aosp_packages_path, 'ib_*'))
         for directory in directories:
             shutil.rmtree(directory)
     except Exception as err:
         logging.error(err)
-    logging.info("Cleared app packages from aosp source code.")
+    logging.debug("Cleared app packages from aosp source code.")
 
 
 def clear_image_artefacts():
     """
     Deletes the image artefacts.
     """
-    logging.info(f"Image artefacts will be deleted from {IMAGE_ARTEFACTS_ABS_PATH}")
+    logging.debug(f"Image artefacts will be deleted from {IMAGE_ARTEFACTS_ABS_PATH}")
     try:
         x86_64_artefact_path = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_X86_64_ABS_PATH)
         arm64_artefact_path = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_ARM64_PATH)
         if os.path.exists(x86_64_artefact_path):
-            logging.info(f"Clearing image artefacts from {x86_64_artefact_path}")
+            logging.debug(f"Clearing image artefacts from {x86_64_artefact_path}")
             shutil.rmtree(x86_64_artefact_path)
         if os.path.exists(arm64_artefact_path):
-            logging.info(f"Clearing image artefacts from {arm64_artefact_path}")
+            logging.debug(f"Clearing image artefacts from {arm64_artefact_path}")
             shutil.rmtree(arm64_artefact_path)
-            logging.info("Cleared image artefacts from aosp source code.")
+            logging.debug("Cleared image artefacts from aosp source code.")
     except Exception as err:
         logging.error(err)
 
@@ -476,7 +476,7 @@ def clear_base_files(aosp_path):
             aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
             if os.path.exists(aosp_base_file_path):
                 os.remove(aosp_base_file_path)
-                logging.info(f"Removed {aosp_base_file_path} from aosp source code.")
+                logging.debug(f"Removed {aosp_base_file_path} from aosp source code.")
     except Exception as err:
         pass
 
@@ -502,14 +502,14 @@ def fetch_build_files(firmware_id, cookies, fmd_url, aosp_packages_abs_path):
         aosp_packages_abs_path: str - path to extract the app packages to.
 
     """
-    logging.info(f"Process firmware: {firmware_id}")
+    logging.debug(f"Process firmware: {firmware_id}")
     zip_file_path = download_firmware_build_files(fmd_url,
                                                   firmware_id,
                                                   cookies,
                                                   aosp_packages_abs_path)
     extract_zip(zip_file_path, aosp_packages_abs_path)
     os.remove(zip_file_path)
-    logging.info(f"Completed firmware build file download to {aosp_packages_abs_path}")
+    logging.debug(f"Completed firmware build file download to {aosp_packages_abs_path}")
 
 
 def parse_arguments():
@@ -597,7 +597,7 @@ def upload_build_artefact(firmware_id, repo_url, username, password, arch, aosp_
     is_upload_success = False
     max_attempts = 5
     while not is_upload_success and max_attempts > 0:
-        logging.info(f"Uploading image {firmware_id} to repo {repo_url}.")
+        logging.debug(f"Uploading image {firmware_id} to repo {repo_url}.")
         try:
             is_upload_success = upload_image_as_raw(repo_url,
                                                     firmware_id,
@@ -631,14 +631,14 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
         else:
             raise RuntimeError(f"Unsupported Android version: {args.version}")
 
-    logging.info(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
+    logging.debug(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
     failed_firmware_ids = []
     clear_environment(args.aosp_path, aosp_packages_abs_path)
     for firmware_id in tqdm(firmware_id_list):
         try:
-            logging.info(f"Start fetching for build files for firmware-id: {firmware_id}")
+            logging.debug(f"Start fetching for build files for firmware-id: {firmware_id}")
             fetch_build_files(firmware_id, cookies, args.fmd_url, aosp_packages_abs_path)
-            logging.info(f"Start emulator image build process for firmware-id: {firmware_id}")
+            logging.debug(f"Start emulator image build process for firmware-id: {firmware_id}")
             is_build_success = start_aosp_build(args.aosp_path,
                                                 AOSP_PACKAGES_APPS_PATH,
                                                 firmware_id=firmware_id,
