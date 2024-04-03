@@ -488,7 +488,7 @@ def clear_environment(aosp_path, aosp_packages_path):
 
     """
     clear_packages(aosp_packages_path)
-    clear_image_artefacts()
+    #clear_image_artefacts()
     clear_base_files(aosp_path)
 
 
