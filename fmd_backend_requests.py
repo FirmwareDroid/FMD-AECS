@@ -178,8 +178,6 @@ def upload_image_as_raw(repo_url, firmware_id, username, password, arch, aosp_ve
     :param aosp_version: str - Android version of the image.
 
     :return: bool - True if the upload was successful, False otherwise.
-
-
     """
     is_successful = False
     if not repo_url.endswith('/'):
@@ -187,7 +185,7 @@ def upload_image_as_raw(repo_url, firmware_id, username, password, arch, aosp_ve
     url = f'{repo_url}{firmware_id}_{arch}_{aosp_version}.zip'
     logging.info(f'Uploading image {file_path} as raw to {url}')
     with open(file_path, 'rb') as f:
-        response = requests.put(url, auth=(username, password), files={'file': f})
+        response = requests.put(url, auth=(username, password), data=f)
 
     if response.status_code == 200 or response.status_code == 201:
         logging.info('File uploaded successfully')
