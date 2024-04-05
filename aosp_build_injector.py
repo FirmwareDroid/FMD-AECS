@@ -336,11 +336,10 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
     if lunch_target not in SUPPORTED_LUNCH_TARGETS:
         raise RuntimeError("Unsupported build CPU architecture specified.")
 
-    # f"&& m sdk -j 32 " \
     if aosp_version == "12":
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
-                  f"&& m -j 32 " \
+                  f"&& m sdk -j 32 " \
                   f"&& m emu_img_zip'"
     elif aosp_version == "13":
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
