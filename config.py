@@ -30,7 +30,8 @@ FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE = "${url}/download/android_app/build_
 SUPPORTED_ARCHITECTURES = ["x86_64", "arm64"]
 SUPPORTED_LUNCH_TARGETS = ["sdk_x86_64-userdebug",              # Android 12 / 13
                            "sdk_phone_arm64-userdebug",         # Android 12
-                           "sdk_arm64-userdebug"]               # Android 13
+                           "sdk_phone_arm64-userdebug",
+                           ]               # Android 13 "sdk_arm64-userdebug"
 # String templates
 FMD_GRAPHQL_URL_TEMPLATE = '${url}/graphql/'
 FMD_AUTH_QUERY_TEMPLATE = '{"query": "query Auth ' \
