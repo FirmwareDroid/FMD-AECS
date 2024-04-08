@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 libxcomposite1 libxcursor1 libxi6 \
     libxext6 libxfixes3 zlib1g libgl1 pulseaudio pulseaudio-utils socat \
     iputils-ping curl ca-certificates wget unzip procps rsync net-tools \
-    xz-utils python3 bison make gawk gcc dbus
+    xz-utils python3 bison make gawk gcc dbus f2fs-tools
 
 ################################
 # Install Java

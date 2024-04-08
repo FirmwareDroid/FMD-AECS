@@ -79,7 +79,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
 
     """
     is_successful = False
-    logging.info(f"Start aosp build injection with firmware: {firmware_id}")
+    logging.info(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path, aosp_packages_path)
     inject_packages(aosp_path, aosp_packages_path, aosp_version)
     retry_attempts = 5
