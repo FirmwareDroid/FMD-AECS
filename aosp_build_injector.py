@@ -2,7 +2,6 @@
 A command-line tool that downloads files related to the build process of an Android firmware image and stores them
 on disk. Directly extract the downloaded zip content.
 """
-import json
 import os
 import argparse
 import re
@@ -13,27 +12,33 @@ import logging
 import shutil
 import subprocess
 import glob
-import docker
 import sys
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
-from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, IMAGE_ARTEFACTS_ABS_PATH, \
-    TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, ROOT_PATH, EMULATOR_DOCKERFILE_X8664_ABS_PATH, \
+from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, \
+    TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, ROOT_PATH,  \
     AOSP_PACKAGES_APPS_PATH, SUPPORTED_ARCHITECTURES, \
     SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
-    BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, EMULATOR_DOCKERFILE_ARM64_ABS_PATH, \
-    IMAGE_ARTEFACTS_X86_64_ABS_PATH, IMAGE_ARTEFACTS_ARM64_PATH, FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH
+    BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, \
+    FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 
+debug = os.environ.get('FMD_DEBUG', False)
+
 root = logging.getLogger()
-root.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
+if not debug:
+    root.setLevel(logging.INFO)
+    handler.setLevel(logging.INFO)
+else:
+    logging.basicConfig(level=logging.DEBUG)
+    handler.setLevel(logging.DEBUG)
 root.addHandler(handler)
+
 
 
 def extract_zip(file_path, destination):
