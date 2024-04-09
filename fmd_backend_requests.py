@@ -117,9 +117,9 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
     output_file_path = None
     response = None
     total_size_in_bytes = 0
-    for attempt in range(max_attempts):
+    for attempt in range(0, max_attempts):
         try:
-            logging.info(f"Attempt {attempt+1} to download build file from {download_url}...")
+            logging.info(f"Attempt {attempt} to download build file from {download_url}...")
             if output_file_path and os.path.exists(output_file_path):
                 # If the file already exists, get the size and set the Range header
                 current_size = os.path.getsize(output_file_path)
@@ -146,16 +146,16 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
             progress_bar.close()
             break  # If the download was successful, exit the loop
         except Exception as err:
-            logging.error(f"Attempt {attempt+1} failed: {err}")
-            if attempt + 1 == max_attempts:
+            logging.error(f"Attempt {attempt} failed: {err}")
+            if attempt == max_attempts:
                 raise RuntimeError(f"Failed to download firmware build files after {max_attempts} attempts.")
+        attempt += 1
+
     if not response or response.status_code not in (200, 206):
         raise RuntimeError(f"Could not download firmware build files. Status code: {response.status_code}")
-
-    logging.info(f"Got firmware build files from {download_url}.")
-    if total_size_in_bytes != 0 and os.path.getsize(output_file_path) != total_size_in_bytes:
-        print("ERROR, something went wrong downloading the firmware build files")
-        print("Continue with remaining firmware.")
+    elif total_size_in_bytes != 0 and os.path.getsize(output_file_path) != total_size_in_bytes:
+        raise RuntimeError("ERROR, something went wrong downloading the firmware build files")
+    logging.info(f"Downloaded firmware build files to {output_file_path}")
     return output_file_path
 
 
