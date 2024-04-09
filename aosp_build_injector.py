@@ -346,7 +346,7 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
                   f"&& m " \
-                  f"&& m -j 32 " \
+                  f"&& m sdk sdk_repo -j 32 " \
                   f"&& m emu_img_zip'"
     else:
         raise RuntimeError(f"Unsupported Android version: {aosp_version}")
