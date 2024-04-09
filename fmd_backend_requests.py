@@ -144,7 +144,9 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
                     progress_bar.update(len(chunk))
                     file.write(chunk)
             progress_bar.close()
-            break  # If the download was successful, exit the loop
+
+            if response and response.status_code in (200, 206):
+                break
         except Exception as err:
             logging.error(f"Attempt {attempt} failed: {err}")
             if attempt == max_attempts:
