@@ -339,6 +339,7 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
     if aosp_version == "12":
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
+                  f"&& m " \
                   f"&& m sdk -j 32 " \
                   f"&& m emu_img_zip'"
     elif aosp_version == "13":
