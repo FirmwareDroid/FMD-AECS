@@ -117,11 +117,12 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
     output_file_path = None
     response = None
     total_size_in_bytes = 0
-    for attempt in range(0, max_attempts):
+    attempt = 0
+    is_successful = False
+    while attempt < max_attempts or not is_successful:
         try:
             logging.info(f"Attempt {attempt} to download build file from {download_url}...")
             if output_file_path and os.path.exists(output_file_path):
-                # If the file already exists, get the size and set the Range header
                 current_size = os.path.getsize(output_file_path)
                 headers["Range"] = f"bytes={current_size}-"
             response = requests.post(download_url,
@@ -130,7 +131,7 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
                                      stream=True,
                                      verify=VERIFY_SSL,
                                      cookies=cookies)
-            response.raise_for_status()  # Raises a HTTPError if the status is 4xx, 5xx
+            response.raise_for_status()
             if not content_disposition_header:
                 content_disposition_header = response.headers['Content-Disposition']
                 filename_unsafe = re.findall("filename=(.+)", content_disposition_header)[0]
@@ -144,9 +145,7 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
                     progress_bar.update(len(chunk))
                     file.write(chunk)
             progress_bar.close()
-
-            if response and response.status_code in (200, 206):
-                break
+            is_successful = True
         except Exception as err:
             logging.error(f"Attempt {attempt} failed: {err}")
             if attempt == max_attempts:
