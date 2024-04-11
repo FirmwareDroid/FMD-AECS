@@ -119,7 +119,7 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
     total_size_in_bytes = 0
     attempt = 0
     is_successful = False
-    while attempt < max_attempts or not is_successful:
+    while attempt < max_attempts and not is_successful:
         try:
             logging.info(f"Attempt {attempt} to download build file from {download_url}...")
             if output_file_path and os.path.exists(output_file_path):
