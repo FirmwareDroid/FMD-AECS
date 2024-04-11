@@ -353,7 +353,8 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
                   "&& m " \
-                  "&& m sdk emu_img_zip'"
+                  "&& m sdk emu_img_zip "  \
+                  "&& m emu_img_zip'"
 
     try:
         firmware_id = re.sub(r'\W+', '', firmware_id)
