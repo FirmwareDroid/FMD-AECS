@@ -424,12 +424,20 @@ def fetch_build_files(firmware_id, cookies, fmd_url, aosp_packages_abs_path):
 
     """
     logging.debug(f"Process firmware: {firmware_id}")
-    zip_file_path = download_firmware_build_files(fmd_url,
-                                                  firmware_id,
-                                                  cookies,
-                                                  aosp_packages_abs_path)
-    extract_zip(zip_file_path, aosp_packages_abs_path)
-    os.remove(zip_file_path)
+    is_successful = False
+    max_attempts = 5
+    while not is_successful and max_attempts > 0:
+        try:
+            max_attempts -= 1
+            zip_file_path = download_firmware_build_files(fmd_url,
+                                                          firmware_id,
+                                                          cookies,
+                                                          aosp_packages_abs_path)
+            extract_zip(zip_file_path, aosp_packages_abs_path)
+            os.remove(zip_file_path)
+            is_successful = True
+        except Exception as err:
+            logging.error(f"Error fetching firmware build files: {err}")
     logging.debug(f"Completed firmware build file download to {aosp_packages_abs_path}")
 
 
