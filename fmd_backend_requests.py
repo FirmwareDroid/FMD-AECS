@@ -145,9 +145,6 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
                     progress_bar.update(len(chunk))
                     file.write(chunk)
             progress_bar.close()
-            if total_size_in_bytes != 0 and os.path.getsize(output_file_path) != total_size_in_bytes:
-                logging.error("File size on disk and remote differs. Retrying...")
-                continue
             is_successful = True
         except Exception as err:
             logging.error(f"Attempt {attempt} failed: {err}")
