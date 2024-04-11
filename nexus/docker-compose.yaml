@@ -11,5 +11,6 @@ services:
     ports:
       - "8081:8081"
       - "8082:8082"
+      - "8083:8083"
 
 # On linux: sudo chown -R 200:200 ./nexus_data
