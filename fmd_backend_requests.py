@@ -154,8 +154,7 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
 
     if not response or response.status_code not in (200, 206):
         raise RuntimeError(f"Could not download firmware build files. Status code: {response.status_code}")
-    elif total_size_in_bytes != 0 and os.path.getsize(output_file_path) != total_size_in_bytes:
-        raise RuntimeError("ERROR, something went wrong downloading the firmware build files")
+
     logging.info(f"Downloaded firmware build files to {output_file_path}")
     return output_file_path
 
