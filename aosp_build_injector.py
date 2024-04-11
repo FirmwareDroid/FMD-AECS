@@ -341,20 +341,19 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
     if lunch_target not in SUPPORTED_LUNCH_TARGETS:
         raise RuntimeError("Unsupported build CPU architecture specified.")
 
-    if aosp_version == "12":
-        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
-                  f"&& lunch {lunch_target} " \
-                  f"&& m " \
-                  f"&& m sdk sdk_repo -j 32 " \
-                  f"&& m emu_img_zip'"
-    elif aosp_version == "13":
-        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
-                  f"&& lunch {lunch_target} " \
-                  f"&& m " \
-                  f"&& m sdk sdk_repo -j 32 " \
-                  f"&& m emu_img_zip'"
-    else:
+    if aosp_version not in ["12", "13"]:
         raise RuntimeError(f"Unsupported Android version: {aosp_version}")
+
+    if "x86_64" in lunch_target:
+        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+                  f"&& lunch {lunch_target} " \
+                  f"&& m " \
+                  f"&& m sdk sdk_repo emu_img_zip"
+    else:
+        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+                  f"&& lunch {lunch_target} " \
+                  f"&& m " \
+                  f"&& m sdk emu_img_zip"
 
     try:
         firmware_id = re.sub(r'\W+', '', firmware_id)
