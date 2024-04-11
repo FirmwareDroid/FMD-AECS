@@ -347,13 +347,13 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
     if "x86_64" in lunch_target and aosp_version == "12":
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
-                  f"&& m " \
-                  f"&& m sdk sdk_repo emu_img_zip"
+                  "&& m " \
+                  "&& m sdk sdk_repo emu_img_zip'"
     else:
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
-                  f"&& m " \
-                  f"&& m sdk emu_img_zip"
+                  "&& m " \
+                  "&& m sdk emu_img_zip'"
 
     try:
         firmware_id = re.sub(r'\W+', '', firmware_id)
