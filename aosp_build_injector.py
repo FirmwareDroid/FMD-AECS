@@ -344,7 +344,7 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
     if aosp_version not in ["12", "13"]:
         raise RuntimeError(f"Unsupported Android version: {aosp_version}")
 
-    if "x86_64" in lunch_target:
+    if "x86_64" in lunch_target and aosp_version == "12":
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
                   f"&& m " \
