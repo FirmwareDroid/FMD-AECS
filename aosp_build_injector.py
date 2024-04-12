@@ -348,6 +348,7 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
                   "&& m " \
+                  "&& m sdk " \
                   "&& m sdk_repo'"
     else:
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
