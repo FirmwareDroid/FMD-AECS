@@ -349,7 +349,8 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
                   f"&& lunch {lunch_target} " \
                   "&& m " \
                   "&& m sdk " \
-                  "&& m sdk_repo'"
+                  "&& m sdk_repo " \
+                  "&& m emu_img_zip'"
     else:
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
@@ -602,11 +603,13 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
 
 
 def main():
+    logging.info("=======================BUILD INJECTOR=======================")
     args = parse_arguments()
     fmd_password, docker_repo_password = get_passwords(args)
     csrf_cookie = get_csrf_token(args.fmd_url)
     firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
     process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password)
+    logging.info("===============================================================")
 
 
 if __name__ == "__main__":
