@@ -188,7 +188,7 @@ def upload_image_as_raw(repo_url, firmware_id, username, password, arch, aosp_ve
     url = f'{repo_url}{firmware_id}_{arch}_{aosp_version}_{lunch_target}.zip'
     logging.info(f'Uploading image {file_path} as raw to {url}')
     with open(file_path, 'rb') as f:
-        response = requests.put(url, auth=(username, password), data=f)
+        response = requests.put(url, auth=(username, password), data=f, verify=VERIFY_SSL)
 
     if response.status_code == 200 or response.status_code == 201:
         logging.info('File uploaded successfully')
