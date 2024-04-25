@@ -42,4 +42,3 @@ FMD_AECS_FIRMWARE_QUERY_TEMPLATE = '{"query": "query GetFirmwareIdList {aecs_fir
 FMD_CSRF_URL_TEMPLATE = "${url}/csrf/"
 VERIFY_SSL = False  # You can suppress warnings with: export PYTHONWARNINGS="ignore:Unverified HTTPS request"
 FILTERED_APK_FILES = ["framework-res.apk"]
-
