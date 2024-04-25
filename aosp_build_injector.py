@@ -241,12 +241,10 @@ def get_directory_size(directory_path):
     """
     total = 0
     for dirpath, dirnames, filenames in os.walk(directory_path):
-        if os.path.basename(dirpath).startswith('ib_'):
-            for f in filenames:
-                fp = os.path.join(dirpath, f)
-                if not os.path.islink(fp):
-                    total += os.path.getsize(fp)
-
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            if not os.path.islink(fp):
+                total += os.path.getsize(fp)
     return total
 
 
@@ -261,12 +259,13 @@ def get_minimal_partition_size(aosp_path, aosp_packages_path):
 
     """
     packages_abs_path = os.path.join(aosp_path, aosp_packages_path)
-    total_bytes = get_directory_size(packages_abs_path)
+    approximate_size = get_directory_size(packages_abs_path)
     default_size = 4294967296  # 4GB
     two_gb_in_bytes = 1073741824 * 2
-    if default_size < total_bytes:
-        default_size += total_bytes + two_gb_in_bytes
-        logging.debug(f"Increasing Default size to: {default_size} Total bytes of packages to inject is: {total_bytes}")
+    if (default_size - approximate_size) < two_gb_in_bytes:
+        default_size += default_size + approximate_size + two_gb_in_bytes
+        logging.debug(f"Increasing partition size to: {default_size} Approximate bytes of packages "
+                      f"to inject is: {approximate_size}")
     return default_size
 
 
@@ -347,6 +346,7 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
     if "x86_64" in lunch_target and aosp_version == "12":
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
+                  "&& make clean && make clobber" \
                   "&& m " \
                   "&& m sdk " \
                   "&& m sdk_repo " \
@@ -354,6 +354,7 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
     else:
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
+                  "&& make clean && make clobber" \
                   "&& m " \
                   "&& m emu_img_zip'"
 
