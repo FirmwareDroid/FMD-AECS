@@ -41,11 +41,11 @@ while true; do
 
   if [[ $architecture == "x86_64" ]]; then
     AVD="x86_64"
-    /android/sdk/emulator/emulator -avd $AVD -no-window -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -no-boot-anim -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1" &
+    /android/sdk/emulator/emulator -avd $AVD -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -logcat-output "/tmp/android-unknown/logcat.log" -shell-serial "file:/tmp/android-unknown/kernel.log" -no-boot-anim -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1" &
     pid=$!
   elif [[ $architecture == "aarch64" ]]; then
     AVD="Arm64"
-    /android/sdk/emulator/emulator -avd Arm64 -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "/tmp/android-unknown/logcat.log" -shell-serial "file:/tmp/android-unknown/kernel.log" -no-boot-anim -wipe-data -show-kernel -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max &
+    /android/sdk/emulator/emulator -avd $AVD -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "/tmp/android-unknown/logcat.log" -shell-serial "file:/tmp/android-unknown/kernel.log" -no-boot-anim -wipe-data -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max &
     pid=$!
   else
     echo "Unsupported architecture"

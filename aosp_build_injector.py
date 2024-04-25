@@ -40,7 +40,6 @@ else:
 root.addHandler(handler)
 
 
-
 def extract_zip(file_path, destination):
     with zipfile.ZipFile(file_path, 'r') as zip_ref:
         zip_ref.extractall(destination)
@@ -233,19 +232,20 @@ def filter_packages(meta_build_path, aosp_packages_path):
 
 def get_directory_size(directory_path):
     """
-    Calculate the size of a directory in bytes.
+    Calculate the size of directories starting with 'ib_' in bytes.
 
     :param directory_path: str - path to the directory to calculate the size of.
 
-    :returns: int - size of the directory in bytes.
+    :returns: int - size of the directories in bytes.
 
     """
     total = 0
     for dirpath, dirnames, filenames in os.walk(directory_path):
-        for f in filenames:
-            fp = os.path.join(dirpath, f)
-            if not os.path.islink(fp):
-                total += os.path.getsize(fp)
+        if os.path.basename(dirpath).startswith('ib_'):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                if not os.path.islink(fp):
+                    total += os.path.getsize(fp)
 
     return total
 
@@ -263,9 +263,9 @@ def get_minimal_partition_size(aosp_path, aosp_packages_path):
     packages_abs_path = os.path.join(aosp_path, aosp_packages_path)
     total_bytes = get_directory_size(packages_abs_path)
     default_size = 4294967296  # 4GB
-    two_gb = 1073741824 * 2
-    while default_size < total_bytes:
-        default_size += two_gb
+    two_gb_in_bytes = 1073741824 * 2
+    if default_size < total_bytes:
+        default_size += total_bytes + two_gb_in_bytes
         logging.debug(f"Increasing Default size to: {default_size} Total bytes of packages to inject is: {total_bytes}")
     return default_size
 
@@ -374,7 +374,7 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
 
 def clear_packages(aosp_packages_path):
     """
-    Deletes injected apk packages from the aosp source code.
+    Deletes injected apk packages and .txt and .zip files from the aosp source code.
 
     :param aosp_packages_path:
 
@@ -384,9 +384,13 @@ def clear_packages(aosp_packages_path):
         directories = glob.glob(os.path.join(aosp_packages_path, 'ib_*'))
         for directory in directories:
             shutil.rmtree(directory)
+        txt_files = glob.glob(os.path.join(aosp_packages_path, '*.txt'))
+        zip_files = glob.glob(os.path.join(aosp_packages_path, '*.zip'))
+        for file in txt_files + zip_files:
+            os.remove(file)
     except Exception as err:
         logging.error(err)
-    logging.debug("Cleared app packages from aosp source code.")
+    logging.debug("Cleared app packages and .txt and .zip files from aosp source code.")
 
 
 def clear_base_files(aosp_path):

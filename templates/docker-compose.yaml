@@ -1,7 +1,6 @@
-version: '3.7'
 services:
   envoy:
-    platform: "linux/amd64"
+    platform: {{ platform }}
     image: envoyproxy/envoy:v1.27-latest
     restart: unless-stopped
     volumes:
@@ -13,7 +12,7 @@ services:
       - frontend
 
   coturn:
-    platform: "linux/amd64"
+    platform: {{ platform }}
     image: coturn/coturn
     restart: unless-stopped
     volumes:

@@ -1,8 +1,7 @@
 {{ service_name }}:
-    platform: "linux/amd64"
+    platform: {{ platform }}
     container_name: {{ container_name }}
     image: {{ image_name }}
-    devices: [/dev/kvm]
     env_file:
       - ./env/.env
     ports:
@@ -10,3 +9,6 @@
       - "{{ adb_port_host }}:5555"
     networks:
       - frontend
+{%- for line in optional_settings %}
+    {{ line }}
+{%- endfor %}

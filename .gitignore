@@ -3,7 +3,6 @@ emulator/prebuilts/*
 emulator/.env
 out/*
 venv/
-env/envoy/envoy.yaml
 docker-compose.yaml
 nexus/.env
 nexus/nexus_data/*
@@ -12,3 +11,5 @@ nexus/nexus_data/*
 .idea/
 start_fmd-aecs.sh
 start_fmd-aecs_2.sh
+docker-images.txt
+env/envoy/
