@@ -7,7 +7,7 @@ services:
       - ./env/envoy/envoy.yaml:/etc/envoy/envoy.yaml
       - ./env/envoy/fmd-aosp.init-lab.ch/:/etc/envoy/certs/
     ports:
-      - "443:443"
+      - {{ envoy_port_mapping }}
     networks:
       - frontend
 

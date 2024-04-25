@@ -55,12 +55,18 @@ def main():
         logging.info(f"CPU architecture is set to {args.cpu_arch}.")
         raise ValueError("CPU architecture must be either linux/amd64 or linux/arm64.")
 
+    if args.debug:
+        envoy_port_mapping = "4443:443"
+    else:
+        envoy_port_mapping = "443:443"
+
     template_variables_dict = {"service_name": "android_emulator_",
                                "container_name": "android_emulator_",
                                "grpc_port_host": args.grpc_start_port,
                                "adb_port_host": args.adb_start_port,
                                "platform": args.cpu_arch,
                                "debug": args.debug,
+                               "envoy_port_mapping": envoy_port_mapping
                                }
     environment = Environment(loader=FileSystemLoader("templates/"))
     docker_image_name_list = get_docker_images_names()
@@ -120,7 +126,8 @@ def create_docker_compose_file(template_variables_dict, environment, docker_imag
     template = environment.get_template(COMPOSE_TEMPLATE_NAME)
     content = template.render(
         emulator_content_list=emulator_template_content_list,
-        platform=template_variables_dict["platform"]
+        platform=template_variables_dict["platform"],
+        envoy_port_mapping=template_variables_dict["envoy_port_mapping"],
     )
 
     with open(OUTPUT_FILENAME, mode="w", encoding="utf-8") as message:
