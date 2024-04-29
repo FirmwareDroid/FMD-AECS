@@ -12,4 +12,6 @@ nexus/nexus_data/*
 start_fmd-aecs.sh
 start_fmd-aecs_2.sh
 docker-images.txt
-env/envoy/
+docker_images.txt
+env/envoy/*
+
