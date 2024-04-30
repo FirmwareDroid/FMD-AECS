@@ -103,7 +103,7 @@ def create_docker_compose_file(template_variables_dict, environment, docker_imag
         template = environment.get_template(EMULATOR_TEMPLATE_NAME)
         service_name = template_variables_dict["service_name"] + str(x)
         container_name = template_variables_dict["container_name"] + str(x)
-        grpc_port_host = template_variables_dict["grpc_port_host"] + x
+        grpc_port_host = template_variables_dict["grpc_port_host"]
         adb_port_host = template_variables_dict["adb_port_host"] + x
         platform = template_variables_dict["platform"]
         optional_settings = []
