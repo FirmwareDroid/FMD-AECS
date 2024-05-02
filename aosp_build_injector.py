@@ -197,13 +197,13 @@ def get_packages_to_filter(aosp_path):
     :returns: list - list of filtered packages.
 
     """
-    aosp_packages_abs_path = os.path.join(aosp_path, AOSP_PACKAGES_APPS_PATH)
+    aosp_packages_abs_path = str(os.path.join(aosp_path, AOSP_PACKAGES_APPS_PATH))
     dirnames_filtered = []
     for dirpath, dirnames, filenames in os.walk(aosp_packages_abs_path):
         for file_name in filenames:
             logging.debug(f"Checking file: {file_name} in {dirpath}")
             if file_name in FILTERED_APK_FILES:
-                logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
+                logging.info(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
                 dirnames_filtered.append(str(os.path.basename(dirpath)))
     return dirnames_filtered
 
@@ -221,11 +221,10 @@ def filter_packages(meta_build_path, aosp_packages_path):
     with open(meta_build_path, 'r') as meta_build_file:
         lines = meta_build_file.readlines()
 
-    package_name_list = get_packages_to_filter(aosp_packages_path)
-    if package_name_list and len(package_name_list) > 0:
-        logging.debug(f"Filtering packages: {package_name_list} from {meta_build_path}")
-        lines = [line for line in lines if not any(s in line for s in package_name_list)]
-
+    package_dir_name_list = get_packages_to_filter(aosp_packages_path)
+    if package_dir_name_list and len(package_dir_name_list) > 0:
+        logging.info(f"Filtering packages: {package_dir_name_list} from {meta_build_path}")
+        lines = [line for line in lines if not any(s in line for s in package_dir_name_list)]
         with open(meta_build_path, 'w') as file:
             file.writelines(lines)
 
@@ -343,20 +342,13 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
     if aosp_version not in ["12", "13"]:
         raise RuntimeError(f"Unsupported Android version: {aosp_version}")
 
-    if "x86_64" in lunch_target and aosp_version == "12":
-        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
-                  f"&& lunch {lunch_target} " \
-                  "&& make clean && make clobber" \
-                  "&& m " \
-                  "&& m sdk " \
-                  "&& m sdk_repo " \
-                  "&& m emu_img_zip'"
-    else:
-        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
-                  f"&& lunch {lunch_target} " \
-                  "&& make clean && make clobber" \
-                  "&& m " \
-                  "&& m emu_img_zip'"
+    command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+              f"&& lunch {lunch_target} " \
+              "&& m clean " \
+              "&& m " \
+              "&& m sdk " \
+              "&& m sdk_repo " \
+              "&& m emu_img_zip'"
 
     try:
         firmware_id = re.sub(r'\W+', '', firmware_id)
