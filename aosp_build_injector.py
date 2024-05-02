@@ -202,7 +202,7 @@ def get_packages_to_filter(aosp_path, aosp_packages_path):
         raise ValueError(f"{aosp_path} is not a valid directory")
 
     aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
-    logging.info(f"Search for packages to filter in {aosp_packages_abs_path}")
+    logging.debug(f"Search for packages to filter in {aosp_packages_abs_path}")
     dirnames_filtered = []
     try:
         for dirpath, dirnames, filenames in os.walk(aosp_packages_abs_path):
@@ -232,11 +232,11 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path):
         lines = meta_build_file.readlines()
 
     package_dir_name_list = get_packages_to_filter(aosp_path, aosp_packages_path)
-    logging.info(f"Size of package list to filter: {len(package_dir_name_list)}")
+    logging.info(f"Found {len(package_dir_name_list)} apk files to exclude from build.")
     if len(package_dir_name_list) == 0:
         raise RuntimeError("Did not find any package to filter. Likely something is wrong...")
     if package_dir_name_list and len(package_dir_name_list) > 0:
-        logging.info(f"Filtering packages: {package_dir_name_list} from {meta_build_path}")
+        logging.debug(f"Filtering packages: {package_dir_name_list} from {meta_build_path}")
         lines = [line for line in lines if not any(s in line for s in package_dir_name_list)]
         with open(meta_build_path, 'w') as file:
             file.writelines(lines)
