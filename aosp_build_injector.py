@@ -218,10 +218,14 @@ def filter_packages(meta_build_path, aosp_packages_path):
     :returns: list - list of filtered packages.
 
     """
+    logging.info("Search for packages to exclude from build process")
     with open(meta_build_path, 'r') as meta_build_file:
         lines = meta_build_file.readlines()
 
     package_dir_name_list = get_packages_to_filter(aosp_packages_path)
+    logging.info(f"Size of package list to filter: {len(package_dir_name_list)}")
+    if len(package_dir_name_list) == 0:
+        raise RuntimeError("Did not find any package to filter. Likely something is wrong...")
     if package_dir_name_list and len(package_dir_name_list) > 0:
         logging.info(f"Filtering packages: {package_dir_name_list} from {meta_build_path}")
         lines = [line for line in lines if not any(s in line for s in package_dir_name_list)]
