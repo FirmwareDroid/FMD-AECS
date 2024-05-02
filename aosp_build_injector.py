@@ -188,12 +188,12 @@ def write_and_copy_file(content, out_file_path, aosp_base_file_path):
     logging.debug(f"Placed {os.path.basename(out_file_path)} {aosp_base_file_path} in aosp source")
 
 
-def get_packages_to_filter(aosp_path):
+def get_packages_to_filter(aosp_path, aosp_packages_path):
     """
     Filters the packages based on the filter list.
 
     :param aosp_path: str - path to the root of the aosp source code.
-    :param filtered_apk_files: list - list of apk files to filter.
+    :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
 
     :returns: list - list of filtered packages.
 
@@ -201,7 +201,7 @@ def get_packages_to_filter(aosp_path):
     if not os.path.isdir(aosp_path):
         raise ValueError(f"{aosp_path} is not a valid directory")
 
-    aosp_packages_abs_path = str(os.path.join(aosp_path, AOSP_PACKAGES_APPS_PATH))
+    aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
     logging.info(f"Search for packages to filter in {aosp_packages_abs_path}")
     dirnames_filtered = []
     try:
@@ -216,12 +216,13 @@ def get_packages_to_filter(aosp_path):
     return dirnames_filtered
 
 
-def filter_packages(meta_build_path, aosp_packages_path):
+def filter_packages(meta_build_path, aosp_path, aosp_packages_path):
     """
     Removes the packages based on the filter list from the meta file.
 
     :param meta_build_path: str - path to the meta_build.txt file.
     :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
+    :param aosp_path: str - path to the root of the aosp source code.
 
     :returns: list - list of filtered packages.
 
@@ -230,7 +231,7 @@ def filter_packages(meta_build_path, aosp_packages_path):
     with open(meta_build_path, 'r') as meta_build_file:
         lines = meta_build_file.readlines()
 
-    package_dir_name_list = get_packages_to_filter(aosp_packages_path)
+    package_dir_name_list = get_packages_to_filter(aosp_path, aosp_packages_path)
     logging.info(f"Size of package list to filter: {len(package_dir_name_list)}")
     if len(package_dir_name_list) == 0:
         raise RuntimeError("Did not find any package to filter. Likely something is wrong...")
@@ -311,6 +312,7 @@ def inject_packages(aosp_path, aosp_packages_path, aosp_version):
 
     :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
     :param aosp_path: str -  path to aosp root folder.
+    :param aosp_version: str - version of the aosp build.
 
     """
     for meta_build_filename in META_BUILD_FILENAMES:
@@ -322,7 +324,7 @@ def inject_packages(aosp_path, aosp_packages_path, aosp_version):
                 with open(meta_build_path, 'w'):
                     pass
         base_filename = get_base_filename(meta_build_filename)
-        filter_packages(meta_build_path, aosp_packages_path)
+        filter_packages(meta_build_path, aosp_path, aosp_packages_path)
         content = read_and_render_template(meta_build_path, base_filename, aosp_version)
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
         out_file_path = os.path.join(BUILD_OUT_PATH, base_filename)
