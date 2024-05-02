@@ -188,23 +188,31 @@ def write_and_copy_file(content, out_file_path, aosp_base_file_path):
     logging.debug(f"Placed {os.path.basename(out_file_path)} {aosp_base_file_path} in aosp source")
 
 
-def get_packages_to_filter(aosp_path):
+def get_packages_to_filter(aosp_path, filtered_apk_files):
     """
     Filters the packages based on the filter list.
 
     :param aosp_path: str - path to the root of the aosp source code.
+    :param filtered_apk_files: list - list of apk files to filter.
 
     :returns: list - list of filtered packages.
 
     """
+    if not os.path.isdir(aosp_path):
+        raise ValueError(f"{aosp_path} is not a valid directory")
+
     aosp_packages_abs_path = str(os.path.join(aosp_path, AOSP_PACKAGES_APPS_PATH))
+    logging.info(f"Search for packages to filter in {aosp_packages_abs_path}")
     dirnames_filtered = []
-    for dirpath, dirnames, filenames in os.walk(aosp_packages_abs_path):
-        for file_name in filenames:
-            logging.debug(f"Checking file: {file_name} in {dirpath}")
-            if file_name in FILTERED_APK_FILES:
-                logging.info(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
-                dirnames_filtered.append(str(os.path.basename(dirpath)))
+    try:
+        for dirpath, dirnames, filenames in os.walk(aosp_packages_abs_path):
+            for file_name in filenames:
+                logging.debug(f"Checking file: {file_name} in {dirpath}")
+                if file_name in filtered_apk_files:
+                    logging.info(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
+                    dirnames_filtered.append(str(os.path.basename(dirpath)))
+    except Exception as e:
+        logging.error(f"An error occurred while filtering packages: {e}")
     return dirnames_filtered
 
 
