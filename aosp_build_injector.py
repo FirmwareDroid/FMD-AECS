@@ -188,7 +188,7 @@ def write_and_copy_file(content, out_file_path, aosp_base_file_path):
     logging.debug(f"Placed {os.path.basename(out_file_path)} {aosp_base_file_path} in aosp source")
 
 
-def get_packages_to_filter(aosp_path, filtered_apk_files):
+def get_packages_to_filter(aosp_path):
     """
     Filters the packages based on the filter list.
 
@@ -208,7 +208,7 @@ def get_packages_to_filter(aosp_path, filtered_apk_files):
         for dirpath, dirnames, filenames in os.walk(aosp_packages_abs_path):
             for file_name in filenames:
                 logging.debug(f"Checking file: {file_name} in {dirpath}")
-                if file_name in filtered_apk_files:
+                if file_name in FILTERED_APK_FILES:
                     logging.info(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
                     dirnames_filtered.append(str(os.path.basename(dirpath)))
     except Exception as e:
