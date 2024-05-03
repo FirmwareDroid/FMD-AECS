@@ -235,7 +235,7 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filteri
         lines = meta_build_file.readlines()
 
     if skip_filtering:
-        package_dir_name_list = []
+        package_dir_name_list = ["framework-res.apk"]
     else:
         package_dir_name_list = get_packages_to_filter(aosp_path, aosp_packages_path)
 
