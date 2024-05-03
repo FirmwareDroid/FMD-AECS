@@ -484,7 +484,7 @@ def parse_arguments():
                         help='Specifies the CPU architecture ("arm64" or "x86_64") to use for the build process.')
     parser.add_argument("-e", "--version", type=str, default="12",
                         help='Specifies Android version to build for. Example: "12"')
-    parser.add_argument("-n", "--no-filtering", action='store_true',
+    parser.add_argument("-n", "--no-filtering", action='store_true', default=False,
                         help='If set, the filtering of the packages will be skipped.')
     args = parser.parse_args()
 
