@@ -230,7 +230,7 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filteri
     :returns: list - list of filtered packages.
 
     """
-    logging.info("Search for packages to exclude from build process")
+    logging.info(f"Search for packages to exclude from build process: {meta_build_path}")
     with open(meta_build_path, 'r') as meta_build_file:
         lines = meta_build_file.readlines()
 
