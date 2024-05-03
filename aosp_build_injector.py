@@ -69,7 +69,7 @@ def delete_files(dir_path):
         os.remove(f)
 
 
-def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version):
+def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering):
     """
     Wrapper method to start the firmware injection and build process.
 
@@ -78,14 +78,16 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
     :param aosp_path: str - path to aosp root folder.
     :param aosp_version: str - version of the aosp build.
+    :param skip_filtering: bool - skip the filtering process.
 
     :returns: bool - True if the build process was successful.
+
 
     """
     is_successful = False
     logging.info(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path, aosp_packages_path)
-    inject_packages(aosp_path, aosp_packages_path, aosp_version)
+    inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
     retry_attempts = 5
     while not is_successful and retry_attempts > 0:
         try:
@@ -209,20 +211,21 @@ def get_packages_to_filter(aosp_path, aosp_packages_path):
             for file_name in filenames:
                 logging.debug(f"Checking file: {file_name} in {dirpath}")
                 if file_name in FILTERED_APK_FILES:
-                    logging.info(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
+                    logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
                     dirnames_filtered.append(str(os.path.basename(dirpath)))
     except Exception as e:
         logging.error(f"An error occurred while filtering packages: {e}")
     return dirnames_filtered
 
 
-def filter_packages(meta_build_path, aosp_path, aosp_packages_path):
+def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filtering=False):
     """
     Removes the packages based on the filter list from the meta file.
 
     :param meta_build_path: str - path to the meta_build.txt file.
     :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
     :param aosp_path: str - path to the root of the aosp source code.
+    :param skip_filtering: bool - skip the filtering process.
 
     :returns: list - list of filtered packages.
 
@@ -231,7 +234,11 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path):
     with open(meta_build_path, 'r') as meta_build_file:
         lines = meta_build_file.readlines()
 
-    package_dir_name_list = get_packages_to_filter(aosp_path, aosp_packages_path)
+    if skip_filtering:
+        package_dir_name_list = []
+    else:
+        package_dir_name_list = get_packages_to_filter(aosp_path, aosp_packages_path)
+
     logging.info(f"Found {len(package_dir_name_list)} apk files to exclude from build.")
     if len(package_dir_name_list) == 0:
         raise RuntimeError("Did not find any package to filter. Likely something is wrong...")
@@ -306,7 +313,7 @@ def overwrite_partition_size(aosp_path, aosp_packages_path):
         base_file.writelines(lines)
 
 
-def inject_packages(aosp_path, aosp_packages_path, aosp_version):
+def inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering):
     """
     Replaces the original base_system.mk of the AOSP source code with a modified version.
     The modified version includes all the packages to inject into the build process.
@@ -314,6 +321,7 @@ def inject_packages(aosp_path, aosp_packages_path, aosp_version):
     :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
     :param aosp_path: str -  path to aosp root folder.
     :param aosp_version: str - version of the aosp build.
+    :param skip_filtering: bool - skip the filtering process.
 
     """
     for meta_build_filename in META_BUILD_FILENAMES:
@@ -325,7 +333,7 @@ def inject_packages(aosp_path, aosp_packages_path, aosp_version):
                 with open(meta_build_path, 'w'):
                     pass
         base_filename = get_base_filename(meta_build_filename)
-        filter_packages(meta_build_path, aosp_path, aosp_packages_path)
+        filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filtering)
         content = read_and_render_template(meta_build_path, base_filename, aosp_version)
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
         out_file_path = os.path.join(BUILD_OUT_PATH, base_filename)
@@ -476,6 +484,8 @@ def parse_arguments():
                         help='Specifies the CPU architecture ("arm64" or "x86_64") to use for the build process.')
     parser.add_argument("-e", "--version", type=str, default="12",
                         help='Specifies Android version to build for. Example: "12"')
+    parser.add_argument("-n", "--no-filtering", action='store_true',
+                        help='If set, the filtering of the packages will be skipped.')
     args = parser.parse_args()
 
     if not (args.fmd_url.startswith("https://") or args.fmd_url.startswith("http://")):
@@ -523,7 +533,8 @@ def fetch_firmware_ids(args, fmd_password, csrf_cookie):
     return firmware_id_list, cookies
 
 
-def upload_build_artefact(firmware_id, repo_url, username, password, arch, aosp_version, lunch_target, artefact_path):
+def upload_build_artefact(firmware_id, repo_url, username, password, arch, aosp_version, lunch_target, artefact_path,
+                          skip_filtering):
     """
     Uploads the build artefact to the docker registry. Retries the upload process if it fails.
 
@@ -549,7 +560,8 @@ def upload_build_artefact(firmware_id, repo_url, username, password, arch, aosp_
                                                     arch,
                                                     aosp_version,
                                                     lunch_target,
-                                                    artefact_path)
+                                                    artefact_path,
+                                                    skip_filtering)
         except Exception as err:
             logging.error(f"Error uploading image: {err}")
         max_attempts -= 1
@@ -586,7 +598,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                                                 AOSP_PACKAGES_APPS_PATH,
                                                 firmware_id=firmware_id,
                                                 lunch_target=lunch_target,
-                                                aosp_version=args.version)
+                                                aosp_version=args.version,
+                                                skip_filtering=args.no_filtering)
             if is_build_success:
                 logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
                 emulator_image_zip_path = get_emulator_image_path(args.aosp_path, lunch_target)
@@ -597,7 +610,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                                                           args.arch,
                                                           args.version,
                                                           lunch_target,
-                                                          emulator_image_zip_path)
+                                                          emulator_image_zip_path,
+                                                          args.skip_filtering)
                 if is_upload_success:
                     logging.info(f"Upload of firmware-id: {firmware_id} was successful.")
                 else:
