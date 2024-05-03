@@ -1,5 +1,16 @@
 #!/bin/bash
 
+setup_stop_existing_emulator() {
+  # Stops the existing emulator
+  pkill -f "emulator -avd"
+  pkill -f "socat -d tcp-listen:5555"
+  pkill -f "socat -d tcp-listen:8554"
+  pkill -f "pulseaudio"
+  pkill -f "tail --retry -f /tmp/android-unknown/goldfish_rtc_0"
+  pkill -f "cat /tmp/android-unknown/kernel.log"
+  pkill -f "cat /tmp/android-unknown/logcat.log"
+}
+
 setup_pulse_audio() {
   # Setups pulse audio for the emulator
   mkdir -p /root/.config/pulse
@@ -21,7 +32,6 @@ setup_logger_forwarding() {
 
 setup_port_forwarding() {
   # Setups port forwarding for adb and gRPC
-
   sleep 1
   # Forward adb port
   socat -d tcp-listen:5555,reuseaddr,fork tcp:127.0.0.1:5557 &
@@ -29,7 +39,7 @@ setup_port_forwarding() {
   socat -d tcp-listen:8554,reuseaddr,fork tcp:127.0.0.1:8556 &
 }
 
-
+setup_stop_existing_emulator
 architecture=$(uname -m)
 setup_port_forwarding
 setup_pulse_audio
