@@ -13,6 +13,8 @@ import shutil
 import subprocess
 import glob
 import sys
+from pathlib import Path
+
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
@@ -21,7 +23,7 @@ from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, \
     AOSP_PACKAGES_APPS_PATH, SUPPORTED_ARCHITECTURES, \
     SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
     BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, \
-    FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH, AOSP_DEFAULT_PACKAGE_NAMES
+    FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH, AOSP_DEFAULT_PACKAGE_NAMES, PACKAGE_EXTRACTION_DIR_NAME
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 
@@ -353,6 +355,25 @@ def overwrite_partition_size(aosp_path, aosp_packages_path):
         base_file.writelines(lines)
 
 
+def move_packages_to_aosp(aosp_path, aosp_packages_path):
+    """
+    Moves the prebuilt packages to the aosp source code.
+
+    :param aosp_path: str - path to the root of the aosp source code.
+    :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
+
+    """
+    aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
+    extraction_dir_path_abs = os.path.join(aosp_packages_abs_path, PACKAGE_EXTRACTION_DIR_NAME)
+    for dir_name in os.listdir(extraction_dir_path_abs):
+        package_path = os.path.join(aosp_packages_abs_path, dir_name)
+        if os.path.isdir(package_path) and dir_name not in AOSP_DEFAULT_PACKAGE_NAMES:
+            logging.debug(f"Moving package: {dir_name} to {aosp_packages_abs_path}")
+            shutil.move(package_path, aosp_packages_abs_path)
+        else:
+            logging.debug(f"Skipping package: {dir_name} as it is a default package.")
+
+
 def inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering):
     """
     Replaces the original base_system.mk of the AOSP source code with a modified version.
@@ -509,7 +530,9 @@ def fetch_build_files(firmware_id, cookies, fmd_url, aosp_packages_abs_path):
                                                           firmware_id,
                                                           cookies,
                                                           aosp_packages_abs_path)
-            extract_zip(zip_file_path, aosp_packages_abs_path)
+            tmp_path = os.path.join(aosp_packages_abs_path, PACKAGE_EXTRACTION_DIR_NAME)
+            os.makedirs(tmp_path)
+            extract_zip(zip_file_path, tmp_path)
             os.remove(zip_file_path)
             is_successful = True
         except Exception as err:
