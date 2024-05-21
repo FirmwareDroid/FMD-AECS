@@ -248,7 +248,7 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filteri
         lines = [line for line in lines if not any(s in line for s in package_dir_name_list)]
         with open(meta_build_path, 'w') as file:
             file.writelines(lines)
-    #delete_filtered_packages(package_dir_name_list, aosp_packages_abs_path)
+    delete_filtered_packages(package_dir_name_list, aosp_packages_abs_path)
 
 
 def delete_filtered_packages(package_dir_name_list, aosp_packages_abs_path):
