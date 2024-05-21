@@ -484,7 +484,7 @@ def parse_arguments():
                         help='Specifies the CPU architecture ("arm64" or "x86_64") to use for the build process.')
     parser.add_argument("-e", "--version", type=str, default="12",
                         help='Specifies Android version to build for. Example: "12"')
-    parser.add_argument("-n", "--no-filtering", action='store_true', default=False,
+    parser.add_argument("-n", "--skip-filtering", action='store_true', default=False,
                         help='If set, the filtering of the packages will be skipped.')
     args = parser.parse_args()
 
@@ -599,7 +599,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                                                 firmware_id=firmware_id,
                                                 lunch_target=lunch_target,
                                                 aosp_version=args.version,
-                                                skip_filtering=args.no_filtering)
+                                                skip_filtering=args.skip_filtering)
             if is_build_success:
                 logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
                 emulator_image_zip_path = get_emulator_image_path(args.aosp_path, lunch_target)

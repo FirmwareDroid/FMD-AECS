@@ -282,7 +282,7 @@ PRODUCT_PACKAGES += \
 
 ## Make the list tidy
 # Use the filter-out function to remove specific modules
-PRODUCT_PACKAGES := $(filter-out BackupRestoreConfirmation,$(PRODUCT_PACKAGES))
+#PRODUCT_PACKAGES := $(filter-out BackupRestoreConfirmation,$(PRODUCT_PACKAGES))
 
 PRODUCT_PACKAGES += \
 {% for line in system_package_name_list -%}{{ line }}{%- endfor %}
