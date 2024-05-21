@@ -427,6 +427,21 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
     os.chdir(current_directory)
 
 
+def delete_unlisted_directories(directory_path, directory_names):
+    """
+    Deletes directories that are not listed in directory_names.
+
+    :param directory_path: str - path of the parent directory.
+    :param directory_names: list - list of directory names to keep.
+    """
+    for dir_name in os.listdir(directory_path):
+        if dir_name not in directory_names:
+            full_dir_path = os.path.join(directory_path, dir_name)
+            if os.path.isdir(full_dir_path):
+                shutil.rmtree(full_dir_path)
+                logging.debug(f"Cleanup: Directory {full_dir_path} has been deleted.")
+
+
 def clear_packages(aosp_packages_path):
     """
     Deletes injected apk packages and .txt and .zip files from the aosp source code.
@@ -437,9 +452,7 @@ def clear_packages(aosp_packages_path):
     logging.debug(f"Clearing packages from {aosp_packages_path}")
     try:
         #directories = glob.glob(os.path.join(aosp_packages_path, 'ib_*'))
-        for package_name in AOSP_DEFAULT_PACKAGE_NAMES:
-            directory_path = os.path.join(aosp_packages_path, package_name)
-            delete_directory_if_exists(directory_path)
+        delete_unlisted_directories(aosp_packages_path, AOSP_DEFAULT_PACKAGE_NAMES)
         txt_files = glob.glob(os.path.join(aosp_packages_path, '*.txt'))
         zip_files = glob.glob(os.path.join(aosp_packages_path, '*.zip'))
         for file in txt_files + zip_files:
