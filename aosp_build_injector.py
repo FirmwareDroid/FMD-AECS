@@ -270,7 +270,8 @@ def delete_filtered_packages(package_dir_name_list, aosp_packages_abs_path):
         try:
             package_dir_path = os.path.join(aosp_packages_abs_path, package_dir)
             logging.debug(f"Deleting directory: {package_dir_path}")
-            delete_directory_if_exists(package_dir_path)
+            if package_dir not in AOSP_DEFAULT_PACKAGE_NAMES:
+                delete_directory_if_exists(package_dir_path)
         except Exception as e:
             logging.error(f"An error occurred while deleting directory: {e}")
 
