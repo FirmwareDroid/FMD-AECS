@@ -21,7 +21,7 @@ from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, \
     AOSP_PACKAGES_APPS_PATH, SUPPORTED_ARCHITECTURES, \
     SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
     BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, \
-    FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH, DEFAULT_PACKAGE_NAMES
+    FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH, AOSP_DEFAULT_PACKAGE_NAMES
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 
@@ -437,7 +437,7 @@ def clear_packages(aosp_packages_path):
     logging.debug(f"Clearing packages from {aosp_packages_path}")
     try:
         #directories = glob.glob(os.path.join(aosp_packages_path, 'ib_*'))
-        for package_name in DEFAULT_PACKAGE_NAMES:
+        for package_name in AOSP_DEFAULT_PACKAGE_NAMES:
             directory_path = os.path.join(aosp_packages_path, package_name)
             delete_directory_if_exists(directory_path)
         txt_files = glob.glob(os.path.join(aosp_packages_path, '*.txt'))
