@@ -17,11 +17,11 @@ from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
 from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, \
-    TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, ROOT_PATH,  \
+    TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, ROOT_PATH, \
     AOSP_PACKAGES_APPS_PATH, SUPPORTED_ARCHITECTURES, \
     SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
     BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, \
-    FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH
+    FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH, DEFAULT_PACKAGE_NAMES
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 
@@ -239,6 +239,7 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filteri
     else:
         package_dir_name_list = get_packages_to_filter(aosp_path, aosp_packages_path)
 
+    aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
     logging.info(f"Found {len(package_dir_name_list)} apk files to exclude from build.")
     if len(package_dir_name_list) == 0:
         raise RuntimeError("Did not find any package to filter. Likely something is wrong...")
@@ -247,6 +248,44 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filteri
         lines = [line for line in lines if not any(s in line for s in package_dir_name_list)]
         with open(meta_build_path, 'w') as file:
             file.writelines(lines)
+    delete_filtered_packages(package_dir_name_list, aosp_packages_abs_path)
+
+
+def delete_filtered_packages(package_dir_name_list, aosp_packages_abs_path):
+    """
+    Deletes the directories of the filtered packages if they exist.
+
+    :param package_dir_name_list: list - list of directory names of the filtered packages.
+    :param aosp_packages_abs_path: str - absolute path to the AOSP packages.
+    """
+    if not os.path.isdir(aosp_packages_abs_path):
+        logging.error(f"{aosp_packages_abs_path} is not a valid directory")
+        return
+
+    for package_dir in package_dir_name_list:
+        if not package_dir:
+            logging.error("Package directory name is None or empty")
+            continue
+
+        try:
+            package_dir_path = os.path.join(aosp_packages_abs_path, package_dir)
+            logging.debug(f"Deleting directory: {package_dir_path}")
+            delete_directory_if_exists(package_dir_path)
+        except Exception as e:
+            logging.error(f"An error occurred while deleting directory: {e}")
+
+
+def delete_directory_if_exists(directory_path):
+    """
+    Deletes a directory if it exists.
+
+    :param directory_path: str - path of the directory to delete.
+    """
+    if os.path.exists(directory_path) and os.path.isdir(directory_path):
+        shutil.rmtree(directory_path)
+        print(f"Directory {directory_path} has been deleted.")
+    else:
+        print(f"Directory {directory_path} does not exist.")
 
 
 def get_directory_size(directory_path):
@@ -397,9 +436,10 @@ def clear_packages(aosp_packages_path):
     """
     logging.debug(f"Clearing packages from {aosp_packages_path}")
     try:
-        directories = glob.glob(os.path.join(aosp_packages_path, 'ib_*'))
-        for directory in directories:
-            shutil.rmtree(directory)
+        #directories = glob.glob(os.path.join(aosp_packages_path, 'ib_*'))
+        for package_name in DEFAULT_PACKAGE_NAMES:
+            directory_path = os.path.join(aosp_packages_path, package_name)
+            delete_directory_if_exists(directory_path)
         txt_files = glob.glob(os.path.join(aosp_packages_path, '*.txt'))
         zip_files = glob.glob(os.path.join(aosp_packages_path, '*.zip'))
         for file in txt_files + zip_files:
