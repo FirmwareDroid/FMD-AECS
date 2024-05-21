@@ -28,9 +28,9 @@ DOCKER_PLATFORM_X86_64 = "linux/amd64"
 DOCKER_PLATFORM_ARM64 = "linux/arm64"
 FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE = "${url}/download/android_app/build_files"
 SUPPORTED_ARCHITECTURES = ["x86_64", "arm64"]
-SUPPORTED_LUNCH_TARGETS = ["sdk_phone_x86_64-userdebug",              # Android 12 / 13 "sdk_x86_64-userdebug"
-                           "sdk_phone_arm64-userdebug",         # Android 12 -> Works
-                           "sdk_phone_arm64-userdebug",         # Android 13 "sdk_arm64-userdebug"
+SUPPORTED_LUNCH_TARGETS = ["sdk_phone_x86_64-userdebug",  # Android 12 / 13 "sdk_x86_64-userdebug"
+                           "sdk_phone_arm64-userdebug",  # Android 12 -> Works
+                           "sdk_phone_arm64-userdebug",  # Android 13 "sdk_arm64-userdebug"
                            ]
 # String templates
 FMD_GRAPHQL_URL_TEMPLATE = '${url}/graphql/'
@@ -103,3 +103,57 @@ FILTERED_APK_FILES = ["framework-res.apk",
                       "SecureElement.apk",
                       "LiveWallpapersPicker.apk"]
 
+AOSP_DEFAULT_PACKAGE_NAMES = ["Browser2",
+                         "CarrierConfig",
+                         "DeskClock",
+                         "EmergencyInfo",
+                         "ImsServiceEntitlement",
+                         "ManagedProvisioning",
+                         "Nfc",
+                         "Protips",
+                         "RemoteProvisioner",
+                         "Settings",
+                         "StorageManager",
+                         "ThemePicker",
+                         "TvSettings",
+                         "Calendar",
+                         "CellBroadcastReceiver",
+                         "DevCamera",
+                         "Gallery",
+                         "KeyChain",
+                         "Messaging",
+                         "OnDeviceAppPrediction",
+                         "Provision",
+                         "SafetyRegulatoryInfo",
+                         "SettingsIntelligence",
+                         "TV",
+                         "TimeZoneData",
+                         "UniversalMediaPlayer",
+                         "BasicSmsReceiver",
+                         "Camera2",
+                         "CertInstaller",
+                         "Dialer",
+                         "Gallery2",
+                         "Launcher3",
+                         "Music",
+                         "OneTimeInitializer",
+                         "QuickAccessWallet",
+                         "SampleLocationAttribution",
+                         "SpareParts",
+                         "Tag",
+                         "TimeZoneUpdater",
+                         "WallpaperPicker",
+                         "Bluetooth",
+                         "Car",
+                         "Contacts",
+                         "DocumentsUI",
+                         "HTMLViewer",
+                         "LegacyCamera",
+                         "MusicFX",
+                         "PhoneCommon",
+                         "QuickSearchBox",
+                         "SecureElement",
+                         "Stk",
+                         "Test",
+                         "Traceur",
+                         "WallpaperPicker2"]
