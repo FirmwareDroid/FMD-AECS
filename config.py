@@ -234,4 +234,5 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "PermissionController",
                               "PlatformNetworkPermissionConfig",
                               "framework-ext-res",
+                              "Provision",
                               "CarrierDefaultApp"]
