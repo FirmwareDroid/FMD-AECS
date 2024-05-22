@@ -160,4 +160,5 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["Browser2",
                               "Traceur",
                               "WallpaperPicker2",
                               "BackupRestoreConfirmation",
+                              "BasicDreams",  # already defined by packages/screensavers/Basic
                               "CarrierDefaultApp"]
