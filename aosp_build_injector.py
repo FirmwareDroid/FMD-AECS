@@ -212,7 +212,7 @@ def get_packages_to_filter(aosp_path, aosp_packages_path):
             for file_name in filenames:
                 logging.debug(f"Checking file: {file_name} in {dirpath}")
                 if file_name in FILTERED_APK_FILES:
-                    logging.info(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
+                    logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
                     dirnames_filtered.append(str(os.path.basename(dirpath)))
     except Exception as e:
         logging.error(f"An error occurred while filtering packages: {e}")
@@ -380,12 +380,12 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
     """
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
-        logging.info(f"Moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
+        logging.debug(f"Moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
         if dir_name.strip() in AOSP_DEFAULT_PACKAGE_NAMES:
-            logging.info(f"Skipping package: {dir_name} as it is a default package.")
+            logging.debug(f"Skipping package: {dir_name} as it is a default package.")
         else:
             shutil.move(package_path, aosp_packages_abs_path)
-            logging.info(f"Moved package: {dir_name} to {aosp_packages_abs_path}")
+            logging.debug(f"Moved package: {dir_name} to {aosp_packages_abs_path}")
 
 
 def inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering):
