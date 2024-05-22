@@ -159,4 +159,6 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["Browser2",
                               "Test",
                               "Traceur",
                               "WallpaperPicker2",
+                              # From framework
+                              "BackupRestoreConfirmation"
                               "CarrierDefaultApp"]
