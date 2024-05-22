@@ -16,12 +16,7 @@ import sys
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
-from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, \
-    TEMPLATE_FOLDER, BASE_SYSTEM_FILE_NAME, BASE_PATH, BUILD_OUT_PATH, ROOT_PATH, \
-    AOSP_PACKAGES_APPS_PATH, SUPPORTED_ARCHITECTURES, \
-    SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
-    BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, \
-    FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH, AOSP_DEFAULT_PACKAGE_NAMES, PACKAGE_EXTRACTION_DIR_NAME, BUILD_RETRY_COUNT
+from config import *
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 
@@ -244,7 +239,6 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filteri
         package_dir_name_list = ["framework-res.apk"]
     else:
         package_dir_name_list = get_packages_to_filter(aosp_path, aosp_packages_path)
-
 
     logging.info(f"Found {len(package_dir_name_list)} apk files to exclude from build.")
     if len(package_dir_name_list) == 0:
