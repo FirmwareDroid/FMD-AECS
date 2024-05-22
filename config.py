@@ -280,4 +280,5 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "WallpaperPicker2",
                               "BackupRestoreConfirmation",
                               "BasicDreams",
+                              "CellBroadcastServiceModulePlatform",
                               "CarrierDefaultApp"]
