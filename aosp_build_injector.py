@@ -13,8 +13,6 @@ import shutil
 import subprocess
 import glob
 import sys
-from pathlib import Path
-
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
@@ -178,7 +176,7 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version):
         else:
             raise RuntimeError(f"Unsupported aosp version: {aosp_version}")
         logging.debug(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
-        environment = Environment(loader=FileSystemLoader(template_folder_abs_path))
+        environment = Environment(loader=FileSystemLoader(str(template_folder_abs_path)))
         template = environment.get_template(base_filename)
         return template.render(system_package_name_list=system_package_name_list)
 
@@ -247,7 +245,7 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filteri
     else:
         package_dir_name_list = get_packages_to_filter(aosp_path, aosp_packages_path)
 
-    aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
+
     logging.info(f"Found {len(package_dir_name_list)} apk files to exclude from build.")
     if len(package_dir_name_list) == 0:
         raise RuntimeError("Did not find any package to filter. Likely something is wrong...")
@@ -256,6 +254,7 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filteri
         lines = [line for line in lines if not any(s in line for s in package_dir_name_list)]
         with open(meta_build_path, 'w') as file:
             file.writelines(lines)
+    aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
     #delete_filtered_packages(package_dir_name_list, aosp_packages_abs_path)
 
 
@@ -388,11 +387,11 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
         logging.info(f"Moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
-        if dir_name not in AOSP_DEFAULT_PACKAGE_NAMES:
+        if dir_name.strip() in AOSP_DEFAULT_PACKAGE_NAMES:
+            logging.info(f"Skipping package: {dir_name} as it is a default package.")
+        else:
             shutil.move(package_path, aosp_packages_abs_path)
             logging.info(f"Moved package: {dir_name} to {aosp_packages_abs_path}")
-        else:
-            logging.info(f"Skipping package: {dir_name} as it is a default package.")
 
 
 def inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering):
