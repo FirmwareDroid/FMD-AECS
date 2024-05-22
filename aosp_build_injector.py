@@ -23,7 +23,7 @@ from config import AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME, \
     AOSP_PACKAGES_APPS_PATH, SUPPORTED_ARCHITECTURES, \
     SUPPORTED_LUNCH_TARGETS, AOSP_BUILD_OUT_SDK_ARM64_PATH, META_BUILD_FILENAMES, BASE_PRODUCT_FILE_NAME, \
     BASE_VENDOR_FILE_NAME, BASE_FILENAMES, META_BUILD_SYSTEM_FILENAME, \
-    FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH, AOSP_DEFAULT_PACKAGE_NAMES, PACKAGE_EXTRACTION_DIR_NAME
+    FILTERED_APK_FILES, IMAGE_ARTEFACTS_PATH, AOSP_DEFAULT_PACKAGE_NAMES, PACKAGE_EXTRACTION_DIR_NAME, BUILD_RETRY_COUNT
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 
@@ -96,7 +96,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     move_txt_files(extracted_packages_path, aosp_packages_abs_path)
 
     inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
-    retry_attempts = 5
+    retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
         try:
             execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version)
