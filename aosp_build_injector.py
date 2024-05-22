@@ -93,7 +93,6 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
     extracted_packages_path = os.path.join(aosp_packages_abs_path, PACKAGE_EXTRACTION_DIR_NAME)
     move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path)
-
     move_txt_files(extracted_packages_path, aosp_packages_abs_path)
 
     inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
@@ -220,7 +219,7 @@ def get_packages_to_filter(aosp_path, aosp_packages_path):
             for file_name in filenames:
                 logging.debug(f"Checking file: {file_name} in {dirpath}")
                 if file_name in FILTERED_APK_FILES:
-                    logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
+                    logging.info(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
                     dirnames_filtered.append(str(os.path.basename(dirpath)))
     except Exception as e:
         logging.error(f"An error occurred while filtering packages: {e}")
@@ -257,7 +256,7 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filteri
         lines = [line for line in lines if not any(s in line for s in package_dir_name_list)]
         with open(meta_build_path, 'w') as file:
             file.writelines(lines)
-    delete_filtered_packages(package_dir_name_list, aosp_packages_abs_path)
+    #delete_filtered_packages(package_dir_name_list, aosp_packages_abs_path)
 
 
 def delete_filtered_packages(package_dir_name_list, aosp_packages_abs_path):
@@ -278,7 +277,6 @@ def delete_filtered_packages(package_dir_name_list, aosp_packages_abs_path):
 
         try:
             package_dir_path = os.path.join(aosp_packages_abs_path, package_dir)
-            logging.debug(f"Deleting directory: {package_dir_path}")
             if package_dir not in AOSP_DEFAULT_PACKAGE_NAMES:
                 delete_directory_if_exists(package_dir_path)
         except Exception as e:
@@ -293,9 +291,9 @@ def delete_directory_if_exists(directory_path):
     """
     if os.path.exists(directory_path) and os.path.isdir(directory_path):
         shutil.rmtree(directory_path)
-        print(f"Directory {directory_path} has been deleted.")
+        logging.debug(f"Directory {directory_path} has been deleted.")
     else:
-        print(f"Directory {directory_path} does not exist.")
+        logging.debug(f"Directory {directory_path} does not exist.")
 
 
 def get_directory_size(directory_path):
@@ -484,7 +482,7 @@ def delete_unlisted_directories(directory_path, directory_names):
             full_dir_path = os.path.join(directory_path, dir_name)
             if os.path.isdir(full_dir_path):
                 shutil.rmtree(full_dir_path)
-                logging.debug(f"Cleanup: Directory {full_dir_path} has been deleted.")
+                logging.debug(f"Cleanup: Directory {full_dir_path} has been removed.")
 
 
 def clear_packages(aosp_packages_path):
