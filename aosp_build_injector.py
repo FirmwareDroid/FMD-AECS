@@ -89,10 +89,13 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     is_successful = False
     logging.info(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path, aosp_packages_path)
+
     aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
-    move_packages_to_aosp(aosp_packages_abs_path)
     extracted_packages_path = os.path.join(aosp_packages_abs_path, PACKAGE_EXTRACTION_DIR_NAME)
+    move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path)
+
     move_txt_files(extracted_packages_path, aosp_packages_abs_path)
+
     inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
     retry_attempts = 5
     while not is_successful and retry_attempts > 0:
@@ -376,22 +379,22 @@ def move_txt_files(source_directory, destination_directory):
             shutil.move(source_file, destination_file)
 
 
-def move_packages_to_aosp(aosp_packages_abs_path):
+def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
     """
     Moves the prebuilt packages to the aosp source code.
 
-    :param aosp_path: str - path to the root of the aosp source code.
-    :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
+    :param aosp_packages_abs_path: str - path to the prebuilt package folder of aosp.
+    :param extracted_packages_path: str - path to the extracted packages.
 
     """
-    extraction_dir_path_abs = str(os.path.join(aosp_packages_abs_path, PACKAGE_EXTRACTION_DIR_NAME))
-    for dir_name in os.listdir(extraction_dir_path_abs):
+    for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(aosp_packages_abs_path, dir_name)
+        logging.info(f"Moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
         if os.path.isdir(package_path) and dir_name not in AOSP_DEFAULT_PACKAGE_NAMES:
-            logging.debug(f"Moving package: {dir_name} to {aosp_packages_abs_path}")
+            logging.info(f"Moving package: {dir_name} to {aosp_packages_abs_path}")
             shutil.move(package_path, aosp_packages_abs_path)
         else:
-            logging.debug(f"Skipping package: {dir_name} as it is a default package.")
+            logging.info(f"Skipping package: {dir_name} as it is a default package.")
 
 
 def inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering):
