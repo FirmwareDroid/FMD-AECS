@@ -233,4 +233,5 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "Iwlan",
                               "PlatformCaptivePortalLogin",
                               "PermissionController",
+                              "PlatformNetworkPermissionConfig",
                               "CarrierDefaultApp"]
