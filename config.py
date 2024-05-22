@@ -282,4 +282,5 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "BasicDreams",
                               "CellBroadcastServiceModulePlatform",
                               "CtsShim",
+                              "CtsShimPriv",
                               "CarrierDefaultApp"]
