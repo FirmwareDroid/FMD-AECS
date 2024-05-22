@@ -186,7 +186,7 @@ def upload_image_as_raw(repo_url, firmware_id, username, password, arch, aosp_ve
     if not repo_url.endswith('/'):
         repo_url = f'{repo_url}/'
     lunch_target = lunch_target.replace("-", "_")
-    url = f'{repo_url}{firmware_id}_{arch}_{aosp_version}_{lunch_target}_f-{skip_filtering}.zip'
+    url = f'{repo_url}{firmware_id}_{arch}_{aosp_version}_{lunch_target}_filter-{str(skip_filtering).lower()}.zip'
     logging.info(f'Uploading image {file_path} as raw to {url}')
     with open(file_path, 'rb') as f:
         response = requests.put(url, auth=(username, password), data=f, verify=VERIFY_SSL)
