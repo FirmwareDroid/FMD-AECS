@@ -281,4 +281,5 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "BackupRestoreConfirmation",
                               "BasicDreams",
                               "CellBroadcastServiceModulePlatform",
+                              "CtsShim",
                               "CarrierDefaultApp"]
