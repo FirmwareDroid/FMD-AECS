@@ -89,6 +89,10 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     is_successful = False
     logging.info(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path, aosp_packages_path)
+    aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
+    move_packages_to_aosp(aosp_packages_abs_path)
+    extracted_packages_path = os.path.join(aosp_packages_abs_path, PACKAGE_EXTRACTION_DIR_NAME)
+    move_txt_files(extracted_packages_path, aosp_packages_abs_path)
     inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
     retry_attempts = 5
     while not is_successful and retry_attempts > 0:
@@ -355,7 +359,24 @@ def overwrite_partition_size(aosp_path, aosp_packages_path):
         base_file.writelines(lines)
 
 
-def move_packages_to_aosp(aosp_path, aosp_packages_path):
+def move_txt_files(source_directory, destination_directory):
+    """
+    Moves all .txt files from source_directory to destination_directory.
+
+    :param source_directory: str - path of the source directory.
+    :param destination_directory: str - path of the destination directory.
+    """
+    if not os.path.exists(destination_directory):
+        os.makedirs(destination_directory)
+
+    for file_name in os.listdir(source_directory):
+        if file_name.endswith('.txt'):
+            source_file = os.path.join(source_directory, file_name)
+            destination_file = os.path.join(destination_directory, file_name)
+            shutil.move(source_file, destination_file)
+
+
+def move_packages_to_aosp(aosp_packages_abs_path):
     """
     Moves the prebuilt packages to the aosp source code.
 
@@ -363,8 +384,7 @@ def move_packages_to_aosp(aosp_path, aosp_packages_path):
     :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
 
     """
-    aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
-    extraction_dir_path_abs = os.path.join(aosp_packages_abs_path, PACKAGE_EXTRACTION_DIR_NAME)
+    extraction_dir_path_abs = str(os.path.join(aosp_packages_abs_path, PACKAGE_EXTRACTION_DIR_NAME))
     for dir_name in os.listdir(extraction_dir_path_abs):
         package_path = os.path.join(aosp_packages_abs_path, dir_name)
         if os.path.isdir(package_path) and dir_name not in AOSP_DEFAULT_PACKAGE_NAMES:
