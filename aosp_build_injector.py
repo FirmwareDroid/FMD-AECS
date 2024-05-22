@@ -385,7 +385,7 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
             logging.info(f"Skipping package: {dir_name} as it is a default package.")
         else:
             shutil.move(package_path, aosp_packages_abs_path)
-            logging.debug(f"Moved package: {dir_name} to {aosp_packages_abs_path}")
+            logging.info(f"Moved package: {dir_name} to {aosp_packages_abs_path}")
 
 
 def inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering):
