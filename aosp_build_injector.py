@@ -87,6 +87,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     extracted_packages_path = os.path.join(aosp_packages_abs_path, PACKAGE_EXTRACTION_DIR_NAME)
     move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path)
     move_txt_files(extracted_packages_path, aosp_packages_abs_path)
+    shutil.rmtree(extracted_packages_path)
 
     inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
     retry_attempts = BUILD_RETRY_COUNT
