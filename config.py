@@ -236,6 +236,4 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "framework-ext-res",
                               "com.android.provision.xml",
                               "Provision",
-                              "MIUISystemUIPlugin",
-                              "MIUIThemeManager",
                               "CarrierDefaultApp"]
