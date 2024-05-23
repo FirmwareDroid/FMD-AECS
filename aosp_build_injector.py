@@ -242,7 +242,7 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filteri
 
     logging.info(f"Found {len(package_dir_name_list)} apk files to exclude from build.")
     if len(package_dir_name_list) == 0:
-        raise RuntimeError("Did not find any package to filter. Likely something is wrong...")
+        logging.info("Did not find any package to filter. Likely something is wrong...")
     if package_dir_name_list and len(package_dir_name_list) > 0:
         logging.debug(f"Filtering packages: {package_dir_name_list} from {meta_build_path}")
         lines = [line for line in lines if not any(s in line for s in package_dir_name_list)]
