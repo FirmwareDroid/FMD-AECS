@@ -279,16 +279,15 @@ PRODUCT_PACKAGES += \
     wificond \
     wifi.rc \
     wm \
+{% for line in system_package_name_list -%}{{ line }}{%- endfor %}
 
 ## Make the list tidy
 # Use the filter-out function to remove specific modules
 #PRODUCT_PACKAGES := $(filter-out BackupRestoreConfirmation,$(PRODUCT_PACKAGES))
 
-PRODUCT_PACKAGES += \
-{% for line in system_package_name_list -%}{{ line }}{%- endfor %}
 
 # Use the sort function to remove duplicates
-PRODUCT_PACKAGES := $(sort $(PRODUCT_PACKAGES))
+#PRODUCT_PACKAGES := $(sort $(PRODUCT_PACKAGES))
 
 # VINTF data for system image
 PRODUCT_PACKAGES += \
