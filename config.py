@@ -28,7 +28,7 @@ DOCKER_PLATFORM_X86_64 = "linux/amd64"
 DOCKER_PLATFORM_ARM64 = "linux/arm64"
 FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE = "${url}/download/android_app/build_files"
 SUPPORTED_ARCHITECTURES = ["x86_64", "arm64"]
-SUPPORTED_LUNCH_TARGETS = ["sdk_phone_x86_64-eng",  # Android 12 / 13 "sdk_x86_64-userdebug"
+SUPPORTED_LUNCH_TARGETS = ["sdk_phone_x86_64-userdebug",  # Android 12 / 13 "sdk_x86_64-userdebug"
                            "sdk_phone_arm64-userdebug",  # Android 12 -> Works
                            "sdk_phone_arm64-userdebug",  # Android 13 "sdk_arm64-userdebug"
                            ]
@@ -43,67 +43,6 @@ FMD_AECS_FIRMWARE_QUERY_TEMPLATE = '{"query": "query GetFirmwareIdList {aecs_fir
 FMD_CSRF_URL_TEMPLATE = "${url}/csrf/"
 PACKAGE_EXTRACTION_DIR_NAME = "extracted_packages"
 VERIFY_SSL = False  # You can suppress warnings with: export PYTHONWARNINGS="ignore:Unverified HTTPS request"
-FILTERED_APK_FILES = ["framework-res.apk",
-                      "BasicDreams.apk",
-                      "SimAppDialog.apk",
-                      "WallpaperBackup.apk",
-                      "KeyChain.apk",
-                      "PacProcessor.apk",
-                      "HTMLViewer.apk",
-                      "Stk.apk",
-                      "PrintSpooler.apk",
-                      "PartnerBookmarksProvider.apk",
-                      "CameraExtensionsProxy.apk",
-                      "PrintRecommendationService.apk",
-                      "CaptivePortalLogin.apk",
-                      "EasterEgg.apk",
-                      "CarrierDefaultApp.apk",
-                      "ExtShared.apk",
-                      "CertInstaller.apk",
-                      "BookmarkProvider.apk",
-                      "CompanionDeviceManager.apk",
-                      "BluetoothMidiService.apk",
-                      "Bluetooth.apk",
-                      "NfcNci.apk",
-                      "MmsService.apk",
-                      "TeleService.apk",
-                      "ProxyHandler.apk",
-                      "MusicFX.apk",
-                      "InputDevices.apk",
-                      "Tag.apk",
-                      "BuiltInPrintService.apk",
-                      "PackageInstaller.apk",
-                      "Traceur.apk",
-                      "LocalTransport.apk",
-                      "ManagedProvisioning.apk",
-                      "NetworkPermissionConfig.apk",
-                      "SettingsProvider.apk",
-                      "DocumentsUI.apk",
-                      "ONS.apk",
-                      "Telecom.apk",
-                      "CallLogBackup.apk",
-                      "DownloadProvider.apk",
-                      "StatementService.apk",
-                      "ContactsProvider.apk",
-                      "FusedLocation.apk",
-                      "NetworkStack.apk",
-                      "DownloadProviderUi.apk",
-                      "Shell.apk",
-                      "BlockedNumberProvider.apk",
-                      "MtpService.apk",
-                      "DynamicSystemInstallationService.apk",
-                      "CalendarProvider.apk",
-                      "UserDictionaryProvider.apk",
-                      "CellBroadcastLegacyApp.apk",
-                      "VpnDialogs.apk",
-                      "TelephonyProvider.apk",
-                      "BackupRestoreConfirmation.apk",
-                      "SharedStorageBackup.apk",
-                      "MediaProviderLegacy.apk",
-                      "SoundPicker.apk",
-                      "ExternalStorageProvider.apk",
-                      "SecureElement.apk",
-                      "LiveWallpapersPicker.apk"]
 
 AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "BasicDreams",
