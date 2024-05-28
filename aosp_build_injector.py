@@ -7,49 +7,21 @@ import argparse
 import re
 import shlex
 import uuid
-import zipfile
 import logging
 import shutil
 import subprocess
 import glob
-import sys
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
+
+from common import extract_zip
 from config import *
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
+from setup_logger import setup_logger
 
-debug = os.environ.get('FMD_DEBUG', False)
-
-root = logging.getLogger()
-handler = logging.StreamHandler(sys.stdout)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-if not debug:
-    root.setLevel(logging.INFO)
-    handler.setLevel(logging.INFO)
-else:
-    logging.basicConfig(level=logging.DEBUG)
-    handler.setLevel(logging.DEBUG)
-root.addHandler(handler)
-
-
-def extract_zip(file_path, destination):
-    with zipfile.ZipFile(file_path, 'r') as zip_ref:
-        zip_ref.extractall(destination)
-
-
-def authenticate_docker_registry(repo_url, docker_user, docker_password):
-    """
-    Authenticates to the docker registry via the docker login command.
-    Note: For Sonatype Nexus repositories the "Docker Bearer Token" realm must be enabled in the security settings.
-    """
-    docker_password = shlex.quote(docker_password)
-    docker_user = shlex.quote(docker_user)
-    repo_url = shlex.quote(repo_url)
-    command = f"docker login -p {docker_password} -u {docker_user} {repo_url}"
-    subprocess.run(command, capture_output=True, shell=True, check=True)
+setup_logger()
 
 
 def delete_files(dir_path):
@@ -624,40 +596,34 @@ def fetch_firmware_ids(args, fmd_password, csrf_cookie):
     return firmware_id_list, cookies
 
 
-def upload_build_artefact(firmware_id, repo_url, username, password, arch, aosp_version, lunch_target, artefact_path,
-                          skip_filtering):
+def upload_build_artefact(repo_url, username, password, artefact_path, filename):
     """
     Uploads the build artefact to the docker registry. Retries the upload process if it fails.
 
-    :param firmware_id: str - object-id of the firmware
     :param repo_url: str - URL to the docker registry.
     :param username: str - username for the docker registry.
     :param password: str - password for the docker registry.
-    :param arch: str - architecture of the build artefact.
     :param artefact_path: str - path to the build artefact.
-    :param aosp_version: str - version of the aosp build.
+    :param filename: str - name of the build artefact.
 
     :returns: bool - True if the upload was successful.
+
     """
     is_upload_success = False
     max_attempts = 5
     while not is_upload_success and max_attempts > 0:
-        logging.debug(f"Uploading image {firmware_id} to repo {repo_url}.")
+        logging.debug(f"Uploading image {filename} to repo {repo_url}.")
         try:
             is_upload_success = upload_image_as_raw(repo_url,
-                                                    firmware_id,
                                                     username,
                                                     password,
-                                                    arch,
-                                                    aosp_version,
-                                                    lunch_target,
                                                     artefact_path,
-                                                    skip_filtering)
+                                                    filename)
         except Exception as err:
             logging.error(f"Error uploading image: {err}")
         max_attempts -= 1
         if not is_upload_success:
-            logging.error(f"Failed to upload image {firmware_id} to repo. Retrying...{max_attempts}")
+            logging.error(f"Failed to upload image {filename} to repo. Retrying...{max_attempts}")
     return is_upload_success
 
 
@@ -694,17 +660,17 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             if is_build_success:
                 logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
                 emulator_image_zip_path = get_emulator_image_path(args.aosp_path, lunch_target)
-                is_upload_success = upload_build_artefact(firmware_id,
-                                                          args.docker_repo_url,
+                filename = (f"{firmware_id}_{args.arch}_{args.version}_{lunch_target.replace('-', '_')}"
+                            f"_filter-{str(args.skip_filtering).lower()}.zip")
+                is_upload_success = upload_build_artefact(args.docker_repo_url,
                                                           args.docker_repo_username,
                                                           docker_repo_password,
-                                                          args.arch,
-                                                          args.version,
-                                                          lunch_target,
                                                           emulator_image_zip_path,
-                                                          args.skip_filtering)
+                                                          filename)
                 if is_upload_success:
                     logging.info(f"Upload of firmware-id: {firmware_id} was successful.")
+                    with open("docker_images.txt", "a") as file:
+                        file.write(f"{filename.replace('.zip', '')}\n")
                 else:
                     raise RuntimeError(f"Upload process for firmware-id: {firmware_id} failed.")
             else:

@@ -10,6 +10,7 @@
       - "{{ adb_port_host }}:5555"
     networks:
       - frontend
+      - android
 {%- for line in optional_settings %}
     {{ line }}
 {%- endfor %}
