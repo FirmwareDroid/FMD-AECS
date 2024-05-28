@@ -1,2 +1,0 @@
-android_13_sdk_phone_arm64-userdebug
-android_13_2_sdk_phone_arm64-userdebug

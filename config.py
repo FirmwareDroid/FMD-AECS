@@ -179,4 +179,5 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "Provision",
                               "PhotoTable",
                               "SystemUI",
+                              "WallpaperCropper",
                               "CarrierDefaultApp"]
