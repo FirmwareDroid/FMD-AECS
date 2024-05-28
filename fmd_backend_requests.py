@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 from string import Template
 from tqdm import tqdm
 from config import FMD_AUTH_QUERY_TEMPLATE, VERIFY_SSL, FMD_CSRF_URL_TEMPLATE, FMD_AECS_FIRMWARE_QUERY_TEMPLATE, \
-    FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE, FMD_GRAPHQL_URL_TEMPLATE
+    FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE, FMD_GRAPHQL_URL_TEMPLATE, NEXUS_SERVICE_ENDPOINT
 
 
 def authenticate_fmd(graphql_url, username, password, csrf_cookie):
@@ -165,19 +165,15 @@ def get_graphql_url(fmd_url):
     return graphql_url
 
 
-def upload_image_as_raw(repo_url, firmware_id, username, password, arch, aosp_version, lunch_target, file_path,
-                        skip_filtering):
+def upload_image_as_raw(repo_url, username, password, file_path, filename):
     """
     Uploads an image as raw to the given repository.
 
     :param repo_url: str - URL of the repository.
-    :param firmware_id: str - ID of the firmware.
     :param username: str - Username to authenticate to the repository.
     :param password: str - Password to authenticate to the repository.
-    :param arch: str - CPU Architecture of the image.
     :param file_path: str - Path to the image file.
-    :param aosp_version: str - Android version of the image.
-    :param lunch_target: str - Lunch target of the image.
+    :param filename: str - Name of the file to upload.
 
     :return: bool - True if the upload was successful, False otherwise.
 
@@ -185,8 +181,8 @@ def upload_image_as_raw(repo_url, firmware_id, username, password, arch, aosp_ve
     is_successful = False
     if not repo_url.endswith('/'):
         repo_url = f'{repo_url}/'
-    lunch_target = lunch_target.replace("-", "_")
-    url = f'{repo_url}{firmware_id}_{arch}_{aosp_version}_{lunch_target}_filter-{str(skip_filtering).lower()}.zip'
+
+    url = f'{repo_url}{filename}'
     logging.info(f'Uploading image {file_path} as raw to {url}')
     with open(file_path, 'rb') as f:
         response = requests.put(url, auth=(username, password), data=f, verify=VERIFY_SSL)
@@ -197,3 +193,46 @@ def upload_image_as_raw(repo_url, firmware_id, username, password, arch, aosp_ve
     else:
         logging.error(f'Failed to upload file: {response.text}')
     return is_successful
+
+
+def download_file(url, destination):
+    """
+    Downloads a file from the given URL and saves it to the specified destination.
+
+    :param url: str - URL of the file to download.
+    :param destination: str - Path where the downloaded file should be saved.
+    """
+    response = requests.get(url, stream=True, verify=VERIFY_SSL)
+
+    if response.status_code == 200:
+        file_size = int(response.headers.get('Content-Length', 0))
+        progress = tqdm(response.iter_content(1024), f'Downloading {url}',
+                        total=file_size, unit='B', unit_scale=True, unit_divisor=1024)
+        with open(destination, 'wb') as file:
+            for data in progress.iterable:
+                file.write(data)
+                progress.update(len(data))
+    else:
+        raise RuntimeError(f"Failed to download file. Status code: {response.status_code}")
+
+
+def fetch_emulator_image_list(repository_url):
+    """
+    Get all available emulator images from the repository.
+
+    Returns: str - json response of the available emulator images.
+    """
+    if not repository_url.endswith('/'):
+        repository_url = f'{repository_url}/'
+    url = f"{repository_url}{NEXUS_SERVICE_ENDPOINT}"
+    logging.info(f"Fetching emulator images from {url}")
+    headers = {
+        "accept": "*/*",
+        "content-type": "application/json",
+    }
+    data = ("{\"action\":\"coreui_Browse\",\"method\":\"read\",\"data\":"
+            "[{\"repositoryName\":\"emulator-images\",\"node\":\"/\"}],\"type\":\"rpc\",\"tid\":5}")
+    response = requests.post(url, headers=headers, data=data, verify=VERIFY_SSL)
+    if response.status_code != 200:
+        raise RuntimeError(f"Could not fetch emulator images. Status code: {response.status_code}")
+    return response.json()

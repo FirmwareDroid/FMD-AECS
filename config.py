@@ -12,7 +12,6 @@ BASE_PRODUCT_FILE_NAME = "base_product.mk"
 BASE_SYSTEM_FILE_NAME = "base_system.mk"
 BASE_VENDOR_FILE_NAME = "base_vendor.mk"
 BASE_FILENAMES = [BASE_PRODUCT_FILE_NAME, BASE_SYSTEM_FILE_NAME, BASE_VENDOR_FILE_NAME]
-
 BUILD_OUT_PATH = os.path.join(ROOT_PATH, "out/")
 IMAGE_ARTEFACTS_ARM64_PATH = "image_artefacts/arm64-v8a/"
 IMAGE_ARTEFACTS_X86_64_PATH = "image_artefacts/x86_64/"
@@ -22,8 +21,12 @@ AOSP_BUILD_OUT_SDK_x86_64_PATH = "out/target/product/emulator_x86_64/"
 AOSP_EMU_ZIP_FILENAME = f"sdk-repo-linux-system-images-eng.{os.getlogin()}.zip"
 IMAGE_ARTEFACTS_X86_64_ABS_PATH = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_X86_64_PATH)
 IMAGE_ARTEFACTS_ABS_PATH = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_PATH)
-EMULATOR_DOCKERFILE_X8664_ABS_PATH = os.path.join(ROOT_PATH, "emulator/Dockerfile")
+EMULATOR_IMG_ABS_PATH = os.path.join(ROOT_PATH, "emulator_images/")
+EMULATOR_DOCKERFILE_X8664_ABS_PATH = os.path.join(ROOT_PATH, "emulator/Dockerfile_x86_64")
 EMULATOR_DOCKERFILE_ARM64_ABS_PATH = os.path.join(ROOT_PATH, "emulator/Dockerfile_arm64")
+NEXUS_SERVICE_ENDPOINT = "service/extdirect"
+NEXUS_EMULATOR_REPOSITORY = "repository/emulator-images/"
+NEXUS_DOCKER_EMULATOR_REPOSITORY = "repository/docker-emulator-images/"
 DOCKER_PLATFORM_X86_64 = "linux/amd64"
 DOCKER_PLATFORM_ARM64 = "linux/arm64"
 FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE = "${url}/download/android_app/build_files"
@@ -43,7 +46,6 @@ FMD_AECS_FIRMWARE_QUERY_TEMPLATE = '{"query": "query GetFirmwareIdList {aecs_fir
 FMD_CSRF_URL_TEMPLATE = "${url}/csrf/"
 PACKAGE_EXTRACTION_DIR_NAME = "extracted_packages"
 VERIFY_SSL = False  # You can suppress warnings with: export PYTHONWARNINGS="ignore:Unverified HTTPS request"
-
 AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "BasicDreams",
                               "SimAppDialog",
@@ -175,4 +177,5 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "framework-ext-res",
                               "com.android.provision.xml",
                               "Provision",
+                              "PhotoTable",
                               "CarrierDefaultApp"]
