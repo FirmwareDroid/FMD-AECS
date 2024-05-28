@@ -178,4 +178,5 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "com.android.provision.xml",
                               "Provision",
                               "PhotoTable",
+                              "SystemUI",
                               "CarrierDefaultApp"]
