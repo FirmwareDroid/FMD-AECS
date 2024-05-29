@@ -11,8 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 libxcomposite1 libxcursor1 libxi6 \
     libxext6 libxfixes3 zlib1g libgl1 pulseaudio pulseaudio-utils socat \
     iputils-ping curl ca-certificates wget unzip procps rsync net-tools \
-    xz-utils python3 bison make gawk gcc dbus f2fs-tools libpcre2-16-0 \
-    xfce4 xfce4-goodies tightvncserver \
+    xz-utils python3 bison make gawk gcc dbus f2fs-tools libpcre2-16-0
 
 ################################
 # Install Java
@@ -56,9 +55,3 @@ ENV PATH=$ANDROID_HOME/emulator/:$PATH
 COPY ./emulator/prebuilts/arm64/sdk-repo-linux_aarch64-emulator-11774154.zip /android/
 RUN unzip /android/sdk-repo-linux_aarch64-emulator-11774154.zip -d /android/sdk/
 COPY ./emulator/avd/ /android/sdk/avd/
-
-################################
-# Install vnc server
-################################
-COPY ./emulator/start_vnc.sh /android/start_vnc.sh
-RUN chmod +x /android/start_vnc.sh
