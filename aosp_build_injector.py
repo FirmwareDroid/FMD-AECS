@@ -181,6 +181,9 @@ def get_packages_to_filter(aosp_path, aosp_packages_path):
     dirnames_filtered = []
     try:
         for dirpath, dirnames, filenames in os.walk(aosp_packages_abs_path):
+            for dirname in dirnames:
+                if dirname in AOSP_DEFAULT_PACKAGE_NAMES:
+                    dirnames_filtered.append(dirname)
             for file_name in filenames:
                 logging.debug(f"Checking file: {file_name} in {dirpath}")
                 if file_name.replace(".apk", "") in AOSP_DEFAULT_PACKAGE_NAMES:
