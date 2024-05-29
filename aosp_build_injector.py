@@ -663,8 +663,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             if is_build_success:
                 logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
                 emulator_image_zip_path = get_emulator_image_path(args.aosp_path, lunch_target)
-                filename = (f"{firmware_id}_{args.arch}_{args.version}_{lunch_target.replace('-', '_')}"
-                            f"_filter-{str(args.skip_filtering).lower()}.zip")
+                filename = f"{firmware_id}_v{args.version}_{lunch_target}.zip".replace('-', '_')
                 is_upload_success = upload_build_artefact(args.docker_repo_url,
                                                           args.docker_repo_username,
                                                           docker_repo_password,
