@@ -191,4 +191,7 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "EncryptedLocalTransport",
                               "MtpDocumentsProvider",
                               "Tethering",
+                              "framework-res__auto_generated_rro_vendor",
+                              "ModuleMetadata",
+                              "ExtServices",
                               "CarrierDefaultApp"]

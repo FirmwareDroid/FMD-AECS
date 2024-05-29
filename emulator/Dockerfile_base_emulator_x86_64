@@ -5,15 +5,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpulse0 libtinfo5 libx11-6 libxcb1 libxdamage1 \
     libnss3 libxcomposite1 libxcursor1 libxi6 \
     libxext6 libxfixes3 zlib1g libgl1 pulseaudio pulseaudio-utils socat \
-    iputils-ping curl ca-certificates wget unzip procps rsync net-tools \
-    xfce4 xfce4-goodies tightvncserver \
+    iputils-ping curl ca-certificates wget unzip procps rsync net-tools
 
 ################################
 # Install Java
 ################################
 RUN mkdir -p /usr/local/jdk-21
 WORKDIR /usr/local/jdk-21
-RUN wget https://download.java.net/java/GA/jdk21.0.1/415e3f918a1f4062a0074a2794853d0d/12/GPL/openjdk-21.0.1_linux-x64_bin.tar.gz
+RUN wget https://download.java.net/java/A/jdk21.0.1/415e3f918a1f4062a0074a2794853d0d/12/GPL/openjdk-21.0.1_linux-x64_bin.tar.gz
 RUN tar -xf openjdk-21.0.1_linux-x64_bin.tar.gz
 RUN mv jdk-21.0.1/* ./
 ENV JAVA_HOME=/usr/local/jdk-21
@@ -54,8 +53,3 @@ RUN yes | /android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses ; exit 0 #
 RUN /android/sdk/cmdline-tools/latest/bin/sdkmanager emulator ; exit 0 # Workaround against exit code 133
 COPY ./emulator/avd/ /android/sdk/avd/
 
-################################
-# Install vnc server
-################################
-COPY ./emulator/start_vnc.sh /android/start_vnc.sh
-RUN chmod +x /android/start_vnc.sh
