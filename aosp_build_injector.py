@@ -635,10 +635,6 @@ def upload_build_artefact(repo_url, username, password, artefact_path, filename)
 def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
 
-    if args.reset_aosp:
-        clear_environment(args.aosp_path, aosp_packages_abs_path)
-        exit(0)
-
     if args.arch not in SUPPORTED_ARCHITECTURES:
         raise RuntimeError(f"Unsupported architecture: {args.arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
 
@@ -696,6 +692,11 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
 def main():
     logging.info("=======================BUILD INJECTOR=======================")
     args = parse_arguments()
+    if args.reset_aosp:
+        aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
+        clear_environment(args.aosp_path, aosp_packages_abs_path)
+        logging.info("Reset aosp build environment.")
+        exit(0)
     fmd_password, docker_repo_password = get_passwords(args)
     csrf_cookie = get_csrf_token(args.fmd_url)
     firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
