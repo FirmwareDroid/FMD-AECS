@@ -552,6 +552,8 @@ def parse_arguments():
                         help='Specifies Android version to build for. Example: "12"')
     parser.add_argument("-n", "--skip-filtering", action='store_true', default=False,
                         help='If set, the filtering of the packages will be skipped.')
+    parser.add_argument("-z", "--reset-aosp", action='store_true', default=False,
+                        help='If set, the aosp build environment will be reset.')
     args = parser.parse_args()
 
     if not (args.fmd_url.startswith("https://") or args.fmd_url.startswith("http://")):
@@ -632,6 +634,10 @@ def upload_build_artefact(repo_url, username, password, artefact_path, filename)
 
 def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
+
+    if args.reset_aosp:
+        clear_environment(args.aosp_path, aosp_packages_abs_path)
+        exit(0)
 
     if args.arch not in SUPPORTED_ARCHITECTURES:
         raise RuntimeError(f"Unsupported architecture: {args.arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
