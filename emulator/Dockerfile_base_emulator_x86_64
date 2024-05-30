@@ -12,9 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ################################
 RUN mkdir -p /usr/local/jdk-21
 WORKDIR /usr/local/jdk-21
-RUN wget https://download.java.net/java/A/jdk21.0.1/415e3f918a1f4062a0074a2794853d0d/12/GPL/openjdk-21.0.1_linux-x64_bin.tar.gz
-RUN tar -xf openjdk-21.0.1_linux-x64_bin.tar.gz
-RUN mv jdk-21.0.1/* ./
+RUN wget https://download.oracle.com/java/21/latest/jdk-21_linux-x64_bin.tar.gz
+RUN tar --strip-components=1 -xf jdk-21_linux-x64_bin.tar.gz
 ENV JAVA_HOME=/usr/local/jdk-21
 ENV PATH=$JAVA_HOME/bin:$PATH
 

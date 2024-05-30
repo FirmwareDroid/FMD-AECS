@@ -7,6 +7,7 @@ services:
       - ./.env
     volumes:
       - ${NEXUS_REPOSITORY_PATH}:/nexus-data
+      - ${NEXUS_JETTY_PATH}:/opt/sonatype/nexus/etc/jetty/jetty-https.xml
     ports:
       - "8443:8443"
       - "8082:8082"
