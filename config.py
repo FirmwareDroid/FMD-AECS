@@ -195,3 +195,7 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "ModuleMetadata",
                               "ExtServices",
                               "CarrierDefaultApp"]
+
+# List of packages that are not allowed to be included in the firmware because t
+# hey would cause the firmware to fail to start
+VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController"]
