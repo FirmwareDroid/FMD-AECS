@@ -45,7 +45,7 @@ FMD_AECS_FIRMWARE_QUERY_TEMPLATE = '{"query": "query GetFirmwareIdList {aecs_fir
                                    '"operationName": "GetFirmwareIdList"}'
 FMD_CSRF_URL_TEMPLATE = "${url}/csrf/"
 PACKAGE_EXTRACTION_DIR_NAME = "extracted_packages"
-VERIFY_SSL = False  # You can suppress warnings with: export PYTHONWARNINGS="ignore:Unverified HTTPS request"
+VERIFY_SSL = True  # You can suppress warnings with: export PYTHONWARNINGS="ignore:Unverified HTTPS request"
 AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "BasicDreams",
                               "SimAppDialog",
