@@ -180,7 +180,7 @@ def get_packages_to_filter(aosp_path, aosp_packages_path):
     try:
         for dirpath, dirnames, filenames in os.walk(aosp_packages_abs_path):
             for dirname in dirnames:
-                if dirname in AOSP_DEFAULT_PACKAGE_NAMES or dirname in VENDOR_BLACKLISTED_PACKAGES:
+                if dirname.lower() in AOSP_DEFAULT_PACKAGE_NAMES or dirname in VENDOR_BLACKLISTED_PACKAGES:
                     dirnames_filtered.append(dirname)
             for file_name in filenames:
                 logging.debug(f"Checking file: {file_name} in {dirpath}")
@@ -356,7 +356,7 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
         logging.debug(f"Moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
-        if dir_name.strip() in AOSP_DEFAULT_PACKAGE_NAMES:
+        if dir_name.strip() in AOSP_DEFAULT_PACKAGE_NAMES or dir_name.strip() in VENDOR_BLACKLISTED_PACKAGES:
             logging.info(f"Skipping package: {dir_name} as it is a default package.")
         else:
             shutil.move(package_path, aosp_packages_abs_path)
