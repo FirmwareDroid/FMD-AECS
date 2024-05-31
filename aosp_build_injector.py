@@ -2,7 +2,6 @@
 A command-line tool that downloads files related to the build process of an Android firmware image and stores them
 on disk. Directly extract the downloaded zip content.
 """
-import os
 import argparse
 import re
 import shlex
@@ -14,7 +13,6 @@ import glob
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
-
 from common import extract_zip
 from config import *
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
@@ -182,11 +180,13 @@ def get_packages_to_filter(aosp_path, aosp_packages_path):
     try:
         for dirpath, dirnames, filenames in os.walk(aosp_packages_abs_path):
             for dirname in dirnames:
-                if dirname in AOSP_DEFAULT_PACKAGE_NAMES:
+                if dirname in AOSP_DEFAULT_PACKAGE_NAMES or dirname in VENDOR_BLACKLISTED_PACKAGES:
                     dirnames_filtered.append(dirname)
             for file_name in filenames:
                 logging.debug(f"Checking file: {file_name} in {dirpath}")
-                if file_name.replace(".apk", "") in AOSP_DEFAULT_PACKAGE_NAMES:
+                filename_without_apk_extension = file_name.replace(".apk", "")
+                if (filename_without_apk_extension in AOSP_DEFAULT_PACKAGE_NAMES
+                        or filename_without_apk_extension in VENDOR_BLACKLISTED_PACKAGES):
                     logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
                     dirnames_filtered.append(str(os.path.basename(dirpath)))
     except Exception as e:
