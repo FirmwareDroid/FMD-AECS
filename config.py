@@ -199,6 +199,8 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
 # List of packages that are not allowed to be included in the firmware because they
 # cause the firmware to fail to start
 VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",
-                               "WifiRROverlayAppH2E"]
+                               "ServiceWifiResources",
+                               "CarrierWifi",
+                               "WifiDialog"]
 
 BLACKLISTED_KEYWORS = ["Overlay"]
