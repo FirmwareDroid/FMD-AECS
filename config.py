@@ -200,3 +200,5 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
 # cause the firmware to fail to start
 VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",
                                "WifiRROverlayAppH2E"]
+
+BLACKLISTED_KEYWORS = ["Overlay"]
