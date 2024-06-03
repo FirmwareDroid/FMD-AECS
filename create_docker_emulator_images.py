@@ -13,7 +13,8 @@ from werkzeug.utils import secure_filename
 from common import extract_zip
 from config import ROOT_PATH, IMAGE_ARTEFACTS_X86_64_ABS_PATH, IMAGE_ARTEFACTS_ARM64_PATH, IMAGE_ARTEFACTS_ABS_PATH, \
     NEXUS_EMULATOR_REPOSITORY, EMULATOR_IMG_ABS_PATH, SUPPORTED_ARCHITECTURES, EMULATOR_DOCKERFILE_X8664_ABS_PATH, \
-    EMULATOR_DOCKERFILE_ARM64_ABS_PATH, BUILD_OUT_PATH, NEXUS_DOCKER_EMULATOR_REPOSITORY
+    EMULATOR_DOCKERFILE_ARM64_ABS_PATH, BUILD_OUT_PATH, NEXUS_DOCKER_EMULATOR_REPOSITORY, \
+    EMULATOR_DOCKERFILE_BASE_ABS_PATH
 from fmd_backend_requests import download_file, fetch_emulator_image_list
 from setup_logger import setup_logger
 
@@ -48,8 +49,9 @@ def download_emulator_images(repository_url, image_list):
     return destination_files
 
 
-def get_image_file_list():
+def get_image_file_list_form_disk():
     emulator_images = [os.path.join(EMULATOR_IMG_ABS_PATH, img) for img in os.listdir(EMULATOR_IMG_ABS_PATH)]
+    logging.info(f"Emulator images: {len(emulator_images)}: {emulator_images}")
     return emulator_images
 
 
@@ -58,6 +60,7 @@ def get_emulator_image_list(repository_url):
     Fetches the emulator image list from the repository.
     :param repository_url: URL to the repository where the emulator image is stored.
     """
+    logging.info(f"Downloading emulator images from {repository_url}")
     response_json = fetch_emulator_image_list(repository_url)
     result = response_json["result"]
     logging.debug(f"Result: {result}")
@@ -97,6 +100,7 @@ def clear_docker_builder():
 
 def extract_emulator_images_to_image_artefacts(emulator_image_path):
     extract_zip(emulator_image_path, IMAGE_ARTEFACTS_ABS_PATH)
+    logging.info(f"Extracted emulator images to {IMAGE_ARTEFACTS_ABS_PATH}")
 
 
 def authenticate_docker_registry(repo_url, docker_user, docker_password):
@@ -107,22 +111,24 @@ def authenticate_docker_registry(repo_url, docker_user, docker_password):
     docker_password = shlex.quote(docker_password)
     docker_user = shlex.quote(docker_user)
     repo_url = shlex.quote(repo_url)
-    repo_url = f"{repo_url}{NEXUS_DOCKER_EMULATOR_REPOSITORY}"
-    command = f"echo {docker_password} | docker login -p- {docker_password} -u {docker_user} {repo_url}"
+    repo_url = f"{repo_url}"
+    command = f"echo {docker_password} | docker login --password-stdin -u {docker_user} {repo_url}"
     subprocess.run(command, capture_output=True, shell=True, check=True)
+    logging.debug(f"Authenticated to the docker registry: {repo_url}")
 
 
-def build_container_image(tag, build_arch):
+def build_container_image(tag, build_arch, dockerfile_path=None):
     """
     Builds a docker container image that includes the image files from the image_artefacts directory.
     """
-    logging.debug(f"Building docker image for firmware: {tag}, arch: {build_arch}")
+    logging.info(f"Building docker image for firmware: {tag}, arch: {build_arch}")
 
     os.chdir(ROOT_PATH)
-    if "arm64" in build_arch:
-        dockerfile_path = EMULATOR_DOCKERFILE_ARM64_ABS_PATH
-    else:
-        dockerfile_path = EMULATOR_DOCKERFILE_X8664_ABS_PATH
+    if not dockerfile_path:
+        if "arm64" in build_arch:
+            dockerfile_path = EMULATOR_DOCKERFILE_ARM64_ABS_PATH
+        else:
+            dockerfile_path = EMULATOR_DOCKERFILE_X8664_ABS_PATH
 
     p = subprocess.run(f"docker build -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
                        shell=True, check=True)
@@ -135,12 +141,20 @@ def push_container_image(docker_repository_url, filename):
     """
     docker_repository_url = docker_repository_url.replace("http://", "").replace("https://", "")
     docker_repository_url = shlex.quote(docker_repository_url)
-    docker_repository_url = f"{docker_repository_url}{NEXUS_DOCKER_EMULATOR_REPOSITORY}"
+    docker_repository_url = f"{docker_repository_url}"
+
     command = f"docker tag {filename}:latest {docker_repository_url}{filename}:latest"
+    logging.info(f"Tagging docker image: {command}")
     subprocess.run(command, capture_output=True, shell=True, check=True)
 
     command = f"docker push {docker_repository_url}{filename}:latest"
+    logging.info(f"Pushing docker image command: {command}")
     subprocess.run(command, capture_output=True, shell=True, check=True)
+    logging.info(f"Pushed docker image to the docker repository: {docker_repository_url}")
+
+    command = f"docker rmi {docker_repository_url}{filename}"
+    subprocess.run(command, capture_output=True, shell=True, check=True)
+    logging.info(f"Removed local docker image: {filename}")
 
 
 def get_repo_password(repo_username):
@@ -150,35 +164,57 @@ def get_repo_password(repo_username):
     return docker_repo_password
 
 
-def main():
-    """
-    Command-line tool to download and create emulator images for docker.
-    """
-    parser = argparse.ArgumentParser(
-        prog="create_startup_scripts.py",
-        description="Downloads emulator images from the repository and builds docker images.",
-        add_help=True)
-    parser.add_argument("-r",
-                        "--repository-url",
-                        type=str,
-                        required=True,
-                        help="URL to the repository where the emulator image is stored.")
-    parser.add_argument("-d",
-                        "--repository-username",
-                        type=str,
-                        default=None,
-                        required=True,
-                        help="Username for the authentication to the docker registry.")
-
-    args = parser.parse_args()
-    repository_password = get_repo_password(args.repository_username)
-    repository_url = args.repository_url
+def validate_urls(repository_url, docker_repo_url):
     if not repository_url.endswith('/'):
         repository_url = f'{repository_url}/'
-    logging.info(f"Downloading emulator images from {repository_url}")
-    emulator_image_list = get_emulator_image_list(repository_url)
-    #emulator_zip_file_list = download_emulator_images(repository_url, emulator_image_list)
-    emulator_zip_file_list = get_image_file_list()
+    if not repository_url.startswith('http://') and not repository_url.startswith('https://'):
+        raise ValueError("Repository URL must start with http:// or https://")
+
+    if not docker_repo_url.endswith('/'):
+        docker_repo_url = f'{docker_repo_url}/'
+    if not docker_repo_url.startswith('http://') and not docker_repo_url.startswith('https://'):
+        raise ValueError("Docker repository URL must start with http:// or https://")
+    return repository_url, docker_repo_url
+
+
+def check_if_base_images_exists():
+    """
+    Checks if the base image exists in the docker registry.
+
+    Returns:
+
+    """
+    base_images_exist = True
+    client = docker.from_env()
+    for arch in SUPPORTED_ARCHITECTURES:
+        try:
+            image = client.images.get(f"fmd-emulator_{arch}")
+            logging.info(f"Base image {image.id} exists.")
+        except Exception as err:
+            base_images_exist = False
+            logging.error(f"Base image fmd-emulator_{arch} not found.")
+            break
+    return base_images_exist
+
+
+def create_base_images():
+    """
+    Creates the base images for the emulator.
+    Returns:
+
+    """
+    for arch in SUPPORTED_ARCHITECTURES:
+        logging.info(f"Building base image for {arch}")
+        build_container_image(f"fmd-emulator_{arch}", f"linux/{arch}", f"{EMULATOR_DOCKERFILE_BASE_ABS_PATH}{arch}")
+
+
+def process_images(repository_url, docker_repo_url, repository_username):
+    repository_password = get_repo_password(repository_username)
+    if not check_if_base_images_exists():
+        create_base_images()
+
+    #emulator_image_list = get_emulator_image_list(repository_url)
+    emulator_zip_file_list = get_image_file_list_form_disk()
     for emulator_zip_path in emulator_zip_file_list:
         extract_emulator_images_to_image_artefacts(emulator_zip_path)
         filename = os.path.basename(emulator_zip_path)
@@ -187,10 +223,42 @@ def main():
         else:
             docker_build_arch = "linux/amd64"
         build_container_image(filename.replace(".zip", ""), docker_build_arch)
-        #authenticate_docker_registry(repository_url, args.repository_username, repository_password)
-        push_container_image(repository_url, filename.replace(".zip", ""))
+        authenticate_docker_registry(docker_repo_url, repository_username, repository_password)
+        push_container_image(docker_repo_url, filename.replace(".zip", ""))
         clear_image_artefacts()
         clear_docker_builder()
+    logging.info("Finished processing images.")
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        prog="create_startup_scripts.py",
+        description="Downloads emulator images from the repository and builds docker images.",
+        add_help=True)
+    parser.add_argument("-r",
+                        "--repository-url",
+                        type=str,
+                        required=True,
+                        help="URL to the repository where images will be downloaded.")
+    parser.add_argument("-d",
+                        "--docker-repo-url",
+                        type=str,
+                        required=True,
+                        help="URL to the docker registry where images will be uploaded.")
+    parser.add_argument("-u",
+                        "--repository-username",
+                        type=str,
+                        default=None,
+                        required=True,
+                        help="Username for the authentication to the docker registry.")
+    return parser.parse_args()
+
+
+def main():
+    args = parse_arguments()
+    repository_url, docker_repo_url = validate_urls(args.repository_url, args.docker_repo_url)
+    clear_image_artefacts()
+    process_images(repository_url, docker_repo_url, args.repository_username)
 
 
 if __name__ == "__main__":
