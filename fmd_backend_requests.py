@@ -102,6 +102,7 @@ def get_firmware_ids(graphql_url, cookies, arch=None):
                     object_id_list.append(decoded_string)
         if not object_id_list:
             raise RuntimeError("Could not fetch firmware ids.")
+    logging.info(f"Found ids: {object_id_list}")
     return object_id_list
 
 
