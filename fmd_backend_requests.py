@@ -247,6 +247,8 @@ def fetch_emulator_image_list(repository_url):
     data = ("{\"action\":\"coreui_Browse\",\"method\":\"read\",\"data\":"
             "[{\"repositoryName\":\"emulator-images\",\"node\":\"/\"}],\"type\":\"rpc\",\"tid\":5}")
     response = requests.post(url, headers=headers, data=data, verify=VERIFY_SSL)
+    logging.info(f"Response: {response.text}")
     if response.status_code != 200:
         raise RuntimeError(f"Could not fetch emulator images. Status code: {response.status_code}")
     return response.json()
+

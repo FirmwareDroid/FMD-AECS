@@ -24,6 +24,7 @@ IMAGE_ARTEFACTS_ABS_PATH = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_PATH)
 EMULATOR_IMG_ABS_PATH = os.path.join(ROOT_PATH, "emulator_images/")
 EMULATOR_DOCKERFILE_X8664_ABS_PATH = os.path.join(ROOT_PATH, "emulator/Dockerfile_x86_64")
 EMULATOR_DOCKERFILE_ARM64_ABS_PATH = os.path.join(ROOT_PATH, "emulator/Dockerfile_arm64")
+EMULATOR_DOCKERFILE_BASE_ABS_PATH = os.path.join(ROOT_PATH, "emulator/Dockerfile_base_emulator_")
 NEXUS_SERVICE_ENDPOINT = "service/extdirect"
 NEXUS_EMULATOR_REPOSITORY = "repository/emulator-images/"
 NEXUS_DOCKER_EMULATOR_REPOSITORY = "repository/docker-emulator-images/"
