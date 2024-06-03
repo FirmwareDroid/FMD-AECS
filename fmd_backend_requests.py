@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import os
@@ -75,6 +76,7 @@ def get_firmware_ids(graphql_url, cookies, arch=None):
     :returns: list(str) - list of firmware ids
 
     """
+    logging.info("Fetching aecs jobs...")
     headers = {"X-CSRFToken": cookies["csrftoken"], "Referer": graphql_url}
     params = json.loads(FMD_AECS_FIRMWARE_QUERY_TEMPLATE)
     with requests.post(graphql_url,
@@ -92,7 +94,11 @@ def get_firmware_ids(graphql_url, cookies, arch=None):
             if arch and aecs_job["arch"] != arch:
                 continue
             else:
-                object_id_list.append(aecs_job["firmware_id_list"])
+                for firmware_id in aecs_job["firmwareIdList"]:
+                    base64_id = firmware_id["id"]
+                    decoded_bytes = base64.b64decode(base64_id)
+                    decoded_string = decoded_bytes.decode('utf-8')
+                    object_id_list.append(decoded_string)
         if not object_id_list:
             raise RuntimeError("Could not fetch firmware ids.")
     return object_id_list
