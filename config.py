@@ -41,8 +41,15 @@ FMD_GRAPHQL_URL_TEMPLATE = '${url}/graphql/'
 FMD_AUTH_QUERY_TEMPLATE = '{"query": "query Auth ' \
                           '{tokenAuth(password: \\\"${password}\\\", username: \\\"${username}\\\") {token}}",' \
                           '"operationName": "Auth"}'
-FMD_AECS_FIRMWARE_QUERY_TEMPLATE = '{"query": "query GetFirmwareIdList {aecs_firmware_id_list}",' \
-                                   '"operationName": "GetFirmwareIdList"}'
+FMD_AECS_FIRMWARE_QUERY_TEMPLATE = ('{"query": "query GetFirmwareIdList '
+                                    '{aecs_job_list {pk, arch, firmwareIdList { '
+                                    'edges {'
+                                    'node {'
+                                    'pk}'
+                                    '}'
+                                    '}'
+                                    '}}",'
+                                    '"operationName": "GetFirmwareIdList"}')
 FMD_CSRF_URL_TEMPLATE = "${url}/csrf/"
 PACKAGE_EXTRACTION_DIR_NAME = "extracted_packages"
 VERIFY_SSL = False  # You can suppress warnings with: export PYTHONWARNINGS="ignore:Unverified HTTPS request"

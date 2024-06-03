@@ -599,7 +599,7 @@ def fetch_firmware_ids(args, fmd_password, csrf_cookie):
     """
     graphql_url = get_graphql_url(args.fmd_url)
     cookies = authenticate_fmd(graphql_url, args.fmd_username, fmd_password, csrf_cookie)
-    firmware_id_list = get_firmware_ids(graphql_url, cookies)
+    firmware_id_list = get_firmware_ids(graphql_url, cookies, args.arch)
     logging.info(f"Got {len(firmware_id_list)} firmware ids to process...")
     return firmware_id_list, cookies
 
@@ -637,10 +637,6 @@ def upload_build_artefact(repo_url, username, password, artefact_path, filename)
 
 def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
-
-    if args.arch not in SUPPORTED_ARCHITECTURES:
-        raise RuntimeError(f"Unsupported architecture: {args.arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
-
     if args.arch == SUPPORTED_ARCHITECTURES[0]:
         lunch_target = SUPPORTED_LUNCH_TARGETS[0]
     else:
@@ -650,7 +646,6 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]
         else:
             raise RuntimeError(f"Unsupported Android version: {args.version}")
-
     logging.debug(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
     failed_firmware_ids = []
     clear_environment(args.aosp_path, aosp_packages_abs_path)
@@ -700,6 +695,8 @@ def main():
         clear_environment(args.aosp_path, aosp_packages_abs_path)
         logging.info("Reset aosp build environment.")
         exit(0)
+    if args.arch not in SUPPORTED_ARCHITECTURES:
+        raise RuntimeError(f"Unsupported architecture: {args.arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
     fmd_password, docker_repo_password = get_passwords(args)
     csrf_cookie = get_csrf_token(args.fmd_url)
     firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)

@@ -64,15 +64,15 @@ def get_csrf_token(url):
     return response.cookies
 
 
-def get_firmware_ids(graphql_url, cookies):
+def get_firmware_ids(graphql_url, cookies, arch=None):
     """
     Fetches a list of firmware ids to process from the fmd service.
 
-    Args:
-        graphql_url: str - fmd api url for graphql.
-        cookies: str - cookies jar for requests.
+    :param graphql_url: str - fmd api url for graphql.
+    :param cookies: str - cookies jar for requests.
+    :param arch: str - cpu architecture of the firmware.
 
-    Returns: list(str) - list of firmware ids
+    :returns: list(str) - list of firmware ids
 
     """
     headers = {"X-CSRFToken": cookies["csrftoken"], "Referer": graphql_url}
@@ -86,7 +86,13 @@ def get_firmware_ids(graphql_url, cookies):
             raise RuntimeError(f"Could not fetch firmware ids. Status code: {response.status_code};"
                                f"response: {response.text}")
         resp_dict = response.json()
-        object_id_list = resp_dict["data"]["aecs_firmware_id_list"]
+        aecs_job_list = resp_dict["data"]["aecs_job_list"]
+        object_id_list = []
+        for aecs_job in aecs_job_list:
+            if arch and aecs_job["arch"] != arch:
+                continue
+            else:
+                object_id_list.append(aecs_job["firmware_id_list"])
         if not object_id_list:
             raise RuntimeError("Could not fetch firmware ids.")
     return object_id_list
