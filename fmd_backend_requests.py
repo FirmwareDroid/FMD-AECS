@@ -96,10 +96,10 @@ def get_firmware_ids(graphql_url, cookies, arch=None):
             else:
                 for firmware_data in aecs_job["firmwareIdList"]['edges']:
                     id_value = firmware_data['node']['id']
-                    base64_id = id_value.split(":")[1]
+                    base64_id = id_value
                     decoded_bytes = base64.b64decode(base64_id)
                     decoded_string = decoded_bytes.decode('utf-8')
-                    object_id_list.append(decoded_string)
+                    object_id_list.append(decoded_string.split(":")[1])
         if not object_id_list:
             raise RuntimeError("Could not fetch firmware ids.")
     logging.info(f"Found ids: {object_id_list}")
