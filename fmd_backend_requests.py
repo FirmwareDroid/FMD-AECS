@@ -94,8 +94,9 @@ def get_firmware_ids(graphql_url, cookies, arch=None):
             if arch and aecs_job["arch"] != arch:
                 continue
             else:
-                for firmware_id in aecs_job["firmwareIdList"]:
-                    base64_id = firmware_id["id"]
+                for firmware_data in aecs_job["firmwareIdList"]['edges']:
+                    id_value = firmware_data['node']['id']
+                    base64_id = id_value
                     decoded_bytes = base64.b64decode(base64_id)
                     decoded_string = decoded_bytes.decode('utf-8')
                     object_id_list.append(decoded_string)
