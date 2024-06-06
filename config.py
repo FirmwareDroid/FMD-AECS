@@ -213,7 +213,7 @@ VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",            # Single
                                "Cidmanager",                            # Breaks telephony / systemui - software updater
                                "GooglePackageInstaller",                # Singleton App - Breaks PackageInstaller
                                "ServiceConnectivityResourcesGoogle",    # Breaks NetworkStack - Resources not found
-                               "SamsungMultiConnectivity",              # Breaks NetworkStack
+                               #"SamsungMultiConnectivity",              # Breaks NetworkStack
                                ]
 
 BLACKLISTED_KEYWORS = ["Overlay"]
