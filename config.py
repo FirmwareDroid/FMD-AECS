@@ -214,7 +214,7 @@ VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",  # Singleton App - 
                                "GooglePackageInstaller",  # Singleton App - Breaks PackageInstaller
                                "ServiceConnectivityResourcesGoogle",  # Breaks NetworkStack - Resources not found
                                "GmsCore",  # Breaks NetworkStack / Telephony
-                               ""
+                               "NetworkPermissionConfigGoogle"
                                #"SamsungMultiConnectivity",              # Breaks NetworkStack
                                ]
 
