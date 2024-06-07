@@ -217,4 +217,4 @@ VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",            # Single
                                #"SamsungMultiConnectivity",              # Breaks NetworkStack
                                ]
 
-BLACKLISTED_KEYWORS = ["Overlay"]
+BLACKLISTED_KEYWORS = ["Overlay", "Connectivity", "Wifi", "Telephony", "Telecom", "TeleService", "TelephonyProvider"]
