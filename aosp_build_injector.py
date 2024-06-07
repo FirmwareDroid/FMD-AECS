@@ -648,6 +648,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             raise RuntimeError(f"Unsupported Android version: {args.version}")
     logging.debug(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
     failed_firmware_ids = []
+    succeed_firmware_ids = []
     clear_environment(args.aosp_path, aosp_packages_abs_path)
     for firmware_id in tqdm(firmware_id_list):
         try:
@@ -673,6 +674,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                     logging.info(f"Upload of firmware-id: {firmware_id} was successful.")
                     with open("docker_images.txt", "a") as file:
                         file.write(f"{filename.replace('.zip', '')}\n")
+                    succeed_firmware_ids.append(firmware_id)
                 else:
                     raise RuntimeError(f"Upload process for firmware-id: {firmware_id} failed.")
             else:
@@ -685,6 +687,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
 
     if len(failed_firmware_ids) > 0:
         logging.error(f"Failed to build the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
+    logging.info(f"Successfully built the following firmware ids: {succeed_firmware_ids} for arch: {args.arch}")
 
 
 def main():
