@@ -206,15 +206,17 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
 
 # List of packages that are not allowed to be included in the firmware because they
 # cause the firmware to fail to start
-VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",            # Singleton App - Breaks PermissionController
-                               "ServiceWifiResources",                  # Breaks NetworkStack
-                               "CarrierWifi",                           # Breaks NetworkStack
-                               "WifiDialog",                            # Breaks NetworkStack
-                               "Cidmanager",                            # Breaks telephony / systemui - software updater
-                               "GooglePackageInstaller",                # Singleton App - Breaks PackageInstaller
-                               "ServiceConnectivityResourcesGoogle",    # Breaks NetworkStack - Resources not found
-                               "GmsCore",                               # Breaks NetworkStack / Telephony
+VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",  # Singleton App - Breaks PermissionController
+                               "ServiceWifiResources",  # Breaks NetworkStack
+                               "CarrierWifi",  # Breaks NetworkStack
+                               "WifiDialog",  # Breaks NetworkStack
+                               "Cidmanager",  # Breaks telephony / systemui - software updater
+                               "GooglePackageInstaller",  # Singleton App - Breaks PackageInstaller
+                               "ServiceConnectivityResourcesGoogle",  # Breaks NetworkStack - Resources not found
+                               "GmsCore",  # Breaks NetworkStack / Telephony
+                               ""
                                #"SamsungMultiConnectivity",              # Breaks NetworkStack
                                ]
 
-BLACKLISTED_KEYWORS = ["Overlay", "Connectivity", "Wifi", "Telephony", "Telecom", "TeleService", "TelephonyProvider"]
+BLACKLISTED_KEYWORDS = ["Overlay", "Connectivity", "Wifi", "Telephony", "Telecom", "TeleService", "TelephonyProvider",
+                        "NetworkStackGoogle"]

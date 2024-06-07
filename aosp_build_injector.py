@@ -187,7 +187,7 @@ def get_packages_to_filter(aosp_path, aosp_packages_path):
                 filename_without_apk_extension = file_name.replace(".apk", "")
                 if (filename_without_apk_extension in AOSP_DEFAULT_PACKAGE_NAMES
                         or filename_without_apk_extension in VENDOR_BLACKLISTED_PACKAGES)\
-                        or any(keyword in filename_without_apk_extension for keyword in BLACKLISTED_KEYWORS):
+                        or any(keyword in filename_without_apk_extension for keyword in BLACKLISTED_KEYWORDS):
                     logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
                     dirnames_filtered.append(str(os.path.basename(dirpath)))
     except Exception as e:
@@ -359,7 +359,7 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
         logging.debug(f"Moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
         if dir_name.strip() in AOSP_DEFAULT_PACKAGE_NAMES or dir_name.strip() in VENDOR_BLACKLISTED_PACKAGES:
             logging.info(f"Skipping package: {dir_name} as it is a default package.")
-        elif any(keyword in dir_name.strip() for keyword in BLACKLISTED_KEYWORS):
+        elif any(keyword in dir_name.strip() for keyword in BLACKLISTED_KEYWORDS):
             logging.info(f"Skipping package: {dir_name} as it is an overlay package.")
         else:
             shutil.move(package_path, aosp_packages_abs_path)
