@@ -357,7 +357,7 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
                 aosp_root_dir = get_two_levels_up(aosp_packages_abs_path)
                 framework_lib_path = os.path.join(aosp_root_dir, "frameworks/libs/")
                 shutil.move(package_path, framework_lib_path)
-                logging.info(f"Moved library package: {dir_name} to {aosp_packages_abs_path}")
+                logging.info(f"Moved library package: {dir_name} to {framework_lib_path}")
             else:
                 shutil.move(package_path, aosp_packages_abs_path)
             logging.info(f"Moved package: {dir_name} to {aosp_packages_abs_path}")
