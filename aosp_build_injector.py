@@ -20,6 +20,10 @@ from fmd_backend_requests import download_firmware_build_files, get_csrf_token, 
 from setup_logger import setup_logger
 
 setup_logger()
+BLOCKED_MODULE_NAMES = []
+BLOCKED_MODULE_NAMES.extend(AOSP_DEFAULT_PACKAGE_NAMES)
+BLOCKED_MODULE_NAMES.extend(VENDOR_BLACKLISTED_PACKAGES)
+BLOCKED_MODULE_NAMES.extend(BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES)
 
 
 def delete_files(dir_path):
@@ -57,7 +61,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     extracted_packages_path = os.path.join(aosp_packages_abs_path, PACKAGE_EXTRACTION_DIR_NAME)
     move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path)
     move_txt_files(extracted_packages_path, aosp_packages_abs_path)
-    inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
+    inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
     shutil.rmtree(extracted_packages_path)
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
@@ -186,7 +190,7 @@ def get_packages_to_filter(aosp_path, aosp_packages_path):
                 logging.debug(f"Checking file: {file_name} in {dirpath}")
                 filename_without_apk_extension = file_name.replace(".apk", "")
                 if (filename_without_apk_extension in AOSP_DEFAULT_PACKAGE_NAMES
-                        or filename_without_apk_extension in VENDOR_BLACKLISTED_PACKAGES)\
+                    or filename_without_apk_extension in VENDOR_BLACKLISTED_PACKAGES) \
                         or any(keyword in filename_without_apk_extension for keyword in BLACKLISTED_KEYWORDS):
                     logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
                     dirnames_filtered.append(str(os.path.basename(dirpath)))
@@ -195,7 +199,7 @@ def get_packages_to_filter(aosp_path, aosp_packages_path):
     return dirnames_filtered
 
 
-def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filtering=False):
+def filter_packages_from_meta(meta_build_path, aosp_path, aosp_packages_path, skip_filtering=False):
     """
     Removes the packages based on the filter list from the meta file.
 
@@ -216,7 +220,7 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filteri
     else:
         package_dir_name_list = get_packages_to_filter(aosp_path, aosp_packages_path)
 
-    logging.info(f"Found {len(package_dir_name_list)} apk files to exclude from build.")
+    logging.info(f"Found {len(package_dir_name_list)} modules to exclude from build.")
     if len(package_dir_name_list) == 0:
         logging.info("Did not find any package to filter. Likely something is wrong...")
     if package_dir_name_list and len(package_dir_name_list) > 0:
@@ -224,32 +228,6 @@ def filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filteri
         lines = [line for line in lines if not any(s in line for s in package_dir_name_list)]
         with open(meta_build_path, 'w') as file:
             file.writelines(lines)
-    aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
-    #delete_filtered_packages(package_dir_name_list, aosp_packages_abs_path)
-
-
-def delete_filtered_packages(package_dir_name_list, aosp_packages_abs_path):
-    """
-    Deletes the directories of the filtered packages if they exist.
-
-    :param package_dir_name_list: list - list of directory names of the filtered packages.
-    :param aosp_packages_abs_path: str - absolute path to the AOSP packages.
-    """
-    if not os.path.isdir(aosp_packages_abs_path):
-        logging.error(f"{aosp_packages_abs_path} is not a valid directory")
-        return
-
-    for package_dir in package_dir_name_list:
-        if not package_dir:
-            logging.error("Package directory name is None or empty")
-            continue
-
-        try:
-            package_dir_path = os.path.join(aosp_packages_abs_path, package_dir)
-            if package_dir not in AOSP_DEFAULT_PACKAGE_NAMES:
-                delete_directory_if_exists(package_dir_path)
-        except Exception as e:
-            logging.error(f"An error occurred while deleting directory: {e}")
 
 
 def delete_directory_if_exists(directory_path):
@@ -346,6 +324,19 @@ def move_txt_files(source_directory, destination_directory):
             shutil.move(source_file, destination_file)
 
 
+def check_so_file(directory):
+    for filename in os.listdir(directory):
+        if filename.endswith('.so'):
+            return True
+    return False
+
+
+def get_two_levels_up(path):
+    one_level_up = os.path.dirname(path)
+    two_levels_up = os.path.dirname(one_level_up)
+    return two_levels_up
+
+
 def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
     """
     Moves the prebuilt packages to the aosp source code.
@@ -357,16 +348,22 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
         logging.debug(f"Moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
-        if dir_name.strip() in AOSP_DEFAULT_PACKAGE_NAMES or dir_name.strip() in VENDOR_BLACKLISTED_PACKAGES:
-            logging.info(f"Skipping package: {dir_name} as it is a default package.")
+        if dir_name.strip() in BLOCKED_MODULE_NAMES:
+            logging.info(f"Skipping package: {dir_name} as it is a default module.")
         elif any(keyword in dir_name.strip() for keyword in BLACKLISTED_KEYWORDS):
-            logging.info(f"Skipping package: {dir_name} as it is an overlay package.")
+            logging.info(f"Skipping package by keyword: {dir_name} as it is likely a problematic module.")
         else:
-            shutil.move(package_path, aosp_packages_abs_path)
+            if check_so_file(package_path):
+                aosp_root_dir = get_two_levels_up(aosp_packages_abs_path)
+                framework_lib_path = os.path.join(aosp_root_dir, "frameworks/libs/")
+                shutil.move(package_path, framework_lib_path)
+                logging.info(f"Moved library package: {dir_name} to {aosp_packages_abs_path}")
+            else:
+                shutil.move(package_path, aosp_packages_abs_path)
             logging.info(f"Moved package: {dir_name} to {aosp_packages_abs_path}")
 
 
-def inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering):
+def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering):
     """
     Replaces the original base_system.mk of the AOSP source code with a modified version.
     The modified version includes all the packages to inject into the build process.
@@ -386,7 +383,7 @@ def inject_packages(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
                 with open(meta_build_path, 'w'):
                     pass
         base_filename = get_base_filename(meta_build_filename)
-        filter_packages(meta_build_path, aosp_path, aosp_packages_path, skip_filtering)
+        filter_packages_from_meta(meta_build_path, aosp_path, aosp_packages_path, skip_filtering)
         content = read_and_render_template(meta_build_path, base_filename, aosp_version)
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
         out_file_path = os.path.join(BUILD_OUT_PATH, base_filename)
@@ -465,7 +462,6 @@ def clear_packages(aosp_packages_path):
     """
     logging.debug(f"Clearing packages from {aosp_packages_path}")
     try:
-        #directories = glob.glob(os.path.join(aosp_packages_path, 'ib_*'))
         delete_unlisted_directories(aosp_packages_path, AOSP_DEFAULT_PACKAGE_NAMES)
         txt_files = glob.glob(os.path.join(aosp_packages_path, '*.txt'))
         zip_files = glob.glob(os.path.join(aosp_packages_path, '*.zip'))
