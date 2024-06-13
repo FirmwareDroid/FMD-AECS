@@ -353,7 +353,7 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
         elif any(keyword in dir_name.strip() for keyword in BLACKLISTED_KEYWORDS):
             logging.info(f"Skipping package by keyword: {dir_name} as it is likely a problematic module.")
         else:
-            if check_so_file(package_path):
+            if os.path.isdir(package_path) and check_so_file(package_path):
                 aosp_root_dir = get_two_levels_up(aosp_packages_abs_path)
                 framework_lib_path = os.path.join(aosp_root_dir, "frameworks/libs/")
                 shutil.move(package_path, framework_lib_path)
