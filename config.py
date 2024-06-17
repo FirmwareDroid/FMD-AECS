@@ -219,7 +219,7 @@ VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",  # Singleton App - 
                                ]
 
 BLACKLISTED_KEYWORDS = ["Overlay", "Connectivity", "Wifi", "Telephony", "Telecom", "TeleService", "TelephonyProvider",
-                        "NetworkStackGoogle"]
+                        "NetworkStackGoogle", "_INJECTED_PREBUILT_JAR"]
 
 BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "aaudio-aidl-cpp",
