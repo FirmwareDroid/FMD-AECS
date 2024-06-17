@@ -219,7 +219,7 @@ VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",  # Singleton App - 
                                ]
 
 BLACKLISTED_KEYWORDS = ["Overlay", "Connectivity", "Wifi", "Telephony", "Telecom", "TeleService", "TelephonyProvider",
-                        "NetworkStackGoogle", "_INJECTED_PREBUILT_JAR"]
+                        "NetworkStackGoogle", "_INJECTED_PREBUILT_JAR", "libadb_protos"]
 
 BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "aaudio-aidl-cpp",
@@ -877,8 +877,9 @@ BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "libjni_filtershow_filters",
     "libjni_eglfence",
     "libjni_latinime",
-    "libadb_protos" # gives an error
+    "libadb_protos"
 ]
+# gives an error
 
 ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "/system/lib64/aaudio-aidl-cpp.so",
