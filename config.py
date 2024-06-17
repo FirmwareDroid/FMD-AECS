@@ -876,7 +876,8 @@ BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "libjni_jpegstream",
     "libjni_filtershow_filters",
     "libjni_eglfence",
-    "libjni_latinime"
+    "libjni_latinime",
+    "libadb_protos" # gives an error
 ]
 
 ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
