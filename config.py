@@ -229,6 +229,7 @@ BLACKLISTED_KEYWORDS = ["Overlay",
                         "_INJECTED_PREBUILT_JAR",
                         "SystemUI",
                         "systemui",
+                        "miuisystem"
                         "libadb_protos"]
 
 BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
