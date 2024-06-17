@@ -218,8 +218,18 @@ VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",  # Singleton App - 
                                #"SamsungMultiConnectivity",              # Breaks NetworkStack
                                ]
 
-BLACKLISTED_KEYWORDS = ["Overlay", "Connectivity", "Wifi", "Telephony", "Telecom", "TeleService", "TelephonyProvider",
-                        "NetworkStackGoogle", "_INJECTED_PREBUILT_JAR", "libadb_protos"]
+BLACKLISTED_KEYWORDS = ["Overlay",
+                        "Connectivity",
+                        "Wifi",
+                        "Telephony",
+                        "Telecom",
+                        "TeleService",
+                        "TelephonyProvider",
+                        "NetworkStackGoogle",
+                        "_INJECTED_PREBUILT_JAR",
+                        "SystemUI",
+                        "systemui",
+                        "libadb_protos"]
 
 BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "aaudio-aidl-cpp",
