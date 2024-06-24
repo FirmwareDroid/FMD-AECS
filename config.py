@@ -214,7 +214,7 @@ VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",  # Singleton App - 
                                "GooglePackageInstaller",  # Singleton App - Breaks PackageInstaller
                                "ServiceConnectivityResourcesGoogle",  # Breaks NetworkStack - Resources not found
                                "GmsCore",  # Breaks NetworkStack / Telephony
-                               "NetworkPermissionConfigGoogle"
+                               "NetworkPermissionConfigGoogle",
                                #"SamsungMultiConnectivity",              # Breaks NetworkStack
                                ]
 
@@ -226,10 +226,7 @@ BLACKLISTED_KEYWORDS = ["Overlay",
                         "TeleService",
                         "TelephonyProvider",
                         "NetworkStackGoogle",
-                        "_INJECTED_PREBUILT_JAR",
-                        "SystemUI",
-                        "systemui",
-                        "miuisystem",
+                        #"_INJECTED_PREBUILT_JAR",
                         "libadb_protos"]
 
 BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
@@ -890,7 +887,6 @@ BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "libjni_latinime",
     "libadb_protos"
 ]
-# gives an error
 
 ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "/system/lib64/aaudio-aidl-cpp.so",
