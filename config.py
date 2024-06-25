@@ -37,6 +37,7 @@ SUPPORTED_LUNCH_TARGETS = ["sdk_phone_x86_64-userdebug",  # Android 12 / 13 "sdk
                            "sdk_phone_arm64-userdebug",  # Android 13 "sdk_arm64-userdebug"
                            ]
 BUILD_RETRY_COUNT = 1
+FILE_NAME_POST_INSTALL_SCRIPT = "replacer.sh"
 # String templates
 FMD_GRAPHQL_URL_TEMPLATE = '${url}/graphql/'
 FMD_AUTH_QUERY_TEMPLATE = '{"query": "query Auth ' \

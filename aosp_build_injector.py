@@ -38,6 +38,22 @@ def delete_files(dir_path):
         os.remove(f)
 
 
+def make_file_executable(root_dir, filename):
+    """
+    Makes the file executable.
+
+    :param root_dir: str - path to the root directory.
+    :param filename: str - name of the file to make executable.
+
+    """
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        for name in filenames:
+            if name == filename:
+                file_path = os.path.join(dirpath, name)
+                #os.chmod(file_path, 0o755)  # Makes the file executable
+                os.chmod(file_path, os.stat(file_path).st_mode | 0o100)
+
+
 def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering):
     """
     Wrapper method to start the firmware injection and build process.
@@ -63,6 +79,8 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     move_txt_files(extracted_packages_path, aosp_packages_abs_path)
     inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
     shutil.rmtree(extracted_packages_path)
+    make_file_executable(aosp_packages_path, FILE_NAME_POST_INSTALL_SCRIPT)
+
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
         try:
