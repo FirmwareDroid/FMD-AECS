@@ -226,8 +226,8 @@ BLACKLISTED_KEYWORDS = ["Overlay",
                         "TeleService",
                         "TelephonyProvider",
                         "NetworkStackGoogle",
-                        #"_INJECTED_PREBUILT_JAR",
                         "libadb_protos"]
+#INJECTED_PREBUILT_JAR
 
 BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "aaudio-aidl-cpp",

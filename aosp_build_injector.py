@@ -489,6 +489,13 @@ def clear_base_files(aosp_path):
         pass
 
 
+def clear_intermediate_files(aosp_path):
+    framework_out_path = os.path.join(aosp_path, "packages/frameworks")
+    if os.path.exists(framework_out_path):
+        shutil.rmtree(framework_out_path)
+        logging.debug(f"Removed {framework_out_path} from aosp source code.")
+
+
 def clear_environment(aosp_path, aosp_packages_path):
     """
     Reverts the build environment
@@ -496,6 +503,7 @@ def clear_environment(aosp_path, aosp_packages_path):
 
     """
     clear_packages(aosp_packages_path)
+    clear_intermediate_files(aosp_path)
     #clear_base_files(aosp_path)
 
 
