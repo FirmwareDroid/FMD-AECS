@@ -80,7 +80,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     move_txt_files(extracted_packages_path, aosp_packages_abs_path)
     inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
     shutil.rmtree(extracted_packages_path)
-    make_file_executable(aosp_packages_path, FILE_NAME_POST_INSTALL_SCRIPT)
+    make_file_executable(aosp_packages_abs_path, FILE_NAME_POST_INSTALL_SCRIPT)
 
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
