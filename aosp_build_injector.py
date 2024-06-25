@@ -47,6 +47,7 @@ def make_file_executable(root_dir, filename):
     :param filename: str - name of the file to make executable.
 
     """
+    logging.info(f"Making file: {filename} executable.")
     for dirpath, dirnames, filenames in os.walk(root_dir):
         for name in filenames:
             if name == filename:
