@@ -10,6 +10,7 @@ import logging
 import shutil
 import subprocess
 import glob
+import stat
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
@@ -50,8 +51,8 @@ def make_file_executable(root_dir, filename):
         for name in filenames:
             if name == filename:
                 file_path = os.path.join(dirpath, name)
-                #os.chmod(file_path, 0o755)  # Makes the file executable
-                os.chmod(file_path, os.stat(file_path).st_mode | 0o100)
+                os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
+                logging.info(f"Made file: {file_path} executable.")
 
 
 def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering):
