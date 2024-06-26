@@ -227,6 +227,7 @@ BLACKLISTED_KEYWORDS = ["Overlay",
                         "TeleService",
                         "TelephonyProvider",
                         "NetworkStackGoogle",
+                        "SystemUI",             # Breaks SystemUI
                         "libadb_protos"]
 #INJECTED_PREBUILT_JAR
 
