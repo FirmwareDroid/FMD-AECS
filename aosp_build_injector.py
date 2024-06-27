@@ -77,7 +77,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
 
     aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
     extracted_packages_path = os.path.join(aosp_packages_abs_path, PACKAGE_EXTRACTION_DIR_NAME)
-    move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path)
+    included_package_name_list = move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path)
     move_txt_files(extracted_packages_path, aosp_packages_abs_path)
     inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
     shutil.rmtree(extracted_packages_path)
@@ -86,7 +86,12 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
         try:
-            execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version)
+            main_build_command = get_aosp_build_command(aosp_path, lunch_target, aosp_version)
+            execute_build_command(aosp_path, firmware_id, main_build_command)
+            jar_build_command = get_rebuild_jar_modules_command(aosp_path, lunch_target, included_package_name_list)
+            execute_build_command(aosp_path, firmware_id, jar_build_command)
+            package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target)
+            execute_build_command(aosp_path, firmware_id, package_build_artefacts_command)
             is_successful = True
         except Exception as err:
             logging.error(err)
@@ -364,7 +369,9 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
     :param aosp_packages_abs_path: str - path to the prebuilt package folder of aosp.
     :param extracted_packages_path: str - path to the extracted packages.
 
+    :returns: list(str) - list of included package names.
     """
+    included_package_name_list = []
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
         logging.debug(f"Moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
@@ -382,6 +389,8 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
             else:
                 shutil.move(package_path, aosp_packages_abs_path)
             logging.info(f"Moved package: {dir_name} to {aosp_packages_abs_path}")
+            included_package_name_list.append(dir_name)
+    return included_package_name_list
 
 
 def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering):
@@ -414,18 +423,18 @@ def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filterin
                                f"the packages into the aosp source code.")
 
 
-def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
+def get_aosp_build_command(aosp_path, lunch_target, aosp_version):
     """
-    Start the aosp build process.
-    Pack all Android images with ("m emu_img_zip"). Copy the artefacts to the local image folder.
+    Creates the aosp build command based on the lunch target and aosp version.
 
-    :param lunch_target: str - aosp build argument to select the build arch.
-    :param firmware_id: str - object-id of the firmware
     :param aosp_path: str - path to aosp root folder.
     :param aosp_version: str - version of the aosp build.
+    :param lunch_target: str - aosp build argument to select the build arch.
+
+    :returns: str - aosp build command.
 
     """
-    current_directory = os.path.dirname(os.path.realpath(__file__))
+
     os.chdir(aosp_path)
     aosp_root = shlex.quote(aosp_path)
     logging.info(f"Starting build process for {lunch_target}... this will take a long time.")
@@ -440,10 +449,48 @@ def execute_build_command(aosp_path, firmware_id, lunch_target, aosp_version):
               f"&& lunch {lunch_target} " \
               "&& m clean " \
               "&& m " \
-              "&& m sdk " \
+              "&& m sdk "
+    return command
+
+
+def get_aosp_repo_build_command(aosp_root, lunch_target):
+    command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+              f"&& lunch {lunch_target} " \
               "&& m sdk_repo " \
               "&& m emu_img_zip'"
+    return command
 
+
+def get_rebuild_jar_modules_command(aosp_root, lunch_target, included_package_name_list):
+    """
+    Creates the aosp build command to rebuild the jar modules.
+
+    :param aosp_root: str - path to aosp root folder.
+    :param lunch_target: str - aosp build argument to select the build arch.
+    :param included_package_name_list: list(str) - list of included package names.
+
+    :returns: str - aosp build command to rebuild the jar modules.
+
+    """
+    command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+              f"&& lunch {lunch_target} "
+    for jar_module_name in included_package_name_list:
+        if "INJECTED_PREBUILT_JAR" in jar_module_name:
+            command += f"&& mmm packages/apps/{jar_module_name} "
+    return command
+
+
+def execute_build_command(firmware_id, lunch_target, command):
+    """
+    Start the aosp build process. Pack all Android images with ("m emu_img_zip"). Copy the artefacts to the
+    local image folder.
+
+    :param lunch_target: str - aosp build argument to select the build arch.
+    :param firmware_id: str - object-id of the firmware
+    :param command: str - aosp build command to execute.
+
+    """
+    current_directory = os.path.dirname(os.path.realpath(__file__))
     try:
         firmware_id = re.sub(r'\W+', '', firmware_id)
         lunch_target = re.sub(r'\W+', '', lunch_target)
@@ -465,6 +512,7 @@ def delete_unlisted_directories(directory_path, directory_names):
 
     :param directory_path: str - path of the parent directory.
     :param directory_names: list - list of directory names to keep.
+
     """
     for dir_name in os.listdir(directory_path):
         if dir_name not in directory_names:
