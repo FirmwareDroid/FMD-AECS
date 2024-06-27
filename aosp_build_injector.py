@@ -86,13 +86,13 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
         try:
-            main_build_command = get_aosp_build_command(aosp_path, lunch_target, aosp_version)
-            execute_build_command(aosp_path, firmware_id, main_build_command)
+            main_build_command = get_aosp_build_command(lunch_target, aosp_version)
+            execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
             jar_build_command_list = get_rebuild_jar_modules_command(aosp_path, lunch_target, included_package_name_list)
             for jar_build_command in jar_build_command_list:
-                execute_build_command(aosp_path, firmware_id, jar_build_command)
+                execute_build_command(aosp_path, firmware_id, jar_build_command, aosp_path)
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target)
-            execute_build_command(aosp_path, firmware_id, package_build_artefacts_command)
+            execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path)
             is_successful = True
         except Exception as err:
             logging.error(err)
@@ -424,20 +424,16 @@ def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filterin
                                f"the packages into the aosp source code.")
 
 
-def get_aosp_build_command(aosp_path, lunch_target, aosp_version):
+def get_aosp_build_command(lunch_target, aosp_version):
     """
     Creates the aosp build command based on the lunch target and aosp version.
 
-    :param aosp_path: str - path to aosp root folder.
     :param aosp_version: str - version of the aosp build.
     :param lunch_target: str - aosp build argument to select the build arch.
 
     :returns: str - aosp build command.
 
     """
-
-    os.chdir(aosp_path)
-    aosp_root = shlex.quote(aosp_path)
     logging.info(f"Starting build process for {lunch_target}... this will take a long time.")
 
     if lunch_target not in SUPPORTED_LUNCH_TARGETS:
@@ -483,7 +479,7 @@ def get_rebuild_jar_modules_command(aosp_root, lunch_target, included_package_na
     return command_list
 
 
-def execute_build_command(firmware_id, lunch_target, command):
+def execute_build_command(firmware_id, lunch_target, command, aosp_root_path):
     """
     Start the aosp build process. Pack all Android images with ("m emu_img_zip"). Copy the artefacts to the
     local image folder.
@@ -494,6 +490,7 @@ def execute_build_command(firmware_id, lunch_target, command):
 
     """
     current_directory = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(aosp_root_path)
     try:
         firmware_id = re.sub(r'\W+', '', firmware_id)
         lunch_target = re.sub(r'\W+', '', lunch_target)
