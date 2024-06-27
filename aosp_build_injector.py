@@ -449,7 +449,7 @@ def get_aosp_build_command(aosp_path, lunch_target, aosp_version):
               f"&& lunch {lunch_target} " \
               "&& m clean " \
               "&& m " \
-              "&& m sdk "
+              "&& m sdk'"
     return command
 
 
@@ -477,6 +477,7 @@ def get_rebuild_jar_modules_command(aosp_root, lunch_target, included_package_na
     for jar_module_name in included_package_name_list:
         if "INJECTED_PREBUILT_JAR" in jar_module_name:
             command += f"&& mmm packages/apps/{jar_module_name} "
+    command += "'"
     return command
 
 
