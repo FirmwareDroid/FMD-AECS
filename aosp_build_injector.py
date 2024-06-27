@@ -86,7 +86,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
         try:
-            main_build_command = get_aosp_build_command(lunch_target, aosp_version)
+            main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
             execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
             jar_build_command_list = get_rebuild_jar_modules_command(aosp_path, lunch_target, included_package_name_list)
             for jar_build_command in jar_build_command_list:
@@ -424,12 +424,13 @@ def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filterin
                                f"the packages into the aosp source code.")
 
 
-def get_aosp_build_command(lunch_target, aosp_version):
+def get_aosp_build_command(lunch_target, aosp_version, aosp_root):
     """
     Creates the aosp build command based on the lunch target and aosp version.
 
     :param aosp_version: str - version of the aosp build.
     :param lunch_target: str - aosp build argument to select the build arch.
+    :param aosp_root: str - path to aosp root folder.
 
     :returns: str - aosp build command.
 
