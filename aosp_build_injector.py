@@ -88,8 +88,9 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         try:
             main_build_command = get_aosp_build_command(aosp_path, lunch_target, aosp_version)
             execute_build_command(aosp_path, firmware_id, main_build_command)
-            jar_build_command = get_rebuild_jar_modules_command(aosp_path, lunch_target, included_package_name_list)
-            execute_build_command(aosp_path, firmware_id, jar_build_command)
+            jar_build_command_list = get_rebuild_jar_modules_command(aosp_path, lunch_target, included_package_name_list)
+            for jar_build_command in jar_build_command_list:
+                execute_build_command(aosp_path, firmware_id, jar_build_command)
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target)
             execute_build_command(aosp_path, firmware_id, package_build_artefacts_command)
             is_successful = True
@@ -469,16 +470,17 @@ def get_rebuild_jar_modules_command(aosp_root, lunch_target, included_package_na
     :param lunch_target: str - aosp build argument to select the build arch.
     :param included_package_name_list: list(str) - list of included package names.
 
-    :returns: str - aosp build command to rebuild the jar modules.
+    :returns: list(str) - aosp build commands to rebuild the jar modules.
 
     """
-    command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
-              f"&& lunch {lunch_target} "
+    command_list = []
     for jar_module_name in included_package_name_list:
         if "INJECTED_PREBUILT_JAR" in jar_module_name:
-            command += f"&& mmm packages/apps/{jar_module_name} "
-    command += "'"
-    return command
+            command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+                      f"&& lunch {lunch_target} "
+            command += f"&& mmm packages/apps/{jar_module_name} '"
+            command_list.append(command)
+    return command_list
 
 
 def execute_build_command(firmware_id, lunch_target, command):
