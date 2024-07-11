@@ -99,6 +99,7 @@ def process_partitions(source_folder_path, target_out_path):
 
 
 def process_file_concurrently(file_path, partition_name, target_out_path):
+    setup_logger()
     error = None
     inj_obj = None
     inj_partition = None
