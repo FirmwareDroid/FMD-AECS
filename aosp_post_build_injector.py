@@ -5,7 +5,6 @@ the replacement of the original blobs (from AOSP) with the vendor flavoured blob
 """
 import argparse
 import concurrent.futures
-import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import os
@@ -55,17 +54,10 @@ def process_partitions(source_folder_path, target_out_path):
     combined_inj_obj_list = []
     combined_inj_partition_list = []
 
-    # Initialize a counter and a lock
-    remaining_tasks = len(folder_path_list)
-    lock = threading.Lock()
-
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {}
-        for folder_path in folder_path_list:
-            future = executor.submit(process_partition_files_with_progress, folder_path, target_out_path, lock, remaining_tasks)
-            futures[future] = folder_path
-
-        for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Processing partitions"):
+        futures = {executor.submit(process_partition_files, folder_path, target_out_path): folder_path for folder_path
+                   in tqdm(folder_path_list, desc="Processing partitions")}
+        for future in concurrent.futures.as_completed(futures):
             error_list, inj_obj_list, inj_partition_list = future.result()
             combined_error_list.extend(error_list)
             combined_inj_obj_list.extend(inj_obj_list)
@@ -74,18 +66,7 @@ def process_partitions(source_folder_path, target_out_path):
     return combined_error_list, combined_inj_obj_list, combined_inj_partition_list
 
 
-def process_partition_files_with_progress(folder_path, target_out_path, lock, remaining_tasks):
-    error_list, inj_obj_list, inj_partition_list = process_partition_files(folder_path, target_out_path)
-
-    with lock:
-        remaining_tasks -= 1
-        logging.info(f"Remaining tasks to process: {remaining_tasks}")
-
-    return error_list, inj_obj_list, inj_partition_list
-
-
 def process_file_concurrently(file_path, partition_name, target_out_path):
-    #logging.info(f"Processing file: {file_path}")
     error = None
     inj_obj = None
     inj_partition = None
@@ -115,18 +96,19 @@ def process_partition_files(folder_path, target_out_path):
     inj_obj_list = []
     inj_partition_list = []
     partition_name = os.path.basename(folder_path)
-    #logging.info(f"Processing partition: {partition_name} | Folder path: {folder_path}")
     file_paths = [os.path.join(root, file_name) for root, _, file_name_list in os.walk(folder_path) for file_name in file_name_list]
+
+    # Initialize tqdm progress bar
+    progress_bar = tqdm(total=len(file_paths), desc=f"Processing files in partition: {partition_name}")
+
     with ThreadPoolExecutor() as executor:
         future_to_file = {
-            executor.submit(process_file_concurrently, file_path, partition_name, target_out_path): file_path for
-            file_path in tqdm(file_paths, desc=f"Starting Threads to process files in partition: {partition_name}")}
+            executor.submit(process_file_concurrently, file_path, partition_name, target_out_path): file_path for file_path in file_paths}
 
         for future in as_completed(future_to_file):
             file_path = future_to_file[future]
             try:
                 result = future.result()
-                # Assuming process_file_concurrently returns a tuple (error, inj_obj, inj_partition)
                 if result[0]:  # If there's an error
                     error_list.append(result[0])
                 if result[1]:  # If an object was injected
@@ -136,6 +118,12 @@ def process_partition_files(folder_path, target_out_path):
             except Exception as exc:
                 logging.error(f"Error processing file {file_path}: {exc}")
                 error_list.append(str(exc))
+            finally:
+                # Update progress bar after each task is completed
+                progress_bar.update(1)
+
+    # Close the progress bar after all tasks are completed
+    progress_bar.close()
 
     return error_list, inj_obj_list, inj_partition_list
 
