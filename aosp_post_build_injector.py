@@ -19,7 +19,11 @@ MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", 
 
 
 def start_post_build_injector(source_folder_path, target_out_path):
-    process_partitions(source_folder_path, target_out_path)
+    error_list = process_partitions(source_folder_path, target_out_path)
+    if len(error_list) > 0:
+        for error in error_list:
+            logging.info(f"Number of errors: {len(error_list)}")
+            logging.error(error)
 
 
 def get_folders(directory_path):
@@ -32,6 +36,7 @@ def get_folders(directory_path):
 
 
 def process_partitions(source_folder_path, target_out_path):
+    error_list = []
     folder_path_list = get_folders(source_folder_path)
     logging.info(f"Folder path list: {folder_path_list}")
     for folder_path in folder_path_list:
@@ -57,8 +62,9 @@ def process_partitions(source_folder_path, target_out_path):
                     else:
                         inject_file_into_obj(source_file_path, original_file_path)
                 except RuntimeError as e:
+                    error_list.append(e)
                     logging.error(f"Error: {e}")
-
+    return error_list
 
 
 def get_module_type(source_file_path):
