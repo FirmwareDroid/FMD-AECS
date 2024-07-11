@@ -46,15 +46,19 @@ def process_partitions(source_folder_path, target_out_path):
                     logging.info(f"Skipping file: {source_file_path}")
                     continue
                 logging.info(f"Module type: {module_type}")
-                original_file_path = search_original_file(partition_name,
-                                                          module_type,
-                                                          file_name,
-                                                          target_out_path)
-                logging.info(f"Original file path: {original_file_path}")
-                if original_file_path is None:
-                    inject_file_into_partition(source_file_path, partition_name, target_out_path)
-                else:
-                    inject_file_into_obj(source_file_path, original_file_path)
+                try:
+                    original_file_path = search_original_file(partition_name,
+                                                              module_type,
+                                                              file_name,
+                                                              target_out_path)
+                    logging.info(f"Original file path: {original_file_path}")
+                    if original_file_path is None:
+                        inject_file_into_partition(source_file_path, partition_name, target_out_path)
+                    else:
+                        inject_file_into_obj(source_file_path, original_file_path)
+                except RuntimeError as e:
+                    logging.error(f"Error: {e}")
+
 
 
 def get_module_type(source_file_path):
@@ -110,7 +114,12 @@ def search_original_file(partition_name, module_type, file_name, target_out_path
     result_file_path = None
     if len(result_list) > 1:
         logging.info(f"Multiple files found: {result_list}")
-        raise Exception("Error: Multiple files found.")
+        raise RuntimeError(f"Error: Multiple files found: "
+                           f"{partition_name}, "
+                           f"{module_type}, "
+                           f"{file_name}, "
+                           f"{target_out_path} "
+                           f"{result_list}")
     elif len(result_list) == 1:
         result_file_path = result_list[0]
     return result_file_path
