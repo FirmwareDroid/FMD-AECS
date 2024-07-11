@@ -179,7 +179,9 @@ def get_subfolders(file_path, top_folder_name):
 
 
 def inject_file_into_partition(source_file_path, partition_name, target_out_path):
-    target_partition_path = target_out_path + partition_name + "/"
+    target_partition_path = target_out_path + partition_name
+    if not target_partition_path.endswith("/"):
+        target_partition_path += "/"
     subfolder_list = get_subfolders(source_file_path, partition_name)
     if len(subfolder_list) == 0:
         target_dir_injection_path = target_partition_path
@@ -221,9 +223,12 @@ def main():
     args = parse_arguments()
     # source_folder_path = "/home/ubuntu/tmp/6682a66664ee52bdcbb49bd9/"
     source_folder_path = args.source_path
-
+    if not source_folder_path.endswith("/"):
+        source_folder_path += "/"
     # target_out_path = "/home/ubuntu/aosp_12/out/target/product/emulator_arm64/"
     target_out_path = args.target_out_path
+    if not target_out_path.endswith("/"):
+        target_out_path += "/"
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")
     start_post_build_injector(source_folder_path, target_out_path)
