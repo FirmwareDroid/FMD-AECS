@@ -4,8 +4,10 @@ before it is packaged into a firmware image. The script is used to inject blobs 
 the replacement of the original blobs (from AOSP) with the vendor flavoured blobs.
 """
 import argparse
+import concurrent.futures
 import logging
 import os
+import time
 from setup_logger import setup_logger
 
 setup_logger()
@@ -19,10 +21,13 @@ MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", 
 
 
 def start_post_build_injector(source_folder_path, target_out_path):
+    start_time = time.time()
     error_list, inj_obj_list, inj_partition_list = process_partitions(source_folder_path, target_out_path)
     if len(error_list) > 0:
         for error in error_list:
             logging.error(error)
+    end_time = time.time()
+    logging.info(f"Execution time: {end_time - start_time} seconds")
     logging.info(f"Number of errors: {len(error_list)}")
     logging.info(f"Number of objects injected: {len(inj_obj_list)}")
     logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
@@ -38,38 +43,55 @@ def get_folders(directory_path):
 
 
 def process_partitions(source_folder_path, target_out_path):
+    folder_path_list = get_folders(source_folder_path)
+    logging.info(f"Folder path list: {folder_path_list}")
+
+    combined_error_list = []
+    combined_inj_obj_list = []
+    combined_inj_partition_list = []
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [executor.submit(process_partition_files, folder_path, target_out_path) for folder_path in
+                   folder_path_list]
+        for future in concurrent.futures.as_completed(futures):
+            error_list, inj_obj_list, inj_partition_list = future.result()
+            combined_error_list.extend(error_list)
+            combined_inj_obj_list.extend(inj_obj_list)
+            combined_inj_partition_list.extend(inj_partition_list)
+
+    return combined_error_list, combined_inj_obj_list, combined_inj_partition_list
+
+
+def process_partition_files(folder_path, target_out_path):
     error_list = []
     inj_obj_list = []
     inj_partition_list = []
-    folder_path_list = get_folders(source_folder_path)
-    logging.info(f"Folder path list: {folder_path_list}")
-    for folder_path in folder_path_list:
-        partition_name = os.path.basename(folder_path)
-        logging.info(f"Processing partition: {partition_name} | Folder path: {folder_path}")
-        for root, directory_name_list, file_name_list in os.walk(folder_path):
-            for file_name in file_name_list:
-                source_file_path = os.path.join(root, file_name)
-                logging.info(f"Processing file: {source_file_path}")
-                module_type = get_module_type(source_file_path)
-                if module_type == "APP" or module_type == "SHARED_LIBRARIES":
-                    logging.info(f"Skipping file: {source_file_path}")
-                    continue
-                logging.info(f"Module type: {module_type}")
-                try:
-                    original_file_path = search_original_file(partition_name,
-                                                              module_type,
-                                                              file_name,
-                                                              target_out_path)
-                    logging.info(f"Original file path: {original_file_path}")
-                    if original_file_path is None:
-                        inject_file_into_partition(source_file_path, partition_name, target_out_path)
-                        inj_obj_list.append(source_file_path)
-                    else:
-                        inject_file_into_obj(source_file_path, original_file_path)
-                        inj_partition_list.append(source_file_path)
-                except RuntimeError as e:
-                    error_list.append(e)
-                    logging.error(f"Error: {e}")
+    partition_name = os.path.basename(folder_path)
+    logging.info(f"Processing partition: {partition_name} | Folder path: {folder_path}")
+    for root, directory_name_list, file_name_list in os.walk(folder_path):
+        for file_name in file_name_list:
+            source_file_path = os.path.join(root, file_name)
+            logging.info(f"Processing file: {source_file_path}")
+            module_type = get_module_type(source_file_path)
+            if module_type == "APP" or module_type == "SHARED_LIBRARIES":
+                logging.info(f"Skipping file: {source_file_path}")
+                continue
+            logging.info(f"Module type: {module_type}")
+            try:
+                original_file_path = search_original_file(partition_name,
+                                                          module_type,
+                                                          file_name,
+                                                          target_out_path)
+                logging.info(f"Original file path: {original_file_path}")
+                if original_file_path is None:
+                    inject_file_into_partition(source_file_path, partition_name, target_out_path)
+                    inj_obj_list.append(source_file_path)
+                else:
+                    inject_file_into_obj(source_file_path, original_file_path)
+                    inj_partition_list.append(source_file_path)
+            except RuntimeError as e:
+                error_list.append(e)
+                logging.error(f"Error: {e}")
     return error_list, inj_obj_list, inj_partition_list
 
 
