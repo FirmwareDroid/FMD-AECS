@@ -54,10 +54,8 @@ def process_partitions(source_folder_path, target_out_path, executor):
     combined_inj_obj_list = []
     combined_inj_partition_list = []
 
-    futures = {executor.submit(process_partition_files, folder_path, target_out_path, executor): folder_path
-               for folder_path in tqdm(folder_path_list, desc="Processing partitions")}
-    for future in concurrent.futures.as_completed(futures):
-        error_list, inj_obj_list, inj_partition_list = future.result()
+    for folder_path in tqdm(folder_path_list, desc="Processing partitions"):
+        error_list, inj_obj_list, inj_partition_list = process_partition_files(folder_path, target_out_path, executor)
         combined_error_list.extend(error_list)
         combined_inj_obj_list.extend(inj_obj_list)
         combined_inj_partition_list.extend(inj_partition_list)
