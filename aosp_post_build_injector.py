@@ -22,9 +22,9 @@ PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "da
 MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC", "APP"]
 
 
-def start_post_build_injector(source_folder_path, target_out_path):
+def start_post_build_injector(source_folder_path, target_out_path, executor):
     start_time = time.time()
-    error_list, inj_obj_list, inj_partition_list = process_partitions(source_folder_path, target_out_path)
+    error_list, inj_obj_list, inj_partition_list = process_partitions(source_folder_path, target_out_path, executor)
     if len(error_list) > 0:
         for error in error_list:
             logging.error(error)
@@ -46,7 +46,7 @@ def get_folders(directory_path):
     return folders
 
 
-def process_partitions(source_folder_path, target_out_path):
+def process_partitions(source_folder_path, target_out_path, executor):
     folder_path_list = get_folders(source_folder_path)
     logging.debug(f"Folder path list: {folder_path_list}")
 
@@ -54,14 +54,13 @@ def process_partitions(source_folder_path, target_out_path):
     combined_inj_obj_list = []
     combined_inj_partition_list = []
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {executor.submit(process_partition_files, folder_path, target_out_path): folder_path for folder_path
-                   in tqdm(folder_path_list, desc="Processing partitions")}
-        for future in concurrent.futures.as_completed(futures):
-            error_list, inj_obj_list, inj_partition_list = future.result()
-            combined_error_list.extend(error_list)
-            combined_inj_obj_list.extend(inj_obj_list)
-            combined_inj_partition_list.extend(inj_partition_list)
+    futures = {executor.submit(process_partition_files, folder_path, target_out_path, executor): folder_path
+               for folder_path in tqdm(folder_path_list, desc="Processing partitions")}
+    for future in concurrent.futures.as_completed(futures):
+        error_list, inj_obj_list, inj_partition_list = future.result()
+        combined_error_list.extend(error_list)
+        combined_inj_obj_list.extend(inj_obj_list)
+        combined_inj_partition_list.extend(inj_partition_list)
 
     return combined_error_list, combined_inj_obj_list, combined_inj_partition_list
 
@@ -91,36 +90,37 @@ def process_file_concurrently(file_path, partition_name, target_out_path):
     return error, inj_obj, inj_partition
 
 
-def process_partition_files(folder_path, target_out_path):
+def process_partition_files(folder_path, target_out_path, executor):
     error_list = []
     inj_obj_list = []
     inj_partition_list = []
     partition_name = os.path.basename(folder_path)
-    file_paths = [os.path.join(root, file_name) for root, _, file_name_list in os.walk(folder_path) for file_name in file_name_list]
+    file_paths = [os.path.join(root, file_name) for root, _, file_name_list in os.walk(folder_path) for
+                  file_name in file_name_list]
 
     # Initialize tqdm progress bar
     progress_bar = tqdm(total=len(file_paths), desc=f"Processing files in partition: {partition_name}")
 
-    with ThreadPoolExecutor() as executor:
-        future_to_file = {
-            executor.submit(process_file_concurrently, file_path, partition_name, target_out_path): file_path for file_path in file_paths}
+    future_to_file = {
+        executor.submit(process_file_concurrently, file_path, partition_name, target_out_path):
+            file_path for file_path in file_paths}
 
-        for future in as_completed(future_to_file):
-            file_path = future_to_file[future]
-            try:
-                result = future.result()
-                if result[0]:  # If there's an error
-                    error_list.append(result[0])
-                if result[1]:  # If an object was injected
-                    inj_obj_list.append(result[1])
-                if result[2]:  # If a partition file was injected
-                    inj_partition_list.append(result[2])
-            except Exception as exc:
-                logging.error(f"Error processing file {file_path}: {exc}")
-                error_list.append(str(exc))
-            finally:
-                # Update progress bar after each task is completed
-                progress_bar.update(1)
+    for future in as_completed(future_to_file):
+        file_path = future_to_file[future]
+        try:
+            result = future.result()
+            if result[0]:  # If there's an error
+                error_list.append(result[0])
+            if result[1]:  # If an object was injected
+                inj_obj_list.append(result[1])
+            if result[2]:  # If a partition file was injected
+                inj_partition_list.append(result[2])
+        except Exception as exc:
+            logging.error(f"Error processing file {file_path}: {exc}")
+            error_list.append(str(exc))
+        finally:
+            # Update progress bar after each task is completed
+            progress_bar.update(1)
 
     # Close the progress bar after all tasks are completed
     progress_bar.close()
@@ -285,17 +285,19 @@ def parse_arguments():
 def main():
     logging.info("=======================AOSP POST BUILD INJECTOR=======================")
     args = parse_arguments()
-    # source_folder_path = "/home/ubuntu/tmp/6682a66664ee52bdcbb49bd9/"
     source_folder_path = args.source_path
     if not source_folder_path.endswith("/"):
         source_folder_path += "/"
-    # target_out_path = "/home/ubuntu/aosp_12/out/target/product/emulator_arm64/"
     target_out_path = args.target_out_path
     if not target_out_path.endswith("/"):
         target_out_path += "/"
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")
-    start_post_build_injector(source_folder_path, target_out_path)
+
+    # Initialize ThreadPoolExecutor
+    with ThreadPoolExecutor() as executor:
+        start_post_build_injector(source_folder_path, target_out_path, executor)
+
     logging.info("=======================AOSP POST BUILD INJECTOR EXIT=======================")
 
 
