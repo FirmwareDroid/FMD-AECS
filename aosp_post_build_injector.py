@@ -95,7 +95,7 @@ def search_original_file(partition_name, module_type, file_name, target_out_path
     candidate_directory_list = []
     for root, dir_name_list, files in os.walk(search_folder_path):
         for dir_name in dir_name_list:
-            if partition_name in dir_name and file_name in dir_name:
+            if partition_name in dir_name and dir_name.startswith(file_name):
                 candidate_directory_list.append(str(os.path.join(root, dir_name)))
 
     result_list = []
