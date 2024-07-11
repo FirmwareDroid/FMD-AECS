@@ -42,7 +42,7 @@ def process_partitions(source_folder_path, target_out_path):
                 source_file_path = os.path.join(root, file_name)
                 logging.info(f"Processing file: {source_file_path}")
                 module_type = get_module_type(source_file_path)
-                if module_type == "APP":
+                if module_type == "APP" or module_type == "SHARED_LIBRARIES":
                     continue
                 logging.info(f"Module type: {module_type}")
                 original_file_path = search_original_file(partition_name,
