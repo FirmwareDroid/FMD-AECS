@@ -19,11 +19,13 @@ MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", 
 
 
 def start_post_build_injector(source_folder_path, target_out_path):
-    error_list = process_partitions(source_folder_path, target_out_path)
+    error_list, inj_obj_list, inj_partition_list = process_partitions(source_folder_path, target_out_path)
     if len(error_list) > 0:
         for error in error_list:
-            logging.info(f"Number of errors: {len(error_list)}")
             logging.error(error)
+    logging.info(f"Number of errors: {len(error_list)}")
+    logging.info(f"Number of objects injected: {len(inj_obj_list)}")
+    logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
 
 
 def get_folders(directory_path):
@@ -37,6 +39,8 @@ def get_folders(directory_path):
 
 def process_partitions(source_folder_path, target_out_path):
     error_list = []
+    inj_obj_list = []
+    inj_partition_list = []
     folder_path_list = get_folders(source_folder_path)
     logging.info(f"Folder path list: {folder_path_list}")
     for folder_path in folder_path_list:
@@ -59,12 +63,14 @@ def process_partitions(source_folder_path, target_out_path):
                     logging.info(f"Original file path: {original_file_path}")
                     if original_file_path is None:
                         inject_file_into_partition(source_file_path, partition_name, target_out_path)
+                        inj_obj_list.append(source_file_path)
                     else:
                         inject_file_into_obj(source_file_path, original_file_path)
+                        inj_partition_list.append(source_file_path)
                 except RuntimeError as e:
                     error_list.append(e)
                     logging.error(f"Error: {e}")
-    return error_list
+    return error_list, inj_obj_list, inj_partition_list
 
 
 def get_module_type(source_file_path):
@@ -135,7 +141,7 @@ def inject_file_into_obj(source_file_path, original_file_path):
     """
     Injects a file into the AOSP source code.
     """
-    logging.info(f"Injecting file: {source_file_path} into {original_file_path}")
+    logging.info(f"Injecting obj file: {source_file_path} into {original_file_path}")
     #shutil.copyfile(source_file_path, original_file_path)
 
 
@@ -173,13 +179,14 @@ def get_subfolders(file_path, top_folder_name):
 
 
 def inject_file_into_partition(source_file_path, partition_name, target_out_path):
-    target_partition_path = target_out_path + partition_name
+    target_partition_path = target_out_path + partition_name + "/"
     subfolder_list = get_subfolders(source_file_path, partition_name)
     if len(subfolder_list) == 0:
         target_dir_injection_path = target_partition_path
     else:
         target_dir_injection_path = target_partition_path + str(os.path.join(*subfolder_list))
     if not os.path.exists(target_dir_injection_path):
+        logging.info(f"Creating directory: {target_dir_injection_path}")
         os.makedirs(target_dir_injection_path)
     target_file_injection_path = target_dir_injection_path + "/" + os.path.basename(source_file_path)
     logging.info(f"Injecting file: {source_file_path} into {target_file_injection_path}")
