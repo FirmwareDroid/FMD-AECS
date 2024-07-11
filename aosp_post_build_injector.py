@@ -191,7 +191,7 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
         logging.info(f"Creating directory: {target_dir_injection_path}")
         os.makedirs(target_dir_injection_path)
     target_file_injection_path = target_dir_injection_path + os.path.basename(source_file_path)
-    logging.info(f"Injecting file: {source_file_path} into {target_file_injection_path}")
+    logging.info(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
     #shutil.copyfile(source_file_path, target_file_injection_path)
 
 
