@@ -43,6 +43,7 @@ def process_partitions(source_folder_path, target_out_path):
                 logging.info(f"Processing file: {source_file_path}")
                 module_type = get_module_type(source_file_path)
                 if module_type == "APP" or module_type == "SHARED_LIBRARIES":
+                    logging.info(f"Skipping file: {source_file_path}")
                     continue
                 logging.info(f"Module type: {module_type}")
                 original_file_path = search_original_file(partition_name,
@@ -62,16 +63,16 @@ def get_module_type(source_file_path):
     """
     file_extension = os.path.splitext(source_file_path)[1]
     module_type = None
-    if file_extension is None:
+    if file_extension is None or file_extension == "" and "/bin/" in source_file_path:
         module_type = MODULE_TYPE_LIST[0]
     elif file_extension == ".jar":
         module_type = MODULE_TYPE_LIST[1]
     elif file_extension == ".so":
         module_type = MODULE_TYPE_LIST[2]
-    elif file_extension == ".apk":
+    elif file_extension == ".apk" or file_extension == ".odex" or file_extension == ".vdex":
         module_type = MODULE_TYPE_LIST[5]
 
-    if "etc" in source_file_path:
+    if "/etc/" in source_file_path:
         module_type = MODULE_TYPE_LIST[3]
     elif module_type is None:
         module_type = MODULE_TYPE_LIST[4]
@@ -108,6 +109,7 @@ def search_original_file(partition_name, module_type, file_name, target_out_path
 
     result_file_path = None
     if len(result_list) > 1:
+        logging.info(f"Multiple files found: {result_list}")
         raise Exception("Error: Multiple files found.")
     elif len(result_list) == 1:
         result_file_path = result_list[0]
