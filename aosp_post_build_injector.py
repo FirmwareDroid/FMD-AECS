@@ -27,7 +27,7 @@ def get_folders(directory_path):
     for entry in os.listdir(directory_path):
         full_path = os.path.join(directory_path, entry)
         if os.path.isdir(full_path):
-            folders.append(entry)
+            folders.append(full_path)
     return folders
 
 
