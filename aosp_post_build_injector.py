@@ -33,17 +33,21 @@ def get_folders(directory_path):
 
 def process_partitions(source_folder_path, target_out_path):
     folder_path_list = get_folders(source_folder_path)
+    logging.info(f"Folder path list: {folder_path_list}")
     for folder_path in folder_path_list:
         partition_name = os.path.basename(folder_path)
-        logging.info(f"Processing partition: {partition_name}")
+        logging.info(f"Processing partition: {partition_name} | Folder path: {folder_path}")
         for root, directory_name_list, file_name_list in os.walk(folder_path):
             for file_name in file_name_list:
                 source_file_path = os.path.join(root, file_name)
+                logging.info(f"Processing file: {source_file_path}")
                 module_type = get_module_type(source_file_path)
+                logging.info(f"Module type: {module_type}")
                 original_file_path = search_original_file(partition_name,
                                                           module_type,
                                                           file_name,
                                                           target_out_path)
+                logging.info(f"Original file path: {original_file_path}")
                 if original_file_path is None:
                     inject_file_into_partition(source_file_path, partition_name, target_out_path)
                 else:
@@ -67,7 +71,6 @@ def get_module_type(source_file_path):
         module_type = MODULE_TYPE_LIST[3]
     elif module_type is None:
         module_type = MODULE_TYPE_LIST[4]
-    logging.info(f"Module type: {module_type} for file: {source_file_path}")
     return module_type
 
 
@@ -104,7 +107,6 @@ def search_original_file(partition_name, module_type, file_name, target_out_path
         raise Exception("Error: Multiple files found.")
     elif len(result_list) == 1:
         result_file_path = result_list[0]
-    logging.info(f"Original file path: {result_file_path} for file: {file_name} in partition: {partition_name}")
     return result_file_path
 
 
@@ -194,6 +196,7 @@ def main():
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")
     start_post_build_injector(source_folder_path, target_out_path)
+    logging.info("=======================AOSP POST BUILD INJECTOR EXIT=======================")
 
 
 if __name__ == "__main__":
