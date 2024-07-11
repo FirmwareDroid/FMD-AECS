@@ -15,7 +15,7 @@ FOLDER_NAME_EXECUTABLES = "EXECUTABLES"
 FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
-MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC"]
+MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC", "APP"]
 
 
 def start_post_build_injector(source_folder_path, target_out_path):
@@ -42,6 +42,8 @@ def process_partitions(source_folder_path, target_out_path):
                 source_file_path = os.path.join(root, file_name)
                 logging.info(f"Processing file: {source_file_path}")
                 module_type = get_module_type(source_file_path)
+                if module_type == "APP":
+                    continue
                 logging.info(f"Module type: {module_type}")
                 original_file_path = search_original_file(partition_name,
                                                           module_type,
@@ -66,6 +68,8 @@ def get_module_type(source_file_path):
         module_type = MODULE_TYPE_LIST[1]
     elif file_extension == ".so":
         module_type = MODULE_TYPE_LIST[2]
+    elif file_extension == ".apk":
+        module_type = MODULE_TYPE_LIST[5]
 
     if "etc" in source_file_path:
         module_type = MODULE_TYPE_LIST[3]
@@ -154,7 +158,10 @@ def get_subfolders(file_path, top_folder_name):
 def inject_file_into_partition(source_file_path, partition_name, target_out_path):
     target_partition_path = target_out_path + partition_name
     subfolder_list = get_subfolders(source_file_path, partition_name)
-    target_dir_injection_path = target_partition_path + str(os.path.join(*subfolder_list))
+    if len(subfolder_list) == 0:
+        target_dir_injection_path = target_partition_path
+    else:
+        target_dir_injection_path = target_partition_path + str(os.path.join(*subfolder_list))
     if not os.path.exists(target_dir_injection_path):
         os.makedirs(target_dir_injection_path)
     target_file_injection_path = target_dir_injection_path + "/" + os.path.basename(source_file_path)
