@@ -3,11 +3,11 @@ import os
 import sys
 
 
-def setup_logger():
+def setup_logger(loglevel='INFO'):
     debug = os.environ.get('FMD_DEBUG', False)
     root = logging.getLogger()
     handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(thread)d - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     if not debug:
         root.setLevel(logging.INFO)
