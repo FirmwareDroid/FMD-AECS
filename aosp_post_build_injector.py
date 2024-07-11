@@ -5,6 +5,7 @@ the replacement of the original blobs (from AOSP) with the vendor flavoured blob
 """
 import argparse
 import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import os
 import time
@@ -27,7 +28,9 @@ def start_post_build_injector(source_folder_path, target_out_path):
         for error in error_list:
             logging.error(error)
     end_time = time.time()
-    logging.info(f"Execution time: {end_time - start_time} seconds")
+    execution_time = end_time - start_time
+    execution_time_minutes = execution_time / 60
+    logging.info(f"Execution time: {execution_time_minutes} minutes")
     logging.info(f"Number of errors: {len(error_list)}")
     logging.info(f"Number of objects injected: {len(inj_obj_list)}")
     logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
@@ -62,36 +65,93 @@ def process_partitions(source_folder_path, target_out_path):
     return combined_error_list, combined_inj_obj_list, combined_inj_partition_list
 
 
+# def process_partition_files(folder_path, target_out_path):
+#     error_list = []
+#     inj_obj_list = []
+#     inj_partition_list = []
+#     partition_name = os.path.basename(folder_path)
+#     logging.debug(f"Processing partition: {partition_name} | Folder path: {folder_path}")
+#     for root, directory_name_list, file_name_list in os.walk(folder_path):
+#         for file_name in file_name_list:
+#             source_file_path = os.path.join(root, file_name)
+#             logging.debug(f"Processing file: {source_file_path}")
+#             module_type = get_module_type(source_file_path)
+#             if module_type == "APP" or module_type == "SHARED_LIBRARIES":
+#                 logging.debug(f"Skipping file: {source_file_path}")
+#                 continue
+#             logging.debug(f"Module type: {module_type}")
+#             try:
+#                 original_file_path = search_original_file(partition_name,
+#                                                           module_type,
+#                                                           file_name,
+#                                                           target_out_path)
+#                 logging.debug(f"Original file path: {original_file_path}")
+#                 if original_file_path is None:
+#                     inject_file_into_partition(source_file_path, partition_name, target_out_path)
+#                     inj_obj_list.append(source_file_path)
+#                 else:
+#                     inject_file_into_obj(source_file_path, original_file_path)
+#                     inj_partition_list.append(source_file_path)
+#             except RuntimeError as e:
+#                 error_list.append(e)
+#                 logging.error(f"Error: {e}")
+#     return error_list, inj_obj_list, inj_partition_list
+
+
+def process_file_concurrently(file_path, partition_name, target_out_path):
+    error = None
+    inj_obj = None
+    inj_partition = None
+    module_type = get_module_type(file_path)
+    if module_type in ["APP", "SHARED_LIBRARIES"]:
+        return None, None, None  # Skipping file
+
+    try:
+        original_file_path = search_original_file(partition_name,
+                                                  module_type,
+                                                  os.path.basename(file_path),
+                                                  target_out_path)
+        if original_file_path is None:
+            inject_file_into_partition(file_path, partition_name, target_out_path)
+            inj_partition = file_path
+        else:
+            inject_file_into_obj(file_path, original_file_path)
+            inj_obj = file_path
+    except RuntimeError as e:
+        error = str(e)
+
+    return error, inj_obj, inj_partition
+
+
 def process_partition_files(folder_path, target_out_path):
     error_list = []
     inj_obj_list = []
     inj_partition_list = []
     partition_name = os.path.basename(folder_path)
     logging.debug(f"Processing partition: {partition_name} | Folder path: {folder_path}")
-    for root, directory_name_list, file_name_list in os.walk(folder_path):
-        for file_name in file_name_list:
-            source_file_path = os.path.join(root, file_name)
-            logging.debug(f"Processing file: {source_file_path}")
-            module_type = get_module_type(source_file_path)
-            if module_type == "APP" or module_type == "SHARED_LIBRARIES":
-                logging.debug(f"Skipping file: {source_file_path}")
-                continue
-            logging.debug(f"Module type: {module_type}")
+
+    # Collect all file paths to process
+    file_paths = [os.path.join(root, file_name) for root, _, file_name_list in os.walk(folder_path) for file_name in file_name_list]
+
+    # Process files in parallel within the partition
+    with ThreadPoolExecutor() as executor:
+        future_to_file = {executor.submit(process_file_concurrently, file_path, partition_name, target_out_path): file_path for file_path in file_paths}
+
+        for future in as_completed(future_to_file):
+            file_path = future_to_file[future]
             try:
-                original_file_path = search_original_file(partition_name,
-                                                          module_type,
-                                                          file_name,
-                                                          target_out_path)
-                logging.debug(f"Original file path: {original_file_path}")
-                if original_file_path is None:
-                    inject_file_into_partition(source_file_path, partition_name, target_out_path)
-                    inj_obj_list.append(source_file_path)
-                else:
-                    inject_file_into_obj(source_file_path, original_file_path)
-                    inj_partition_list.append(source_file_path)
-            except RuntimeError as e:
-                error_list.append(e)
-                logging.error(f"Error: {e}")
+                result = future.result()
+                # Assuming process_file_concurrently returns a tuple (error, inj_obj, inj_partition)
+                if result[0]:  # If there's an error
+                    error_list.append(result[0])
+                if result[1]:  # If an object was injected
+                    inj_obj_list.append(result[1])
+                if result[2]:  # If a partition file was injected
+                    inj_partition_list.append(result[2])
+            except Exception as exc:
+                logging.error(f"Error processing file {file_path}: {exc}")
+                error_list.append(str(exc))
+
     return error_list, inj_obj_list, inj_partition_list
 
 
@@ -136,26 +196,35 @@ def search_original_file(partition_name, module_type, file_name, target_out_path
             if partition_name in dir_name and dir_name.startswith(file_name):
                 candidate_directory_list.append(str(os.path.join(root, dir_name)))
 
-    result_list = []
+    second_round_candidate_list = []
     source_file_extension = os.path.splitext(file_name)[1]
     for candidate_directory in candidate_directory_list:
         for root, dir_name_list, files in os.walk(candidate_directory):
             for file in files:
                 file_extension = os.path.splitext(file)[1]
                 if file_extension == source_file_extension:
-                    result_list.append(str(os.path.join(root, file)))
+                    second_round_candidate_list.append(str(os.path.join(root, file)))
+
+    result_list = []
+    if len(second_round_candidate_list) > 1:
+        for result in second_round_candidate_list:
+            candidate_file_name = os.path.basename(result)
+            if candidate_file_name == file_name:
+                result_list.append(result)
 
     result_file_path = None
     if len(result_list) > 1:
-        logging.debug(f"Multiple files found: {result_list}")
+        logging.debug(f"Multiple files found for {file_name}: {result_list}")
         raise RuntimeError(f"Error: Multiple files found: "
                            f"{partition_name}, "
                            f"{module_type}, "
                            f"{file_name}, "
-                           f"{target_out_path} "
-                           f"{result_list}")
+                           f"{target_out_path}\n"
+                           f"{second_round_candidate_list}\n"
+                           f"{result_list}\n")
     elif len(result_list) == 1:
         result_file_path = result_list[0]
+
     return result_file_path
 
 
