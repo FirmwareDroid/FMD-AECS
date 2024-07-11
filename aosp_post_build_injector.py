@@ -6,6 +6,9 @@ the replacement of the original blobs (from AOSP) with the vendor flavoured blob
 import argparse
 import logging
 import os
+from setup_logger import setup_logger
+
+setup_logger()
 
 FOLDER_NAME_OBJECTS = "obj"
 FOLDER_NAME_EXECUTABLES = "EXECUTABLES"
