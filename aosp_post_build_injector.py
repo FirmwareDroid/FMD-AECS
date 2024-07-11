@@ -99,7 +99,7 @@ def process_partitions(source_folder_path, target_out_path):
 
 
 def process_file_concurrently(file_path, partition_name, target_out_path):
-    setup_logger()
+    logging.info(f"Processing file: {file_path}")
     error = None
     inj_obj = None
     inj_partition = None
@@ -129,7 +129,7 @@ def process_partition_files(folder_path, target_out_path):
     inj_obj_list = []
     inj_partition_list = []
     partition_name = os.path.basename(folder_path)
-    logging.debug(f"Processing partition: {partition_name} | Folder path: {folder_path}")
+    logging.info(f"Processing partition: {partition_name} | Folder path: {folder_path}")
 
     # Collect all file paths to process
     file_paths = [os.path.join(root, file_name) for root, _, file_name_list in os.walk(folder_path) for file_name in file_name_list]
