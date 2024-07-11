@@ -174,51 +174,79 @@ def search_original_file(partition_name, module_type, file_name, target_out_path
     """
     Searches for the original file in the AOSP source code.
     """
-    if module_type == "MISC":
-        search_folder_path = target_out_path
-    else:
-        search_folder_path = target_out_path + module_type
-
-    if partition_name == "super" or partition_name == "system":
+    search_folder_path = str(os.path.join(target_out_path, module_type if module_type != "MISC" else ""))
+    if partition_name in ["super", "system"]:
         partition_name = ""
 
-    # Check if folder has partition and filename in it
-    candidate_directory_list = []
-    for root, dir_name_list, files in scandir_walk(search_folder_path):
-        for dir_name in dir_name_list:
-            if partition_name in dir_name and dir_name.startswith(file_name):
-                candidate_directory_list.append(str(os.path.join(root, dir_name)))
-
-    second_round_candidate_list = []
-    source_file_extension = os.path.splitext(file_name)[1]
-    for candidate_directory in candidate_directory_list:
-        for root, dir_name_list, files in scandir_walk(candidate_directory):
-            for file in files:
-                file_extension = os.path.splitext(file)[1]
-                if file_extension == source_file_extension:
-                    second_round_candidate_list.append(str(os.path.join(root, file)))
-
-    result_list = []
-    if len(second_round_candidate_list) > 1:
-        for result in second_round_candidate_list:
-            candidate_file_name = os.path.basename(result)
-            if candidate_file_name == file_name:
-                result_list.append(result)
-
     result_file_path = None
-    if len(result_list) > 1:
-        logging.debug(f"Multiple files found for {file_name}: {result_list}")
-        raise RuntimeError(f"Error: Multiple files found: "
-                           f"{partition_name}, "
-                           f"{module_type}, "
-                           f"{file_name}, "
-                           f"{target_out_path}\n"
-                           f"{second_round_candidate_list}\n"
-                           f"{result_list}\n")
-    elif len(result_list) == 1:
-        result_file_path = result_list[0]
+    for root, dirs, files in os.walk(search_folder_path):
+        # Filter directories if partition_name is specified
+        if partition_name and not any(partition_name in d for d in dirs):
+            continue
 
-    return result_file_path
+        # Check if file is in the current directory
+        if file_name in files:
+            candidate_path = os.path.join(root, file_name)
+            # Verify if it matches the partition criteria
+            if not partition_name or partition_name in root:
+                result_file_path = candidate_path
+                break  # Terminate search early
+
+    if result_file_path:
+        return result_file_path
+    else:
+        logging.debug(f"No file found for {file_name} in {search_folder_path} with partition {partition_name}")
+        return None
+
+# def search_original_file(partition_name, module_type, file_name, target_out_path):
+#     """
+#     Searches for the original file in the AOSP source code.
+#     """
+#     if module_type == "MISC":
+#         search_folder_path = target_out_path
+#     else:
+#         search_folder_path = target_out_path + module_type
+#
+#     if partition_name == "super" or partition_name == "system":
+#         partition_name = ""
+#
+#     # Check if folder has partition and filename in it
+#     candidate_directory_list = []
+#     for root, dir_name_list, files in scandir_walk(search_folder_path):
+#         for dir_name in dir_name_list:
+#             if partition_name in dir_name and dir_name.startswith(file_name):
+#                 candidate_directory_list.append(str(os.path.join(root, dir_name)))
+#
+#     second_round_candidate_list = []
+#     source_file_extension = os.path.splitext(file_name)[1]
+#     for candidate_directory in candidate_directory_list:
+#         for root, dir_name_list, files in scandir_walk(candidate_directory):
+#             for file in files:
+#                 file_extension = os.path.splitext(file)[1]
+#                 if file_extension == source_file_extension:
+#                     second_round_candidate_list.append(str(os.path.join(root, file)))
+#
+#     result_list = []
+#     if len(second_round_candidate_list) > 1:
+#         for result in second_round_candidate_list:
+#             candidate_file_name = os.path.basename(result)
+#             if candidate_file_name == file_name:
+#                 result_list.append(result)
+#
+#     result_file_path = None
+#     if len(result_list) > 1:
+#         logging.debug(f"Multiple files found for {file_name}: {result_list}")
+#         raise RuntimeError(f"Error: Multiple files found: "
+#                            f"{partition_name}, "
+#                            f"{module_type}, "
+#                            f"{file_name}, "
+#                            f"{target_out_path}\n"
+#                            f"{second_round_candidate_list}\n"
+#                            f"{result_list}\n")
+#     elif len(result_list) == 1:
+#         result_file_path = result_list[0]
+#
+#     return result_file_path
 
 
 def inject_file_into_obj(source_file_path, original_file_path):
