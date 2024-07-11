@@ -84,7 +84,7 @@ def process_file_concurrently(file_path, partition_name, target_out_path):
         else:
             inject_file_into_obj(file_path, original_file_path)
             inj_obj = file_path
-    except RuntimeError as e:
+    except Exception as e:
         error = str(e)
 
     return error, inj_obj, inj_partition
@@ -95,7 +95,7 @@ def process_partition_files(folder_path, target_out_path, executor):
     inj_obj_list = []
     inj_partition_list = []
     partition_name = os.path.basename(folder_path)
-    file_paths = [os.path.join(root, file_name) for root, _, file_name_list in os.walk(folder_path) for
+    file_paths = [os.path.join(root, file_name) for root, _, file_name_list in scandir_walk(folder_path) for
                   file_name in file_name_list]
 
     # Initialize tqdm progress bar
@@ -150,6 +150,28 @@ def get_module_type(source_file_path):
     return module_type
 
 
+def scandir_walk(dir_path):
+    """
+    A generator that yields a tuple (dirpath, dirnames, filenames) similar to os.walk,
+    but uses os.scandir to improve performance.
+    """
+    dirnames = []
+    filenames = []
+
+    with os.scandir(dir_path) as scandir_it:
+        for entry in scandir_it:
+            if entry.is_dir(follow_symlinks=False):
+                dirnames.append(entry.name)
+            else:
+                filenames.append(entry.name)
+
+    yield dir_path, dirnames, filenames
+
+    for dirname in dirnames:
+        new_path = os.path.join(dir_path, dirname)
+        yield from scandir_walk(new_path)
+
+
 def search_original_file(partition_name, module_type, file_name, target_out_path):
     """
     Searches for the original file in the AOSP source code.
@@ -164,7 +186,7 @@ def search_original_file(partition_name, module_type, file_name, target_out_path
 
     # Check if folder has partition and filename in it
     candidate_directory_list = []
-    for root, dir_name_list, files in os.walk(search_folder_path):
+    for root, dir_name_list, files in scandir_walk(search_folder_path):
         for dir_name in dir_name_list:
             if partition_name in dir_name and dir_name.startswith(file_name):
                 candidate_directory_list.append(str(os.path.join(root, dir_name)))
@@ -172,7 +194,7 @@ def search_original_file(partition_name, module_type, file_name, target_out_path
     second_round_candidate_list = []
     source_file_extension = os.path.splitext(file_name)[1]
     for candidate_directory in candidate_directory_list:
-        for root, dir_name_list, files in os.walk(candidate_directory):
+        for root, dir_name_list, files in scandir_walk(candidate_directory):
             for file in files:
                 file_extension = os.path.splitext(file)[1]
                 if file_extension == source_file_extension:
@@ -243,6 +265,9 @@ def get_subfolders(file_path, top_folder_name):
 
 
 def inject_file_into_partition(source_file_path, partition_name, target_out_path):
+    if partition_name == "super":
+        partition_name = "system"
+
     target_partition_path = target_out_path + partition_name
     if not target_partition_path.endswith("/"):
         target_partition_path += "/"
@@ -294,7 +319,6 @@ def main():
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")
 
-    # Initialize ThreadPoolExecutor
     with ThreadPoolExecutor() as executor:
         start_post_build_injector(source_folder_path, target_out_path, executor)
 
