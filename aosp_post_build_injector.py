@@ -44,7 +44,7 @@ def get_folders(directory_path):
 
 def process_partitions(source_folder_path, target_out_path):
     folder_path_list = get_folders(source_folder_path)
-    logging.info(f"Folder path list: {folder_path_list}")
+    logging.debug(f"Folder path list: {folder_path_list}")
 
     combined_error_list = []
     combined_inj_obj_list = []
@@ -67,22 +67,22 @@ def process_partition_files(folder_path, target_out_path):
     inj_obj_list = []
     inj_partition_list = []
     partition_name = os.path.basename(folder_path)
-    logging.info(f"Processing partition: {partition_name} | Folder path: {folder_path}")
+    logging.debug(f"Processing partition: {partition_name} | Folder path: {folder_path}")
     for root, directory_name_list, file_name_list in os.walk(folder_path):
         for file_name in file_name_list:
             source_file_path = os.path.join(root, file_name)
-            logging.info(f"Processing file: {source_file_path}")
+            logging.debug(f"Processing file: {source_file_path}")
             module_type = get_module_type(source_file_path)
             if module_type == "APP" or module_type == "SHARED_LIBRARIES":
-                logging.info(f"Skipping file: {source_file_path}")
+                logging.debug(f"Skipping file: {source_file_path}")
                 continue
-            logging.info(f"Module type: {module_type}")
+            logging.debug(f"Module type: {module_type}")
             try:
                 original_file_path = search_original_file(partition_name,
                                                           module_type,
                                                           file_name,
                                                           target_out_path)
-                logging.info(f"Original file path: {original_file_path}")
+                logging.debug(f"Original file path: {original_file_path}")
                 if original_file_path is None:
                     inject_file_into_partition(source_file_path, partition_name, target_out_path)
                     inj_obj_list.append(source_file_path)
@@ -147,7 +147,7 @@ def search_original_file(partition_name, module_type, file_name, target_out_path
 
     result_file_path = None
     if len(result_list) > 1:
-        logging.info(f"Multiple files found: {result_list}")
+        logging.debug(f"Multiple files found: {result_list}")
         raise RuntimeError(f"Error: Multiple files found: "
                            f"{partition_name}, "
                            f"{module_type}, "
@@ -163,7 +163,7 @@ def inject_file_into_obj(source_file_path, original_file_path):
     """
     Injects a file into the AOSP source code.
     """
-    logging.info(f"Injecting obj file: {source_file_path} into {original_file_path}")
+    logging.debug(f"Injecting obj file: {source_file_path} into {original_file_path}")
     #shutil.copyfile(source_file_path, original_file_path)
 
 
@@ -210,10 +210,10 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
     else:
         target_dir_injection_path = target_partition_path + str(os.path.join(*subfolder_list))
     if not os.path.exists(target_dir_injection_path):
-        logging.info(f"Creating directory: {target_dir_injection_path}")
+        logging.debug(f"Creating directory: {target_dir_injection_path}")
         os.makedirs(target_dir_injection_path)
     target_file_injection_path = target_dir_injection_path + os.path.basename(source_file_path)
-    logging.info(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
+    logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
     #shutil.copyfile(source_file_path, target_file_injection_path)
 
 
