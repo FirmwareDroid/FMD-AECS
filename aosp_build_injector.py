@@ -4,7 +4,6 @@ on disk. Directly extract the downloaded zip content.
 """
 import argparse
 import re
-import shlex
 import uuid
 import logging
 import shutil
@@ -88,9 +87,10 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         try:
             main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
             execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
-            jar_build_command_list = get_rebuild_jar_modules_command(aosp_path, lunch_target, included_package_name_list)
-            for jar_build_command in jar_build_command_list:
-                execute_build_command(aosp_path, firmware_id, jar_build_command, aosp_path)
+            #jar_build_command_list = get_rebuild_jar_modules_command(aosp_path, lunch_target, included_package_name_list)
+            #for jar_build_command in jar_build_command_list:
+            #    execute_build_command(aosp_path, firmware_id, jar_build_command, aosp_path)
+
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target)
             execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path)
             is_successful = True
