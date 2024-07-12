@@ -3,6 +3,7 @@ A command-line tool that downloads files related to the build process of an Andr
 on disk. Directly extract the downloaded zip content.
 """
 import argparse
+import os
 import re
 import uuid
 import logging
@@ -19,7 +20,10 @@ from fmd_backend_requests import download_firmware_build_files, get_csrf_token, 
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 from setup_logger import setup_logger
 
-setup_logger()
+if os.environ.get("FMD_DEBUG") == "True":
+    setup_logger(logging.DEBUG)
+else:
+    setup_logger()
 BLOCKED_MODULE_NAMES = []
 BLOCKED_MODULE_NAMES.extend(AOSP_DEFAULT_PACKAGE_NAMES)
 BLOCKED_MODULE_NAMES.extend(VENDOR_BLACKLISTED_PACKAGES)
