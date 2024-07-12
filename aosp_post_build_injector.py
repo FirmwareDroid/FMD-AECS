@@ -4,8 +4,7 @@ before it is packaged into a firmware image. The script is used to inject blobs 
 the replacement of the original blobs (from AOSP) with the vendor flavoured blobs.
 """
 import argparse
-import concurrent.futures
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 import logging
 import os
 import time
@@ -345,7 +344,7 @@ def main():
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")
 
-    with ThreadPoolExecutor() as executor:
+    with Executor() as executor:
         start_post_build_injector(source_folder_path, target_out_path, executor)
 
     logging.info("=======================AOSP POST BUILD INJECTOR EXIT=======================")
