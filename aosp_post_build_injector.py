@@ -12,6 +12,10 @@ import time
 from setup_logger import setup_logger
 from tqdm import tqdm
 
+if os.environ.get("FMD_DEBUG") == "True":
+    setup_logger(logging.DEBUG)
+else:
+    setup_logger()
 
 FOLDER_NAME_OBJECTS = "obj"
 FOLDER_NAME_EXECUTABLES = "EXECUTABLES"
@@ -29,9 +33,6 @@ def start_post_build_injector(source_folder_path, target_out_path):
 def inject(source_folder_path, target_out_path, executor):
     start_time = time.time()
     error_list, inj_obj_list, inj_partition_list = process_partitions(source_folder_path, target_out_path, executor)
-    if len(error_list) > 0:
-        for error in error_list:
-            logging.error(error)
     end_time = time.time()
     execution_time = end_time - start_time
     execution_time_minutes = execution_time / 60
