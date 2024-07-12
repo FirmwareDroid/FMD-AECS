@@ -40,6 +40,7 @@ def inject(source_folder_path, target_out_path, executor):
     logging.info(f"Number of errors: {len(error_list)}")
     logging.info(f"Number of objects injected: {len(inj_obj_list)}")
     logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
+    logging.info(f"Errors: {error_list}")
 
 
 def get_folders(directory_path):
