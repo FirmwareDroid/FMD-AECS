@@ -22,7 +22,7 @@ FOLDER_NAME_EXECUTABLES = "EXECUTABLES"
 FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
-MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC", "APP"]
+MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC", "APP", "SKIPPED"]
 
 
 def start_post_build_injector(source_folder_path, target_out_path):
@@ -74,7 +74,7 @@ def process_file_concurrently(file_path, partition_name, target_out_path):
     inj_obj = None
     inj_partition = None
     module_type = get_module_type(file_path)
-    if module_type in ["APP", "SHARED_LIBRARIES"]:
+    if module_type in ["APP", "SHARED_LIBRARIES", "SKIPPED"]:
         return None, None, None  # Skipping file
 
     try:
@@ -144,13 +144,18 @@ def get_module_type(source_file_path):
         module_type = MODULE_TYPE_LIST[1]
     elif file_extension == ".so":
         module_type = MODULE_TYPE_LIST[2]
-    elif file_extension == ".apk" or file_extension == ".odex" or file_extension == ".vdex":
+    elif file_extension == ".apk" or file_extension == ".odex" or file_extension == ".vdex" or file_extension == ".art"\
+            or file_extension == ".oat" or file_extension == ".dex" or file_extension == ".apex":
         module_type = MODULE_TYPE_LIST[5]
 
     if "/etc/" in source_file_path:
         module_type = MODULE_TYPE_LIST[3]
     elif module_type is None:
         module_type = MODULE_TYPE_LIST[4]
+
+    if file_extension == ".bprof":
+        module_type = MODULE_TYPE_LIST[6]
+
     return module_type
 
 
@@ -205,64 +210,6 @@ def search_original_file(partition_name, module_type, file_name, target_out_path
         logging.debug(f"No file found for {file_name} in {search_folder_path} with partition {partition_name}")
         return None
 
-# def search_original_file(partition_name, module_type, file_name, target_out_path):
-#     """
-#     Searches for the original file in the AOSP source code.
-#     """
-#     if module_type == "MISC":
-#         search_folder_path = target_out_path
-#     else:
-#         search_folder_path = target_out_path + module_type
-#
-#     if partition_name == "super" or partition_name == "system":
-#         partition_name = ""
-#
-#     # Check if folder has partition and filename in it
-#     candidate_directory_list = []
-#     for root, dir_name_list, files in scandir_walk(search_folder_path):
-#         for dir_name in dir_name_list:
-#             if partition_name in dir_name and dir_name.startswith(file_name):
-#                 candidate_directory_list.append(str(os.path.join(root, dir_name)))
-#
-#     second_round_candidate_list = []
-#     source_file_extension = os.path.splitext(file_name)[1]
-#     for candidate_directory in candidate_directory_list:
-#         for root, dir_name_list, files in scandir_walk(candidate_directory):
-#             for file in files:
-#                 file_extension = os.path.splitext(file)[1]
-#                 if file_extension == source_file_extension:
-#                     second_round_candidate_list.append(str(os.path.join(root, file)))
-#
-#     result_list = []
-#     if len(second_round_candidate_list) > 1:
-#         for result in second_round_candidate_list:
-#             candidate_file_name = os.path.basename(result)
-#             if candidate_file_name == file_name:
-#                 result_list.append(result)
-#
-#     result_file_path = None
-#     if len(result_list) > 1:
-#         logging.debug(f"Multiple files found for {file_name}: {result_list}")
-#         raise RuntimeError(f"Error: Multiple files found: "
-#                            f"{partition_name}, "
-#                            f"{module_type}, "
-#                            f"{file_name}, "
-#                            f"{target_out_path}\n"
-#                            f"{second_round_candidate_list}\n"
-#                            f"{result_list}\n")
-#     elif len(result_list) == 1:
-#         result_file_path = result_list[0]
-#
-#     return result_file_path
-
-
-def inject_file_into_obj(source_file_path, original_file_path):
-    """
-    Injects a file into the AOSP source code.
-    """
-    logging.debug(f"Overwriting Obj file: {source_file_path} into {original_file_path}")
-    #shutil.copyfile(source_file_path, original_file_path)
-
 
 def is_top_folder(library_path, folder_name):
     """
@@ -312,15 +259,22 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
     if not os.path.exists(target_dir_injection_path):
         logging.debug(f"Creating directory: {target_dir_injection_path}")
         os.makedirs(target_dir_injection_path)
-    target_file_injection_path = target_dir_injection_path + os.path.basename(source_file_path)
+    target_file_injection_path = os.path.join(target_dir_injection_path, os.path.basename(source_file_path))
+    target_file_injection_path = os.path.normpath(target_file_injection_path)
 
     if os.path.exists(target_file_injection_path):
         raise FileExistsError(f"File {target_file_injection_path} already exists.")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         #shutil.copyfile(source_file_path, target_file_injection_path)
-    #shutil.copyfile(source_file_path, target_file_injection_path)
-    #shutil.copyfile(source_file_path, target_file_injection_path)
+
+
+def inject_file_into_obj(source_file_path, original_file_path):
+    """
+    Injects a file into the AOSP source code.
+    """
+    logging.debug(f"Overwriting Obj file: {source_file_path} into {original_file_path}")
+    #shutil.copyfile(source_file_path, original_file_path)
 
 
 def parse_arguments():
