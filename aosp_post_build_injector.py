@@ -178,7 +178,8 @@ def search_original_file(partition_name, module_type, file_name, target_out_path
     """
     Searches for the original file in the AOSP source code.
     """
-    search_folder_path = str(os.path.join(target_out_path, module_type if module_type != "MISC" else ""))
+    target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
+    search_folder_path = str(os.path.join(target_obj_path, module_type if module_type != "MISC" else ""))
     if partition_name in ["super", "system"]:
         partition_name = ""
 
