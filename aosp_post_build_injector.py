@@ -21,7 +21,12 @@ PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "da
 MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC", "APP"]
 
 
-def start_post_build_injector(source_folder_path, target_out_path, executor):
+def start_post_build_injector(source_folder_path, target_out_path):
+    with Executor() as executor:
+        inject(source_folder_path, target_out_path, executor)
+
+
+def inject(source_folder_path, target_out_path, executor):
     start_time = time.time()
     error_list, inj_obj_list, inj_partition_list = process_partitions(source_folder_path, target_out_path, executor)
     if len(error_list) > 0:
@@ -343,10 +348,7 @@ def main():
         target_out_path += "/"
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")
-
-    with Executor() as executor:
-        start_post_build_injector(source_folder_path, target_out_path, executor)
-
+    start_post_build_injector(source_folder_path, target_out_path)
     logging.info("=======================AOSP POST BUILD INJECTOR EXIT=======================")
 
 
