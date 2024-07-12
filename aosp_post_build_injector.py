@@ -260,7 +260,7 @@ def inject_file_into_obj(source_file_path, original_file_path):
     """
     Injects a file into the AOSP source code.
     """
-    logging.debug(f"Injecting obj file: {source_file_path} into {original_file_path}")
+    logging.debug(f"Overwriting Obj file: {source_file_path} into {original_file_path}")
     #shutil.copyfile(source_file_path, original_file_path)
 
 
