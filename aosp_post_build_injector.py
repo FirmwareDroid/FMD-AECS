@@ -4,6 +4,7 @@ before it is packaged into a firmware image. The script is used to inject blobs 
 the replacement of the original blobs (from AOSP) with the vendor flavoured blobs.
 """
 import argparse
+import shutil
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 import logging
 import os
@@ -311,7 +312,13 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
         logging.debug(f"Creating directory: {target_dir_injection_path}")
         os.makedirs(target_dir_injection_path)
     target_file_injection_path = target_dir_injection_path + os.path.basename(source_file_path)
-    logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
+
+    if os.path.exists(target_file_injection_path):
+        raise FileExistsError(f"File {target_file_injection_path} already exists.")
+    else:
+        logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
+        #shutil.copyfile(source_file_path, target_file_injection_path)
+    #shutil.copyfile(source_file_path, target_file_injection_path)
     #shutil.copyfile(source_file_path, target_file_injection_path)
 
 
