@@ -275,7 +275,7 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
     if os.path.exists(target_file_injection_path):
         logging.debug(f"File {target_file_injection_path} already exists and is overwritten.")
         shutil.copyfile(source_file_path, target_file_injection_path)
-        raise FileExistsError(f"File {target_file_injection_path} already exists.")
+        #raise FileExistsError(f"File {target_file_injection_path} already exists.")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         shutil.copyfile(source_file_path, target_file_injection_path)
