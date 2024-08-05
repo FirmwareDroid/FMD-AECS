@@ -26,6 +26,14 @@ MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", 
 
 
 def start_post_build_injector(source_folder_path, target_out_path):
+    """
+    Start the post build injector. Replaces the original objects in the AOSP source code with the vendor flavoured
+    objects.
+
+    :param source_folder_path: str - path to the source folder where the objects to inject reside.
+    :param target_out_path: str - path to the AOSP target out folder.
+
+    """
     with Executor() as executor:
         inject(source_folder_path, target_out_path, executor)
 
@@ -41,6 +49,8 @@ def inject(source_folder_path, target_out_path, executor):
     logging.info(f"Number of objects injected: {len(inj_obj_list)}")
     logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
     logging.info(f"Errors: {error_list}")
+    logging.info(f"Objects injected: {inj_obj_list}")
+    logging.info(f"Partition files injected: {inj_partition_list}")
 
 
 def get_folders(directory_path):
@@ -105,12 +115,12 @@ def process_partition_files(folder_path, target_out_path, executor):
     # Initialize tqdm progress bar
     progress_bar = tqdm(total=len(file_paths), desc=f"Processing files in partition: {partition_name}")
 
-    future_to_file = {
+    future_dict = {
         executor.submit(process_file_concurrently, file_path, partition_name, target_out_path):
             file_path for file_path in file_paths}
 
-    for future in as_completed(future_to_file):
-        file_path = future_to_file[future]
+    for future in as_completed(future_dict):
+        file_path = future_dict[future]
         try:
             result = future.result()
             if result[0]:  # If there's an error
