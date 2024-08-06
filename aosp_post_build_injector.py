@@ -92,9 +92,8 @@ def process_file_concurrently(file_path, partition_name, target_out_path):
                                                   module_type,
                                                   os.path.basename(file_path),
                                                   target_out_path)
-        if "selinux" in original_file_path:
-            logging.debug(f"Skipping selinux file: {original_file_path}")
-        elif original_file_path is None:
+
+        if original_file_path is None:
             inject_file_into_partition(file_path, partition_name, target_out_path)
             inj_partition = file_path
         else:
@@ -160,7 +159,9 @@ def get_module_type(source_file_path):
             or file_extension == ".oat" or file_extension == ".dex" or file_extension == ".apex":
         module_type = MODULE_TYPE_LIST[5]
 
-    if "/etc/" in source_file_path:
+    if "selinux" in source_file_path:
+        module_type = MODULE_TYPE_LIST[6]
+    elif "/etc/" in source_file_path:
         module_type = MODULE_TYPE_LIST[3]
     elif module_type is None:
         module_type = MODULE_TYPE_LIST[4]

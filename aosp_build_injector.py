@@ -14,7 +14,6 @@ import stat
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
-
 from aosp_post_build_injector import start_post_build_injector
 from common import extract_zip
 from config import *
@@ -96,9 +95,9 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
             execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
 
-            # source_folder_path # FMD extracted firmware files "/home/ubuntu/tmp/6682a66664ee52bdcbb49bd9/"
             target_out_path = get_target_out_path(aosp_path, lunch_target)
-            start_post_build_injector(source_folder_path, target_out_path)
+            all_extracted_firmware_files_path = os.path.join(extracted_packages_path, EXTRACTION_ALL_FILES_DIR_NAME)
+            start_post_build_injector(all_extracted_firmware_files_path, target_out_path)
 
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target)
             execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path)
