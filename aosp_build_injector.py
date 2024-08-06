@@ -14,6 +14,8 @@ import stat
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
+
+from aosp_post_build_injector import start_post_build_injector
 from common import extract_zip
 from config import *
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
@@ -83,7 +85,9 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     included_package_name_list = move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path)
     move_txt_files(extracted_packages_path, aosp_packages_abs_path)
     inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
-    shutil.rmtree(extracted_packages_path)
+
+
+    #shutil.rmtree(extracted_packages_path)
     make_file_executable(aosp_packages_abs_path, FILE_NAME_POST_INSTALL_SCRIPT)
 
     retry_attempts = BUILD_RETRY_COUNT
@@ -91,9 +95,10 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         try:
             main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
             execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
-            #jar_build_command_list = get_rebuild_jar_modules_command(aosp_path, lunch_target, included_package_name_list)
-            #for jar_build_command in jar_build_command_list:
-            #    execute_build_command(aosp_path, firmware_id, jar_build_command, aosp_path)
+
+            # source_folder_path # FMD extracted firmware files "/home/ubuntu/tmp/6682a66664ee52bdcbb49bd9/"
+            target_out_path = get_target_out_path(aosp_path, lunch_target)
+            start_post_build_injector(source_folder_path, target_out_path)
 
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target)
             execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path)
@@ -102,6 +107,25 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             logging.error(err)
             retry_attempts -= 1
     return is_successful
+
+
+def get_target_out_path(aosp_path, lunch_target):
+    """
+    Returns the target out path based on the lunch target.
+    E.g. "/home/ubuntu/aosp_12/out/target/product/emulator_arm64/"
+
+    :param aosp_path: str - path to the root of the aosp source code.
+    :param lunch_target: str - aosp build argument to select the build arch.
+
+    :returns: str - path to the target out path.
+
+    """
+    if lunch_target == SUPPORTED_LUNCH_TARGETS[0]:
+        return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_x86_64_PATH)
+    elif lunch_target == SUPPORTED_LUNCH_TARGETS[1] or lunch_target == SUPPORTED_LUNCH_TARGETS[2]:
+        return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH)
+    else:
+        raise RuntimeError(f"Unsupported build architecture: {lunch_target}")
 
 
 def get_emulator_image_path(aosp_path, lunch_target):

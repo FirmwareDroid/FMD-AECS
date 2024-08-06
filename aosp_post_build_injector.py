@@ -92,7 +92,9 @@ def process_file_concurrently(file_path, partition_name, target_out_path):
                                                   module_type,
                                                   os.path.basename(file_path),
                                                   target_out_path)
-        if original_file_path is None:
+        if "selinux" in original_file_path:
+            logging.debug(f"Skipping selinux file: {original_file_path}")
+        elif original_file_path is None:
             inject_file_into_partition(file_path, partition_name, target_out_path)
             inj_partition = file_path
         else:
@@ -273,9 +275,9 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
     target_file_injection_path = os.path.normpath(target_file_injection_path)
 
     if os.path.exists(target_file_injection_path):
-        logging.debug(f"File {target_file_injection_path} already exists and is overwritten.")
-        shutil.copyfile(source_file_path, target_file_injection_path)
-        #raise FileExistsError(f"File {target_file_injection_path} already exists.")
+        logging.debug(f"File {target_file_injection_path} already exists.")
+        #shutil.copyfile(source_file_path, target_file_injection_path)
+        raise FileExistsError(f"File {target_file_injection_path} already exists.")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         shutil.copyfile(source_file_path, target_file_injection_path)
