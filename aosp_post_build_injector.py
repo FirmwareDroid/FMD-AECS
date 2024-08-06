@@ -23,6 +23,7 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC", "APP", "SKIPPED"]
+SKIPPED_BINARY_LIST = ["vold"]
 
 
 def start_post_build_injector(source_folder_path, target_out_path):
@@ -159,7 +160,9 @@ def get_module_type(source_file_path):
             or file_extension == ".oat" or file_extension == ".dex" or file_extension == ".apex":
         module_type = MODULE_TYPE_LIST[5]
 
-    if "selinux" in source_file_path:
+    if os.path.basename(source_file_path) in SKIPPED_BINARY_LIST:
+        module_type = MODULE_TYPE_LIST[6]
+    elif "selinux" in source_file_path:
         module_type = MODULE_TYPE_LIST[6]
     elif "/etc/" in source_file_path:
         module_type = MODULE_TYPE_LIST[3]
