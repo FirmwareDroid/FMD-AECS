@@ -32,6 +32,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "vold",
                         "recovery-refresh",
                         "vendor.sensors",
+                        "atrace",
                         "android.hidl"]
 
 
