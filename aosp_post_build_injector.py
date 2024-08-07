@@ -23,10 +23,16 @@ FOLDER_NAME_EXECUTABLES = "EXECUTABLES"
 FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
-MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC", "APP", "SKIPPED"]
 
 SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc"]
-SKIPPED_BINARY_LIST = ["vold", "keystore2", "vdc", "vndservicemanager", "servicemanager", "tee"]
+SKIPPED_BINARY_LIST = ["vold",
+                       "keystore2",
+                       "vdc",
+                       "vndservicemanager",
+                       "servicemanager",
+                       "zygote",
+                       "tee",
+                       "atrace"]
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
                         "keymaster",
@@ -39,6 +45,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "exfat",
                         "vendor.qti.hardware",
                         "hardware",
+                        "zygote",
                         "android.hidl",
                         "secureboot"]
 
@@ -189,28 +196,26 @@ def get_module_type(source_file_path):
     Determines the module type of the source file.
     """
     file_extension = os.path.splitext(source_file_path)[1]
+    file_name = os.path.basename(source_file_path)
     module_type = None
-    if file_extension is None or file_extension == "" and "/bin/" in source_file_path:
-        module_type = MODULE_TYPE_LIST[0]
+
+    if file_extension in ["", None] and "/bin/" in source_file_path:
+        module_type = "EXECUTABLES"
     elif file_extension == ".jar":
-        module_type = MODULE_TYPE_LIST[1]
+        module_type = "JAVA_LIBRARIES"
     elif file_extension == ".so":
-        module_type = MODULE_TYPE_LIST[2]
-    elif file_extension == ".apk" or file_extension == ".odex" or file_extension == ".vdex" or file_extension == ".art"\
-            or file_extension == ".oat" or file_extension == ".dex" or file_extension == ".apex":
-        module_type = MODULE_TYPE_LIST[5]
-    elif any(keyword in file_extension for keyword in SKIPPED_FILE_EXTENSION_LIST):
-        module_type = MODULE_TYPE_LIST[6]
+        module_type = "SHARED_LIBRARIES"
+    elif file_extension in [".apk", ".odex", ".vdex", ".art", ".oat", ".dex", ".apex"]:
+        module_type = "APP"
+    elif file_extension in SKIPPED_FILE_EXTENSION_LIST:
+        module_type = "SKIPPED"
+    elif "/etc/" in source_file_path:
+        module_type = "ETC"
+    else:
+        module_type = "MISC"
 
-    if "/etc/" in source_file_path:
-        module_type = MODULE_TYPE_LIST[3]
-    elif module_type is None:
-        module_type = MODULE_TYPE_LIST[4]
-
-    if os.path.basename(source_file_path) in SKIPPED_BINARY_LIST:
-        module_type = MODULE_TYPE_LIST[6]
-    elif any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST):
-        module_type = MODULE_TYPE_LIST[6]
+    if file_name in SKIPPED_BINARY_LIST or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST):
+        module_type = "SKIPPED"
 
     return module_type
 
