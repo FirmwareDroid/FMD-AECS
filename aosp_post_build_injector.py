@@ -51,7 +51,7 @@ def inject(source_folder_path, target_out_path, executor):
     logging.info(f"Number of errors: {len(error_list)}")
     logging.info(f"Number of objects injected: {len(inj_obj_list)}")
     logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
-    logging.info(f"Errors: {error_list}")
+    #logging.info(f"Errors: {error_list}")
     logging.info(f"Objects injected: {inj_obj_list}")
     logging.info(f"Partition files injected: {inj_partition_list}")
 
@@ -183,6 +183,7 @@ def get_module_type(source_file_path):
     elif os.path.basename(source_file_path) in SKIPPED_BINARY_LIST:
         module_type = MODULE_TYPE_LIST[6]
     elif any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST):
+        logging.debug(f"Skipping file: {source_file_path} due to keyword match.")
         module_type = MODULE_TYPE_LIST[6]
     elif "/etc/" in source_file_path:
         module_type = MODULE_TYPE_LIST[3]
