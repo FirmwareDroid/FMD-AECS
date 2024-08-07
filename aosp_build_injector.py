@@ -3,14 +3,12 @@ A command-line tool that downloads files related to the build process of an Andr
 on disk. Directly extract the downloaded zip content.
 """
 import argparse
-import os
 import re
 import uuid
 import logging
 import shutil
 import subprocess
 import glob
-import stat
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
@@ -43,21 +41,7 @@ def delete_files(dir_path):
         os.remove(f)
 
 
-def make_file_executable(root_dir, filename):
-    """
-    Makes the file executable.
 
-    :param root_dir: str - path to the root directory.
-    :param filename: str - name of the file to make executable.
-
-    """
-    logging.info(f"Making file: {filename} executable.")
-    for dirpath, dirnames, filenames in os.walk(root_dir):
-        for name in filenames:
-            if name == filename:
-                file_path = os.path.join(dirpath, name)
-                os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
-                logging.info(f"Made file: {file_path} executable.")
 
 
 def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering):
@@ -87,7 +71,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
 
 
     #shutil.rmtree(extracted_packages_path)
-    make_file_executable(aosp_packages_abs_path, FILE_NAME_POST_INSTALL_SCRIPT)
+    #make_file_executable(aosp_packages_abs_path, FILE_NAME_POST_INSTALL_SCRIPT)
 
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
