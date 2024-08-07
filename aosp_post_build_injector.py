@@ -24,6 +24,8 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC", "APP", "SKIPPED"]
+
+SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc"]
 SKIPPED_BINARY_LIST = ["vold", "keystore2", "vdc", "vndservicemanager", "servicemanager", "tee"]
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
@@ -37,7 +39,8 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "exfat",
                         "vendor.qti.hardware",
                         "hardware",
-                        "android.hidl"]
+                        "android.hidl",
+                        "secureboot"]
 
 
 def start_post_build_injector(source_folder_path, target_out_path):
@@ -196,7 +199,7 @@ def get_module_type(source_file_path):
     elif file_extension == ".apk" or file_extension == ".odex" or file_extension == ".vdex" or file_extension == ".art"\
             or file_extension == ".oat" or file_extension == ".dex" or file_extension == ".apex":
         module_type = MODULE_TYPE_LIST[5]
-    elif file_extension == ".bprof":
+    elif any(keyword in file_extension for keyword in SKIPPED_FILE_EXTENSION_LIST):
         module_type = MODULE_TYPE_LIST[6]
 
     if "/etc/" in source_file_path:
