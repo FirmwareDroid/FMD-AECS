@@ -5,10 +5,11 @@ the replacement of the original blobs (from AOSP) with the vendor flavoured blob
 """
 import argparse
 import shutil
-from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 import logging
-import os
 import time
+import os
+import stat
+from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 from setup_logger import setup_logger
 from tqdm import tqdm
 
@@ -54,6 +55,23 @@ def inject(source_folder_path, target_out_path, executor):
     logging.info(f"Partition files injected: {inj_partition_list}")
 
 
+def make_file_executable(root_dir, filename):
+    """
+    Makes the file executable.
+
+    :param root_dir: str - path to the root directory.
+    :param filename: str - name of the file to make executable.
+
+    """
+    logging.info(f"Making file: {filename} executable.")
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        for name in filenames:
+            if name == filename:
+                file_path = os.path.join(dirpath, name)
+                os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
+                logging.info(f"Made file: {file_path} executable.")
+
+
 def get_folders(directory_path):
     folders = []
     for entry in os.listdir(directory_path):
@@ -95,9 +113,11 @@ def process_file_concurrently(file_path, partition_name, target_out_path):
                                                   target_out_path)
 
         if original_file_path is None:
+            os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
             inject_file_into_partition(file_path, partition_name, target_out_path)
             inj_partition = file_path
         else:
+            os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
             inject_file_into_obj(file_path, original_file_path)
             inj_obj = file_path
     except Exception as e:
