@@ -25,7 +25,7 @@ FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC", "APP", "SKIPPED"]
 SKIPPED_BINARY_LIST = ["vold", "keystore2"]
-SKIPPED_KEYWORD_LIST = ["selinux", "keystore", "keymaster", "android.hardware"]
+SKIPPED_KEYWORD_LIST = ["selinux", "keystore", "keymaster", "android.hardware", "vold"]
 
 
 def start_post_build_injector(source_folder_path, target_out_path):
@@ -180,15 +180,16 @@ def get_module_type(source_file_path):
         module_type = MODULE_TYPE_LIST[5]
     elif file_extension == ".bprof":
         module_type = MODULE_TYPE_LIST[6]
-    elif os.path.basename(source_file_path) in SKIPPED_BINARY_LIST:
-        module_type = MODULE_TYPE_LIST[6]
-    elif any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST):
-        logging.debug(f"Skipping file: {source_file_path} due to keyword match.")
-        module_type = MODULE_TYPE_LIST[6]
-    elif "/etc/" in source_file_path:
+
+    if "/etc/" in source_file_path:
         module_type = MODULE_TYPE_LIST[3]
     elif module_type is None:
         module_type = MODULE_TYPE_LIST[4]
+
+    if os.path.basename(source_file_path) in SKIPPED_BINARY_LIST:
+        module_type = MODULE_TYPE_LIST[6]
+    elif any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST):
+        module_type = MODULE_TYPE_LIST[6]
 
     return module_type
 
