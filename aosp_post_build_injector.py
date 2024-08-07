@@ -24,7 +24,7 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC", "APP", "SKIPPED"]
-SKIPPED_BINARY_LIST = ["vold", "keystore2", "vdc", "vndservicemanager", ""]
+SKIPPED_BINARY_LIST = ["vold", "keystore2", "vdc", "vndservicemanager", "servicemanager"]
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
                         "keymaster",
