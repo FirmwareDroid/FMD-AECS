@@ -113,11 +113,9 @@ def process_file_concurrently(file_path, partition_name, target_out_path):
                                                   target_out_path)
 
         if original_file_path is None:
-            os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
             inject_file_into_partition(file_path, partition_name, target_out_path)
             inj_partition = file_path
         else:
-            os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
             inject_file_into_obj(file_path, original_file_path)
             inj_obj = file_path
     except Exception as e:
@@ -305,6 +303,7 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         shutil.copyfile(source_file_path, target_file_injection_path)
+        os.chmod(target_file_injection_path, os.stat(target_file_injection_path).st_mode | stat.S_IEXEC)
 
 
 def inject_file_into_obj(source_file_path, original_file_path):
@@ -313,6 +312,7 @@ def inject_file_into_obj(source_file_path, original_file_path):
     """
     logging.debug(f"Overwriting Obj file: {source_file_path} into {original_file_path}")
     shutil.copyfile(source_file_path, original_file_path)
+    os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
 
 
 def parse_arguments():
