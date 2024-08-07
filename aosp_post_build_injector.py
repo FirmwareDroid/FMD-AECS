@@ -30,8 +30,12 @@ SKIPPED_BINARY_LIST = ["vold",
                        "vdc",
                        "vndservicemanager",
                        "servicemanager",
+                       "hwservicemanager",
+                       "console",
                        "zygote",
                        "tee",
+                       "qemu-props",
+                       "wait_for_keymaster",
                        "atrace"]
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
@@ -47,6 +51,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "hardware",
                         "zygote",
                         "android.hidl",
+                        "qti",
                         "secureboot"]
 
 
