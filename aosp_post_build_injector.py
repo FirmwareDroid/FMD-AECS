@@ -36,6 +36,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "qseecom",
                         "exfat",
                         "vendor.qti.hardware",
+                        "hardware",
                         "android.hidl"]
 
 
