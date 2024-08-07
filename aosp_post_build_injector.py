@@ -24,8 +24,14 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC", "APP", "SKIPPED"]
-SKIPPED_BINARY_LIST = ["vold", "keystore2"]
-SKIPPED_KEYWORD_LIST = ["selinux", "keystore", "keymaster", "android.hardware", "vold"]
+SKIPPED_BINARY_LIST = ["vold", "keystore2", "vdc", "vndservicemanager", ""]
+SKIPPED_KEYWORD_LIST = ["selinux",
+                        "keystore",
+                        "keymaster",
+                        "android.hardware",
+                        "vold",
+                        "recovery-refresh",
+                        "vendor.sensors"]
 
 
 def start_post_build_injector(source_folder_path, target_out_path):
