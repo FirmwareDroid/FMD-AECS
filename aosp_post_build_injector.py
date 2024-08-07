@@ -31,7 +31,8 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "android.hardware",
                         "vold",
                         "recovery-refresh",
-                        "vendor.sensors"]
+                        "vendor.sensors",
+                        "android.hidl"]
 
 
 def start_post_build_injector(source_folder_path, target_out_path):
