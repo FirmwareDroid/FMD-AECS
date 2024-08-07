@@ -33,6 +33,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "recovery-refresh",
                         "vendor.sensors",
                         "atrace",
+                        "qseecom",
                         "android.hidl"]
 
 
