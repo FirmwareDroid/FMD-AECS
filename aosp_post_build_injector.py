@@ -25,6 +25,7 @@ FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC", "APP", "SKIPPED"]
 SKIPPED_BINARY_LIST = ["vold", "keystore2"]
+SKIPPED_KEYWORD_LIST = ["selinux", "keystore"]
 
 
 def start_post_build_injector(source_folder_path, target_out_path):
@@ -180,7 +181,7 @@ def get_module_type(source_file_path):
 
     if os.path.basename(source_file_path) in SKIPPED_BINARY_LIST:
         module_type = MODULE_TYPE_LIST[6]
-    elif "selinux" in source_file_path:
+    elif any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST):
         module_type = MODULE_TYPE_LIST[6]
     elif "/etc/" in source_file_path:
         module_type = MODULE_TYPE_LIST[3]
