@@ -25,7 +25,7 @@ FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 MODULE_TYPE_LIST = ["EXECUTABLES", "JAVA_LIBRARIES", "SHARED_LIBRARIES", "ETC", "MISC", "APP", "SKIPPED"]
 SKIPPED_BINARY_LIST = ["vold", "keystore2"]
-SKIPPED_KEYWORD_LIST = ["selinux", "keystore", "keymaster"]
+SKIPPED_KEYWORD_LIST = ["selinux", "keystore", "keymaster", "android.hardware"]
 
 
 def start_post_build_injector(source_folder_path, target_out_path):
@@ -178,8 +178,9 @@ def get_module_type(source_file_path):
     elif file_extension == ".apk" or file_extension == ".odex" or file_extension == ".vdex" or file_extension == ".art"\
             or file_extension == ".oat" or file_extension == ".dex" or file_extension == ".apex":
         module_type = MODULE_TYPE_LIST[5]
-
-    if os.path.basename(source_file_path) in SKIPPED_BINARY_LIST:
+    elif file_extension == ".bprof":
+        module_type = MODULE_TYPE_LIST[6]
+    elif os.path.basename(source_file_path) in SKIPPED_BINARY_LIST:
         module_type = MODULE_TYPE_LIST[6]
     elif any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST):
         module_type = MODULE_TYPE_LIST[6]
@@ -187,9 +188,6 @@ def get_module_type(source_file_path):
         module_type = MODULE_TYPE_LIST[3]
     elif module_type is None:
         module_type = MODULE_TYPE_LIST[4]
-
-    if file_extension == ".bprof":
-        module_type = MODULE_TYPE_LIST[6]
 
     return module_type
 
