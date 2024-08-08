@@ -44,6 +44,8 @@ SKIPPED_BINARY_LIST = ["vold",
                        "wpa_supplicant",
                        "apexd-bootstrap",
                        "bootstrap",
+                       "fsverity_init",
+                       "init",
                        "apexd",
                        "atrace"]
 SKIPPED_KEYWORD_LIST = ["selinux",
