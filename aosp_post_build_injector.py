@@ -163,7 +163,7 @@ def process_file_concurrently(file_path, partition_name, target_out_path):
             inj_partition = file_path
         else:
             inject_file_into_obj(file_path, original_file_path)
-            inj_obj = file_path
+            inj_obj = (file_path, original_file_path)
     except Exception as e:
         error = str(e)
 
