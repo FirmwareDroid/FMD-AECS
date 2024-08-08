@@ -24,7 +24,7 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 
-SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex"]
+SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko"]
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
                        "vdc",
@@ -44,6 +44,7 @@ SKIPPED_BINARY_LIST = ["vold",
                        "wpa_supplicant",
                        "apexd-bootstrap",
                        "bootstrap",
+                       "apexd",
                        "atrace"]
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
