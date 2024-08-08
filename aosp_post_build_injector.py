@@ -24,7 +24,7 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 
-SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko"]
+SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml"]
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
                        "vdc",
@@ -66,7 +66,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "qti",
                         "hwservicemanager",
                         "secureboot"]
-
+ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg"]
 
 def start_post_build_injector(source_folder_path, target_out_path):
     """
@@ -342,7 +342,8 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
     target_file_injection_path = os.path.normpath(target_file_injection_path)
 
     if os.path.exists(target_file_injection_path):
-        if os.path.islink(target_file_injection_path):
+        file_extension = os.path.splitext(target_file_injection_path)[1]
+        if os.path.islink(target_file_injection_path) or file_extension in ALLOWED_OVERWRITE_FILE_EXTENSION_LIST:
             shutil.copyfile(source_file_path, target_file_injection_path)
         else:
             logging.debug(f"File {target_file_injection_path} already exists.")
