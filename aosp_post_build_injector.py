@@ -47,7 +47,8 @@ SKIPPED_BINARY_LIST = ["vold",
                        "fsverity_init",
                        "init",
                        "apexd",
-                       "atrace"]
+                       "atrace",
+                       "build.prop"]
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
                         "keymaster",
@@ -153,10 +154,10 @@ def process_file_concurrently(file_path, partition_name, target_out_path):
         return None, None, None  # Skipping file
 
     try:
-        original_file_path = search_original_file(partition_name,
-                                                  module_type,
-                                                  os.path.basename(file_path),
-                                                  target_out_path)
+        original_file_path = search_original_file_in_obj(partition_name,
+                                                         module_type,
+                                                         os.path.basename(file_path),
+                                                         target_out_path)
 
         if original_file_path is None:
             inject_file_into_partition(file_path, partition_name, target_out_path)
@@ -259,7 +260,7 @@ def scandir_walk(dir_path):
         yield from scandir_walk(new_path)
 
 
-def search_original_file(partition_name, module_type, file_name, target_out_path):
+def search_original_file_in_obj(partition_name, module_type, file_name, target_out_path):
     """
     Searches for the original file in the AOSP source code.
     """
@@ -341,9 +342,11 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
     target_file_injection_path = os.path.normpath(target_file_injection_path)
 
     if os.path.exists(target_file_injection_path):
-        logging.debug(f"File {target_file_injection_path} already exists.")
-        #shutil.copyfile(source_file_path, target_file_injection_path)
-        raise FileExistsError(f"File {target_file_injection_path} already exists.")
+        if os.path.islink(target_file_injection_path):
+            shutil.copyfile(source_file_path, target_file_injection_path)
+        else:
+            logging.debug(f"File {target_file_injection_path} already exists.")
+            raise FileExistsError(f"File {target_file_injection_path} already exists.")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         shutil.copyfile(source_file_path, target_file_injection_path)
