@@ -25,7 +25,7 @@ FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 
 #SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml"]
-SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".prop", ".xml", ".apex"]
+SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".prop", ".xml", ".apex", ".ko"]
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
                        "vdc",
