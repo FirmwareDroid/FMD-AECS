@@ -24,7 +24,8 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 
-SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml"]
+#SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml"]
+SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy"]
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
                        "vdc",
@@ -48,6 +49,11 @@ SKIPPED_BINARY_LIST = ["vold",
                        "init",
                        "apexd",
                        "atrace",
+                       "setprop",
+                       "getprop",
+                       "std.build.prop",
+                       "pro.build.prop",
+                       "default.prop",
                        "build.prop"]
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
@@ -66,7 +72,8 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "qti",
                         "hwservicemanager",
                         "secureboot"]
-ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg"]
+ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
+
 
 def start_post_build_injector(source_folder_path, target_out_path):
     """
