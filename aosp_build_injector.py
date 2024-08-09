@@ -41,9 +41,6 @@ def delete_files(dir_path):
         os.remove(f)
 
 
-
-
-
 def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering):
     """
     Wrapper method to start the firmware injection and build process.
