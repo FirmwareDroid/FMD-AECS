@@ -24,8 +24,7 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 
-#SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml"]
-SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".prop", ".xml", ".apex", ".ko", ".rc"]
+SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml"]
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
                        "vdc",
