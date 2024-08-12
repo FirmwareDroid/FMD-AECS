@@ -204,7 +204,8 @@ AOSP_DEFAULT_PACKAGE_NAMES = ["framework-res",
                               "framework-res__auto_generated_rro_vendor",
                               "ModuleMetadata",
                               "ExtServices",
-                              "CarrierDefaultApp"]
+                              "CarrierDefaultApp",
+                              "ANGLE"]
 
 # List of packages that are not allowed to be included in the firmware because they
 # cause the firmware to fail to start
