@@ -639,6 +639,8 @@ def parse_arguments():
                         help='If set, the filtering of the packages will be skipped.')
     parser.add_argument("-z", "--reset-aosp", action='store_true', default=False,
                         help='If set, the aosp build environment will be reset.')
+    parser.add_argument("-c", "--skip-clean", action='store_true', default=False,
+                        help='If set, skips the cleanup of the aosp build environment.')
     args = parser.parse_args()
 
     if not (args.fmd_url.startswith("https://") or args.fmd_url.startswith("http://")):
@@ -765,7 +767,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             logging.error(f"Got an error processing firmware-id: {firmware_id}. Error: {err}")
             failed_firmware_ids.append(firmware_id)
         finally:
-            clear_environment(args.aosp_path, aosp_packages_abs_path)
+            if args.skip_clean:
+                clear_environment(args.aosp_path, aosp_packages_abs_path)
 
     if len(failed_firmware_ids) > 0:
         logging.error(f"Failed to build the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
