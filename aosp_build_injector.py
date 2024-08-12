@@ -23,7 +23,7 @@ if os.environ.get("FMD_DEBUG") == "True":
     setup_logger(logging.DEBUG)
 else:
     setup_logger()
-BLOCKED_MODULE_NAMES = []
+BLOCKED_MODULE_NAMES = [EXTRACTION_ALL_FILES_DIR_NAME]
 BLOCKED_MODULE_NAMES.extend(AOSP_DEFAULT_PACKAGE_NAMES)
 BLOCKED_MODULE_NAMES.extend(VENDOR_BLACKLISTED_PACKAGES)
 BLOCKED_MODULE_NAMES.extend(BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES)
@@ -61,14 +61,11 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     overwrite_partition_size(aosp_path, aosp_packages_path)
 
     aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
-    extracted_packages_path = os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME)
-    included_package_name_list = move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path)
+    extracted_packages_path = str(os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME))
+    move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path)
     move_txt_files(extracted_packages_path, aosp_packages_abs_path)
     inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
 
-
-    #shutil.rmtree(extracted_packages_path)
-    #make_file_executable(aosp_packages_abs_path, FILE_NAME_POST_INSTALL_SCRIPT)
 
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
