@@ -61,7 +61,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     overwrite_partition_size(aosp_path, aosp_packages_path)
 
     aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
-    extracted_packages_path = os.path.join(aosp_packages_abs_path, PACKAGE_EXTRACTION_DIR_NAME)
+    extracted_packages_path = os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME)
     included_package_name_list = move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path)
     move_txt_files(extracted_packages_path, aosp_packages_abs_path)
     inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
@@ -573,6 +573,20 @@ def clear_intermediate_files(aosp_path):
         logging.debug(f"Removed {framework_out_path} from aosp source code.")
 
 
+def clear_build_out(build_out_path):
+    """
+    Deletes the build out directory.
+
+    :param build_out_path: str - path to the build out directory.
+    """
+    try:
+        if os.path.exists(build_out_path):
+            shutil.rmtree(build_out_path)
+            logging.debug(f"Removed {build_out_path}")
+    except Exception as err:
+        logging.error(err)
+
+
 def clear_environment(aosp_path, aosp_packages_path):
     """
     Reverts the build environment
@@ -581,6 +595,7 @@ def clear_environment(aosp_path, aosp_packages_path):
     """
     clear_packages(aosp_packages_path)
     clear_intermediate_files(aosp_path)
+    clear_build_out(BUILD_OUT_PATH)
     #clear_base_files(aosp_path)
 
 
@@ -604,7 +619,7 @@ def fetch_build_files(firmware_id, cookies, fmd_url, aosp_packages_abs_path):
                                                           firmware_id,
                                                           cookies,
                                                           aosp_packages_abs_path)
-            tmp_path = os.path.join(aosp_packages_abs_path, PACKAGE_EXTRACTION_DIR_NAME)
+            tmp_path = os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME)
             os.makedirs(tmp_path)
             extract_zip(zip_file_path, tmp_path)
             os.remove(zip_file_path)
