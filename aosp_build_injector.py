@@ -66,7 +66,6 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     move_txt_files(extracted_packages_path, aosp_packages_abs_path)
     inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
 
-
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
         try:
@@ -592,7 +591,8 @@ def clear_environment(aosp_path, aosp_packages_path):
     """
     clear_packages(aosp_packages_path)
     clear_intermediate_files(aosp_path)
-    clear_build_out(BUILD_OUT_PATH)
+    extracted_files_path = os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME)
+    clear_build_out(extracted_files_path)
     #clear_base_files(aosp_path)
 
 
@@ -779,7 +779,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             logging.error(f"Got an error processing firmware-id: {firmware_id}. Error: {err}")
             failed_firmware_ids.append(firmware_id)
         finally:
-            if args.skip_clean:
+            if not args.skip_clean:
                 clear_environment(args.aosp_path, aosp_packages_abs_path)
 
     if len(failed_firmware_ids) > 0:
