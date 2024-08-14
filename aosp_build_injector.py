@@ -304,9 +304,9 @@ def get_minimal_partition_size(aosp_path, aosp_packages_path):
     packages_abs_path = os.path.join(aosp_path, aosp_packages_path)
     approximate_size = get_directory_size(packages_abs_path)
     default_size = 4294967296  # 4GB
-    additional_gb_in_bytes = 1073741824 * 32  # 32GB
-
-    while default_size < approximate_size:
+    additional_gb_in_bytes = 1073741824 * 64  # 64GB
+    twenty_gb_in_bytes = 1073741824 * 10  # 10GB
+    while default_size < (approximate_size + twenty_gb_in_bytes):
         default_size += additional_gb_in_bytes
         logging.debug(f"Increasing partition size to: {default_size} Approximate bytes of packages "
                       f"to inject is: {approximate_size}")
