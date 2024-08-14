@@ -53,6 +53,7 @@ SKIPPED_BINARY_LIST = ["vold",
                        "std.build.prop",
                        "pro.build.prop",
                        "default.prop",
+                       "lmkd",
                        "build.prop"]
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
