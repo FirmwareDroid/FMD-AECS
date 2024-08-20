@@ -18,15 +18,13 @@ from config import *
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 from setup_logger import setup_logger
+BLOCKED_MODULE_NAMES = get_blocked_module_names()
 
 if os.environ.get("FMD_DEBUG") == "True":
     setup_logger(logging.DEBUG)
 else:
     setup_logger()
-BLOCKED_MODULE_NAMES = [EXTRACTION_ALL_FILES_DIR_NAME]
-BLOCKED_MODULE_NAMES.extend(AOSP_DEFAULT_PACKAGE_NAMES)
-BLOCKED_MODULE_NAMES.extend(VENDOR_BLACKLISTED_PACKAGES)
-BLOCKED_MODULE_NAMES.extend(BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES)
+
 
 
 def delete_files(dir_path):
