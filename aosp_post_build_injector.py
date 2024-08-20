@@ -54,7 +54,9 @@ SKIPPED_BINARY_LIST = ["vold",
                        "pro.build.prop",
                        "default.prop",
                        "lmkd",
-                       "build.prop"]
+                       "build.prop",
+                       "raw.image"      # Leftover from the file extraction process
+                       ]
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
                         "keymaster",
@@ -75,22 +77,24 @@ SKIPPED_KEYWORD_LIST = ["selinux",
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
 
 
-def start_post_build_injector(source_folder_path, target_out_path):
+def start_post_build_injector(aosp_path, source_folder_path, target_out_path):
     """
     Start the post build injector. Replaces the original objects in the AOSP source code with the vendor flavoured
     objects.
 
+    :param aosp_path: str - path to the AOSP source code.
     :param source_folder_path: str - path to the source folder where the objects to inject reside.
     :param target_out_path: str - path to the AOSP target out folder.
 
     """
     with Executor() as executor:
-        inject(source_folder_path, target_out_path, executor)
+        inject(aosp_path, source_folder_path, target_out_path, executor)
 
 
-def inject(source_folder_path, target_out_path, executor):
+def inject(aosp_path, source_folder_path, target_out_path, executor):
     start_time = time.time()
-    error_list, inj_obj_list, inj_partition_list = process_partitions(source_folder_path, target_out_path, executor)
+    error_list, inj_obj_list, inj_partition_list = process_partitions(aosp_path, source_folder_path,
+                                                                      target_out_path, executor)
     end_time = time.time()
     execution_time = end_time - start_time
     execution_time_minutes = execution_time / 60
@@ -135,7 +139,7 @@ def get_folders(directory_path):
     return folders
 
 
-def process_partitions(source_folder_path, target_out_path, executor):
+def process_partitions(aosp_path, source_folder_path, target_out_path, executor):
     folder_path_list = get_folders(source_folder_path)
     logging.debug(f"Folder path list: {folder_path_list}")
 
@@ -144,7 +148,8 @@ def process_partitions(source_folder_path, target_out_path, executor):
     combined_inj_partition_list = []
 
     for folder_path in tqdm(folder_path_list, desc="Processing partitions"):
-        error_list, inj_obj_list, inj_partition_list = process_partition_files(folder_path, target_out_path, executor)
+        error_list, inj_obj_list, inj_partition_list = process_partition_files(aosp_path, folder_path,
+                                                                               target_out_path, executor)
         combined_error_list.extend(error_list)
         combined_inj_obj_list.extend(inj_obj_list)
         combined_inj_partition_list.extend(inj_partition_list)
@@ -152,20 +157,27 @@ def process_partitions(source_folder_path, target_out_path, executor):
     return combined_error_list, combined_inj_obj_list, combined_inj_partition_list
 
 
-def process_file_concurrently(file_path, partition_name, target_out_path):
+def process_file_concurrently(aosp_path, file_path, partition_name, target_out_path):
     error = None
     inj_obj = None
     inj_partition = None
     module_type = get_module_type(file_path)
-    if module_type in ["APP", "SHARED_LIBRARIES", "SKIPPED"]:
+    if module_type in ["SKIPPED"]:
         return None, None, None  # Skipping file
+
+    if module_type == "APP":
+        signing_key = get_signing_key_from_module(file_path)
+        signing_key_path = get_signing_key_path(aosp_path, signing_key)
+        if not os.path.exists(signing_key_path):
+            error = f"Signing key {signing_key} not found for file {file_path}"
+            return error, None, None
+        sign_apk_file(file_path, signing_key_path)
 
     try:
         original_file_path = search_original_file_in_obj(partition_name,
                                                          module_type,
                                                          os.path.basename(file_path),
                                                          target_out_path)
-
         if original_file_path is None:
             inject_file_into_partition(file_path, partition_name, target_out_path)
             inj_partition = file_path
@@ -178,7 +190,33 @@ def process_file_concurrently(file_path, partition_name, target_out_path):
     return error, inj_obj, inj_partition
 
 
-def process_partition_files(folder_path, target_out_path, executor):
+def get_signing_key_from_module(android_mk_file_path):
+    with open(android_mk_file_path, "r") as file:
+        for line in file:
+            if "LOCAL_CERTIFICATE" in line:
+                signing_key = line.split("=")[1].strip()
+                return signing_key.lower()
+
+
+def get_signing_key_path(aosp_path, signing_key_name):
+    key_file_path = f"{aosp_path}/build/target/product/security/{signing_key_name}.p12"
+    return key_file_path
+
+
+def sign_apk_file(apk_file_path, signing_key_path):
+    """
+    Signs the APK file with apksigner.
+
+    :param apk_file_path: str - path to the APK file.
+    :param signing_key_path: str - path to the signing key.
+
+    """
+    logging.info(f"Signing APK file: {apk_file_path}")
+    sign_command = f"apksigner sign --ks {signing_key_path} --ks-pass pass: --in {apk_file_path} --out {apk_file_path}"
+    os.system(sign_command)
+
+
+def process_partition_files(aosp_path, folder_path, target_out_path, executor):
     error_list = []
     inj_obj_list = []
     inj_partition_list = []
@@ -190,7 +228,7 @@ def process_partition_files(folder_path, target_out_path, executor):
     progress_bar = tqdm(total=len(file_paths), desc=f"Processing files in partition: {partition_name}")
 
     future_dict = {
-        executor.submit(process_file_concurrently, file_path, partition_name, target_out_path):
+        executor.submit(process_file_concurrently, aosp_path, file_path, partition_name, target_out_path):
             file_path for file_path in file_paths}
 
     for future in as_completed(future_dict):
@@ -222,8 +260,6 @@ def get_module_type(source_file_path):
     """
     file_extension = os.path.splitext(source_file_path)[1]
     file_name = os.path.basename(source_file_path)
-    module_type = None
-
     if file_extension in ["", None] and "/bin/" in source_file_path:
         module_type = "EXECUTABLES"
     elif file_extension == ".jar":
