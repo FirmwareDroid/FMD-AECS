@@ -1548,3 +1548,12 @@ ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "/product/app/Gallery2/lib/arm64/libjni_filtershow_filters.so",
     "/product/app/Gallery2/lib/arm64/libjni_eglfence.so",
     "/product/app/LatinIME/lib/arm64/libjni_latinime.so"]
+
+
+def get_blocked_module_names():
+    blocked_module_names = [EXTRACTION_ALL_FILES_DIR_NAME]
+    blocked_module_names.extend(AOSP_DEFAULT_PACKAGE_NAMES)
+    blocked_module_names.extend(VENDOR_BLACKLISTED_PACKAGES)
+    blocked_module_names.extend(BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES)
+    return blocked_module_names
+

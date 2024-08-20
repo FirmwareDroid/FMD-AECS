@@ -75,6 +75,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "hwservicemanager",
                         "secureboot"]
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
+ALLOW_FILE_OVERWRITE = ["framework-res.apk"]
 
 
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path):
@@ -165,21 +166,18 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     if module_type in ["SKIPPED"]:
         return None, None, None  # Skipping file
 
-    if module_type == "APP":
-        signing_key = get_signing_key_from_module(file_path)
-        signing_key_path = get_signing_key_path(aosp_path, signing_key)
-        if not os.path.exists(signing_key_path):
-            error = f"Signing key {signing_key} not found for file {file_path}"
-            return error, None, None
-        sign_apk_file(file_path, signing_key_path)
+    allow_file_overwrite = os.path.basename(file_path) in ALLOW_FILE_OVERWRITE
+    if module_type == "APP" and allow_file_overwrite:
+        handle_apk_signing(file_path, aosp_path)
 
     try:
         original_file_path = search_original_file_in_obj(partition_name,
                                                          module_type,
                                                          os.path.basename(file_path),
                                                          target_out_path)
+
         if original_file_path is None:
-            inject_file_into_partition(file_path, partition_name, target_out_path)
+            inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
             inj_partition = file_path
         else:
             inject_file_into_obj(file_path, original_file_path)
@@ -188,6 +186,12 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         error = str(e)
 
     return error, inj_obj, inj_partition
+
+
+def handle_apk_signing(file_path, aosp_path):
+    signing_key = get_signing_key_from_module(file_path)
+    signing_key_path = get_signing_key_path(aosp_path, signing_key)
+    sign_apk_file(file_path, signing_key_path)
 
 
 def get_signing_key_from_module(android_mk_file_path):
@@ -366,7 +370,7 @@ def get_subfolders(file_path, top_folder_name):
     return subfolders
 
 
-def inject_file_into_partition(source_file_path, partition_name, target_out_path):
+def inject_file_into_partition(source_file_path, partition_name, target_out_path, overwrite=False):
     if partition_name == "super":
         partition_name = "system"
 
@@ -389,8 +393,13 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
         if os.path.islink(target_file_injection_path) or file_extension in ALLOWED_OVERWRITE_FILE_EXTENSION_LIST:
             shutil.copyfile(source_file_path, target_file_injection_path)
         else:
-            logging.debug(f"File {target_file_injection_path} already exists.")
-            raise FileExistsError(f"File {target_file_injection_path} already exists.")
+            if overwrite:
+                logging.debug(f"Overwriting file: {source_file_path} into {target_file_injection_path}")
+                shutil.copyfile(source_file_path, target_file_injection_path)
+                os.chmod(target_file_injection_path, os.stat(target_file_injection_path).st_mode | stat.S_IEXEC)
+            else:
+                logging.debug(f"File {target_file_injection_path} already exists.")
+                raise FileExistsError(f"File {target_file_injection_path} already exists.")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         shutil.copyfile(source_file_path, target_file_injection_path)
