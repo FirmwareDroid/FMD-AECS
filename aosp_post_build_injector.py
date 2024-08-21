@@ -169,11 +169,9 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 
     allow_file_overwrite = os.path.basename(file_path) in ALLOW_FILE_OVERWRITE
     if module_type == "APP" and allow_file_overwrite:
-        try:
-            handle_apk_signing(file_path, aosp_path)
-        except Exception as e:
-            error = str(e)
-            return error, file_path, inj_partition
+        success, output, error_message = handle_apk_signing(file_path, aosp_path)
+        if not success:
+            return (error, file_path), file_path, inj_partition
 
     try:
         original_file_path = search_original_file_in_obj(partition_name,
@@ -198,8 +196,6 @@ def handle_apk_signing(file_path, aosp_path):
     signing_key = get_signing_key_from_module(file_path)
     signing_key_path = get_signing_key_path(aosp_path, signing_key)
     success, output, error_message = sign_apk_file(file_path, signing_key_path)
-    if not success:
-        raise Exception(f"Error signing APK file: {file_path}.\nProcessOut: {output}\nError: {error_message}")
     return success, output, error_message
 
 
@@ -223,11 +219,11 @@ def execute_command(command):
     :param command: list - the command and its arguments to execute.
     :return: tuple(bool, str, str) - (True, stdout, None) if the command was successful, (False, None, stderr) otherwise.
     """
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(command, capture_output=True, text=False)
     if result.returncode == 0:
-        return True, result.stdout.strip(), None
+        return True, result.stdout.decode('utf-8', errors='ignore').strip(), None
     else:
-        return False, None, result.stderr.strip()
+        return False, None, result.stderr.decode('utf-8', errors='ignore').strip()
 
 
 def sign_apk_file(apk_file_path, signing_key_path):
@@ -236,10 +232,9 @@ def sign_apk_file(apk_file_path, signing_key_path):
 
     :param apk_file_path: str - path to the APK file.
     :param signing_key_path: str - path to the signing key.
-
     """
     logging.info(f"Signing APK file: {apk_file_path}")
-    sign_command = f"apksigner sign --ks {signing_key_path} --ks-pass pass: --in {apk_file_path} --out {apk_file_path}"
+    sign_command = ['apksigner', 'sign', '--ks', signing_key_path, '--ks-pass', 'pass:', '--in', apk_file_path, '--out', apk_file_path]
     success, output, error_message = execute_command(sign_command)
     return success, output, error_message
 
@@ -394,6 +389,21 @@ def get_subfolders(file_path, top_folder_name):
     return subfolders
 
 
+def set_executable_permission(file_path):
+    """
+    Set the executable permission for a file.
+
+    :param file_path: str - path to the file.
+    :return: bool - True if the permission was set successfully, False otherwise.
+    """
+    try:
+        os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
+        return True
+    except PermissionError as e:
+        logging.error(f"Permission denied: {e}")
+        return False
+
+
 def inject_file_into_partition(source_file_path, partition_name, target_out_path, overwrite=False):
     if partition_name == "super":
         partition_name = "system"
@@ -420,14 +430,15 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
             if overwrite:
                 logging.debug(f"Overwriting file: {source_file_path} into {target_file_injection_path}")
                 shutil.copyfile(source_file_path, target_file_injection_path)
-                os.chmod(target_file_injection_path, os.stat(target_file_injection_path).st_mode | stat.S_IEXEC)
+                if not set_executable_permission(target_file_injection_path):
+                    raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
             else:
-                logging.debug(f"File {target_file_injection_path} already exists.")
                 raise FileExistsError(f"File {target_file_injection_path} already exists.")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         shutil.copyfile(source_file_path, target_file_injection_path)
-        os.chmod(target_file_injection_path, os.stat(target_file_injection_path).st_mode | stat.S_IEXEC)
+        if not set_executable_permission(target_file_injection_path):
+            raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
 
 
 def inject_file_into_obj(source_file_path, original_file_path):
