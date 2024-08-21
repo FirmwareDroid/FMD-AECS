@@ -179,13 +179,12 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                                                          os.path.basename(file_path),
                                                          target_out_path)
 
-        if original_file_path is None:
+        if original_file_path is None or module_type == "SHARED_LIBRARIES":
             inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
             inj_partition = file_path
         else:
-            if not module_type == "SHARED_LIBRARIES":
-                inject_file_into_obj(file_path, original_file_path)
-                inj_obj = (file_path, original_file_path)
+            inject_file_into_obj(file_path, original_file_path)
+            inj_obj = (file_path, original_file_path)
     except Exception as e:
         error = str(e)
 
