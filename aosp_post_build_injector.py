@@ -76,7 +76,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "hwservicemanager",
                         "secureboot"]
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
-ALLOW_FILE_OVERWRITE = ["framework-res.apk"]
+ALLOW_FILE_OVERWRITE = ["framework-res.apk", "passwd", "group"]
 
 
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path):
