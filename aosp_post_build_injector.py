@@ -105,13 +105,13 @@ def inject(aosp_path, source_folder_path, target_out_path, executor):
     logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
     logging.info(f"Errors:")
     for obj in error_list:
-        logging.info(obj)
+        logging.info(f"Error: {obj}")
     logging.info(f"Objects injected:")
     for obj in inj_obj_list:
-        logging.info(obj)
+        logging.info(f"Indirect Inject: {obj}")
     logging.info(f"Partition files injected:")
     for obj in inj_partition_list:
-        logging.info(obj)
+        logging.info(f"Direct Inject: {obj}")
 
 
 def make_file_executable(root_dir, filename):
