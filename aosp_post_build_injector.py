@@ -194,7 +194,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 def handle_apk_signing(file_path, aosp_path):
     signing_key = get_signing_key_from_module(file_path)
     if not signing_key:
-        return False, None, f"Signing key not found for {file_path}"
+        return False, None, f"Signing key name not found for {file_path}"
     signing_key_path = get_signing_key_path(aosp_path, signing_key)
     if not os.path.exists(signing_key_path):
         return False, None, f"Signing key not found at {signing_key_path}"
@@ -436,7 +436,8 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
                 if not set_executable_permission(target_file_injection_path):
                     raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
             else:
-                raise FileExistsError(f"File {target_file_injection_path} already exists.")
+                if os.path.isfile(target_file_injection_path):
+                    raise FileExistsError(f"File {target_file_injection_path} already exists.")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         shutil.copyfile(source_file_path, target_file_injection_path)
