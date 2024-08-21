@@ -203,6 +203,8 @@ def handle_apk_signing(file_path, aosp_path):
     if not os.path.exists(signing_key_path):
         return False, None, f"Signing key not found at {signing_key_path}"
     success, output, error_message = sign_apk_file(file_path, signing_key_path)
+    if not success:
+        return False, None, f"Error signing APK file: {signing_key}|{signing_key_path}|{error_message}"
     return success, output, (error_message, file_path, signing_key, signing_key_path)
 
 
@@ -230,7 +232,8 @@ def execute_command(command):
     if result.returncode == 0:
         return True, result.stdout.decode('utf-8', errors='ignore').strip(), None
     else:
-        return False, None, result.stderr.decode('utf-8', errors='ignore').strip()
+        return False, None, (f"Error signing exit code: {result.returncode}|"
+                             f"{result.stderr.decode('utf-8', errors='ignore').strip()}")
 
 
 def sign_apk_file(apk_file_path, signing_key_path):
@@ -241,7 +244,11 @@ def sign_apk_file(apk_file_path, signing_key_path):
     :param signing_key_path: str - path to the signing key.
     """
     logging.info(f"Signing APK file: {apk_file_path}")
-    sign_command = ['apksigner', 'sign', '--ks', signing_key_path, '--ks-pass', 'pass:', '--in', apk_file_path, '--out', apk_file_path]
+    sign_command = ['apksigner', 'sign',
+                    '--ks', signing_key_path,
+                    '--ks-pass', 'pass:',
+                    '--in', apk_file_path,
+                    '--out', apk_file_path]
     success, output, error_message = execute_command(sign_command)
     return success, output, error_message
 
