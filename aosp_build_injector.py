@@ -149,6 +149,8 @@ def get_base_filename(meta_build_filename):
         return BASE_PRODUCT_FILE_NAME
     elif "vendor" in meta_build_filename:
         return BASE_VENDOR_FILE_NAME
+    elif "system_ext" in meta_build_filename:
+        return BASE_SYSTEM_EXT_FILE_NAME
     else:
         return BASE_SYSTEM_FILE_NAME
 
@@ -165,7 +167,7 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version):
 
     """
     with open(meta_build_path, 'r') as meta_build_file:
-        system_package_name_list = meta_build_file.readlines()
+        package_name_list = meta_build_file.readlines()
         if aosp_version == "12":
             template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "12/")
         elif aosp_version == "13":
@@ -175,7 +177,7 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version):
         logging.debug(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
         environment = Environment(loader=FileSystemLoader(str(template_folder_abs_path)))
         template = environment.get_template(base_filename)
-        return template.render(system_package_name_list=system_package_name_list)
+        return template.render(package_name_list=package_name_list)
 
 
 def write_and_copy_file(content, out_file_path, aosp_base_file_path):
