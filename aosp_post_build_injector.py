@@ -195,7 +195,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     except Exception as e:
         error = str(e)
 
-    return error, f"{module_type}:{inj_obj}", f"{module_type}{inj_partition}"
+    return f"{module_type}:{error}", f"{module_type}:{inj_obj}", f"{module_type}{inj_partition}"
 
 
 def handle_apk_signing(file_path, aosp_path):
