@@ -6,6 +6,7 @@ the replacement of the original blobs (from AOSP) with the vendor flavoured blob
 import argparse
 import shutil
 import logging
+import subprocess
 import time
 import os
 import stat
@@ -168,7 +169,11 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 
     allow_file_overwrite = os.path.basename(file_path) in ALLOW_FILE_OVERWRITE
     if module_type == "APP" and allow_file_overwrite:
-        handle_apk_signing(file_path, aosp_path)
+        try:
+            handle_apk_signing(file_path, aosp_path)
+        except Exception as e:
+            error = str(e)
+            return error, file_path, inj_partition
 
     try:
         original_file_path = search_original_file_in_obj(partition_name,
@@ -192,7 +197,10 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 def handle_apk_signing(file_path, aosp_path):
     signing_key = get_signing_key_from_module(file_path)
     signing_key_path = get_signing_key_path(aosp_path, signing_key)
-    sign_apk_file(file_path, signing_key_path)
+    success, output, error_message = sign_apk_file(file_path, signing_key_path)
+    if not success:
+        raise Exception(f"Error signing APK file: {file_path}.\nProcessOut: {output}\nError: {error_message}")
+    return success, output, error_message
 
 
 def get_signing_key_from_module(android_mk_file_path):
@@ -208,6 +216,20 @@ def get_signing_key_path(aosp_path, signing_key_name):
     return key_file_path
 
 
+def execute_command(command):
+    """
+    Execute a command and checks if it has an exit code of 0.
+
+    :param command: list - the command and its arguments to execute.
+    :return: tuple(bool, str, str) - (True, stdout, None) if the command was successful, (False, None, stderr) otherwise.
+    """
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode == 0:
+        return True, result.stdout.strip(), None
+    else:
+        return False, None, result.stderr.strip()
+
+
 def sign_apk_file(apk_file_path, signing_key_path):
     """
     Signs the APK file with apksigner.
@@ -218,7 +240,8 @@ def sign_apk_file(apk_file_path, signing_key_path):
     """
     logging.info(f"Signing APK file: {apk_file_path}")
     sign_command = f"apksigner sign --ks {signing_key_path} --ks-pass pass: --in {apk_file_path} --out {apk_file_path}"
-    os.system(sign_command)
+    success, output, error_message = execute_command(sign_command)
+    return success, output, error_message
 
 
 def process_partition_files(aosp_path, folder_path, target_out_path, executor):
