@@ -279,7 +279,7 @@ PRODUCT_PACKAGES += \
     wificond \
     wifi.rc \
     wm \
-{% for line in system_package_name_list -%}{{ line }}{%- endfor %}
+{% for line in package_name_list -%}{{ line }}{%- endfor %}
 
 ## Make the list tidy
 # Use the filter-out function to remove specific modules

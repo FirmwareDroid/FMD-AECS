@@ -25,7 +25,12 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 
-SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml", ".capex", ".odex", ".vdex"]
+SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml", ".capex",
+                               ".odex",
+                               ".vdex",
+                               ".prof",
+                               ".idsig"     # File left over from the file apk signing process
+                               ]
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
                        "vdc",
@@ -195,7 +200,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     except Exception as e:
         error = str(e)
 
-    return f"{module_type}:{error}", f"{module_type}:{inj_obj}", f"{module_type}{inj_partition}"
+    return error, inj_obj, inj_partition
 
 
 def handle_apk_signing(file_path, aosp_path):
