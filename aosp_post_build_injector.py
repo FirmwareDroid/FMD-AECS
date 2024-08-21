@@ -25,7 +25,7 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 
-SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml", ".capex"]
+SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml", ".capex", ".odex", ".vdex"]
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
                        "vdc",
@@ -168,14 +168,17 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         return None, None, None  # Skipping file
 
     allow_file_overwrite = os.path.basename(file_path) in ALLOW_FILE_OVERWRITE
-    if module_type == "APP" and allow_file_overwrite:
-        signing_success = False
-        try:
-            signing_success, output, error_message = handle_apk_signing(file_path, aosp_path)
-        except Exception as e:
-            error_message = str(e)
-        if not signing_success:
-            return (error_message, file_path), file_path, inj_partition
+    if module_type == "APP":
+        if allow_file_overwrite:
+            signing_success = False
+            try:
+                signing_success, output, error_message = handle_apk_signing(file_path, aosp_path)
+            except Exception as e:
+                error_message = str(e)
+            if not signing_success:
+                return (error_message, file_path), file_path, inj_partition
+        else:
+            return None, None, None  # Skipping APK file
 
     try:
         original_file_path = search_original_file_in_obj(partition_name,
