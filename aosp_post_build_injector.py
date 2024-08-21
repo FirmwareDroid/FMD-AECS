@@ -178,7 +178,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
             if not signing_success:
                 return (error_message, file_path), file_path, inj_partition
         else:
-            return None, None, None  # Skipping APK file
+            return f"Skipped APP inject: {file_path}", None, None
 
     try:
         original_file_path = search_original_file_in_obj(partition_name,
@@ -195,7 +195,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     except Exception as e:
         error = str(e)
 
-    return error, inj_obj, inj_partition
+    return error, f"{module_type}:{inj_obj}", f"{module_type}{inj_partition}"
 
 
 def handle_apk_signing(file_path, aosp_path):
