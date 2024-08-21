@@ -171,7 +171,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     if module_type == "APP" and allow_file_overwrite:
         success, output, error_message = handle_apk_signing(file_path, aosp_path)
         if not success:
-            return (error, file_path), file_path, inj_partition
+            return (error_message, file_path), file_path, inj_partition
 
     try:
         original_file_path = search_original_file_in_obj(partition_name,
@@ -194,9 +194,13 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 
 def handle_apk_signing(file_path, aosp_path):
     signing_key = get_signing_key_from_module(file_path)
+    if not signing_key:
+        return False, None, f"Signing key not found for {file_path}"
     signing_key_path = get_signing_key_path(aosp_path, signing_key)
+    if not os.path.exists(signing_key_path):
+        return False, None, f"Signing key not found at {signing_key_path}"
     success, output, error_message = sign_apk_file(file_path, signing_key_path)
-    return success, output, error_message
+    return success, output, (error_message, file_path, signing_key, signing_key_path)
 
 
 def get_signing_key_from_module(android_mk_file_path):
