@@ -169,8 +169,12 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 
     allow_file_overwrite = os.path.basename(file_path) in ALLOW_FILE_OVERWRITE
     if module_type == "APP" and allow_file_overwrite:
-        success, output, error_message = handle_apk_signing(file_path, aosp_path)
-        if not success:
+        signing_success = False
+        try:
+            signing_success, output, error_message = handle_apk_signing(file_path, aosp_path)
+        except Exception as e:
+            error_message = str(e)
+        if not signing_success:
             return (error_message, file_path), file_path, inj_partition
 
     try:
