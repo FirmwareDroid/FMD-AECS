@@ -433,6 +433,12 @@ def parse_arguments():
                         required=True,
                         type=str,
                         help='Path to the AOSP target out folder.')
+    parser.add_argument("-a",
+                        "--aosp-root-path",
+                        default=None,
+                        required=True,
+                        type=str,
+                        help='Path to the AOSP root folder.')
     args = parser.parse_args()
 
     return args
@@ -447,9 +453,12 @@ def main():
     target_out_path = args.target_out_path
     if not target_out_path.endswith("/"):
         target_out_path += "/"
+    aosp_path = args.aosp_root_path
+    if not aosp_path.endswith("/"):
+        aosp_path += "/"
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")
-    start_post_build_injector(source_folder_path, target_out_path)
+    start_post_build_injector(aosp_path, source_folder_path, target_out_path)
     logging.info("=======================AOSP POST BUILD INJECTOR EXIT=======================")
 
 
