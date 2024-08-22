@@ -19,6 +19,7 @@ from fmd_backend_requests import download_firmware_build_files, get_csrf_token, 
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 from setup_logger import setup_logger
 BLOCKED_MODULE_NAMES = get_blocked_module_names()
+EXTRACTED_PACKAGES_PATH = str(os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME))
 
 if os.environ.get("FMD_DEBUG") == "True":
     setup_logger(logging.DEBUG)
@@ -58,21 +59,19 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     overwrite_partition_size(aosp_path, aosp_packages_path)
 
     aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
-    extracted_packages_path = str(os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME))
-    move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path)
+
+    move_packages_to_aosp(aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH)
     #move_txt_files(extracted_packages_path, aosp_packages_abs_path)
-    inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering, extracted_packages_path)
+    inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
 
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
         try:
             main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
             execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
-
             target_out_path = get_target_out_path(aosp_path, lunch_target)
-            all_extracted_firmware_files_path = os.path.join(extracted_packages_path, EXTRACTION_ALL_FILES_DIR_NAME)
+            all_extracted_firmware_files_path = os.path.join(EXTRACTED_PACKAGES_PATH, EXTRACTION_ALL_FILES_DIR_NAME)
             start_post_build_injector(aosp_path, all_extracted_firmware_files_path, target_out_path)
-
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target)
             execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path)
             is_successful = True
@@ -397,7 +396,7 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
     return included_package_name_list
 
 
-def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering, extracted_packages_path):
+def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering):
     """
     Replaces the original base_system.mk of the AOSP source code with a modified version.
     The modified version includes all the packages to inject into the build process.
@@ -410,7 +409,7 @@ def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filterin
 
     """
     for meta_build_filename in META_BUILD_FILENAMES:
-        meta_build_path = os.path.join(aosp_path, extracted_packages_path, meta_build_filename)
+        meta_build_path = os.path.join(BUILD_OUT_PATH, meta_build_filename)
         if not os.path.exists(meta_build_path):
             if meta_build_filename == META_BUILD_SYSTEM_FILENAME:
                 raise RuntimeError(f"Could not find file: {meta_build_filename} from {meta_build_path}")
@@ -596,14 +595,14 @@ def clear_environment(aosp_path, aosp_packages_path):
     #clear_base_files(aosp_path)
 
 
-def fetch_build_files(firmware_id, cookies, fmd_url, aosp_packages_abs_path):
+def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder):
     """
     Main wrapper routine to download and extract firmware build files for aosp.
     Args:
         firmware_id: str - id of the firmware packages to fetch.
         cookies: cookie jar for requests.
         fmd_url: str - url to the main fmd backend
-        aosp_packages_abs_path: str - path to extract the app packages to.
+        extract_destination_folder: str - path to extract the app packages to.
 
     """
     logging.debug(f"Process firmware: {firmware_id}")
@@ -615,7 +614,7 @@ def fetch_build_files(firmware_id, cookies, fmd_url, aosp_packages_abs_path):
             zip_file_path = download_firmware_build_files(fmd_url,
                                                           firmware_id,
                                                           cookies,
-                                                          aosp_packages_abs_path)
+                                                          extract_destination_folder)
             tmp_path = os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME)
             os.makedirs(tmp_path)
             extract_zip(zip_file_path, tmp_path)
@@ -623,7 +622,7 @@ def fetch_build_files(firmware_id, cookies, fmd_url, aosp_packages_abs_path):
             is_successful = True
         except Exception as err:
             logging.error(f"Error fetching firmware build files: {err}")
-    logging.debug(f"Completed firmware build file download to {aosp_packages_abs_path}")
+    logging.debug(f"Completed firmware build file download to {extract_destination_folder}")
 
 
 def parse_arguments():
@@ -749,7 +748,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     for firmware_id in tqdm(firmware_id_list):
         try:
             logging.debug(f"Start fetching for build files for firmware-id: {firmware_id}")
-            fetch_build_files(firmware_id, cookies, args.fmd_url, aosp_packages_abs_path)
+            fetch_build_files(firmware_id, cookies, args.fmd_url, BUILD_OUT_PATH)
             logging.debug(f"Start emulator image build process for firmware-id: {firmware_id}")
             is_build_success = start_aosp_build(args.aosp_path,
                                                 AOSP_PACKAGES_APPS_PATH,
