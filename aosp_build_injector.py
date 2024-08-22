@@ -60,8 +60,8 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
 
     aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
 
+    move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
     move_packages_to_aosp(aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH)
-    #move_txt_files(extracted_packages_path, aosp_packages_abs_path)
     inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
 
     retry_attempts = BUILD_RETRY_COUNT
@@ -409,7 +409,7 @@ def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filterin
 
     """
     for meta_build_filename in META_BUILD_FILENAMES:
-        meta_build_path = os.path.join(EXTRACTED_PACKAGES_PATH, meta_build_filename)
+        meta_build_path = os.path.join(BUILD_OUT_PATH, meta_build_filename)
         if not os.path.exists(meta_build_path):
             if meta_build_filename == META_BUILD_SYSTEM_FILENAME:
                 raise RuntimeError(f"Could not find file: {meta_build_filename} from {meta_build_path}")
