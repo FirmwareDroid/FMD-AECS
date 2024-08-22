@@ -219,7 +219,7 @@ VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",  # Singleton App - 
                                "Cidmanager",  # Breaks telephony / systemui - software updater
                                "GooglePackageInstaller",  # Singleton App - Breaks PackageInstaller
                                "ServiceConnectivityResourcesGoogle",  # Breaks NetworkStack - Resources not found
-                               "GmsCore",  # Breaks NetworkStack / Telephony
+                               #"GmsCore",  # Breaks NetworkStack / Telephony
                                "NetworkPermissionConfigGoogle",
                                #"SamsungMultiConnectivity",              # Breaks NetworkStack
                                ]
