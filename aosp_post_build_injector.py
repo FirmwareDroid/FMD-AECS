@@ -11,6 +11,8 @@ import time
 import os
 import stat
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
+
+from aosp_build_injector import EXTRACTED_PACKAGES_PATH
 from setup_logger import setup_logger
 from tqdm import tqdm
 
@@ -25,6 +27,7 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 
+SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.apk"]
 SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml", ".capex",
                                ".odex",
                                ".vdex",
@@ -81,7 +84,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "hwservicemanager",
                         "secureboot"]
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
-ALLOW_FILE_OVERWRITE = ["framework-res.apk", "passwd", "group"]
+ALLOW_FILE_OVERWRITE = ["framework-res.apk", "framework-ext-res.apk", "passwd", "group"]
 ALLOWED_KEYWORD = ["overlay"]
 
 
@@ -220,12 +223,18 @@ def handle_apk_signing(file_path, aosp_path):
     return success, output, (error_message, file_path, signing_key, signing_key_path)
 
 
-def get_signing_key_from_module(android_mk_file_path):
-    with open(android_mk_file_path, "r") as file:
-        for line in file:
-            if "LOCAL_CERTIFICATE" in line:
-                signing_key = line.split("=")[1].strip()
-                return signing_key.lower()
+def get_signing_key_from_module(android_apk_file_path):
+    file_name = os.path.basename(android_apk_file_path)
+    module_name = file_name.split(".")[0]
+    android_mk_file_path = os.path.join(EXTRACTED_PACKAGES_PATH, module_name, "Android.mk")
+    if os.path.exists(android_mk_file_path):
+        with open(android_mk_file_path, "r") as file:
+            for line in file:
+                if "LOCAL_CERTIFICATE" in line:
+                    signing_key = line.split("=")[1].strip()
+                    return signing_key.lower()
+    else:
+        return "platform"
 
 
 def get_signing_key_path(aosp_path, signing_key_name):
@@ -324,7 +333,9 @@ def get_module_type(source_file_path):
     else:
         module_type = "MISC"
 
-    if file_name in SKIPPED_BINARY_LIST or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST):
+    if (file_name in SKIPPED_BINARY_LIST
+            or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST))\
+            or file_name.lower() in SKIPPED_APP_LIST:
         module_type = "SKIPPED"
 
     return module_type
