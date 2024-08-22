@@ -11,9 +11,7 @@ import time
 import os
 import stat
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
-
-from aosp_build_injector import EXTRACTED_PACKAGES_PATH
-from config import AOSP_DEFAULT_PACKAGE_NAMES, VENDOR_BLACKLISTED_PACKAGES
+from config import AOSP_DEFAULT_PACKAGE_NAMES, VENDOR_BLACKLISTED_PACKAGES, EXTRACTED_PACKAGES_PATH
 from setup_logger import setup_logger
 from tqdm import tqdm
 

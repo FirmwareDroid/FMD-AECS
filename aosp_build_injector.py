@@ -19,7 +19,7 @@ from fmd_backend_requests import download_firmware_build_files, get_csrf_token, 
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 from setup_logger import setup_logger
 BLOCKED_MODULE_NAMES = get_blocked_module_names()
-EXTRACTED_PACKAGES_PATH = str(os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME))
+
 
 if os.environ.get("FMD_DEBUG") == "True":
     setup_logger(logging.DEBUG)
