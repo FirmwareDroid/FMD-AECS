@@ -405,7 +405,6 @@ def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filterin
     :param aosp_path: str -  path to aosp root folder.
     :param aosp_version: str - version of the aosp build.
     :param skip_filtering: bool - skip the filtering process.
-    :param extracted_packages_path: str - path to the extracted packages.
 
     """
     for meta_build_filename in META_BUILD_FILENAMES:
