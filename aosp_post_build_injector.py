@@ -170,7 +170,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     inj_partition = None
     module_type = get_module_type(file_path)
     if module_type in ["SKIPPED"]:
-        return None, None, None  # Skipping file
+        return f"Skipped File inject: {file_path}", None, None  # Skipping file
 
     allow_file_overwrite = os.path.basename(file_path) in ALLOW_FILE_OVERWRITE
     if module_type == "APP":
