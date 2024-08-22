@@ -82,6 +82,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "secureboot"]
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
 ALLOW_FILE_OVERWRITE = ["framework-res.apk", "passwd", "group"]
+ALLOWED_KEYWORD = ["overlay"]
 
 
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path):
@@ -169,9 +170,11 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     inj_obj = None
     inj_partition = None
     module_type = get_module_type(file_path)
-    allow_file_overwrite = os.path.basename(file_path) in ALLOW_FILE_OVERWRITE
+    filename = os.path.basename(file_path)
+    allow_file_overwrite = filename in ALLOW_FILE_OVERWRITE
+    allow_injection = any(keyword in filename.lower() for keyword in ALLOWED_KEYWORD)
 
-    if module_type in ["SKIPPED"] and not allow_file_overwrite:
+    if module_type in ["SKIPPED"] and not allow_file_overwrite and not allow_injection:
         return f"Skipped File inject: {file_path}", None, None  # Skipping file
 
     if module_type == "APP":
