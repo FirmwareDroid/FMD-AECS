@@ -26,7 +26,6 @@ else:
     setup_logger()
 
 
-
 def delete_files(dir_path):
     """
     Deletes all files in the given directory.
@@ -61,8 +60,8 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
     extracted_packages_path = str(os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME))
     move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path)
-    move_txt_files(extracted_packages_path, aosp_packages_abs_path)
-    inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
+    #move_txt_files(extracted_packages_path, aosp_packages_abs_path)
+    inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering, extracted_packages_path)
 
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
@@ -398,7 +397,7 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
     return included_package_name_list
 
 
-def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering):
+def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering, extracted_packages_path):
     """
     Replaces the original base_system.mk of the AOSP source code with a modified version.
     The modified version includes all the packages to inject into the build process.
@@ -407,10 +406,11 @@ def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filterin
     :param aosp_path: str -  path to aosp root folder.
     :param aosp_version: str - version of the aosp build.
     :param skip_filtering: bool - skip the filtering process.
+    :param extracted_packages_path: str - path to the extracted packages.
 
     """
     for meta_build_filename in META_BUILD_FILENAMES:
-        meta_build_path = os.path.join(aosp_path, aosp_packages_path, meta_build_filename)
+        meta_build_path = os.path.join(aosp_path, extracted_packages_path, meta_build_filename)
         if not os.path.exists(meta_build_path):
             if meta_build_filename == META_BUILD_SYSTEM_FILENAME:
                 raise RuntimeError(f"Could not find file: {meta_build_filename} from {meta_build_path}")
