@@ -13,6 +13,7 @@ import stat
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 
 from aosp_build_injector import EXTRACTED_PACKAGES_PATH
+from config import AOSP_DEFAULT_PACKAGE_NAMES, VENDOR_BLACKLISTED_PACKAGES
 from setup_logger import setup_logger
 from tqdm import tqdm
 
@@ -27,7 +28,7 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 
-SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.apk"]
+SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.apk"].extend(VENDOR_BLACKLISTED_PACKAGES)
 SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml", ".capex",
                                ".odex",
                                ".vdex",
@@ -85,6 +86,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "secureboot"]
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
 ALLOW_FILE_OVERWRITE = ["framework-res.apk", "framework-ext-res.apk", "passwd", "group"]
+ALLOW_FILE_OVERWRITE.extend(AOSP_DEFAULT_PACKAGE_NAMES)
 ALLOWED_KEYWORD = ["overlay"]
 
 
@@ -173,12 +175,12 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     inj_obj = None
     inj_partition = None
     module_type = get_module_type(file_path)
+
+    if module_type in ["SKIPPED"]:
+        return f"Skipped File inject: {file_path}", None, None  # Skipping file
+
     filename = os.path.basename(file_path)
     allow_file_overwrite = filename in ALLOW_FILE_OVERWRITE
-    allow_injection = any(keyword in filename.lower() for keyword in ALLOWED_KEYWORD)
-
-    if module_type in ["SKIPPED"] and not allow_file_overwrite and not allow_injection:
-        return f"Skipped File inject: {file_path}", None, None  # Skipping file
 
     if module_type == "APP":
         if allow_file_overwrite:
@@ -337,6 +339,8 @@ def get_module_type(source_file_path):
             or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST))\
             or file_name.lower() in SKIPPED_APP_LIST:
         module_type = "SKIPPED"
+    elif module_type == "APP" and any(keyword in file_name.lower() for keyword in ALLOWED_KEYWORD):
+        module_type = "APP"
 
     return module_type
 
