@@ -476,7 +476,8 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
                     raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
             else:
                 if os.path.isfile(target_file_injection_path):
-                    raise Warning(f"File {target_file_injection_path} already exists.")
+                    logging.warning(f"File {target_file_injection_path} already exists.")
+                    #raise Warning(f"File {target_file_injection_path} already exists.")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         shutil.copyfile(source_file_path, target_file_injection_path)
