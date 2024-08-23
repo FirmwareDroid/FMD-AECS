@@ -87,7 +87,8 @@ SKIPPED_KEYWORD_LIST = ["selinux",
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
 ALLOW_FILE_OVERWRITE = ["framework-res.apk", "framework-ext-res.apk",
                         "passwd", "group"]
-ALLOW_FILE_OVERWRITE.extend(AOSP_DEFAULT_PACKAGE_NAMES)
+for module_name in AOSP_DEFAULT_PACKAGE_NAMES:
+    ALLOW_FILE_OVERWRITE.append(f"{module_name}.apk")
 ALLOWED_KEYWORD = ["overlay"]
 
 
