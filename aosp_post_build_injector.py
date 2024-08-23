@@ -186,8 +186,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 
         filename = os.path.basename(file_path)
         if filename and filename != "":
-            allow_file_overwrite = (filename in ALLOW_FILE_OVERWRITE
-                                    or any(keyword in filename.lower() for keyword in ALLOWED_KEYWORD))
+            allow_file_overwrite = (filename not in SKIPPED_APP_LIST)
         else:
             allow_file_overwrite = False
 
