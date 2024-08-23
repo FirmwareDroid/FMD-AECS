@@ -181,7 +181,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
             return f"Skipped File inject: {file_path}", None, None
 
         filename = os.path.basename(file_path)
-        if filename:
+        if filename and filename != "":
             allow_file_overwrite = filename in ALLOW_FILE_OVERWRITE
         else:
             allow_file_overwrite = False
