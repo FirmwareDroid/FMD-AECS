@@ -30,12 +30,14 @@ PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "da
 SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.apk"]
 for module_name in VENDOR_BLACKLISTED_PACKAGES:
     SKIPPED_APP_LIST.append(f"{module_name}.apk")
-SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml", ".capex",
+SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".ko", ".prop", ".capex",
                                ".odex",
                                ".vdex",
                                ".prof",
                                ".idsig"  # File left over from the file apk signing process
-                               ".odex", ".vdex", ".art", ".oat", ".dex", ".apex"
+                               ".odex", ".vdex", ".art", ".oat", ".dex",
+                               #".apex",
+                               #".xml"
                                ]
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
