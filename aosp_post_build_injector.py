@@ -27,7 +27,8 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 
-SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.apk"].extend(VENDOR_BLACKLISTED_PACKAGES)
+SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.apk"]
+SKIPPED_APP_LIST.extend(VENDOR_BLACKLISTED_PACKAGES)
 SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".prop", ".xml", ".capex",
                                ".odex",
                                ".vdex",
