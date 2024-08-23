@@ -185,20 +185,20 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         filename = os.path.basename(file_path)
         if filename and filename != "":
             allow_file_overwrite = (filename in ALLOW_FILE_OVERWRITE
-                                    or any(keyword in filename for keyword in ALLOWED_KEYWORD))
+                                    or any(keyword in filename.lower() for keyword in ALLOWED_KEYWORD))
         else:
             allow_file_overwrite = False
 
         if module_type == "APP":
             if filename.lower() in SKIPPED_APP_LIST:
-                return f"Skipped Apk inject: {file_path}", None, None
+                return f"Skipped Apk known problematic app: {file_path}", None, None
 
             if allow_file_overwrite:
                 signing_success, output, error_message = handle_apk_signing(file_path, aosp_path)
                 if not signing_success:
                     return (error_message, file_path), file_path, inj_partition
             else:
-                return f"Skipped Apk inject: {file_path}", None, None
+                return f"Skipped APP inject: {file_path}", None, None
 
         original_file_path = search_original_file_in_obj(partition_name,
                                                          module_type,
