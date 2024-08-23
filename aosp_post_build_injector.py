@@ -193,8 +193,8 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         if module_type == "APP":
             if filename.lower() in SKIPPED_APP_LIST:
                 return f"Skipped Apk known problematic app: {file_path}", None, None
-
-            if allow_file_overwrite:
+            file_extension = os.path.splitext(file_path)[1]
+            if allow_file_overwrite and file_extension == ".apk":
                 signing_success, output, error_message = handle_apk_signing(file_path, aosp_path)
                 if not signing_success:
                     return (error_message, file_path), file_path, inj_partition
