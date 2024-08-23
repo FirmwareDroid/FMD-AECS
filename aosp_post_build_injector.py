@@ -34,7 +34,8 @@ SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".apex", ".ko", ".pro
                                ".odex",
                                ".vdex",
                                ".prof",
-                               ".idsig"     # File left over from the file apk signing process
+                               ".idsig"  # File left over from the file apk signing process
+                               ".odex", ".vdex", ".art", ".oat", ".dex", ".apex"
                                ]
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
@@ -66,7 +67,7 @@ SKIPPED_BINARY_LIST = ["vold",
                        "default.prop",
                        "lmkd",
                        "build.prop",
-                       "raw.image"      # Leftover from the file extraction process
+                       "raw.image"  # Leftover from the file extraction process
                        ]
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
@@ -190,11 +191,11 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         else:
             allow_file_overwrite = False
 
-        if module_type == "APP":
+        file_extension = os.path.splitext(file_path)[1]
+        if module_type == "APP" and file_extension == ".apk":
             if filename.lower() in SKIPPED_APP_LIST:
                 return f"Skipped Apk known problematic app: {file_path}", None, None
-            file_extension = os.path.splitext(file_path)[1]
-            if allow_file_overwrite and file_extension == ".apk":
+            if allow_file_overwrite:
                 signing_success, output, error_message = handle_apk_signing(file_path, aosp_path)
                 if not signing_success:
                     return (error_message, file_path), file_path, inj_partition
@@ -334,7 +335,7 @@ def get_module_type(source_file_path):
         module_type = "JAVA_LIBRARIES"
     elif file_extension == ".so":
         module_type = "SHARED_LIBRARIES"
-    elif file_extension in [".apk", ".odex", ".vdex", ".art", ".oat", ".dex", ".apex"]:
+    elif file_extension in [".apk"]:
         module_type = "APP"
     elif file_extension in SKIPPED_FILE_EXTENSION_LIST:
         module_type = "SKIPPED"
