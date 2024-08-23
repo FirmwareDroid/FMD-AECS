@@ -244,7 +244,7 @@ def get_signing_key_from_module(android_apk_file_path):
                     signing_key = line.split("=")[1].strip()
                     return signing_key.lower()
     else:
-        logging.warning(f"Android.mk file not found for {module_name} and path {android_mk_file_path}."
+        logging.warning(f"Android.mk Module not found: {module_name} path {android_mk_file_path}."
                         f"File {android_apk_file_path} - using platform key.")
         return "platform"
 
