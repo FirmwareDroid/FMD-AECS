@@ -181,16 +181,19 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     filename = os.path.basename(file_path)
     allow_file_overwrite = filename in ALLOW_FILE_OVERWRITE
 
-    if module_type == "APP":
-        if filename.lower() in SKIPPED_APP_LIST:
-            return f"Skipped Apk inject: {file_path}", None, None
+    try:
+        if module_type == "APP":
+            if filename.lower() in SKIPPED_APP_LIST:
+                return f"Skipped Apk inject: {file_path}", None, None
 
-        if allow_file_overwrite:
-            signing_success, output, error_message = handle_apk_signing(file_path, aosp_path)
-            if not signing_success:
-                return (error_message, file_path), file_path, inj_partition
-        else:
-            return f"Skipped APP inject: {file_path}", None, None
+            if allow_file_overwrite:
+                signing_success, output, error_message = handle_apk_signing(file_path, aosp_path)
+                if not signing_success:
+                    return (error_message, file_path), file_path, inj_partition
+            else:
+                return f"Skipped APP inject: {file_path}", None, None
+    except Exception as e:
+        error = f"{e}:{traceback.format_exc()}"
 
     try:
         original_file_path = search_original_file_in_obj(partition_name,
@@ -227,6 +230,7 @@ def get_signing_key_from_module(android_apk_file_path):
     file_name = os.path.basename(android_apk_file_path)
     module_name = file_name.split(".")[0]
     android_mk_file_path = os.path.join(EXTRACTED_PACKAGES_PATH, module_name, "Android.mk")
+    logging.info(f"Android.mk file path: {android_mk_file_path}")
     if os.path.exists(android_mk_file_path):
         with open(android_mk_file_path, "r") as file:
             for line in file:
