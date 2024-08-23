@@ -192,10 +192,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                     return (error_message, file_path), file_path, inj_partition
             else:
                 return f"Skipped APP inject: {file_path}", None, None
-    except Exception as e:
-        error = f"{e}:{traceback.format_exc()}"
 
-    try:
         original_file_path = search_original_file_in_obj(partition_name,
                                                          module_type,
                                                          os.path.basename(file_path),
