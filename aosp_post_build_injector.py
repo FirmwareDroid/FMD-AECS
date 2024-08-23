@@ -178,48 +178,62 @@ def process_partitions(aosp_path, source_folder_path, target_out_path, executor)
 
 
 def process_file_concurrently(aosp_path, file_path, partition_name, target_out_path):
-    error = None
     inj_obj = None
     inj_partition = None
-
+    error_message = None
     try:
         module_type = get_module_type(file_path)
-
         if module_type in ["SKIPPED"]:
-            return f"Skipped File inject: {file_path}", None, None
-
-        filename = os.path.basename(file_path)
-        if filename and filename != "":
-            allow_file_overwrite = (filename not in SKIPPED_APP_LIST)
+            error_message = f"Skipped File inject: {file_path}"
         else:
-            allow_file_overwrite = False
-
-        file_extension = os.path.splitext(file_path)[1]
-        if module_type == "APP" and file_extension == ".apk":
-            if filename.lower() in SKIPPED_APP_LIST:
-                return f"Skipped Apk known problematic app: {file_path}", None, None
-            if allow_file_overwrite:
-                signing_success, output, error_message = handle_apk_signing(file_path, aosp_path)
-                if not signing_success:
-                    return (error_message, file_path), file_path, inj_partition
+            filename = os.path.basename(file_path)
+            if filename and filename != "":
+                allow_file_overwrite = (filename not in SKIPPED_APP_LIST)
             else:
-                return f"Skipped APP inject: {file_path}", None, None
+                allow_file_overwrite = False
 
-        original_file_path = search_original_file_in_obj(partition_name,
-                                                         module_type,
-                                                         os.path.basename(file_path),
-                                                         target_out_path)
+            file_extension = os.path.splitext(file_path)[1]
+            if module_type == "APP" and file_extension == ".apk":
+                error_message = handle_apk_signing(file_path, aosp_path)
 
-        if original_file_path is None or module_type == "SHARED_LIBRARIES":
-            inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
-            inj_partition = file_path
-        else:
-            inject_file_into_obj(file_path, original_file_path)
-            inj_obj = (file_path, original_file_path)
+            if not error_message:
+                inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path,
+                                                           allow_file_overwrite)
     except Exception as e:
-        error = f"{e}:{traceback.format_exc()}"
+        error_message = f"{e}:{traceback.format_exc()}"
 
-    return error, inj_obj, inj_partition
+    result = error_message, inj_obj, inj_partition
+    return result
+
+
+def handle_apk_signing(file_path, aosp_path, filename, allow_file_overwrite):
+    error_message = None
+    if filename.lower() in SKIPPED_APP_LIST:
+        error_message = f"Skipped Apk known problematic app: {file_path}"
+    if allow_file_overwrite:
+        signing_success, output, subprocess_error_message = handle_apk_signing(file_path, aosp_path)
+        if not signing_success:
+            error_message = f"Error signing APK file: {file_path}|{subprocess_error_message}"
+    else:
+        error_message = f"Skipped APP inject: {file_path}"
+    return error_message
+
+
+def search_and_inject(partition_name, module_type, file_path, target_out_path, allow_file_overwrite):
+    inj_partition = None
+    inj_obj = None
+    original_file_path = search_original_file_in_obj(partition_name,
+                                                     module_type,
+                                                     os.path.basename(file_path),
+                                                     target_out_path)
+    if original_file_path is None or module_type == "SHARED_LIBRARIES":
+        inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
+        inj_partition = file_path
+    else:
+        inject_file_into_obj(file_path, original_file_path)
+        inj_obj = (file_path, original_file_path)
+
+    return inj_obj, inj_partition
 
 
 def handle_apk_signing(file_path, aosp_path):
@@ -341,6 +355,8 @@ def get_module_type(source_file_path):
         module_type = "SHARED_LIBRARIES"
     elif file_extension in [".apk"]:
         module_type = "APP"
+    elif file_extension in [".xml"]:
+        module_type = "STATIC_CONFIG"
     elif file_extension in SKIPPED_FILE_EXTENSION_LIST:
         module_type = "SKIPPED"
     elif "/etc/" in source_file_path:
