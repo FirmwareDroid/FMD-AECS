@@ -31,13 +31,17 @@ PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "da
 SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.apk"]
 for module_name in VENDOR_BLACKLISTED_PACKAGES:
     SKIPPED_APP_LIST.append(f"{module_name}.apk")
+
+SKIPPED_FILE_LIST = [""]
+SKIPPED_STATIC_FILE_KEYWORD_LIST = ["vintf"]
+
 SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".ko", ".prop", ".capex",
                                ".odex",
                                ".vdex",
                                ".prof",
                                ".idsig"  # File left over from the file apk signing process
                                ".odex", ".vdex", ".art", ".oat", ".dex",
-                               #".apex",
+                               ".apex",
                                #".xml"
                                ]
 SKIPPED_BINARY_LIST = ["vold",
@@ -188,13 +192,15 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         else:
             filename = os.path.basename(file_path)
             if filename and filename != "":
-                allow_file_overwrite = (filename not in SKIPPED_APP_LIST)
+                allow_file_overwrite = (filename not in ALLOW_FILE_OVERWRITE)
             else:
                 allow_file_overwrite = False
 
             file_extension = os.path.splitext(file_path)[1]
             if module_type == "APP" and file_extension == ".apk":
-                error_message = handle_apk_signing(file_path, aosp_path)
+                error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
+            elif module_type == "STATIC_CONFIG":
+                error_message = handle_static_config(file_path, filename)
 
             if not error_message:
                 inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path,
@@ -206,7 +212,16 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     return result
 
 
-def handle_apk_signing(file_path, aosp_path, filename, allow_file_overwrite):
+def handle_static_config(file_path, filename):
+    error_message = None
+    if filename.lower() in SKIPPED_FILE_LIST:
+        error_message = f"Skipped known problematic file: {file_path}"
+    elif any(keyword in file_path for keyword in SKIPPED_STATIC_FILE_KEYWORD_LIST):
+        error_message = f"Skipped known problematic key in file: {file_path}"
+    return error_message
+
+
+def handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite):
     error_message = None
     if filename.lower() in SKIPPED_APP_LIST:
         error_message = f"Skipped Apk known problematic app: {file_path}"
@@ -237,16 +252,24 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
 
 
 def handle_apk_signing(file_path, aosp_path):
+    error_message = None
+    output = None
+    is_success = False
     signing_key = get_signing_key_from_module(file_path)
+
     if not signing_key:
-        return False, None, f"Signing key name not found for {file_path}"
+        error_message = f"Signing key name not found for {file_path}"
     signing_key_path = get_signing_key_path(aosp_path, signing_key)
+
     if not os.path.exists(signing_key_path):
-        return False, None, f"Signing key not found at {signing_key_path}"
-    success, output, error_message = sign_apk_file(file_path, signing_key_path)
-    if not success:
-        return False, None, f"Error signing APK file: {signing_key}|{signing_key_path}|{error_message}"
-    return success, output, (error_message, file_path, signing_key, signing_key_path)
+        error_message = f"Signing key not found at {signing_key_path}"
+
+    if not error_message:
+        is_success, log_message = sign_apk_file(file_path, signing_key_path)
+        if not is_success:
+            error_message = f"Error signing APK file: {signing_key}|{signing_key_path}|{error_message}"
+
+    return is_success, output, (error_message, file_path, signing_key, signing_key_path)
 
 
 def get_signing_key_from_module(android_apk_file_path):
@@ -276,14 +299,18 @@ def execute_command(command):
     Execute a command and checks if it has an exit code of 0.
 
     :param command: list - the command and its arguments to execute.
-    :return: tuple(bool, str, str) - (True, stdout, None) if the command was successful, (False, None, stderr) otherwise.
+
+    :return: tuple - (bool, str) - True if the command was successful, False otherwise.
     """
+    is_success = False
     result = subprocess.run(command, capture_output=True, text=False)
     if result.returncode == 0:
-        return True, result.stdout.decode('utf-8', errors='ignore').strip(), None
+        is_success = True
+        log = result.stdout.decode('utf-8', errors='ignore').strip()
     else:
-        return False, None, (f"Error signing exit code: {result.returncode}|"
-                             f"{result.stderr.decode('utf-8', errors='ignore').strip()}")
+        log = result.stderr.decode('utf-8', errors='ignore').strip()
+
+    return is_success, log
 
 
 def sign_apk_file(apk_file_path, signing_key_path):
@@ -292,6 +319,7 @@ def sign_apk_file(apk_file_path, signing_key_path):
 
     :param apk_file_path: str - path to the APK file.
     :param signing_key_path: str - path to the signing key.
+
     """
     logging.info(f"Signing APK file: {apk_file_path}")
     sign_command = ['apksigner', 'sign',
@@ -299,8 +327,8 @@ def sign_apk_file(apk_file_path, signing_key_path):
                     '--ks-pass', 'pass:',
                     '--in', apk_file_path,
                     '--out', apk_file_path]
-    success, output, error_message = execute_command(sign_command)
-    return success, output, error_message
+    success, log_message = execute_command(sign_command)
+    return success, log_message
 
 
 def process_partition_files(aosp_path, folder_path, target_out_path, executor):
