@@ -32,8 +32,8 @@ SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.ap
 for module_name in VENDOR_BLACKLISTED_PACKAGES:
     SKIPPED_APP_LIST.append(f"{module_name}.apk")
 
-SKIPPED_FILE_LIST = [""]
-SKIPPED_STATIC_FILE_KEYWORD_LIST = ["vintf"]
+SKIPPED_FILE_LIST = ["com.android.vndk.current.apex"]
+SKIPPED_STATIC_FILE_KEYWORD_LIST = ["vintf", "vndk"]
 
 SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".ko", ".prop", ".capex",
                                ".odex",
@@ -41,8 +41,8 @@ SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".ko", ".prop", ".cap
                                ".prof",
                                ".idsig"  # File left over from the file apk signing process
                                ".odex", ".vdex", ".art", ".oat", ".dex",
+                               ".idsig",
                                ".apex",
-                               #".xml"
                                ]
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
@@ -94,8 +94,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "hwservicemanager",
                         "secureboot"]
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
-ALLOW_FILE_OVERWRITE = ["framework-res.apk", "framework-ext-res.apk",
-                        "passwd", "group"]
+ALLOW_FILE_OVERWRITE = ["framework-res.apk", "framework-ext-res.apk", "passwd", "group"]
 for module_name in AOSP_DEFAULT_PACKAGE_NAMES:
     ALLOW_FILE_OVERWRITE.append(f"{module_name}.apk")
 ALLOWED_KEYWORD = ["overlay"]
@@ -215,9 +214,9 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 def handle_static_config(file_path, filename):
     error_message = None
     if filename.lower() in SKIPPED_FILE_LIST:
-        error_message = f"Skipped known problematic file: {file_path}"
+        error_message = f"Skipped known problematic filename: {file_path}"
     elif any(keyword in file_path for keyword in SKIPPED_STATIC_FILE_KEYWORD_LIST):
-        error_message = f"Skipped known problematic key in file: {file_path}"
+        error_message = f"Skipped file due known problematic keyword in path: {file_path}"
     return error_message
 
 
@@ -424,25 +423,43 @@ def scandir_walk(dir_path):
 def search_original_file_in_obj(partition_name, module_type, file_name, target_out_path):
     """
     Searches for the original file in the AOSP source code.
+
+    :param partition_name: str - name of the partition.
+    :param module_type: str - type of the module.
+    :param file_name: str - name of the file.
+    :param target_out_path: str - path to the AOSP target out folder.
+
+    :return: str - path to the original file.
     """
     target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
-    search_folder_path = str(os.path.join(target_obj_path, module_type if module_type != "MISC" else ""))
+    search_folder_path = str(os.path.join(target_obj_path, module_type if module_type not in ["MISC", "STATIC_CONFIG"]
+    else ""))
+
     if partition_name in ["super", "system"]:
         partition_name = ""
 
     result_file_path = None
     for root, dirs, files in os.walk(search_folder_path):
-        # Filter directories if partition_name is specified
+        # Filter directories if partition_name is specified. For example, if partition_name is "vendor".
         if partition_name and not any(partition_name in d for d in dirs):
             continue
 
-        # Check if file is in the current directory
+        # Check if file is in the current directory is the same as the file we are looking for
         if file_name in files:
             candidate_path = os.path.join(root, file_name)
             # Verify if it matches the partition criteria
             if not partition_name or partition_name in root:
                 result_file_path = candidate_path
                 break  # Terminate search early
+        # Check if the folder has the same name but the file within the folder is named differently
+        elif file_name in root and partition_name in root:
+            for file in files:
+                file_extension_src = os.path.splitext(file_name)[1]
+                file_extension_obj = os.path.splitext(file)[1]
+                if file_extension_src == file_extension_obj:
+                    candidate_path = os.path.join(root, file)
+                    result_file_path = candidate_path
+                    break
 
     if result_file_path:
         return result_file_path
