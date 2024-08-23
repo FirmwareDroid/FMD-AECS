@@ -10,6 +10,7 @@ import subprocess
 import time
 import os
 import stat
+import traceback
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 from config import AOSP_DEFAULT_PACKAGE_NAMES, VENDOR_BLACKLISTED_PACKAGES, EXTRACTED_PACKAGES_PATH
 from setup_logger import setup_logger
@@ -83,8 +84,8 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "hwservicemanager",
                         "secureboot"]
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
-ALLOW_FILE_OVERWRITE = ["framework-res.apk", "framework-ext-res.apk", "passwd", "group"]
-ALLOW_FILE_OVERWRITE.extend(AOSP_DEFAULT_PACKAGE_NAMES)
+ALLOW_FILE_OVERWRITE = ["framework-res.apk", "framework-ext-res.apk",
+                        "passwd", "group"].extend(AOSP_DEFAULT_PACKAGE_NAMES)
 ALLOWED_KEYWORD = ["overlay"]
 
 
@@ -175,14 +176,14 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     module_type = get_module_type(file_path)
 
     if module_type in ["SKIPPED"]:
-        return f"Skipped File inject: {file_path}", None, None  # Skipping file
+        return f"Skipped File inject: {file_path}", None, None
 
     filename = os.path.basename(file_path)
     allow_file_overwrite = filename in ALLOW_FILE_OVERWRITE
 
     if module_type == "APP":
         if filename.lower() in SKIPPED_APP_LIST:
-            return f"Skipped Apk inject: {file_path}", None, None  # Skipping file
+            return f"Skipped Apk inject: {file_path}", None, None
 
         if allow_file_overwrite:
             signing_success = False
@@ -208,7 +209,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
             inject_file_into_obj(file_path, original_file_path)
             inj_obj = (file_path, original_file_path)
     except Exception as e:
-        error = str(e)
+        error = f"{e}:{traceback.format_exc()}"
 
     return error, inj_obj, inj_partition
 
