@@ -444,6 +444,7 @@ def search_original_file_in_obj(partition_name, module_type, file_name, target_o
         if partition_name and not any(partition_name in d for d in dirs):
             continue
 
+        module_name = os.path.splitext(file_name)[0]
         # Check if file is in the current directory is the same as the file we are looking for
         if file_name in files:
             candidate_path = os.path.join(root, file_name)
@@ -452,7 +453,7 @@ def search_original_file_in_obj(partition_name, module_type, file_name, target_o
                 result_file_path = candidate_path
                 break  # Terminate search early
         # Check if the folder has the same name but the file within the folder is named differently
-        elif file_name in root and partition_name in root:
+        elif module_name in root and partition_name in root:
             for file in files:
                 file_extension_src = os.path.splitext(file_name)[1]
                 file_extension_obj = os.path.splitext(file)[1]
