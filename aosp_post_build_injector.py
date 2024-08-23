@@ -184,9 +184,11 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 
         filename = os.path.basename(file_path)
         if filename and filename != "":
-            allow_file_overwrite = filename in ALLOW_FILE_OVERWRITE
+            allow_file_overwrite = (filename in ALLOW_FILE_OVERWRITE
+                                    or any(keyword in filename for keyword in ALLOWED_KEYWORD))
         else:
             allow_file_overwrite = False
+
         if module_type == "APP":
             if filename.lower() in SKIPPED_APP_LIST:
                 return f"Skipped Apk inject: {file_path}", None, None
@@ -196,7 +198,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 if not signing_success:
                     return (error_message, file_path), file_path, inj_partition
             else:
-                return f"Skipped APP inject: {file_path}", None, None
+                return f"Skipped Apk inject: {file_path}", None, None
 
         original_file_path = search_original_file_in_obj(partition_name,
                                                          module_type,
@@ -476,7 +478,7 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
                     raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
             else:
                 if os.path.isfile(target_file_injection_path):
-                    logging.warning(f"File {target_file_injection_path} already exists.")
+                    logging.debug(f"File {target_file_injection_path} already exists.")
                     #raise Warning(f"File {target_file_injection_path} already exists.")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
