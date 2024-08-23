@@ -181,6 +181,9 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     allow_file_overwrite = filename in ALLOW_FILE_OVERWRITE
 
     if module_type == "APP":
+        if filename.lower() in SKIPPED_APP_LIST:
+            return f"Skipped Apk inject: {file_path}", None, None  # Skipping file
+
         if allow_file_overwrite:
             signing_success = False
             try:
@@ -334,11 +337,8 @@ def get_module_type(source_file_path):
         module_type = "MISC"
 
     if (file_name in SKIPPED_BINARY_LIST
-            or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST))\
-            or file_name.lower() in SKIPPED_APP_LIST:
+            or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST)):
         module_type = "SKIPPED"
-    elif module_type == "APP" and any(keyword in file_name.lower() for keyword in ALLOWED_KEYWORD):
-        module_type = "APP"
 
     return module_type
 
