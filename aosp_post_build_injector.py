@@ -173,15 +173,15 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     error = None
     inj_obj = None
     inj_partition = None
-    module_type = get_module_type(file_path)
-
-    if module_type in ["SKIPPED"]:
-        return f"Skipped File inject: {file_path}", None, None
-
-    filename = os.path.basename(file_path)
-    allow_file_overwrite = filename in ALLOW_FILE_OVERWRITE
 
     try:
+        module_type = get_module_type(file_path)
+
+        if module_type in ["SKIPPED"]:
+            return f"Skipped File inject: {file_path}", None, None
+
+        filename = os.path.basename(file_path)
+        allow_file_overwrite = filename in ALLOW_FILE_OVERWRITE
         if module_type == "APP":
             if filename.lower() in SKIPPED_APP_LIST:
                 return f"Skipped Apk inject: {file_path}", None, None
