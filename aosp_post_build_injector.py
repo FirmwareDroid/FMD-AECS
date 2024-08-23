@@ -126,7 +126,7 @@ def inject(aosp_path, source_folder_path, target_out_path, executor):
         logging.info(f"Indirect Inject: {obj}")
     logging.info(f"Partition files injected:")
     for obj in inj_partition_list:
-        logging.info(f"Direct Inject: {obj}")
+        logging.info(f"Direct Obj Inject: {obj}")
     logging.info(f"Errors:")
     for obj in error_list:
         logging.info(f"Error: {obj}")
@@ -241,8 +241,8 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                      os.path.basename(file_path),
                                                      target_out_path)
     if original_file_path is None or module_type == "SHARED_LIBRARIES":
-        inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
-        inj_partition = file_path
+        target_path = inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
+        inj_partition = (file_path, target_path)
     else:
         inject_file_into_obj(file_path, original_file_path)
         inj_obj = (file_path, original_file_path)
@@ -553,6 +553,7 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
         shutil.copyfile(source_file_path, target_file_injection_path)
         if not set_executable_permission(target_file_injection_path):
             raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
+    return target_file_injection_path
 
 
 def inject_file_into_obj(source_file_path, original_file_path):
