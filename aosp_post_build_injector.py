@@ -186,11 +186,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
             return f"Skipped Apk inject: {file_path}", None, None
 
         if allow_file_overwrite:
-            signing_success = False
-            try:
-                signing_success, output, error_message = handle_apk_signing(file_path, aosp_path)
-            except Exception as e:
-                error_message = str(e)
+            signing_success, output, error_message = handle_apk_signing(file_path, aosp_path)
             if not signing_success:
                 return (error_message, file_path), file_path, inj_partition
         else:
