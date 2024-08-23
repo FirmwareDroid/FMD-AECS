@@ -85,7 +85,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "secureboot"]
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
 ALLOW_FILE_OVERWRITE = ["framework-res.apk", "framework-ext-res.apk",
-                        "passwd", "group"].extend(AOSP_DEFAULT_PACKAGE_NAMES)
+                        "passwd", "group"]
 ALLOWED_KEYWORD = ["overlay"]
 
 
