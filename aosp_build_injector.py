@@ -337,7 +337,7 @@ def overwrite_partition_size(aosp_path, aosp_packages_path):
 
 def move_txt_files(source_directory, destination_directory):
     """
-    Moves all .txt files from source_directory to destination_directory.
+    Moves all text files from source_directory to destination_directory.
 
     :param source_directory: str - path of the source directory.
     :param destination_directory: str - path of the destination directory.
@@ -346,7 +346,7 @@ def move_txt_files(source_directory, destination_directory):
         os.makedirs(destination_directory)
 
     for file_name in os.listdir(source_directory):
-        if file_name.endswith('.txt'):
+        if file_name.endswith('.txt') or file_name.endswith('.log'):
             source_file = os.path.join(source_directory, file_name)
             destination_file = os.path.join(destination_directory, file_name)
             shutil.move(source_file, destination_file)
