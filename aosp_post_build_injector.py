@@ -94,11 +94,11 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "hwservicemanager",
                         "secureboot"]
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
-ALLOW_FILE_OVERWRITE = ["framework-res.apk", "framework-ext-res.apk", "passwd", "group"]
+ALLOW_FILE_OVERWRITE = ["framework-res.apk", "framework-ext-res.apk", "passwd", "group", "installd.rc"]
 for module_name in AOSP_DEFAULT_PACKAGE_NAMES:
     ALLOW_FILE_OVERWRITE.append(f"{module_name}.apk")
 ALLOWED_KEYWORD = ["overlay"]
-
+ALLOW_FILE_INJECT = ["installd.rc"]
 
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path):
     """
@@ -217,6 +217,10 @@ def handle_static_config(file_path, filename):
         error_message = f"Skipped known problematic filename: {file_path}"
     elif any(keyword in file_path for keyword in SKIPPED_STATIC_FILE_KEYWORD_LIST):
         error_message = f"Skipped file due known problematic keyword in path: {file_path}"
+
+    if filename.lower in ALLOW_FILE_INJECT:
+        logging.info(f"Allow file inclusion: {file_path}")
+
     return error_message
 
 
