@@ -74,7 +74,7 @@ SKIPPED_BINARY_LIST = ["vold",
                        "default.prop",
                        "lmkd",
                        "build.prop",
-
+                       "otacerts.zip",  # Allow overwrite with own certificates
                        "libbacktrace.so",
                        "libbase.so",
                        "libbootloader_message.so",
@@ -146,10 +146,10 @@ def inject(aosp_path, source_folder_path, target_out_path, executor):
     execution_time_minutes = execution_time / 60
     logging.info(f"Objects injected:")
     for obj in inj_obj_list:
-        logging.info(f"Indirect Inject: {obj}")
+        logging.info(f"Indirect Inject via obj: {obj}")
     logging.info(f"Partition files injected:")
     for obj in inj_partition_list:
-        logging.info(f"Direct Obj Inject: {obj}")
+        logging.info(f"Direct Inject: {obj}")
     logging.info(f"Errors:")
     for obj in error_list:
         logging.info(f"Error: {obj}")
