@@ -492,7 +492,9 @@ def search_original_file_in_obj(partition_name, module_type, file_path, target_o
                 if module_type == "SHARED_LIBRARIES":
                     candidate_arch = check_binary_architecture(candidate_path)
                     src_arch = check_binary_architecture(file_path)
-                    if not candidate_arch == src_arch:
+                    if candidate_arch == "Unknown architecture" or candidate_arch != src_arch:
+                        logging.debug(f"Skipping {candidate_path}|{candidate_arch}|{file_path} "
+                                      f"due to architecture mismatch")
                         continue
                 result_file_path = candidate_path
                 break  # Terminate search early
