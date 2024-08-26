@@ -100,6 +100,7 @@ for module_name in AOSP_DEFAULT_PACKAGE_NAMES:
 ALLOWED_KEYWORD = ["overlay"]
 ALLOW_FILE_INJECT = ["installd.rc"]
 
+
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path):
     """
     Start the post build injector. Replaces the original objects in the AOSP source code with the vendor flavoured
@@ -450,14 +451,19 @@ def search_original_file_in_obj(partition_name, module_type, file_name, target_o
 
         module_name = os.path.splitext(file_name)[0]
         # Check if file is in the current directory is the same as the file we are looking for
-        if file_name in files:
+        exact_match_files = [f for f in files if f == file_name]
+
+        # Strip the root folder name to match the module name
+        root_folder_name_stripped = os.path.basename(root).replace("_intermediates", "")
+        root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace(f"_{partition_name}", "")
+        if exact_match_files:
             candidate_path = os.path.join(root, file_name)
             # Verify if it matches the partition criteria
             if not partition_name or partition_name in root:
                 result_file_path = candidate_path
                 break  # Terminate search early
         # Check if the folder has the same name but the file within the folder is named differently
-        elif module_name in root and partition_name in root:
+        elif module_name == root_folder_name_stripped and partition_name in root:
             for file in files:
                 file_extension_src = os.path.splitext(file_name)[1]
                 file_extension_obj = os.path.splitext(file)[1]
