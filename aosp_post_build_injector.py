@@ -453,14 +453,14 @@ def check_binary_architecture(binary_path):
         return f"Error determining architecture: {str(e)}"
 
 
-def check_is_architecture_compatible(candidate_path, file_path):
-    is_same_architecture = False
+def is_abi_compatible(candidate_path, file_path):
     candidate_arch = check_binary_architecture(candidate_path)
     src_arch = check_binary_architecture(file_path)
     logging.debug(f"Checking {candidate_path}|{candidate_arch}|{file_path}|{src_arch}")
     if candidate_arch == "Unknown architecture" or candidate_arch != src_arch:
         logging.debug(f"Skipping {candidate_path}|{candidate_arch}|{file_path} "
                       f"due to architecture mismatch")
+        is_same_architecture = False
     else:
         is_same_architecture = True
     return is_same_architecture
@@ -502,7 +502,8 @@ def search_original_file_in_obj(partition_name, module_type, file_path, target_o
             candidate_path = os.path.join(root, file_name)
             # Verify if it matches the partition criteria
             if not partition_name or partition_name in root:
-                if module_type == "SHARED_LIBRARIES" and not check_is_architecture_compatible(candidate_path, file_path):
+                if module_type == "SHARED_LIBRARIES" and not is_abi_compatible(candidate_path,
+                                                                               file_path):
                     continue
                 result_file_path = candidate_path
                 break  # Terminate search early
@@ -513,8 +514,8 @@ def search_original_file_in_obj(partition_name, module_type, file_path, target_o
                 file_extension_obj = os.path.splitext(file)[1]
                 if file_extension_src == file_extension_obj:
                     candidate_path = os.path.join(root, file)
-                    if module_type == "SHARED_LIBRARIES" and not check_is_architecture_compatible(candidate_path,
-                                                                                                  file_path):
+                    if module_type == "SHARED_LIBRARIES" and not is_abi_compatible(candidate_path,
+                                                                                   file_path):
                         continue
                     result_file_path = candidate_path
                     break
