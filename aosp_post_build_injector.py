@@ -244,7 +244,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     inj_obj = None
     original_file_path = search_original_file_in_obj(partition_name,
                                                      module_type,
-                                                     os.path.basename(file_path),
+                                                     file_path,
                                                      target_out_path)
     if original_file_path is None or module_type == "SHARED_LIBRARIES":
         target_path = inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
@@ -426,17 +426,44 @@ def scandir_walk(dir_path):
         yield from scandir_walk(new_path)
 
 
-def search_original_file_in_obj(partition_name, module_type, file_name, target_out_path):
+def check_binary_architecture(binary_path):
+    """
+    Check if a binary is compiled for 32-bit or 64-bit.
+
+    :param binary_path: str - path to the binary file.
+    :return: str - '32-bit' or '64-bit' based on the binary architecture.
+    """
+    try:
+        with open(binary_path, 'rb') as f:
+            # Read the first 5 bytes of the file
+            header = f.read(5)
+            if len(header) < 5:
+                return 'Unknown architecture'
+
+            # Check the magic number and class
+            if header[:4] == b'\x7fELF':
+                ei_class = header[4]
+                if ei_class == 1:
+                    return '32-bit'
+                elif ei_class == 2:
+                    return '64-bit'
+            return 'Unknown architecture'
+    except Exception as e:
+        return f"Error determining architecture: {str(e)}"
+
+
+def search_original_file_in_obj(partition_name, module_type, file_path, target_out_path):
     """
     Searches for the original file in the AOSP source code.
 
     :param partition_name: str - name of the partition.
     :param module_type: str - type of the module.
-    :param file_name: str - name of the file.
+    :param file_path: str - path to the file.
     :param target_out_path: str - path to the AOSP target out folder.
 
     :return: str - path to the original file.
     """
+    file_name = os.path.basename(file_path)
     target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
     search_folder_path = str(os.path.join(target_obj_path, module_type if module_type not in ["MISC", "STATIC_CONFIG"]
     else ""))
@@ -461,6 +488,11 @@ def search_original_file_in_obj(partition_name, module_type, file_name, target_o
             candidate_path = os.path.join(root, file_name)
             # Verify if it matches the partition criteria
             if not partition_name or partition_name in root:
+                if module_type == "SHARED_LIBRARIES":
+                    candidate_arch = check_binary_architecture(candidate_path)
+                    src_arch = check_binary_architecture(file_path)
+                    if not candidate_arch == src_arch:
+                        continue
                 result_file_path = candidate_path
                 break  # Terminate search early
         # Check if the folder has the same name but the file within the folder is named differently
