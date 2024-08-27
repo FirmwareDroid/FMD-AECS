@@ -42,7 +42,6 @@ SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".ko", ".prop", ".cap
                                ".prof",
                                ".idsig"  # File left over from the file apk signing process
                                ".odex", ".vdex", ".art", ".oat", ".dex",
-                               ".idsig",
                                ".apex",
                                ]
 SKIPPED_BINARY_LIST = ["vold",
@@ -200,7 +199,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 allow_file_overwrite = False
 
             file_extension = os.path.splitext(file_path)[1]
-            if module_type == "APP" and file_extension == ".apk":
+            if module_type == "APPS" and file_extension.lower() == ".apk":
                 error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
             elif module_type == "STATIC_CONFIG":
                 error_message = handle_static_config(file_path, filename)
@@ -237,7 +236,7 @@ def handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite):
         if not signing_success:
             error_message = f"Error signing APK file: {file_path}|{subprocess_error_message}"
     else:
-        error_message = f"Skipped APP inject: {file_path}"
+        error_message = f"Skipped APP inject (should already be in the image): {file_path}"
     return error_message
 
 
@@ -343,8 +342,8 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor):
     inj_obj_list = []
     inj_partition_list = []
     partition_name = os.path.basename(folder_path)
-    file_paths = [os.path.join(root, file_name) for root, _, file_name_list in scandir_walk(folder_path) for
-                  file_name in file_name_list]
+    file_paths = list(set(os.path.join(root, file_name) for root, _, file_name_list in scandir_walk(folder_path)
+                          for file_name in file_name_list))
 
     # Initialize tqdm progress bar
     progress_bar = tqdm(total=len(file_paths), desc=f"Processing files in partition: {partition_name}")
@@ -389,7 +388,7 @@ def get_module_type(source_file_path):
     elif file_extension == ".so":
         module_type = "SHARED_LIBRARIES"
     elif file_extension in [".apk"]:
-        module_type = "APP"
+        module_type = "APPS"
     elif file_extension in [".xml"]:
         module_type = "STATIC_CONFIG"
     elif file_extension in SKIPPED_FILE_EXTENSION_LIST:
@@ -513,7 +512,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, target_o
             for file in files:
                 file_extension_src = os.path.splitext(file_name)[1]
                 file_extension_obj = os.path.splitext(file)[1]
-                if file_extension_src == file_extension_obj:
+                if file_extension_src.lower() == file_extension_obj.lower():
                     candidate_path = os.path.join(root, file)
                     if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
                                                                                    file_path):
