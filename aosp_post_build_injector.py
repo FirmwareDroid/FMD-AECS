@@ -26,6 +26,7 @@ FOLDER_NAME_EXECUTABLES = "EXECUTABLES"
 FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
+MODULE_TYPE_ABI_COMPATIBLE = ["SHARED_LIBRARIES", "EXECUTABLES", "ETC"]
 
 # Singleton Apps: StorageManagerGoogle.apk
 SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.apk"]
@@ -502,7 +503,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, target_o
             candidate_path = os.path.join(root, file_name)
             # Verify if it matches the partition criteria
             if not partition_name or partition_name in root:
-                if module_type == "SHARED_LIBRARIES" and not is_abi_compatible(candidate_path,
+                if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
                                                                                file_path):
                     continue
                 result_file_path = candidate_path
@@ -514,7 +515,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, target_o
                 file_extension_obj = os.path.splitext(file)[1]
                 if file_extension_src == file_extension_obj:
                     candidate_path = os.path.join(root, file)
-                    if module_type == "SHARED_LIBRARIES" and not is_abi_compatible(candidate_path,
+                    if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
                                                                                    file_path):
                         continue
                     result_file_path = candidate_path
