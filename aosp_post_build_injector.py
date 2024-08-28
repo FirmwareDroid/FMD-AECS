@@ -194,7 +194,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     try:
         module_type = get_module_type(file_path)
         if module_type in ["SKIPPED"]:
-            error_message = f"Skipped File inject: {file_path}"
+            error_message = f"Skipped File inject (Keyword/Extension/Filename): {file_path}"
         else:
             filename = os.path.basename(file_path)
             if filename and filename != "":
@@ -414,15 +414,14 @@ def get_module_type(source_file_path):
         module_type = "APPS"
     elif file_extension in [".xml"]:
         module_type = "STATIC_CONFIG"
-    elif file_extension in SKIPPED_FILE_EXTENSION_LIST:
-        module_type = "SKIPPED"
     elif "/etc/" in source_file_path:
         module_type = "ETC"
     else:
         module_type = "MISC"
 
     if (file_name in SKIPPED_BINARY_LIST
-            or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST)):
+            or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST)
+            or file_extension in SKIPPED_FILE_EXTENSION_LIST):
         if module_type == "APPS" and any(keyword in file_name for keyword in ALLOWED_KEYWORD):
             module_type = "APPS"
         else:
