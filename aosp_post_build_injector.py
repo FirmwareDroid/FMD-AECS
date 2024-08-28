@@ -364,15 +364,16 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor):
     inj_obj_list = []
     inj_partition_list = []
     partition_name = os.path.basename(folder_path)
-    file_paths = list(set(os.path.join(root, file_name) for root, _, file_name_list in scandir_walk(folder_path)
+    file_paths = list(set(os.path.join(root, file_name.strip()) for root, _, file_name_list in scandir_walk(folder_path)
                           for file_name in file_name_list))
 
     # Initialize tqdm progress bar
     progress_bar = tqdm(total=len(file_paths), desc=f"Processing files in partition: {partition_name}")
 
-    future_dict = {
-        executor.submit(process_file_concurrently, aosp_path, file_path, partition_name, target_out_path):
-            file_path for file_path in file_paths}
+    future_dict = {}
+    for file_path in file_paths:
+        future = executor.submit(process_file_concurrently, aosp_path, file_path, partition_name, target_out_path)
+        future_dict[future] = file_path
 
     for future in as_completed(future_dict):
         file_path = future_dict[future]
