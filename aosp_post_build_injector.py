@@ -12,7 +12,8 @@ import os
 import stat
 import traceback
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
-from config import AOSP_DEFAULT_PACKAGE_NAMES, VENDOR_BLACKLISTED_PACKAGES, EXTRACTED_PACKAGES_PATH
+from config import AOSP_DEFAULT_PACKAGE_NAMES, VENDOR_BLACKLISTED_PACKAGES, EXTRACTED_PACKAGES_PATH, \
+    BLACKLISTED_KEYWORDS
 from setup_logger import setup_logger
 from tqdm import tqdm
 
@@ -99,6 +100,8 @@ ALLOW_FILE_OVERWRITE = ["framework-res.apk", "framework-ext-res.apk", "passwd", 
 for module_name in AOSP_DEFAULT_PACKAGE_NAMES:
     ALLOW_FILE_OVERWRITE.append(f"{module_name}.apk")
 ALLOWED_KEYWORD = ["overlay"]
+for blacklisted_keyword in BLACKLISTED_KEYWORDS:
+    ALLOWED_KEYWORD.append(blacklisted_keyword)
 ALLOW_FILE_INJECT = ["installd.rc"]
 
 
@@ -194,7 +197,8 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         else:
             filename = os.path.basename(file_path)
             if filename and filename != "":
-                allow_file_overwrite = (filename in ALLOW_FILE_OVERWRITE)
+                allow_file_overwrite = (filename in ALLOW_FILE_OVERWRITE) or any(keyword in file_path for
+                                                                                 keyword in ALLOWED_KEYWORD)
             else:
                 allow_file_overwrite = False
 
