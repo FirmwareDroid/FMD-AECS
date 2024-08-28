@@ -276,9 +276,9 @@ def handle_apk_signing(file_path, aosp_path):
         error_message = f"Signing key not found at {signing_key_path}"
 
     if not error_message:
-        is_success, log_message = align_apk_file(file_path)
-        if not is_success:
-            error_message = f"Error aligning APK file: {file_path}|{error_message}"
+        #is_success, log_message = align_apk_file(file_path)
+        #if not is_success:
+        #    error_message = f"Error aligning APK file: {file_path}|{error_message}"
         is_success, log_message = sign_apk_file(file_path, signing_key_path)
         if not is_success:
             error_message = f"Error signing APK file: {signing_key}|{signing_key_path}|{error_message}"
