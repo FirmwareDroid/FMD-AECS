@@ -198,8 +198,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         else:
             filename = os.path.basename(file_path)
             if filename and filename != "":
-                allow_file_overwrite = (filename in ALLOW_FILE_OVERWRITE) or any(keyword in file_path for
-                                                                                 keyword in ALLOWED_KEYWORD)
+                allow_file_overwrite = (filename in ALLOW_FILE_OVERWRITE)
             else:
                 allow_file_overwrite = False
 
@@ -423,7 +422,10 @@ def get_module_type(source_file_path):
 
     if (file_name in SKIPPED_BINARY_LIST
             or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST)):
-        module_type = "SKIPPED"
+        if module_type == "APPS" and any(keyword in file_name for keyword in ALLOWED_KEYWORD):
+            module_type = "APPS"
+        else:
+            module_type = "SKIPPED"
 
     return module_type
 
