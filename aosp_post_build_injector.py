@@ -332,7 +332,7 @@ def execute_command(command):
 def align_apk_file(apk_file_path):
     logging.info(f"Align apk file: {apk_file_path}")
     out_file_path = f"{apk_file_path}.aligned"
-    command = ['zipalign', '-v', '4', apk_file_path, out_file_path]
+    command = ['zipalign', '-P', '16', '-v', '4', apk_file_path, out_file_path]
     success, log_message = execute_command(command)
     if success:
         shutil.move(out_file_path, apk_file_path)
