@@ -93,6 +93,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "zygote",
                         "android.hidl",
                         "qti",
+                        "__auto_generated_rro",
                         "hwservicemanager",
                         "secureboot"]
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
