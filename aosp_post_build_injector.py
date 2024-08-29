@@ -31,8 +31,8 @@ MODULE_TYPE_ABI_COMPATIBLE = ["SHARED_LIBRARIES", "EXECUTABLES", "ETC"]
 
 # Singleton Apps: StorageManagerGoogle.apk
 SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.apk"]
-for module_name in VENDOR_BLACKLISTED_PACKAGES:
-    SKIPPED_APP_LIST.append(f"{module_name}.apk")
+for blacklisted_module_name in VENDOR_BLACKLISTED_PACKAGES:
+    SKIPPED_APP_LIST.append(f"{blacklisted_module_name}.apk")
 
 SKIPPED_FILE_LIST = ["com.android.vndk.current.apex"]
 SKIPPED_STATIC_FILE_KEYWORD_LIST = ["vintf", "vndk"]
@@ -98,8 +98,8 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "secureboot"]
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
 ALLOW_FILE_OVERWRITE = ["framework-res.apk", "framework-ext-res.apk", "passwd", "group", "installd.rc"]
-for module_name in AOSP_DEFAULT_PACKAGE_NAMES:
-    ALLOW_FILE_OVERWRITE.append(f"{module_name}.apk")
+for default_module_name in AOSP_DEFAULT_PACKAGE_NAMES:
+    ALLOW_FILE_OVERWRITE.append(f"{default_module_name}.apk")
 ALLOWED_KEYWORD = ["overlay"]
 for blacklisted_keyword in BLACKLISTED_KEYWORDS:
     ALLOWED_KEYWORD.append(blacklisted_keyword)
@@ -275,9 +275,6 @@ def handle_apk_signing(file_path, aosp_path):
         error_message = f"Signing key not found at {signing_key_path}"
 
     if not error_message:
-        #is_success, log_message = align_apk_file(file_path)
-        #if not is_success:
-        #    error_message = f"Error aligning APK file: {file_path}|{error_message}"
         is_success, log_message = sign_apk_file(file_path, signing_key_path)
         if not is_success:
             error_message = f"Error signing APK file: {signing_key}|{signing_key_path}|{error_message}"
@@ -504,8 +501,8 @@ def search_original_file_in_obj(partition_name, module_type, file_path, target_o
     """
     file_name = os.path.basename(file_path)
     target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
-    search_folder_path = str(os.path.join(target_obj_path, module_type if module_type not in ["MISC", "STATIC_CONFIG"]
-    else ""))
+    search_folder_path = str(os.path.join(target_obj_path,
+                                          module_type if module_type not in ["MISC", "STATIC_CONFIG"] else ""))
 
     if partition_name in ["super", "system"]:
         partition_name = ""
@@ -522,13 +519,14 @@ def search_original_file_in_obj(partition_name, module_type, file_path, target_o
 
         # Strip the root folder name to match the module name
         root_folder_name_stripped = os.path.basename(root).replace("_intermediates", "")
-        root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace(f"_{partition_name}", "")
+        root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace(f"_{partition_name}",
+                                                                                        "")
         if exact_match_files:
             candidate_path = os.path.join(root, file_name)
             # Verify if it matches the partition criteria
             if not partition_name or partition_name in root:
                 if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
-                                                                               file_path):
+                                                                                       file_path):
                     continue
                 result_file_path = candidate_path
                 break  # Terminate search early
@@ -540,7 +538,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, target_o
                 if file_extension_src.lower() == file_extension_obj.lower():
                     candidate_path = os.path.join(root, file)
                     if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
-                                                                                   file_path):
+                                                                                           file_path):
                         continue
                     result_file_path = candidate_path
                     break
@@ -631,7 +629,6 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
             else:
                 if os.path.isfile(target_file_injection_path):
                     logging.debug(f"File {target_file_injection_path} already exists.")
-                    #raise Warning(f"File {target_file_injection_path} already exists.")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         shutil.copyfile(source_file_path, target_file_injection_path)
