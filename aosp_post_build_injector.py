@@ -85,6 +85,7 @@ SKIPPED_BINARY_LIST = ["vold",
                        "otacerts.zip",  # Allow overwrite with own certificates
                        "raw.image"  # Leftover from the file extraction process
                        ]
+
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
                         "keymaster",
@@ -103,12 +104,16 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "__auto_generated_rro",
                         "hwservicemanager",
                         "secureboot"]
-ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
+
+ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg",
+                                         ".otf",
+                                         ".ttf"]
+
 ALLOW_FILE_OVERWRITE = ["framework-res.apk",
                         "framework-ext-res.apk",
                         "passwd",
                         "group",
-                        #"installd.rc"
+                        "com.google.android.hardwareinfo.xml",
                         ]
 for default_module_name in AOSP_DEFAULT_PACKAGE_NAMES:
     ALLOW_FILE_OVERWRITE.append(f"{default_module_name}.apk")
@@ -438,13 +443,16 @@ def get_module_type(source_file_path):
     else:
         module_type = "MISC"
 
-    if (file_name in SKIPPED_BINARY_LIST
-            or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST)
-            or file_extension in SKIPPED_FILE_EXTENSION_LIST):
-        if module_type == "APPS" and any(keyword in file_name for keyword in ALLOWED_KEYWORD):
-            module_type = "APPS"
-        else:
-            module_type = "SKIPPED"
+    if file_name not in ALLOW_FILE_INJECT:
+
+        if (file_name in SKIPPED_BINARY_LIST
+                or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST)
+                or file_extension in SKIPPED_FILE_EXTENSION_LIST):
+
+            if module_type == "APPS" and any(keyword in file_name for keyword in ALLOWED_KEYWORD):
+                module_type = "APPS"
+            else:
+                module_type = "SKIPPED"
 
     return module_type
 
@@ -642,6 +650,7 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
             logging.error(f"Error creating directory: {target_dir_injection_path}|{e}")
     target_file_injection_path = os.path.join(target_dir_injection_path, os.path.basename(source_file_path))
     target_file_injection_path = os.path.normpath(target_file_injection_path)
+    target_file_injection_path = target_file_injection_path.replace("/system/system/", "/system/")
 
     if os.path.exists(target_file_injection_path):
         file_extension = os.path.splitext(target_file_injection_path)[1]
@@ -649,13 +658,13 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
             shutil.copyfile(source_file_path, target_file_injection_path)
         else:
             if overwrite:
-                logging.debug(f"Overwriting file: {source_file_path} into {target_file_injection_path}")
+                logging.info(f"Overwriting file: {source_file_path} into {target_file_injection_path}")
                 shutil.copyfile(source_file_path, target_file_injection_path)
                 if not set_executable_permission(target_file_injection_path):
                     raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
             else:
                 if os.path.isfile(target_file_injection_path):
-                    logging.debug(f"File {target_file_injection_path} already exists.")
+                    logging.info(f"Skipped Inject File {target_file_injection_path} already exists.")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         shutil.copyfile(source_file_path, target_file_injection_path)
