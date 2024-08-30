@@ -130,7 +130,9 @@ ALLOWED_KEYWORD = ["Overlay",
                    ]
 #for blacklisted_keyword in BLACKLISTED_KEYWORDS:
 #    ALLOWED_KEYWORD.append(blacklisted_keyword)
-ALLOW_FILE_INJECT = ["installd.rc"]
+ALLOW_FILE_INJECT = ["installd.rc",
+                     "com.google.android.extservices.apex"
+                     ]
 
 
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path):
