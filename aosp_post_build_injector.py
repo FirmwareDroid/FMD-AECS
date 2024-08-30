@@ -42,7 +42,10 @@ SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".ko", ".prop", ".cap
                                ".vdex",
                                ".prof",
                                #".idsig"  # File left over from the file apk signing process
-                               ".odex", ".vdex", ".art", ".oat", ".dex",
+                               ".odex",
+                               ".vdex",
+                               ".art",
+                               ".oat",
                                ".apex",
                                ]
 SKIPPED_BINARY_LIST = ["vold",
