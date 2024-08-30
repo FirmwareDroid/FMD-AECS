@@ -37,16 +37,20 @@ for blacklisted_module_name in VENDOR_BLACKLISTED_PACKAGES:
 SKIPPED_FILE_LIST = ["com.android.vndk.current.apex"]
 SKIPPED_STATIC_FILE_KEYWORD_LIST = ["vintf", "vndk"]
 
-SKIPPED_FILE_EXTENSION_LIST = [".bprof", ".policy", ".rc", ".ko", ".prop", ".capex",
+SKIPPED_FILE_EXTENSION_LIST = [".bprof",
+                               ".policy",
+                               ".rc",
+                               ".ko",
+                               ".prop",
+                               ".capex",
                                ".odex",
                                ".vdex",
                                ".prof",
-                               #".idsig"  # File left over from the file apk signing process
                                ".odex",
                                ".vdex",
                                ".art",
                                ".oat",
-                               ".apex",
+                               ".apex"
                                ]
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
@@ -100,12 +104,27 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "hwservicemanager",
                         "secureboot"]
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg", ".otf", ".ttf"]
-ALLOW_FILE_OVERWRITE = ["framework-res.apk", "framework-ext-res.apk", "passwd", "group", "installd.rc"]
+ALLOW_FILE_OVERWRITE = ["framework-res.apk",
+                        "framework-ext-res.apk",
+                        "passwd",
+                        "group",
+                        #"installd.rc"
+                        ]
 for default_module_name in AOSP_DEFAULT_PACKAGE_NAMES:
     ALLOW_FILE_OVERWRITE.append(f"{default_module_name}.apk")
-ALLOWED_KEYWORD = ["overlay"]
-for blacklisted_keyword in BLACKLISTED_KEYWORDS:
-    ALLOWED_KEYWORD.append(blacklisted_keyword)
+ALLOWED_KEYWORD = ["Overlay",
+                   "Connectivity",
+                   "Wifi",
+                   "Telephony",
+                   "Telecom",
+                   "TeleService",
+                   "TelephonyProvider",
+                   "NetworkStackGoogle",
+                   "SystemUI",  # Breaks SystemUI
+                   "libadb_protos"
+                   ]
+#for blacklisted_keyword in BLACKLISTED_KEYWORDS:
+#    ALLOWED_KEYWORD.append(blacklisted_keyword)
 ALLOW_FILE_INJECT = ["installd.rc"]
 
 
@@ -613,9 +632,14 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
         target_dir_injection_path = target_partition_path
     else:
         target_dir_injection_path = target_partition_path + str(os.path.join(*subfolder_list))
-    if not os.path.exists(target_dir_injection_path):
+    if (not os.path.exists(target_dir_injection_path)
+            and not os.path.islink(target_dir_injection_path)
+            and os.path.isdir(target_dir_injection_path)):
         logging.debug(f"Creating directory: {target_dir_injection_path}")
-        os.makedirs(target_dir_injection_path)
+        try:
+            os.makedirs(target_dir_injection_path)
+        except Exception as e:
+            logging.error(f"Error creating directory: {target_dir_injection_path}|{e}")
     target_file_injection_path = os.path.join(target_dir_injection_path, os.path.basename(source_file_path))
     target_file_injection_path = os.path.normpath(target_file_injection_path)
 
