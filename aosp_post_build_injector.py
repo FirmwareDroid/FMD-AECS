@@ -644,13 +644,10 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
         target_dir_injection_path = target_partition_path + str(os.path.join(*subfolder_list))
         target_dir_injection_path = target_dir_injection_path.replace("/system/system/", "/system/")
     if (not os.path.exists(target_dir_injection_path)
-            and not os.path.islink(target_dir_injection_path)
-            and os.path.isdir(target_dir_injection_path)):
+            and not os.path.islink(target_dir_injection_path)):
         logging.debug(f"Creating directory: {target_dir_injection_path}")
-        try:
-            os.makedirs(target_dir_injection_path)
-        except Exception as e:
-            logging.error(f"Error creating directory: {target_dir_injection_path}|{e}")
+        os.makedirs(target_dir_injection_path)
+
     target_file_injection_path = os.path.join(target_dir_injection_path, os.path.basename(source_file_path))
     target_file_injection_path = os.path.normpath(target_file_injection_path)
 
