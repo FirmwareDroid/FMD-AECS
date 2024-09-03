@@ -4,6 +4,7 @@ before it is packaged into a firmware image. The script is used to inject blobs 
 the replacement of the original blobs (from AOSP) with the vendor flavoured blobs.
 """
 import argparse
+import difflib
 import shutil
 import logging
 import subprocess
@@ -82,8 +83,10 @@ SKIPPED_BINARY_LIST = ["vold",
                        "default.prop",
                        "lmkd",
                        "build.prop",
-                       "otacerts.zip",  # Allow overwrite with own certificates
-                       "raw.image"  # Leftover from the file extraction process
+                       "otacerts.zip",  # Allow to overwrite with own certificates
+                       "raw.image",  # Leftover from the file extraction process
+                       "flags_health_check",     # Test as it fails at startup
+                       "toybox_vendor",  # Test as it fails at startup due to selinux policy
                        ]
 
 SKIPPED_KEYWORD_LIST = ["selinux",
@@ -442,6 +445,8 @@ def get_module_type(source_file_path):
         module_type = "STATIC_CONFIG"
     elif "/etc/" in source_file_path:
         module_type = "ETC"
+    elif file_extension in [".apex", ".capex"]:
+        module_type = "APEX"
     else:
         module_type = "MISC"
 
@@ -670,6 +675,7 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
         if not set_executable_permission(target_file_injection_path):
             raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
     return target_file_injection_path
+
 
 
 def inject_file_into_obj(source_file_path, original_file_path):
