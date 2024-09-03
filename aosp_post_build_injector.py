@@ -85,7 +85,6 @@ SKIPPED_BINARY_LIST = ["vold",
                        "build.prop",
                        "otacerts.zip",  # Allow to overwrite with own certificates
                        "raw.image",  # Leftover from the file extraction process
-                       "storaged" # Test
                        ]
 
 SKIPPED_KEYWORD_LIST = ["selinux",
@@ -278,10 +277,20 @@ def handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite):
 def search_and_inject(partition_name, module_type, file_path, target_out_path, allow_file_overwrite):
     inj_partition = None
     inj_obj = None
+    file_name = os.path.basename(file_path)
     original_file_path = search_original_file_in_obj(partition_name,
                                                      module_type,
                                                      file_path,
+                                                     file_name,
                                                      target_out_path)
+    if original_file_path is None:
+        file_name = file_name.replace("Google", "").replace(".google", "")
+        original_file_path = search_original_file_in_obj(partition_name,
+                                                         module_type,
+                                                         file_path,
+                                                         file_name,
+                                                         target_out_path)
+
     if original_file_path is None or module_type == "SHARED_LIBRARIES":
         target_path = inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
         inj_partition = (file_path, target_path)
@@ -524,18 +533,21 @@ def is_abi_compatible(candidate_path, file_path):
     return is_same_architecture
 
 
-def search_original_file_in_obj(partition_name, module_type, file_path, target_out_path):
+def search_original_file_in_obj(partition_name, module_type, file_path, file_name, target_out_path):
     """
     Searches for the original file in the AOSP source code.
 
     :param partition_name: str - name of the partition.
     :param module_type: str - type of the module.
-    :param file_path: str - path to the file.
+    :param file_path: str - path to the file which needs to be injected.
     :param target_out_path: str - path to the AOSP target out folder.
+    :param file_name: str - name of the file to search for.
 
     :return: str - path to the original file.
+
+
     """
-    file_name = os.path.basename(file_path)
+
     target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
     search_folder_path = str(os.path.join(target_obj_path,
                                           module_type if module_type not in ["MISC", "STATIC_CONFIG"] else ""))
