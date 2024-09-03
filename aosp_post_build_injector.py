@@ -85,8 +85,7 @@ SKIPPED_BINARY_LIST = ["vold",
                        "build.prop",
                        "otacerts.zip",  # Allow to overwrite with own certificates
                        "raw.image",  # Leftover from the file extraction process
-                       "flags_health_check",     # Test as it fails at startup
-                       "toybox_vendor",  # Test as it fails at startup due to selinux policy
+                       "storaged" # Test
                        ]
 
 SKIPPED_KEYWORD_LIST = ["selinux",
