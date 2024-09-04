@@ -102,7 +102,6 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "zygote",
                         "android.hidl",
                         "qti",
-                        "__auto_generated_rro",
                         "hwservicemanager",
                         "secureboot"]
 
