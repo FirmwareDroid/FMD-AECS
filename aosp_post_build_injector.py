@@ -616,7 +616,8 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
             for file in files:
                 file_extension_src = os.path.splitext(file_name)[1]
                 file_extension_obj = os.path.splitext(file)[1]
-
+                if "apex" in file_name:
+                    logging.info(f"Found APEX file0: {file_name}, {file_extension_src}, {file_extension_obj}")
                 if file_extension_src.lower().strip() == file_extension_obj.lower().strip():
                     candidate_path = os.path.join(root, file)
                     if "apex" in file_extension_src or "capex" in file_extension_src:
