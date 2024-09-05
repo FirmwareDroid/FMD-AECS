@@ -276,10 +276,9 @@ def handle_static_config(file_path, filename):
 
 def get_signing_key_from_filename(file_path):
     file_name = os.path.basename(file_path)
-    module_name = file_name.split(".")[0]
-    if "media" in module_name:
+    if "media" in file_name:
         singing_key = "media"
-    elif "network" in module_name:
+    elif "network" in file_name:
         singing_key = "network"
     else:
         singing_key = "platform"
