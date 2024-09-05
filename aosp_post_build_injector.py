@@ -294,8 +294,6 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                      file_path,
                                                      file_name,
                                                      target_out_path)
-    if "apex" in file_path or "capex" in file_path:
-        logging.info(f"original_file_path: {original_file_path}")
     if original_file_path is None:
         file_path_vendor_replaced = file_path.replace(".google", "").replace("Google", "")
         file_name_vendor_replaced = os.path.basename(file_path_vendor_replaced)
@@ -305,15 +303,12 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                          file_name_vendor_replaced,
                                                          target_out_path)
         if original_file_path is None and (".apex" in file_path_vendor_replaced or ".capex" in file_path):
-            file_path_vendor_replaced = file_path_vendor_replaced.replace(".apex", ".capex")
-            file_name_vendor_replaced = os.path.basename(file_path_vendor_replaced)
-            original_file_path = search_original_file_in_obj(partition_name,
-                                                             module_type,
-                                                             file_path_vendor_replaced,
-                                                             file_name_vendor_replaced,
-                                                             target_out_path)
             logging.info(
-                f"Searching for vendor replaced file: {file_path_vendor_replaced}, {module_type}, {original_file_path}")
+                f"Searching for vendor replaced file: "
+                f"{file_path_vendor_replaced}, "
+                f"{module_type}, "
+                f"{original_file_path}, "
+                f"{file_name_vendor_replaced}")
 
     if original_file_path is None or module_type == "SHARED_LIBRARIES":
         target_path = inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
@@ -613,6 +608,9 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                                                                                            file_path):
                         continue
                     result_file_path = candidate_path
+                    break
+                elif file_extension_src == ".apex" and file_extension_obj == ".capex":
+                    result_file_path = os.path.join(root, file)
                     break
 
     if result_file_path:
