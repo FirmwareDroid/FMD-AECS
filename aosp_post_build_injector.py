@@ -297,6 +297,8 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     if original_file_path is None:
         file_path_vendor_replaced = file_path.replace(".google", "").replace("Google", "")
         file_name_vendor_replaced = os.path.basename(file_path_vendor_replaced)
+        if ".apex" in file_name_vendor_replaced:
+            logging.debug(f"Searching for vendor replaced file: {file_path_vendor_replaced}")
         original_file_path = search_original_file_in_obj(partition_name,
                                                          module_type,
                                                          file_path_vendor_replaced,
