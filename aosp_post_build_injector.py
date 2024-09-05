@@ -732,6 +732,8 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
     target_file_injection_path = os.path.join(target_dir_injection_path, os.path.basename(source_file_path))
     target_file_injection_path = os.path.normpath(target_file_injection_path)
 
+    source_file_path = handle_special_matching(source_file_path)
+
     if os.path.exists(target_file_injection_path):
         file_extension = os.path.splitext(target_file_injection_path)[1]
         if os.path.islink(target_file_injection_path) or file_extension in ALLOWED_OVERWRITE_FILE_EXTENSION_LIST:
@@ -751,6 +753,12 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
         if not set_executable_permission(target_file_injection_path):
             raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
     return target_file_injection_path
+
+
+def handle_special_matching(source_file_injection_path):
+    if source_file_injection_path.endswith("app_process32"):
+        source_file_injection_path = source_file_injection_path.replace("app_process32", "app_process64")
+    return source_file_injection_path
 
 
 def inject_file_into_obj(source_file_path, original_file_path):
