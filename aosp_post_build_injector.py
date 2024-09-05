@@ -278,7 +278,7 @@ def get_signing_key_from_filename(file_path):
     file_name = os.path.basename(file_path)
     if "media" in file_name:
         singing_key = "media"
-    elif "network" in file_name:
+    elif "network" in file_name or "tethering" in file_name or "wifi" in file_name or "bluetooth" in file_name:
         singing_key = "network"
     else:
         singing_key = "platform"
@@ -758,6 +758,7 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
 def handle_special_matching(source_file_injection_path):
     if source_file_injection_path.endswith("app_process32"):
         source_file_injection_path = source_file_injection_path.replace("app_process32", "app_process64")
+        logging.info(f"Special matching app_process32: {source_file_injection_path}")
     return source_file_injection_path
 
 
