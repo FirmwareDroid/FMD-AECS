@@ -619,6 +619,8 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                 if file_extension_src.lower() == file_extension_obj.lower():
                     candidate_path = os.path.join(root, file)
 
+                    if file_extension_src == ".apex" or file_extension_src == ".capex":
+                        logging.info(f"Found APEX file: {candidate_path}, {is_elf_binary(file_path)}")
                     if is_elf_binary(file_path):
                         if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
                                                                                                file_path):
