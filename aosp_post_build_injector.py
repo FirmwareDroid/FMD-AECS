@@ -465,7 +465,7 @@ def get_module_type(source_file_path):
     elif "/etc/" in source_file_path:
         module_type = "ETC"
     elif file_extension in [".apex", ".capex"]:
-        module_type = "APEX"
+        module_type = "ETC"
     else:
         module_type = "MISC"
 
