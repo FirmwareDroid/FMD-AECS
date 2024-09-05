@@ -298,7 +298,7 @@ def handle_apex_modules(file_path, aosp_path):
     if not error_message:
         is_success, log_message = sign_apk_file(file_path, signing_key_path)
         if not is_success:
-            error_message = f"Error signing APEX file: {signing_key}|{signing_key_path}|{error_message}"
+            error_message = f"Error signing APEX file: {file_path}|{signing_key}|{signing_key_path}|{log_message}"
         else:
             logging.info(f"APEX file signed: {file_path} with key: {signing_key}")
     return error_message
