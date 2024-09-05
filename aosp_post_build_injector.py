@@ -295,14 +295,12 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                      file_name,
                                                      target_out_path)
     if original_file_path is None:
-        file_name = file_name.replace("Google", "")
-        file_name = file_name.replace(".google", "")
-        if ".apex" in original_file_path:
-            logging.info(f"Searching for APEX file: {file_name}")
+        file_path_vendor_replaced = file_path.replace(".google", "").replace("Google", "")
+        file_name_vendor_replaced = os.path.basename(file_path_vendor_replaced)
         original_file_path = search_original_file_in_obj(partition_name,
                                                          module_type,
-                                                         file_path,
-                                                         file_name,
+                                                         file_path_vendor_replaced,
+                                                         file_name_vendor_replaced,
                                                          target_out_path)
 
     if original_file_path is None or module_type == "SHARED_LIBRARIES":
