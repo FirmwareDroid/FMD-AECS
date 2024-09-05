@@ -278,7 +278,11 @@ def get_signing_key_from_filename(file_path):
     file_name = os.path.basename(file_path)
     if "media" in file_name:
         singing_key = "media"
-    elif "network" in file_name or "tethering" in file_name or "wifi" in file_name or "bluetooth" in file_name:
+    elif (("network" in file_name
+          or "tethering" in file_name
+          or "wifi" in file_name
+          or "bluetooth" in file_name)
+          or "cellbroadcast" in file_name):
         singing_key = "network"
     else:
         singing_key = "platform"
