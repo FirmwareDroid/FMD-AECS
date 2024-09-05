@@ -302,7 +302,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                          file_path_vendor_replaced,
                                                          file_name_vendor_replaced,
                                                          target_out_path)
-        if original_file_path is None and (".apex" in file_path_vendor_replaced or ".capex" in file_path):
+        if ".apex" in file_path_vendor_replaced or ".capex" in file_path:
             logging.info(
                 f"Searching for vendor replaced file: "
                 f"{file_path_vendor_replaced}, "
@@ -552,6 +552,22 @@ def is_abi_compatible(candidate_path, file_path):
     return is_same_architecture
 
 
+def is_elf_binary(file_path):
+    """
+    Check if a file is an ELF binary.
+
+    :param file_path: str - path to the file.
+    :return: bool - True if the file is an ELF binary, False otherwise.
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            magic = f.read(4)
+            return magic == b'\x7fELF'
+    except Exception as e:
+        logging.error(f"Error checking ELF binary: {e}")
+        return False
+
+
 def search_original_file_in_obj(partition_name, module_type, file_path, file_name, target_out_path):
     """
     Searches for the original file in the AOSP source code.
@@ -604,9 +620,11 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                 file_extension_obj = os.path.splitext(file)[1]
                 if file_extension_src.lower() == file_extension_obj.lower():
                     candidate_path = os.path.join(root, file)
-                    if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
-                                                                                           file_path):
-                        continue
+
+                    if is_elf_binary(file_path):
+                        if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
+                                                                                               file_path):
+                            continue
                     result_file_path = candidate_path
                     break
                 elif file_extension_src == ".apex" and file_extension_obj == ".capex":
