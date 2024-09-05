@@ -4,7 +4,6 @@ before it is packaged into a firmware image. The script is used to inject blobs 
 the replacement of the original blobs (from AOSP) with the vendor flavoured blobs.
 """
 import argparse
-import difflib
 import shutil
 import logging
 import subprocess
@@ -44,7 +43,7 @@ SKIPPED_FILE_EXTENSION_LIST = [".bprof",
                                ".ko",
                                ".prop",
                                ".capex",
-                               ".prof",
+                               #".prof",
                                #".odex",
                                #".vdex",
                                ".art",
@@ -83,6 +82,7 @@ SKIPPED_BINARY_LIST = ["vold",
                        "build.prop",
                        "otacerts.zip",  # Allow to overwrite with own certificates
                        "raw.image",  # Leftover from the file extraction process
+                       "com.google.android.adbd.apex",  # Blocks ADB access
                        ]
 
 SKIPPED_KEYWORD_LIST = ["selinux",
@@ -129,7 +129,21 @@ ALLOWED_KEYWORD = ["Overlay",
 #for blacklisted_keyword in BLACKLISTED_KEYWORDS:
 #    ALLOWED_KEYWORD.append(blacklisted_keyword)
 ALLOW_FILE_INJECT = ["installd.rc",
-                     "com.google.android.extservices.apex"
+                     "com.google.android.extservices.apex",
+                     "com.google.android.permission.apex",
+                     "com.google.android.media.apex",
+                     "com.google.android.art.apex",
+                     "com.google.android.media.swcodec.apex",
+                     "com.google.android.telephony.apex",
+                     "com.google.android.tzdata3.apex",
+                     "com.google.android.os.statsd.apex",
+                     "com.google.android.resolv.apex",
+                     "com.google.android.sdkext.apex",
+                     "com.google.android.mediaprovider.apex",
+                     "com.google.android.tethering.apex",
+                     "com.google.android.conscrypt.apex",
+                     "com.google.android.wifi.apex",
+                     "com.google.android.cellbroadcast.apex",
                      ]
 
 
@@ -683,7 +697,6 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
         if not set_executable_permission(target_file_injection_path):
             raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
     return target_file_injection_path
-
 
 
 def inject_file_into_obj(source_file_path, original_file_path):
