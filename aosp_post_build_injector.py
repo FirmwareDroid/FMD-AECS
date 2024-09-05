@@ -135,7 +135,7 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.art.apex",
                      "com.google.android.media.swcodec.apex",
                      "com.google.android.telephony.apex",
-                     "com.google.android.tzdata3.apex",
+                     #"com.google.android.tzdata3.apex", --> No exact file match com.android.tzdata.apex is used
                      "com.google.android.os.statsd.apex",
                      "com.google.android.resolv.apex",
                      "com.google.android.sdkext.apex",
@@ -248,6 +248,8 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
             elif module_type == "STATIC_CONFIG":
                 error_message = handle_static_config(file_path, filename)
+            elif module_type == "ETC" and (file_extension.lower() == ".apex" or file_extension.lower() == ".capex"):
+                error_message = handle_apex_modules(file_path, aosp_path)
 
             if not error_message:
                 inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path,
@@ -269,6 +271,33 @@ def handle_static_config(file_path, filename):
     if filename.lower in ALLOW_FILE_INJECT:
         logging.info(f"Allow file inclusion: {file_path}")
 
+    return error_message
+
+
+def get_signing_key_from_filename(file_path):
+    file_name = os.path.basename(file_path)
+    module_name = file_name.split(".")[0]
+    if "media" in module_name:
+        singing_key = "media"
+    elif "network" in module_name:
+        singing_key = "network"
+    else:
+        singing_key = "platform"
+    return singing_key
+
+
+def handle_apex_modules(file_path, aosp_path):
+    error_message = None
+    signing_key = get_signing_key_from_filename(file_path)
+    if not signing_key:
+        error_message = f"Signing key name not found for {file_path}"
+    signing_key_path = get_signing_key_path(aosp_path, signing_key)
+    if not error_message:
+        is_success, log_message = sign_apk_file(file_path, signing_key_path)
+        if not is_success:
+            error_message = f"Error signing APEX file: {signing_key}|{signing_key_path}|{error_message}"
+        else:
+            logging.info(f"APEX file signed: {file_path} with key: {signing_key}")
     return error_message
 
 
@@ -302,11 +331,6 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                          file_path_vendor_replaced,
                                                          file_name_vendor_replaced,
                                                          target_out_path)
-        if ".apex" in file_path_vendor_replaced or ".capex" in file_path:
-            logging.info(
-                f"APEX match for vendor replaced file: "
-                f"{file_path_vendor_replaced}, "
-                f"{original_file_path}")
 
     if original_file_path is None or module_type == "SHARED_LIBRARIES":
         target_path = inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
