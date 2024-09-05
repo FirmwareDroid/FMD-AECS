@@ -387,6 +387,7 @@ def get_signing_key_from_module(android_apk_file_path):
 
 def get_signing_key_path(aosp_path, signing_key_name):
     key_file_path = f"{aosp_path}/build/target/product/security/{signing_key_name}.p12"
+    key_file_path = key_file_path.replace("//", "/")
     return key_file_path
 
 
