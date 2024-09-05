@@ -295,7 +295,10 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                      file_name,
                                                      target_out_path)
     if original_file_path is None:
-        file_name = file_name.replace("Google", "").replace(".google", "")
+        file_name = file_name.replace("Google", "")
+        file_name = file_name.replace(".google", "")
+        if ".apex" in original_file_path:
+            logging.info(f"Searching for APEX file: {file_name}")
         original_file_path = search_original_file_in_obj(partition_name,
                                                          module_type,
                                                          file_path,
