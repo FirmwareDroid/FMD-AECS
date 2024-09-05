@@ -283,7 +283,7 @@ def get_signing_key_from_filename(file_path):
           or "wifi" in file_name
           or "bluetooth" in file_name)
           or "cellbroadcast" in file_name):
-        singing_key = "network"
+        singing_key = "networkstack"
     else:
         singing_key = "platform"
     return singing_key
