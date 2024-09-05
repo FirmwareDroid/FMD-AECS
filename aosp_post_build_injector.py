@@ -304,7 +304,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                          target_out_path)
         if ".apex" in file_path_vendor_replaced or ".capex" in file_path:
             logging.info(
-                f"Apex match for vendor replaced file: "
+                f"APEX match for vendor replaced file: "
                 f"{file_path_vendor_replaced}, "
                 f"{original_file_path}")
 
@@ -606,9 +606,10 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
             candidate_path = os.path.join(root, file_name)
             # Verify if it matches the partition criteria
             if not partition_name or partition_name in root:
-                if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
-                                                                                       file_path):
-                    continue
+                if is_elf_binary(file_path):
+                    if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
+                                                                                           file_path):
+                        continue
                 result_file_path = candidate_path
                 break  # Terminate search early
         # Check if the folder has the same name but the file within the folder is named differently
@@ -616,17 +617,12 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
             for file in files:
                 file_extension_src = os.path.splitext(file_name)[1]
                 file_extension_obj = os.path.splitext(file)[1]
-                if "apex" in file_name:
-                    logging.info(f"Found APEX file0: {file_name}, {file_extension_src}, {file_extension_obj}")
+
                 if file_extension_src.lower().strip() == file_extension_obj.lower().strip():
                     candidate_path = os.path.join(root, file)
-                    if "apex" in file_extension_src or "capex" in file_extension_src:
-                        logging.info(f"Found APEX file1: {file_name} {is_elf_binary(file_path)}")
                     if is_elf_binary(file_path):
-                        logging.info(f"Found ELF file: {file_name} {is_elf_binary(file_path)}")
                         if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
                                                                                                file_path):
-                            logging.info(f"Skipping {candidate_path} due to ABI incompatibility")
                             continue
 
                     result_file_path = candidate_path
