@@ -617,14 +617,17 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                 file_extension_src = os.path.splitext(file_name)[1]
                 file_extension_obj = os.path.splitext(file)[1]
 
-                if file_extension_src.lower() == file_extension_obj.lower():
+                if file_extension_src.lower().strip() == file_extension_obj.lower().strip():
                     candidate_path = os.path.join(root, file)
-                    if is_elf_binary(file_path):
-                        if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
-                                                                                               file_path):
-                            continue
                     if "apex" in file_extension_src or "capex" in file_extension_src:
                         logging.info(f"Found APEX file1: {file_name} {is_elf_binary(file_path)}")
+                    if is_elf_binary(file_path):
+                        logging.info(f"Found ELF file: {file_name} {is_elf_binary(file_path)}")
+                        if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
+                                                                                               file_path):
+                            logging.info(f"Skipping {candidate_path} due to ABI incompatibility")
+                            continue
+
                     result_file_path = candidate_path
                     break
                 elif ((file_extension_src == ".apex" and file_extension_obj == ".capex")
