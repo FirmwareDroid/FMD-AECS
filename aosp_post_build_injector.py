@@ -433,18 +433,18 @@ def get_signing_key_path(aosp_path, signing_key_name):
     return key_file_path
 
 
-def execute_shell_command(command, aosp_root_path, log_file_path):
+def execute_shell_command(command, aosp_root_path):
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_root_path)
     is_success = False
-    try:
-        subprocess.run(command, shell=True, check=True, stdout=log_file_path, stderr=log_file_path)
+    result = subprocess.run(command, shell=True, check=True, capture_output=True, text=False)
+    if result.returncode == 0:
         is_success = True
-    except subprocess.CalledProcessError as err:
-        logging.error(f"Got an error building firmware: {err}")
-        raise err
+        log = result.stdout.decode('utf-8', errors='ignore').strip()
+    else:
+        log = result.stderr.decode('utf-8', errors='ignore').strip()
     os.chdir(current_directory)
-    return is_success
+    return is_success, log
 
 def execute_command(command):
     """
@@ -522,9 +522,8 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
     deapexer_tool_path = f"{aosp_path}/out/host/linux-x86/bin/deapexer"
     command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} " \
                f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}"
-    log_file_path = os.path.join(output_dir_path, "deapexer.log")
-    is_success = execute_shell_command(command, aosp_path, log_file_path)
-    return is_success
+    is_success, log = execute_shell_command(command, aosp_path)
+    return is_success, log
 
 
 def copy_apex_manifest_file(apex_extract_dir_path, output_dir_path):
@@ -595,7 +594,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
         apex_extract_dir_path = os.path.join(apex_root_path, "extract")
         os.makedirs(apex_extract_dir_path, exist_ok=True)
 
-        extract_success = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target)
+        extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target)
         if extract_success:
             logging.info(f"APEX extracted: {apex_file_path}")
             is_manifest_found, apex_manifest_path = copy_apex_manifest_file(apex_extract_dir_path, apex_root_path)
@@ -618,11 +617,16 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                                     f"{output_file_path}"
                 logging.info(f"Repacking command: {command}")
                 log_file_path = os.path.join(apex_root_path, "apexer.log")
-                execute_shell_command(command, aosp_path, log_file_path)
+                is_success, log_message = execute_shell_command(command, aosp_path, log_file_path)
+                if is_success:
+                    logging.info(f"APEX repackaged: {output_file_path}")
+                    success = True
+                else:
+                    log_message = f"APEX repackaging failed. {log_message}"
             else:
                 log_message = f"APEX manifest file not found. {apex_file_path}"
         else:
-            log_message = f"APEX extraction failed. {apex_file_path}"
+            log_message = f"APEX extraction failed. {apex_file_path} | {log_message}"
 
     return success, log_message
 
