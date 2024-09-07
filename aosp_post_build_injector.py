@@ -529,11 +529,12 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
     """
     logging.info(f"Extracting APEX file: {apex_file_path}")
     deapexer_tool_path = f"{aosp_path}out/host/linux-x86/bin/deapexer"
-    logging.info(f"Deapexer tool path: {deapexer_tool_path}|{lunch_target}|{apex_file_path}|{output_dir_path}")
+    info = f"Deapexer tool path: {deapexer_tool_path}|{lunch_target}|{apex_file_path}|{output_dir_path}"
+    logging.info(info)
     command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
                f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}'"
     is_success, log = execute_shell_command(command, aosp_path)
-    return is_success, log
+    return is_success, {f"{log}|{info}"}
 
 
 def copy_apex_manifest_file(apex_extract_dir_path, output_dir_path):
