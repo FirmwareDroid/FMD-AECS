@@ -592,7 +592,6 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
 
     with (tempfile.TemporaryDirectory() as apex_root_path):
         apex_extract_dir_path = os.path.join(apex_root_path, "extract")
-        os.makedirs(apex_extract_dir_path, exist_ok=True)
 
         extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target)
         if extract_success:
