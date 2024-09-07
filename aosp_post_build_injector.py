@@ -616,7 +616,8 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
 
                 resign_apex_apk_files(apex_extract_dir_path)
                 apexer_tool_path = os.path.join(aosp_path, "out/host/linux-x86/bin/apexer")
-                logging.info(f"Apexer tool path: {apexer_tool_path}")
+                info = f"Apexer tool path: {apexer_tool_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
+                logging.info(info)
                 command =f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
                                     f"{apexer_tool_path} " \
                                     f"--android_manifest={apex_manifest_path} " \
@@ -632,7 +633,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                     logging.info(f"APEX repackaged: {output_file_path}")
                     success = True
                 else:
-                    log_message = f"APEX repackaging failed. {log_message}"
+                    log_message = f"APEX repackaging failed. {log_message} | {info}"
             else:
                 log_message = f"APEX manifest file not found. {apex_file_path}"
         else:
