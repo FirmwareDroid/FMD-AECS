@@ -554,19 +554,13 @@ def copy_apex_manifest_file(apex_extract_dir_path, output_dir_path):
     result_file_path = None
     for root, dirs, files in os.walk(apex_extract_dir_path):
         for file in files:
-            if file == "apex_manifest.json":
+            if file == "apex_manifest.json" or file == "apex_manifest.pb":
                 file_path = str(os.path.join(root, file))
                 shutil.copy(file_path, output_dir_path)
-                logging.info(f"Copied APEX manifest file: {file_path} to current directory.")
-                is_apex_manifest_file_found = True
+                logging.info(f"Copied APEX manifest file: {file_path} to {output_dir_path}.")
                 result_file_path = str(os.path.join(output_dir_path, file))
-                break
-            elif file == "apex_manifest.pb":
-                file_path = str(os.path.join(root, file))
-                shutil.copy(file_path, output_dir_path)
-                logging.info(f"Copied APEX manifest file: {file_path} to current directory.")
-                is_apex_manifest_file_found = True
-                result_file_path = str(os.path.join(output_dir_path, file))
+                if os.path.exists(result_file_path):
+                    is_apex_manifest_file_found = True
                 break
     return is_apex_manifest_file_found, result_file_path
 
