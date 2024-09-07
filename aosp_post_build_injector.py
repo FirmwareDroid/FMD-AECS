@@ -158,6 +158,7 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lu
     :param aosp_path: str - path to the AOSP source code.
     :param source_folder_path: str - path to the source folder where the objects to inject reside.
     :param target_out_path: str - path to the AOSP target out folder.
+    :param lunch_target: str - lunch target for the AOSP build.
 
     """
     with Executor() as executor:
@@ -166,8 +167,11 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lu
 
 def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target):
     start_time = time.time()
-    error_list, inj_obj_list, inj_partition_list = process_partitions(aosp_path, source_folder_path,
-                                                                      target_out_path, executor, lunch_target)
+    error_list, inj_obj_list, inj_partition_list = process_partitions(aosp_path,
+                                                                      source_folder_path,
+                                                                      target_out_path,
+                                                                      executor,
+                                                                      lunch_target)
     end_time = time.time()
     execution_time = end_time - start_time
     execution_time_minutes = execution_time / 60
@@ -222,8 +226,11 @@ def process_partitions(aosp_path, source_folder_path, target_out_path, executor,
     combined_inj_partition_list = []
 
     for folder_path in tqdm(folder_path_list, desc="Processing partitions"):
-        error_list, inj_obj_list, inj_partition_list = process_partition_files(aosp_path, folder_path,
-                                                                               target_out_path, executor, lunch_target)
+        error_list, inj_obj_list, inj_partition_list = process_partition_files(aosp_path,
+                                                                               folder_path,
+                                                                               target_out_path,
+                                                                               executor,
+                                                                               lunch_target)
         combined_error_list.extend(error_list)
         combined_inj_obj_list.extend(inj_obj_list)
         combined_inj_partition_list.extend(inj_partition_list)
@@ -522,6 +529,7 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
     """
     logging.info(f"Extracting APEX file: {apex_file_path}")
     deapexer_tool_path = f"{aosp_path}out/host/linux-x86/bin/deapexer"
+    logging.info(f"Deapexer tool path: {deapexer_tool_path}|{lunch_target}|{apex_file_path}|{output_dir_path}")
     command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
                f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}'"
     is_success, log = execute_shell_command(command, aosp_path)
@@ -607,6 +615,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
 
                 resign_apex_apk_files(apex_extract_dir_path)
                 apexer_tool_path = os.path.join(aosp_path, "out/host/linux-x86/bin/apexer")
+                logging.info(f"Apexer tool path: {apexer_tool_path}")
                 command =f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
                                     f"{apexer_tool_path} " \
                                     f"--android_manifest={apex_manifest_path} " \
