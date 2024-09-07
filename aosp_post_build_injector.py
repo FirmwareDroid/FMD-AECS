@@ -523,7 +523,7 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
     logging.info(f"Extracting APEX file: {apex_file_path}")
     deapexer_tool_path = f"{aosp_path}out/host/linux-x86/bin/deapexer"
     command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
-               f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}"
+               f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}'"
     is_success, log = execute_shell_command(command, aosp_path)
     return is_success, log
 
@@ -615,7 +615,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                                     f"--file_contexts={FILE_CONTEXT_TEMPLATE_PATH} " \
                                     f"--canned_fs_config={canned_fs_config.name} " \
                                     f"{apex_extract_dir_path} " \
-                                    f"{output_file_path}"
+                                    f"{output_file_path}'"
                 logging.info(f"Repacking command: {command}")
                 is_success, log_message = execute_shell_command(command, aosp_path)
                 if is_success:
