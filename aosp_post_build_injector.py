@@ -555,8 +555,8 @@ def copy_apex_manifest_file(apex_extract_dir_path, output_dir_path):
     for root, dirs, files in os.walk(apex_extract_dir_path):
         for file in files:
             if file == "apex_manifest.json" or file == "apex_manifest.pb":
-                file_path = str(os.path.join(root, file))
-                shutil.copy(file_path, output_dir_path)
+                file_path = str(os.path.join(root, file))c
+                shutil.copyfile(file_path, os.path.join(output_dir_path, file))
                 logging.info(f"Copied APEX manifest file: {file_path} to {output_dir_path}.")
                 result_file_path = str(os.path.join(output_dir_path, file))
                 if os.path.exists(result_file_path):
@@ -604,7 +604,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
         if extract_success:
             logging.info(f"APEX extracted: {apex_file_path}")
             is_manifest_found, apex_manifest_path = copy_apex_manifest_file(apex_extract_dir_path, apex_root_path)
-            if is_manifest_found:
+            if is_manifest_found and os.path.exists(apex_manifest_path):
                 logging.info(f"APEX manifest file found: {apex_manifest_path}")
                 with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
                     generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
@@ -631,7 +631,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                 else:
                     log_message = f"APEX repackaging failed. {log_message} | {info}"
             else:
-                log_message = f"APEX manifest file not found. {apex_file_path}"
+                log_message = f"APEX manifest file not found. {apex_file_path} | apex_manifest_path: {apex_manifest_path}"
         else:
             log_message = f"APEX extraction failed. {apex_file_path} | {log_message}"
 
