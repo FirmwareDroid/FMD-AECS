@@ -7,13 +7,16 @@ import argparse
 import shutil
 import logging
 import subprocess
+import tempfile
 import time
 import os
 import stat
 import traceback
+import zipfile
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 from config import AOSP_DEFAULT_PACKAGE_NAMES, VENDOR_BLACKLISTED_PACKAGES, EXTRACTED_PACKAGES_PATH, \
-    BLACKLISTED_KEYWORDS
+    BLACKLISTED_KEYWORDS, FILE_CONTEXT_TEMPLATE_PATH, APEX_PRIVATE_KEY_PATH, APEX_PUBKEY_PATH, \
+    SHARED_USER_ID_MAPPING_DICT
 from setup_logger import setup_logger
 from tqdm import tqdm
 
@@ -147,7 +150,7 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      ]
 
 
-def start_post_build_injector(aosp_path, source_folder_path, target_out_path):
+def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target):
     """
     Start the post build injector. Replaces the original objects in the AOSP source code with the vendor flavoured
     objects.
@@ -158,13 +161,13 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path):
 
     """
     with Executor() as executor:
-        inject(aosp_path, source_folder_path, target_out_path, executor)
+        inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target)
 
 
-def inject(aosp_path, source_folder_path, target_out_path, executor):
+def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target):
     start_time = time.time()
     error_list, inj_obj_list, inj_partition_list = process_partitions(aosp_path, source_folder_path,
-                                                                      target_out_path, executor)
+                                                                      target_out_path, executor, lunch_target)
     end_time = time.time()
     execution_time = end_time - start_time
     execution_time_minutes = execution_time / 60
@@ -210,7 +213,7 @@ def get_folders(directory_path):
     return folders
 
 
-def process_partitions(aosp_path, source_folder_path, target_out_path, executor):
+def process_partitions(aosp_path, source_folder_path, target_out_path, executor, lunch_target):
     folder_path_list = get_folders(source_folder_path)
     logging.debug(f"Folder path list: {folder_path_list}")
 
@@ -220,7 +223,7 @@ def process_partitions(aosp_path, source_folder_path, target_out_path, executor)
 
     for folder_path in tqdm(folder_path_list, desc="Processing partitions"):
         error_list, inj_obj_list, inj_partition_list = process_partition_files(aosp_path, folder_path,
-                                                                               target_out_path, executor)
+                                                                               target_out_path, executor, lunch_target)
         combined_error_list.extend(error_list)
         combined_inj_obj_list.extend(inj_obj_list)
         combined_inj_partition_list.extend(inj_partition_list)
@@ -228,7 +231,7 @@ def process_partitions(aosp_path, source_folder_path, target_out_path, executor)
     return combined_error_list, combined_inj_obj_list, combined_inj_partition_list
 
 
-def process_file_concurrently(aosp_path, file_path, partition_name, target_out_path):
+def process_file_concurrently(aosp_path, file_path, partition_name, target_out_path, lunch_target):
     inj_obj = None
     inj_partition = None
     error_message = None
@@ -249,7 +252,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
             elif module_type == "STATIC_CONFIG":
                 error_message = handle_static_config(file_path, filename)
             elif module_type == "ETC" and (file_extension.lower() == ".apex" or file_extension.lower() == ".capex"):
-                error_message = handle_apex_modules(file_path, aosp_path)
+                error_message = handle_apex_modules(file_path, aosp_path, lunch_target)
 
             if not error_message:
                 inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path,
@@ -274,7 +277,7 @@ def handle_static_config(file_path, filename):
     return error_message
 
 
-def get_signing_key_from_filename(file_path):
+def get_apex_signing_key_from_filename(file_path):
     file_name = os.path.basename(file_path)
     if "media" in file_name:
         singing_key = "media"
@@ -289,9 +292,48 @@ def get_signing_key_from_filename(file_path):
     return singing_key
 
 
-def handle_apex_modules(file_path, aosp_path):
+def search_string_in_apk(apk_file, search_string):
+    is_user_id_found = False
+    with zipfile.ZipFile(apk_file, 'r') as apk:
+        for file_info in apk.infolist():
+            if file_info.filename == "AndroidManifest.xml":
+                with apk.open(file_info) as android_manifest_file:
+                    try:
+                        content = android_manifest_file.read().decode('utf-8', errors='ignore')
+                        if search_string in content:
+                            logging.info(f"Found string in APK: {apk_file}")
+                            is_user_id_found = True
+                            break
+                    except UnicodeDecodeError:
+                        pass
+                break
+    return is_user_id_found
+
+
+def get_signing_key_from_manifest(apk_file):
+    """
+    Get the signing key from the manifest file of the APK.
+    Args:
+        apk_file:
+
+    Returns:
+
+    """
+    signing_key = "platform"
+    for key, shared_uid_list in SHARED_USER_ID_MAPPING_DICT:
+        for shared_uid in shared_uid_list:
+            if search_string_in_apk(apk_file, shared_uid):
+                signing_key = key
+                break
+    return signing_key
+
+
+def handle_apex_modules(file_path, aosp_path, lunch_target):
     error_message = None
-    signing_key = get_signing_key_from_filename(file_path)
+
+    repackage_apex_file(aosp_path, file_path, file_path, lunch_target)
+
+    signing_key = get_apex_signing_key_from_filename(file_path)
     if not signing_key:
         error_message = f"Signing key name not found for {file_path}"
     signing_key_path = get_signing_key_path(aosp_path, signing_key)
@@ -391,6 +433,19 @@ def get_signing_key_path(aosp_path, signing_key_name):
     return key_file_path
 
 
+def execute_shell_command(command, aosp_root_path, log_file_path):
+    current_directory = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(aosp_root_path)
+    is_success = False
+    try:
+        subprocess.run(command, shell=True, check=True, stdout=log_file_path, stderr=log_file_path)
+        is_success = True
+    except subprocess.CalledProcessError as err:
+        logging.error(f"Got an error building firmware: {err}")
+        raise err
+    os.chdir(current_directory)
+    return is_success
+
 def execute_command(command):
     """
     Execute a command and checks if it has an exit code of 0.
@@ -420,6 +475,158 @@ def align_apk_file(apk_file_path):
     return success, log_message
 
 
+def generate_canned_fs_config(apex_extract_dir_path, output_file):
+    """
+    Generates a canned_fs_config file for the given directory. The config contains the file paths and their
+    permissions. The method gives all the files and directories the default permissions.
+
+    :param apex_extract_dir_path: str - path to the directory where the extracted apex files reside.
+    :param output_file: str - path to the output file where the canned_fs_config will be saved.
+
+    """
+    with open(output_file, 'w') as out_file:
+        for root, dirs, files in os.walk(apex_extract_dir_path):
+            for dir_name in dirs:
+                dir_path = str(os.path.join(root, dir_name))
+                relative_dir_path = os.path.relpath(dir_path, apex_extract_dir_path)
+                user_id = 0  # root
+                group_id = 2000  # system
+                mode = '0755'
+                out_file.write(f"/{relative_dir_path} {user_id} {group_id} {mode}\n")
+
+            for file_name in files:
+                file_path = str(os.path.join(root, file_name))
+                relative_file_path = os.path.relpath(file_path, apex_extract_dir_path)
+                user_id = 1000  # system
+                group_id = 1000  # system
+                mode = '0644'
+                if os.access(file_path, os.X_OK):
+                    mode = '0755'  # Executable files get 0755
+                out_file.write(f"/{relative_file_path} {user_id} {group_id} {mode}\n")
+
+
+
+def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
+    """
+    Extracts the APEX file using deapexer.
+
+    :param aosp_path: str - path to the AOSP source code.
+    :param apex_file_path: str - path to the APEX file.
+    :param output_dir_path: str - path to the output directory where the apex will be extracted to.
+    :param lunch_target: str - lunch target for the AOSP build.
+
+    :return: bool - True if the extraction was successful, False otherwise.
+
+    """
+    logging.info(f"Extracting APEX file: {apex_file_path}")
+    deapexer_tool_path = f"{aosp_path}/out/host/linux-x86/bin/deapexer"
+    command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} " \
+               f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}"
+    log_file_path = os.path.join(output_dir_path, "deapexer.log")
+    is_success = execute_shell_command(command, aosp_path, log_file_path)
+    return is_success
+
+
+def copy_apex_manifest_file(apex_extract_dir_path, output_dir_path):
+    """
+    Searches for the APEX manifest file in the APEX extract directory and copies it to the current directory.
+
+    :param apex_extract_dir_path: str - path to the APEX extract directory.
+    :param output_dir_path: str - path to the output directory where the APEX manifest file will be copied to.
+
+    :return: bool - True if the APEX manifest file was found and copied, False otherwise.
+
+    """
+    logging.info(f"Copying APEX manifest file.")
+    is_apex_manifest_file_found = False
+    result_file_path = None
+    for root, dirs, files in os.walk(apex_extract_dir_path):
+        for file in files:
+            if file == "apex_manifest.pb":
+                file_path = str(os.path.join(root, file))
+                shutil.copy(file_path, output_dir_path)
+                logging.info(f"Copied APEX manifest file: {file_path} to current directory.")
+                is_apex_manifest_file_found = True
+                result_file_path = file_path
+                break
+            elif file == "apex_manifest.json":
+                file_path = str(os.path.join(root, file))
+                shutil.copy(file_path, output_dir_path)
+                logging.info(f"Copied APEX manifest file: {file_path} to current directory.")
+                is_apex_manifest_file_found = True
+                result_file_path = file_path
+                break
+    return is_apex_manifest_file_found, result_file_path
+
+
+def resign_apex_apk_files(apex_extract_dir_path):
+    """
+    Searches for apk files within the apex extract directory. Signs all the apk files of the apex file.
+
+    :param apex_extract_dir_path: str - path to the APEX extract directory.
+
+    """
+    logging.info(f"Resigning APK files in APEX.")
+    for root, dirs, files in os.walk(apex_extract_dir_path):
+        for file in files:
+            if file.endswith(".apk"):
+                apk_file_path = os.path.join(root, file)
+                signing_key = get_signing_key_from_manifest(apk_file_path)
+                signing_key_path = get_signing_key_path(apk_file_path, signing_key)
+                sign_apk_file(apk_file_path, signing_key_path)
+
+
+
+def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_target):
+    """
+    Extracts the APEX file using deapexer, repackages it using apexer, and signs all the APK files in the APEX using apksigner.
+
+    :param aosp_path: str - path to the AOSP source code.
+    :param apex_file_path: str - path to the APEX file.
+    :param output_file_path: str - path to the output file where the repackage APEX file will be saved.
+    :param lunch_target: str - lunch target for the AOSP build.
+
+    :return: tuple - (bool, str) - True if the repackage was successful, False otherwise. String containing the log.
+    """
+    logging.info(f"Repackaging APEX file: {apex_file_path}")
+    success = False
+
+    with (tempfile.TemporaryDirectory() as apex_root_path):
+        apex_extract_dir_path = os.path.join(apex_root_path, "extract")
+        os.makedirs(apex_extract_dir_path, exist_ok=True)
+
+        extract_success = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target)
+        if extract_success:
+            logging.info(f"APEX extracted: {apex_file_path}")
+            is_manifest_found, apex_manifest_path = copy_apex_manifest_file(apex_extract_dir_path, apex_root_path)
+            if is_manifest_found:
+                logging.info(f"APEX manifest file found: {apex_manifest_path}")
+                with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
+                    generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
+                logging.info(f"Canned FS config file: {canned_fs_config.name}")
+
+                resign_apex_apk_files(apex_extract_dir_path)
+                apexer_tool_path = os.path.join(aosp_path, "out/host/linux-x86/bin/apexer")
+                command =f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} " \
+                                    f"{apexer_tool_path} " \
+                                    f"--android_manifest={apex_manifest_path} " \
+                                    f"--key={APEX_PRIVATE_KEY_PATH} " \
+                                    f"--pubkey={APEX_PUBKEY_PATH} " \
+                                    f"--file_contexts={FILE_CONTEXT_TEMPLATE_PATH} " \
+                                    f"--canned_fs_config={canned_fs_config.name} " \
+                                    f"{apex_extract_dir_path} " \
+                                    f"{output_file_path}"
+                logging.info(f"Repacking command: {command}")
+                log_file_path = os.path.join(apex_root_path, "apexer.log")
+                execute_shell_command(command, aosp_path, log_file_path)
+            else:
+                log_message = f"APEX manifest file not found. {apex_file_path}"
+        else:
+            log_message = f"APEX extraction failed. {apex_file_path}"
+
+    return success, log_message
+
+
 def sign_apk_file(apk_file_path, signing_key_path):
     """
     Signs the APK file with apksigner.
@@ -441,7 +648,7 @@ def sign_apk_file(apk_file_path, signing_key_path):
     return success, log_message
 
 
-def process_partition_files(aosp_path, folder_path, target_out_path, executor):
+def process_partition_files(aosp_path, folder_path, target_out_path, executor, lunch_target):
     error_list = []
     inj_obj_list = []
     inj_partition_list = []
@@ -454,7 +661,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor):
 
     future_dict = {}
     for file_path in file_paths:
-        future = executor.submit(process_file_concurrently, aosp_path, file_path, partition_name, target_out_path)
+        future = executor.submit(process_file_concurrently, aosp_path, file_path, partition_name, target_out_path, lunch_target)
         future_dict[future] = file_path
 
     for future in as_completed(future_dict):
@@ -658,7 +865,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                 elif ((file_extension_src == ".apex" and file_extension_obj == ".capex")
                       or (file_extension_src == ".capex" and file_extension_obj == ".apex")):
                     result_file_path = os.path.join(root, file)
-                    logging.info(f"Found APEX file2: {file_name} {is_elf_binary(file_path)}, result_file_path: {result_file_path}")
+                    logging.info(f"Found APEX file2: {file_name}, result_file_path: {result_file_path}")
                     break
 
     if result_file_path:
@@ -817,9 +1024,10 @@ def main():
     aosp_path = args.aosp_root_path
     if not aosp_path.endswith("/"):
         aosp_path += "/"
+    lunch_target = "sdk_phone_arm64-userdebug"
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")
-    start_post_build_injector(aosp_path, source_folder_path, target_out_path)
+    start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target)
     logging.info("=======================AOSP POST BUILD INJECTOR EXIT=======================")
 
 
