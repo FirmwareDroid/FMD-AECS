@@ -627,7 +627,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                                     f"--canned_fs_config={canned_fs_config.name} " \
                                     f"{apex_extract_dir_path} " \
                                     f"{output_file_path}"
-                logging.info(f"Repacking command: {command}")
+                logging.info(f"Apexer Repacking command: {command}")
                 is_success, log_message = execute_shell_command(command, aosp_path)
                 if is_success:
                     logging.info(f"APEX repackaged: {output_file_path}")
