@@ -437,7 +437,7 @@ def execute_shell_command(command, aosp_root_path):
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_root_path)
     is_success = False
-    result = subprocess.run(command, shell=True, check=True, capture_output=True, text=False)
+    result = subprocess.run(command, shell=True, capture_output=True, text=False)
     if result.returncode == 0:
         is_success = True
         log = result.stdout.decode('utf-8', errors='ignore').strip()
