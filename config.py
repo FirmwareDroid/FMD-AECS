@@ -39,7 +39,15 @@ SUPPORTED_LUNCH_TARGETS = ["sdk_phone_x86_64-userdebug",  # Android 12 / 13 "sdk
                            "sdk_phone_arm64-userdebug",  # Android 12 -> Works
                            "sdk_phone_arm64-userdebug",  # Android 13 "sdk_arm64-userdebug"
                            ]
+FILE_CONTEXT_TEMPLATE_PATH = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "file_contexts")
+APEX_PRIVATE_KEY_PATH = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "apex.key")
+APEX_PUBKEY_PATH = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "apex.x509.pem")
 BUILD_RETRY_COUNT = 1
+SHARED_USER_ID_MAPPING_DICT = {
+    "media": ["android.media", "android.uid.media"],
+    "shared":["android.shared", "android.uid.shared"],
+    "networkstack": ["android.networkstack", "android.uid.networkstack"],
+}
 FILE_NAME_POST_INSTALL_SCRIPT = "replacer.sh"
 # String templates
 FMD_GRAPHQL_URL_TEMPLATE = '${url}/graphql/'
