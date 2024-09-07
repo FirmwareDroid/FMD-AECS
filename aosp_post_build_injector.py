@@ -428,7 +428,7 @@ def get_signing_key_from_module(android_apk_file_path):
 
 
 def get_signing_key_path(aosp_path, signing_key_name):
-    key_file_path = f"{aosp_path}/build/target/product/security/{signing_key_name}.p12"
+    key_file_path = f"{aosp_path}build/target/product/security/{signing_key_name}.p12"
     key_file_path = key_file_path.replace("//", "/")
     return key_file_path
 
@@ -520,7 +520,7 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
     """
     logging.info(f"Extracting APEX file: {apex_file_path}")
     deapexer_tool_path = f"{aosp_path}out/host/linux-x86/bin/deapexer"
-    command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} " \
+    command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
                f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}"
     is_success, log = execute_shell_command(command, aosp_path)
     return is_success, log
@@ -605,7 +605,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
 
                 resign_apex_apk_files(apex_extract_dir_path)
                 apexer_tool_path = os.path.join(aosp_path, "out/host/linux-x86/bin/apexer")
-                command =f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} " \
+                command =f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
                                     f"{apexer_tool_path} " \
                                     f"--android_manifest={apex_manifest_path} " \
                                     f"--key={APEX_PRIVATE_KEY_PATH} " \
