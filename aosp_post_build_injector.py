@@ -320,7 +320,7 @@ def get_signing_key_from_manifest(apk_file):
 
     """
     signing_key = "platform"
-    for key, shared_uid_list in SHARED_USER_ID_MAPPING_DICT:
+    for key, shared_uid_list in SHARED_USER_ID_MAPPING_DICT.items():
         for shared_uid in shared_uid_list:
             if search_string_in_apk(apk_file, shared_uid):
                 signing_key = key
