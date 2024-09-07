@@ -331,18 +331,20 @@ def get_signing_key_from_manifest(apk_file):
 def handle_apex_modules(file_path, aosp_path, lunch_target):
     error_message = None
 
-    repackage_apex_file(aosp_path, file_path, file_path, lunch_target)
-
-    signing_key = get_apex_signing_key_from_filename(file_path)
-    if not signing_key:
-        error_message = f"Signing key name not found for {file_path}"
-    signing_key_path = get_signing_key_path(aosp_path, signing_key)
-    if not error_message:
-        is_success, log_message = sign_apk_file(file_path, signing_key_path)
-        if not is_success:
-            error_message = f"Error signing APEX file: {file_path}|{signing_key}|{signing_key_path}|{log_message}"
-        else:
-            logging.info(f"APEX file signed: {file_path} with key: {signing_key}")
+    is_repack_success, log_message = repackage_apex_file(aosp_path, file_path, file_path, lunch_target)
+    if not is_repack_success:
+        error_message = f"Error repackaging APEX file: {file_path}|{log_message}"
+    else:
+        signing_key = get_apex_signing_key_from_filename(file_path)
+        if not signing_key:
+            error_message = f"Signing key name not found for {file_path}"
+        signing_key_path = get_signing_key_path(aosp_path, signing_key)
+        if not error_message:
+            is_success, log_message = sign_apk_file(file_path, signing_key_path)
+            if not is_success:
+                error_message = f"Error signing APEX file: {file_path}|{signing_key}|{signing_key_path}|{log_message}"
+            else:
+                logging.info(f"APEX file signed: {file_path} with key: {signing_key}")
     return error_message
 
 
