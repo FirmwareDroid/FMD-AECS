@@ -447,12 +447,14 @@ def execute_shell_command(command, aosp_root_path):
     os.chdir(aosp_root_path)
     is_success = False
     result = subprocess.run(command, shell=True, capture_output=True, text=False)
+    log_stderr = ""
+    log_stdout = result.stdout.decode('utf-8', errors='ignore').strip()
     if result.returncode == 0:
         is_success = True
-        log = result.stdout.decode('utf-8', errors='ignore').strip()
     else:
-        log = result.stderr.decode('utf-8', errors='ignore').strip()
+        log_stderr = result.stderr.decode('utf-8', errors='ignore').strip()
     os.chdir(current_directory)
+    log = f"stdout: {log_stdout} | stderr: {log_stderr}"
     return is_success, log
 
 def execute_command(command):
