@@ -618,7 +618,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                 apexer_bin_path = os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer")
                 info = f"Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
                 logging.info(info)
-                command = f"{apexer_bin_path} " \
+                command = f"{apexer_bin_path} -v" \
                                     f"--android_manifest={apex_manifest_path} " \
                                     f"--key={APEX_PRIVATE_KEY_PATH} " \
                                     f"--pubkey={APEX_PUBKEY_PATH} " \
