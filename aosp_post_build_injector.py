@@ -541,14 +541,14 @@ def copy_apex_manifest_file(apex_extract_dir_path, output_dir_path):
     result_file_path = None
     for root, dirs, files in os.walk(apex_extract_dir_path):
         for file in files:
-            if file == "apex_manifest.pb":
+            if file == "apex_manifest.json":
                 file_path = str(os.path.join(root, file))
                 shutil.copy(file_path, output_dir_path)
                 logging.info(f"Copied APEX manifest file: {file_path} to current directory.")
                 is_apex_manifest_file_found = True
                 result_file_path = file_path
                 break
-            elif file == "apex_manifest.json":
+            elif file == "apex_manifest.pb":
                 file_path = str(os.path.join(root, file))
                 shutil.copy(file_path, output_dir_path)
                 logging.info(f"Copied APEX manifest file: {file_path} to current directory.")
@@ -615,8 +615,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                                     f"{apex_extract_dir_path} " \
                                     f"{output_file_path}"
                 logging.info(f"Repacking command: {command}")
-                log_file_path = os.path.join(apex_root_path, "apexer.log")
-                is_success, log_message = execute_shell_command(command, aosp_path, log_file_path)
+                is_success, log_message = execute_shell_command(command, aosp_path)
                 if is_success:
                     logging.info(f"APEX repackaged: {output_file_path}")
                     success = True
