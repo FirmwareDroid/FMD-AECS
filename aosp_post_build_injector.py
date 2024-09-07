@@ -618,15 +618,14 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                 apexer_tool_path = os.path.join(aosp_path, "out/host/linux-x86/bin/apexer")
                 info = f"Apexer tool path: {apexer_tool_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
                 logging.info(info)
-                command =f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
-                                    f"{apexer_tool_path} " \
+                command = f"{apexer_tool_path} " \
                                     f"--android_manifest={apex_manifest_path} " \
                                     f"--key={APEX_PRIVATE_KEY_PATH} " \
                                     f"--pubkey={APEX_PUBKEY_PATH} " \
                                     f"--file_contexts={FILE_CONTEXT_TEMPLATE_PATH} " \
                                     f"--canned_fs_config={canned_fs_config.name} " \
                                     f"{apex_extract_dir_path} " \
-                                    f"{output_file_path}'"
+                                    f"{output_file_path}"
                 logging.info(f"Repacking command: {command}")
                 is_success, log_message = execute_shell_command(command, aosp_path)
                 if is_success:
