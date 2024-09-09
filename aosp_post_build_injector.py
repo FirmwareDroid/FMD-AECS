@@ -602,42 +602,43 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
 
 
     try:
-        with (tempfile.TemporaryDirectory() as apex_root_path):
-            apex_extract_dir_path = os.path.join(apex_root_path, "extract")
-            extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target)
-            if extract_success:
-                logging.info(f"APEX extracted: {apex_file_path}")
-                is_manifest_found, apex_manifest_path = copy_apex_manifest_file(apex_extract_dir_path, apex_root_path)
-                if is_manifest_found and os.path.exists(apex_manifest_path):
-                    logging.info(f"APEX manifest file found: {apex_manifest_path}")
-                    with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
-                        generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
-                    logging.info(f"Canned FS config file: {canned_fs_config.name}")
+        #with (tempfile.TemporaryDirectory() as apex_root_path):
+        apex_root_path = tempfile.mkdtemp()
+        apex_extract_dir_path = os.path.join(apex_root_path, "extract")
+        extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target)
+        if extract_success:
+            logging.info(f"APEX extracted: {apex_file_path}")
+            is_manifest_found, apex_manifest_path = copy_apex_manifest_file(apex_extract_dir_path, apex_root_path)
+            if is_manifest_found and os.path.exists(apex_manifest_path):
+                logging.info(f"APEX manifest file found: {apex_manifest_path}")
+                with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
+                    generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
+                logging.info(f"Canned FS config file: {canned_fs_config.name}")
 
-                    resign_apex_apk_files(apex_extract_dir_path)
-                    apexer_bin_path = os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer")
-                    info = f"Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
-                    logging.info(info)
-                    command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
-                                        f"--android_manifest='{apex_manifest_path}' " \
-                                        f"--key={APEX_PRIVATE_KEY_PATH} " \
-                                        f"--pubkey={APEX_PUBKEY_PATH} " \
-                                        f"--apexer_tool_path={aosp_path}out/host/linux-x86/bin/" \
-                                        f"--file_contexts={FILE_CONTEXT_TEMPLATE_PATH} " \
-                                        f"--canned_fs_config={canned_fs_config.name} " \
-                                        f"{apex_extract_dir_path} " \
-                                        f"{output_file_path}"
-                    logging.info(f"Apexer Repacking command: {command}")
-                    is_success, log_message = execute_shell_command(command, aosp_path)
-                    if is_success:
-                        logging.info(f"APEX repackaged: {output_file_path}")
-                        success = True
-                    else:
-                        log_message = f"APEX repackaging failed. {log_message} | {info}"
+                resign_apex_apk_files(apex_extract_dir_path)
+                apexer_bin_path = os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer")
+                info = f"Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
+                logging.info(info)
+                command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
+                                    f"--android_manifest={apex_manifest_path} " \
+                                    f"--key={APEX_PRIVATE_KEY_PATH} " \
+                                    f"--pubkey={APEX_PUBKEY_PATH} " \
+                                    f"--apexer_tool_path={aosp_path}out/host/linux-x86/bin/ " \
+                                    f"--file_contexts={FILE_CONTEXT_TEMPLATE_PATH} " \
+                                    f"--canned_fs_config={canned_fs_config.name} " \
+                                    f"{apex_extract_dir_path} " \
+                                    f"{output_file_path}"
+                logging.info(f"Apexer Repacking command: {command}")
+                is_success, log_message = execute_shell_command(command, aosp_path)
+                if is_success:
+                    logging.info(f"APEX repackaged: {output_file_path}")
+                    success = True
                 else:
-                    log_message = f"APEX manifest file not found. {apex_file_path} | apex_manifest_path: {apex_manifest_path}"
+                    log_message = f"APEX repackaging failed. {log_message} | {info}"
             else:
-                log_message = f"APEX extraction failed. {apex_file_path} | {log_message}"
+                log_message = f"APEX manifest file not found. {apex_file_path} | apex_manifest_path: {apex_manifest_path}"
+        else:
+            log_message = f"APEX extraction failed. {apex_file_path} | {log_message}"
     except Exception as e:
         log_message = f"Error repackaging APEX file: {apex_file_path} | {str(e)}"
     return success, log_message
