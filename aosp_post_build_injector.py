@@ -498,6 +498,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
 
     """
     with open(output_file, 'w') as out_file:
+        out_file.write(f"/ 1000 1000 0755\n")
         for root, dirs, files in os.walk(apex_extract_dir_path):
             for dir_name in dirs:
                 dir_path = str(os.path.join(root, dir_name))
