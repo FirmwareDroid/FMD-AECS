@@ -340,8 +340,8 @@ def get_signing_key_from_manifest(apk_file):
 
 def handle_apex_modules(file_path, aosp_path, lunch_target):
     error_message = None
-    apex_filename_new = os.path.basename(file_path).replace(".apex", ".v2.apex")
-    apex_dir_path = os.path.dirname(file_path)
+    apex_filename_new = str(os.path.basename(file_path).replace(".apex", ".v2.apex"))
+    apex_dir_path = str(os.path.dirname(file_path))
     apex_out_file = str(os.path.join(apex_dir_path, apex_filename_new))
     is_repack_success, log_message = repackage_apex_file(aosp_path, file_path, apex_out_file, lunch_target)
     if not is_repack_success:
@@ -599,11 +599,11 @@ def resign_apex_apk_files(apex_extract_dir_path):
                 sign_apk_file(apk_file_path, signing_key_path)
 
 
-def copy_android_prebuilt_jar(aosp_path, apex_extract_dir_path):
+def copy_android_prebuilt_jar(aosp_path, apex_root_path):
     prebuilt_folder = "prebuilts/sdk/current/public/"
     jar_name = "android.jar"
     android_jar_file_path = os.path.join(aosp_path, prebuilt_folder, jar_name)
-    extract_android_jar_file_path = os.path.join(apex_extract_dir_path, prebuilt_folder)
+    extract_android_jar_file_path = os.path.join(apex_root_path, prebuilt_folder)
     os.makedirs(extract_android_jar_file_path, exist_ok=True)
     shutil.copy(android_jar_file_path, extract_android_jar_file_path)
 
@@ -635,7 +635,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
 
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
-            copy_android_prebuilt_jar(aosp_path, apex_extract_dir_path)
+            copy_android_prebuilt_jar(aosp_path, apex_root_path)
             if is_manifest_found and os.path.exists(apex_manifest_path):
                 logging.info(f"APEX manifest file found: {apex_manifest_path}")
                 resign_apex_apk_files(apex_extract_dir_path)
