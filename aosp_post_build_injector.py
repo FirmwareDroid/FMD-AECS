@@ -624,7 +624,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
         if extract_success:
             logging.info(f"APEX extracted: {apex_file_path}")
             apex_package_name = os.path.basename(apex_file_path).replace(".apex", "")
-            create_apex_manifest_file(apex_extract_dir_path, apex_package_name)
+            #create_apex_manifest_file(apex_extract_dir_path, apex_package_name)
 
             with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
                 generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
@@ -637,8 +637,8 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                 apexer_bin_path = os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer")
                 info = f"Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
                 logging.info(info)
+                # f"--android_manifest={apex_manifest_path} " \
                 command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
-                                    f"--android_manifest={apex_manifest_path} " \
                                     f"--key={APEX_PRIVATE_KEY_PATH} " \
                                     f"--pubkey={APEX_PUBKEY_PATH} " \
                                     f"--apexer_tool_path={aosp_path}out/host/linux-x86/bin/ " \
