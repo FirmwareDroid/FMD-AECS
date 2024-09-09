@@ -55,6 +55,7 @@ SKIPPED_FILE_EXTENSION_LIST = [".bprof",
                                ".art",
                                ".oat",
                                ".apex"
+                               ".original_apex" # Leftover from apex repacking
                                ]
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
@@ -357,6 +358,8 @@ def handle_apex_modules(file_path, aosp_path, lunch_target):
                 error_message = f"Error signing APEX file: {file_path}|{signing_key}|{signing_key_path}|{log_message}"
             else:
                 logging.info(f"APEX file signed: {file_path} with key: {signing_key}")
+                shutil.move(file_path, f"{file_path}.original_apex")
+                shutil.move(apex_out_file, file_path)
     return error_message
 
 
