@@ -609,13 +609,13 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
         extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target)
         if extract_success:
             logging.info(f"APEX extracted: {apex_file_path}")
+            with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
+                generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
+            logging.info(f"Canned FS config file: {canned_fs_config.name}")
+
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             if is_manifest_found and os.path.exists(apex_manifest_path):
                 logging.info(f"APEX manifest file found: {apex_manifest_path}")
-                with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
-                    generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
-                logging.info(f"Canned FS config file: {canned_fs_config.name}")
-
                 resign_apex_apk_files(apex_extract_dir_path)
                 apexer_bin_path = os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer")
                 info = f"Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
