@@ -14,9 +14,12 @@ import stat
 import traceback
 import zipfile
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
+
+from jinja2 import Environment, FileSystemLoader
+
 from config import AOSP_DEFAULT_PACKAGE_NAMES, VENDOR_BLACKLISTED_PACKAGES, EXTRACTED_PACKAGES_PATH, \
     BLACKLISTED_KEYWORDS, FILE_CONTEXT_TEMPLATE_PATH, APEX_PRIVATE_KEY_PATH, APEX_PUBKEY_PATH, \
-    SHARED_USER_ID_MAPPING_DICT
+    SHARED_USER_ID_MAPPING_DICT, ROOT_PATH, TEMPLATE_FOLDER
 from setup_logger import setup_logger
 from tqdm import tqdm
 
@@ -542,6 +545,17 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
     return is_success, {f"{log}|{info}"}
 
 
+def create_apex_manifest_file(apex_extract_dir_path, apex_package_name):
+    manifest_file_name = "AndroidManifest.xml"
+    manifest_file_path = os.path.join(apex_extract_dir_path, manifest_file_name)
+    with open(manifest_file_path, 'w') as manifest_file:
+        template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER)
+        environment = Environment(loader=FileSystemLoader(str(template_folder_abs_path)))
+        template = environment.get_template(manifest_file_name)
+        rendered_template = template.render(package=apex_package_name, versionCode=999)
+        manifest_file.write(rendered_template)
+
+
 def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
     """
     Searches for the APEX manifest file in the APEX extract directory and moves it to the current directory.
@@ -557,7 +571,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
     result_file_path = None
     for root, dirs, files in os.walk(apex_extract_dir_path):
         for file in files:
-            if file == "apex_manifest.json" or file == "apex_manifest.pb":
+            if file == "apex_manifest.pb":
                 file_path = str(os.path.join(root, file))
                 shutil.move(file_path, str(os.path.join(output_dir_path, file)))
                 logging.info(f"Copied APEX manifest file: {file_path} to {output_dir_path}.")
@@ -612,7 +626,8 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
             with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
                 generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
-
+            apex_package_name = os.path.basename(apex_file_path).replace(".apex", "")
+            create_apex_manifest_file(apex_extract_dir_path, apex_package_name)
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             if is_manifest_found and os.path.exists(apex_manifest_path):
                 logging.info(f"APEX manifest file found: {apex_manifest_path}")
