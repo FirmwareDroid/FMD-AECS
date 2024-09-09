@@ -597,7 +597,9 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
     logging.info(f"Repackaging APEX file: {apex_file_path}")
     success = False
     current_dir = os.getcwd()
-    with (tempfile.TemporaryDirectory(delete=False) as apex_root_path):
+    #with (tempfile.TemporaryDirectory() as apex_root_path):
+    apex_root_path = tempfile.mkdtemp()
+    try:
         os.chdir(apex_root_path)
         apex_extract_dir_path = os.path.join(apex_root_path, "extract")
 
@@ -635,7 +637,10 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                 log_message = f"APEX manifest file not found. {apex_file_path} | apex_manifest_path: {apex_manifest_path}"
         else:
             log_message = f"APEX extraction failed. {apex_file_path} | {log_message}"
-    os.chdir(current_dir)
+    except Exception as e:
+        log_message = f"Error repackaging APEX file: {apex_file_path} | {str(e)}"
+    finally:
+        os.chdir(current_dir)
     return success, log_message
 
 
