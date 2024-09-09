@@ -597,7 +597,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
     logging.info(f"Repackaging APEX file: {apex_file_path}")
     success = False
     current_dir = os.getcwd()
-    with (tempfile.TemporaryDirectory() as apex_root_path):
+    with (tempfile.TemporaryDirectory(delete=False) as apex_root_path):
         os.chdir(apex_root_path)
         apex_extract_dir_path = os.path.join(apex_root_path, "extract")
 
