@@ -546,7 +546,7 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
 
 
 def create_apex_manifest_file(apex_extract_dir_path, apex_package_name):
-    manifest_file_name = "AndroidManifest.xml"
+    manifest_file_name = "AndroidManifest.json"
     manifest_file_path = os.path.join(apex_extract_dir_path, manifest_file_name)
     with open(manifest_file_path, 'w') as manifest_file:
         template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER)
