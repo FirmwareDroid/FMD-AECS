@@ -542,9 +542,9 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
     return is_success, {f"{log}|{info}"}
 
 
-def copy_apex_manifest_file(apex_extract_dir_path, output_dir_path):
+def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
     """
-    Searches for the APEX manifest file in the APEX extract directory and copies it to the current directory.
+    Searches for the APEX manifest file in the APEX extract directory and moves it to the current directory.
 
     :param apex_extract_dir_path: str - path to the APEX extract directory.
     :param output_dir_path: str - path to the output directory where the APEX manifest file will be copied to.
@@ -559,7 +559,7 @@ def copy_apex_manifest_file(apex_extract_dir_path, output_dir_path):
         for file in files:
             if file == "apex_manifest.json" or file == "apex_manifest.pb":
                 file_path = str(os.path.join(root, file))
-                shutil.copyfile(file_path, os.path.join(output_dir_path, file))
+                shutil.move(file_path, str(os.path.join(output_dir_path, file)))
                 logging.info(f"Copied APEX manifest file: {file_path} to {output_dir_path}.")
                 result_file_path = str(os.path.join(output_dir_path, file))
                 if os.path.exists(result_file_path):
@@ -609,7 +609,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
         extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target)
         if extract_success:
             logging.info(f"APEX extracted: {apex_file_path}")
-            is_manifest_found, apex_manifest_path = copy_apex_manifest_file(apex_extract_dir_path, apex_root_path)
+            is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             if is_manifest_found and os.path.exists(apex_manifest_path):
                 logging.info(f"APEX manifest file found: {apex_manifest_path}")
                 with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
