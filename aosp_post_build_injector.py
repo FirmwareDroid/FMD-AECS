@@ -623,11 +623,13 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
         extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target)
         if extract_success:
             logging.info(f"APEX extracted: {apex_file_path}")
+            apex_package_name = os.path.basename(apex_file_path).replace(".apex", "")
+            create_apex_manifest_file(apex_extract_dir_path, apex_package_name)
+
             with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
                 generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
-            apex_package_name = os.path.basename(apex_file_path).replace(".apex", "")
-            create_apex_manifest_file(apex_extract_dir_path, apex_package_name)
+
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             if is_manifest_found and os.path.exists(apex_manifest_path):
                 logging.info(f"APEX manifest file found: {apex_manifest_path}")
