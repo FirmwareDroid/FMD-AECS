@@ -54,7 +54,7 @@ SKIPPED_FILE_EXTENSION_LIST = [".bprof",
                                #".vdex",
                                ".art",
                                ".oat",
-                               ".apex"
+                               ".apex",
                                ".original_apex" # Leftover from apex repacking
                                ]
 SKIPPED_BINARY_LIST = ["vold",
@@ -89,7 +89,7 @@ SKIPPED_BINARY_LIST = ["vold",
                        "build.prop",
                        "otacerts.zip",  # Allow to overwrite with own certificates
                        "raw.image",  # Leftover from the file extraction process
-                       "com.google.android.adbd.apex",  # Blocks ADB access
+                       "com.google.android.adbd.apex"  # Blocks ADB access
                        ]
 
 SKIPPED_KEYWORD_LIST = ["selinux",
