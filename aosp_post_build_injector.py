@@ -165,8 +165,8 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lu
     :param lunch_target: str - lunch target for the AOSP build.
 
     """
-    if aosp_path.endswith("/"):
-        aosp_path = aosp_path[:-1]
+    if not aosp_path.endswith("/"):
+        aosp_path = f"{aosp_path}/"
     with Executor() as executor:
         inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target)
 
