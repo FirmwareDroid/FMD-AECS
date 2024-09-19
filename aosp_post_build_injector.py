@@ -350,7 +350,9 @@ def handle_apex_modules(file_path, aosp_path, lunch_target):
     if not is_repack_success:
         error_message = f"Error repackaging APEX file: {file_path}|{log_message}"
     else:
-        signing_key = get_apex_signing_key_from_filename(file_path)
+        #signing_key = get_apex_signing_key_from_filename(file_path)
+        # Apex container are signed with the platform key by default
+        signing_key = "platform"
         if not signing_key:
             error_message = f"Signing key name not found for {file_path}"
         signing_key_path = get_signing_key_path(aosp_path, signing_key)
@@ -613,6 +615,23 @@ def copy_android_prebuilt_jar(aosp_path, apex_root_path):
     os.makedirs(extract_android_jar_file_path, exist_ok=True)
     shutil.copy(android_jar_file_path, extract_android_jar_file_path)
 
+
+def generate_apex_keys(private_key_path, public_key_path):
+    private_key_command = [
+        'openssl', 'genpkey', '-algorithm', 'RSA', '-out', private_key_path, '-pkeyopt', 'rsa_keygen_bits:4096'
+    ]
+    subprocess.run(private_key_command, check=True)
+    logging.info(f"Private key generated at: {private_key_path}")
+
+    # Generate the public key from the private key
+    public_key_command = [
+        'openssl', 'rsa', '-pubout', '-in', private_key_path, '-out', public_key_path
+    ]
+    subprocess.run(public_key_command, check=True)
+    logging.info(f"Public key generated at: {public_key_path}")
+
+
+
 def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_target):
     """
     Extracts the APEX file using deapexer, repackages it using apexer, and signs all the APK files in the APEX using apksigner.
@@ -648,10 +667,15 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                 apexer_bin_path = os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer")
                 info = f"Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
                 logging.info(info)
+                with tempfile.TemporaryDirectory(dir=apex_root_path, delete=False) as temp_keys_dir:
+                    priv_key_path = os.path.join(temp_keys_dir, "priv.key")
+                    pub_key_path = os.path.join(temp_keys_dir, "pub.key")
+                    generate_apex_keys(priv_key_path, pub_key_path)
+
                 # f"--android_manifest={apex_manifest_path} " \
                 command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
-                                    f"--key={APEX_PRIVATE_KEY_PATH} " \
-                                    f"--pubkey={APEX_PUBKEY_PATH} " \
+                                    f"--key={priv_key_path} " \
+                                    f"--pubkey={pub_key_path} " \
                                     f"--apexer_tool_path={aosp_path}out/host/linux-x86/bin/:{aosp_path}out/soong/host/linux-x86/bin/ " \
                                     f"--file_contexts={FILE_CONTEXT_TEMPLATE_PATH} " \
                                     f"--canned_fs_config={canned_fs_config.name} " \
