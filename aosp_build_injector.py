@@ -166,16 +166,21 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version):
     """
     with open(meta_build_path, 'r') as meta_build_file:
         package_name_list = meta_build_file.readlines()
-        if aosp_version == "12":
-            template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "12/")
-        elif aosp_version == "13":
-            template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "13/")
-        else:
-            raise RuntimeError(f"Unsupported aosp version: {aosp_version}")
+        template_folder_abs_path = get_template_folder_path(aosp_version)
         logging.debug(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
         environment = Environment(loader=FileSystemLoader(str(template_folder_abs_path)))
         template = environment.get_template(base_filename)
         return template.render(package_name_list=package_name_list)
+
+
+def get_template_folder_path(aosp_version):
+    if aosp_version == "12":
+        template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "12/")
+    elif aosp_version == "13":
+        template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "13/")
+    else:
+        raise RuntimeError(f"Unsupported aosp version: {aosp_version}")
+    return template_folder_abs_path
 
 
 def write_and_copy_file(content, out_file_path, aosp_base_file_path):
@@ -544,19 +549,24 @@ def clear_packages(aosp_packages_path):
     logging.debug("Cleared app packages and .txt and .zip files from aosp source code.")
 
 
-def clear_base_files(aosp_path):
+def clear_base_files(aosp_path, aosp_version):
     """
-    Deletes the base files from the aosp source code.
+    Overwrites the base files from the aosp source code with the empty template.
 
     :param aosp_path: str - path to the root of the aosp source code.
+    :param aosp_version: str - Android (AOSP) version
+
     """
     try:
         for base_filename in BASE_FILENAMES:
             aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
             if os.path.exists(aosp_base_file_path):
-                os.remove(aosp_base_file_path)
-                logging.debug(f"Removed {aosp_base_file_path} from aosp source code.")
+                template_folder_abs_path = get_template_folder_path(aosp_version)
+                environment = Environment(loader=FileSystemLoader(str(template_folder_abs_path)))
+                template = environment.get_template(base_filename)
+                return template.render(package_name_list=[])
     except Exception as err:
+        logging.error(err)
         pass
 
 
@@ -581,7 +591,7 @@ def clear_build_out(build_out_path):
         logging.error(err)
 
 
-def clear_environment(aosp_path, aosp_packages_path):
+def clear_environment(aosp_path, aosp_packages_path, aosp_version):
     """
     Reverts the build environment
     Returns:
@@ -591,7 +601,7 @@ def clear_environment(aosp_path, aosp_packages_path):
     clear_intermediate_files(aosp_path)
     extracted_files_path = os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME)
     clear_build_out(extracted_files_path)
-    #clear_base_files(aosp_path)
+    clear_base_files(aosp_path, aosp_version)
 
 
 def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder):
@@ -731,19 +741,20 @@ def upload_build_artefact(repo_url, username, password, artefact_path, filename)
 
 def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
+    aosp_version = args.version
     if args.arch == SUPPORTED_ARCHITECTURES[0]:
         lunch_target = SUPPORTED_LUNCH_TARGETS[0]
     else:
-        if args.version == "12":
+        if aosp_version == "12":
             lunch_target = SUPPORTED_LUNCH_TARGETS[1]
-        elif args.version == "13":
+        elif aosp_version == "13":
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]
         else:
             raise RuntimeError(f"Unsupported Android version: {args.version}")
     logging.debug(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
     failed_firmware_ids = []
     succeed_firmware_ids = []
-    clear_environment(args.aosp_path, aosp_packages_abs_path)
+    clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
     for firmware_id in tqdm(firmware_id_list):
         try:
             logging.debug(f"Start fetching for build files for firmware-id: {firmware_id}")
@@ -778,7 +789,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             failed_firmware_ids.append(firmware_id)
         finally:
             if not args.skip_clean:
-                clear_environment(args.aosp_path, aosp_packages_abs_path)
+                clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
 
     if len(failed_firmware_ids) > 0:
         logging.error(f"Failed to build the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
@@ -790,7 +801,7 @@ def main():
     args = parse_arguments()
     if args.reset_aosp:
         aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
-        clear_environment(args.aosp_path, aosp_packages_abs_path)
+        clear_environment(args.aosp_path, aosp_packages_abs_path, args.version)
         logging.info("Reset aosp build environment.")
         exit(0)
     if args.arch not in SUPPORTED_ARCHITECTURES:
