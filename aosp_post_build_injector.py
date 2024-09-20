@@ -663,10 +663,10 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                 apexer_bin_path = os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer")
                 info = f"Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
                 logging.info(info)
-                with tempfile.TemporaryDirectory(dir=apex_root_path, delete=False) as temp_keys_dir:
-                    priv_key_path = os.path.join(temp_keys_dir, "priv.key")
-                    pub_key_path = os.path.join(temp_keys_dir, "pub.key")
-                    generate_apex_keys(priv_key_path, pub_key_path)
+                temp_keys_dir = tempfile.mkdtemp(dir=apex_root_path)
+                priv_key_path = os.path.join(temp_keys_dir, "priv.key")
+                pub_key_path = os.path.join(temp_keys_dir, "pub.key")
+                generate_apex_keys(priv_key_path, pub_key_path)
 
                 # f"--android_manifest={apex_manifest_path} " \
                 command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
