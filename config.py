@@ -243,6 +243,8 @@ BLACKLISTED_KEYWORDS = ["Overlay",
                         "TelephonyProvider",
                         "NetworkStackGoogle",
                         "SystemUI",             # Breaks SystemUI
+                        "keymaster",
+                        "keystore",
                         "libadb_protos"]
 
 
