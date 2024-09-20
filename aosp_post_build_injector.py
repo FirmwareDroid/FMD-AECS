@@ -40,7 +40,6 @@ SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.ap
 for blacklisted_module_name in VENDOR_BLACKLISTED_PACKAGES:
     SKIPPED_APP_LIST.append(f"{blacklisted_module_name}.apk")
 
-SKIPPED_FILE_LIST = ["com.android.vndk.current.apex"]
 SKIPPED_STATIC_FILE_KEYWORD_LIST = ["vintf", "vndk"]
 
 SKIPPED_FILE_EXTENSION_LIST = [".bprof",
@@ -89,7 +88,9 @@ SKIPPED_BINARY_LIST = ["vold",
                        "build.prop",
                        "otacerts.zip",  # Allow to overwrite with own certificates
                        "raw.image",  # Leftover from the file extraction process
-                       "com.google.android.adbd.apex"  # Blocks ADB access
+                       "com.google.android.adbd.apex",  # Blocks ADB access
+                       "com.android.vndk.current.apex",
+                       "com.google.android.tzdata3.apex"
                        ]
 
 SKIPPED_KEYWORD_LIST = ["selinux",
@@ -135,6 +136,8 @@ ALLOWED_KEYWORD = ["Overlay",
                    ]
 #for blacklisted_keyword in BLACKLISTED_KEYWORDS:
 #    ALLOWED_KEYWORD.append(blacklisted_keyword)
+
+#, --> No exact file match com.android.tzdata.apex is used
 ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.extservices.apex",
                      "com.google.android.permission.apex",
@@ -142,7 +145,6 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.art.apex",
                      "com.google.android.media.swcodec.apex",
                      "com.google.android.telephony.apex",
-                     #"com.google.android.tzdata3.apex", --> No exact file match com.android.tzdata.apex is used
                      "com.google.android.os.statsd.apex",
                      "com.google.android.resolv.apex",
                      "com.google.android.sdkext.apex",
@@ -263,7 +265,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
             if module_type == "APPS" and file_extension.lower() == ".apk":
                 error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
             elif module_type == "STATIC_CONFIG":
-                error_message = handle_static_config(file_path, filename)
+                error_message = handle_static_config(file_path)
             elif module_type == "ETC" and (file_extension.lower() == ".apex" or file_extension.lower() == ".capex"):
                 error_message = handle_apex_modules(file_path, aosp_path, lunch_target)
 
@@ -277,16 +279,10 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     return result
 
 
-def handle_static_config(file_path, filename):
+def handle_static_config(file_path):
     error_message = None
-    if filename.lower() in SKIPPED_FILE_LIST:
-        error_message = f"Skipped known problematic filename: {file_path}"
-    elif any(keyword in file_path for keyword in SKIPPED_STATIC_FILE_KEYWORD_LIST):
+    if any(keyword in file_path for keyword in SKIPPED_STATIC_FILE_KEYWORD_LIST):
         error_message = f"Skipped file due known problematic keyword in path: {file_path}"
-
-    if filename.lower in ALLOW_FILE_INJECT:
-        logging.info(f"Allow file inclusion: {file_path}")
-
     return error_message
 
 
@@ -781,7 +777,6 @@ def get_module_type(source_file_path):
         module_type = "MISC"
 
     if file_name not in ALLOW_FILE_INJECT:
-
         if (file_name in SKIPPED_BINARY_LIST
                 or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST)
                 or file_extension in SKIPPED_FILE_EXTENSION_LIST):
