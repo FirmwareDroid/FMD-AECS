@@ -616,14 +616,16 @@ def generate_apex_keys(private_key_path, public_key_path):
     private_key_command = [
         'openssl', 'genpkey', '-algorithm', 'RSA', '-out', private_key_path, '-pkeyopt', 'rsa_keygen_bits:4096'
     ]
-    subprocess.run(private_key_command, check=True)
+    with open(os.devnull, 'w') as devnull:
+        subprocess.run(private_key_command, check=True, stdout=devnull, stderr=devnull)
     logging.info(f"Private key generated at: {private_key_path}")
 
     # Generate the public key from the private key
     public_key_command = [
         'openssl', 'rsa', '-pubout', '-in', private_key_path, '-out', public_key_path
     ]
-    subprocess.run(public_key_command, check=True)
+    with open(os.devnull, 'w') as devnull:
+        subprocess.run(public_key_command, check=True, stdout=devnull, stderr=devnull)
     logging.info(f"Public key generated at: {public_key_path}")
 
 
@@ -722,7 +724,7 @@ def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_pat
     """
     is_success = False
     apex_filename = os.path.basename(apex_file_path)
-    apex_filename_no_ext = os.path.splitext(apex_filename)[0]
+    apex_filename_no_ext = os.path.splitext(apex_filename)[0].replace(".google", "").replace("Google", "")
 
     apex_pub_key_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS, "ETC", f"apex_pubkey.{apex_filename_no_ext}_intermediates")
     apex_pub_file_path = os.path.join(apex_pub_key_obj_path, "apex_pubkey")
