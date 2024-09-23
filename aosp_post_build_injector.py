@@ -717,9 +717,8 @@ def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path):
     Replaces the AVB public key in the APEX file with the given public key.
     :param apex_file_path: str - path to the APEX file.
     :param avb_pub_key_path: str - path to the AVB public key file.
-    :param log_message: str - log message to return in case of an error.
 
-    :return: bool - True if the public key was replaced, False otherwise.
+    :return: tuple - (bool, str) - True if the replacement was successful, False otherwise. String containing the log.
     """
     is_success = False
     apex_dir_path = os.path.dirname(apex_file_path)
@@ -727,10 +726,13 @@ def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path):
     apex_filename_no_ext = os.path.splitext(apex_filename)[0]
     apex_pub_dir_path = apex_dir_path.replace(apex_filename_no_ext, f"apex_pubkey.{apex_filename_no_ext}")
     apex_pub_file_path = os.path.join(apex_pub_dir_path, "apex_pubkey")
+    log_message = None
+    logging.info(f"APEX public key file path: {apex_pub_file_path} | {apex_file_path}")
     if not os.path.exists(apex_pub_file_path):
         log_message = f"AVB public key file not found: {apex_pub_file_path}"
     else:
         is_success = True
+        logging.info(f"Replacing AVB public key in APEX: {apex_file_path}")
         shutil.copy(avb_pub_key_path, apex_pub_file_path)
     return is_success, log_message
 
