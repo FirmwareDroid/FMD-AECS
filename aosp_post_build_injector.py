@@ -627,6 +627,18 @@ def generate_apex_keys(private_key_path, public_key_path):
     logging.info(f"Public key generated at: {public_key_path}")
 
 
+def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
+    """
+    Extracts the AVB public key from the given RSA private key.
+    :param key: str - path to the RSA private key.
+    :param avb_pub_out_path: str - path to the output file where the AVB public key will
+    :param aosp_path: str - log message to return in case of an error.
+
+    """
+    avbtool_path = os.path.join(aosp_path, "out/host/linux-x86/bin/avbtool")
+    avb_extract_command = [avbtool_path, 'extract_public_key', "--key", key, "--output", avb_pub_out_path]
+    subprocess.run(avb_extract_command, check=True)
+    logging.info(f"AVB public key extracted at: {avb_pub_out_path}")
 
 def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_target):
     """
@@ -666,7 +678,9 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                 temp_keys_dir = tempfile.mkdtemp(dir=apex_root_path)
                 priv_key_path = os.path.join(temp_keys_dir, "priv.key")
                 pub_key_path = os.path.join(temp_keys_dir, "pub.key")
+                avb_pub_key_path = os.path.join(temp_keys_dir, "apex_pubkey")
                 generate_apex_keys(priv_key_path, pub_key_path)
+                extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
 
                 # f"--android_manifest={apex_manifest_path} " \
                 command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
@@ -682,6 +696,11 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                 if is_success:
                     logging.info(f"APEX repackaged: {output_file_path}")
                     success = True
+                    is_success, log_message = replace_apex_avb_public_key(apex_file_path, avb_pub_key_path)
+                    if is_success:
+                        logging.info(f"AVB public key replaced in APEX: {apex_file_path}")
+                    else:
+                        log_message = f"AVB public key replacement failed. {log_message}"
                 else:
                     log_message = f"APEX repackaging failed. {log_message} | {info}"
             else:
@@ -691,6 +710,30 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
     except Exception as e:
         log_message = f"Error repackaging APEX file: {apex_file_path} | {str(e)}"
     return success, log_message
+
+
+def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path):
+    """
+    Replaces the AVB public key in the APEX file with the given public key.
+    :param apex_file_path: str - path to the APEX file.
+    :param avb_pub_key_path: str - path to the AVB public key file.
+    :param log_message: str - log message to return in case of an error.
+
+    :return: bool - True if the public key was replaced, False otherwise.
+    """
+    is_success = False
+    apex_dir_path = os.path.dirname(apex_file_path)
+    apex_filename = os.path.basename(apex_file_path)
+    apex_filename_no_ext = os.path.splitext(apex_filename)[0]
+    apex_pub_dir_path = apex_dir_path.replace(apex_filename_no_ext, f"apex_pubkey.{apex_filename_no_ext}")
+    apex_pub_file_path = os.path.join(apex_pub_dir_path, "apex_pubkey")
+    if not os.path.exists(apex_pub_file_path):
+        log_message = f"AVB public key file not found: {apex_pub_file_path}"
+    else:
+        is_success = True
+        shutil.copy(avb_pub_key_path, apex_pub_file_path)
+    return is_success, log_message
+
 
 
 def sign_apk_file(apk_file_path, signing_key_path):
@@ -862,7 +905,6 @@ def is_elf_binary(file_path):
             magic = f.read(4)
             return magic == b'\x7fELF'
     except Exception as e:
-        logging.error(f"Error checking ELF binary: {e}")
         return False
 
 
