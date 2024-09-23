@@ -267,7 +267,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
             elif module_type == "STATIC_CONFIG":
                 error_message = handle_static_config(file_path)
             elif module_type == "ETC" and (file_extension.lower() == ".apex" or file_extension.lower() == ".capex"):
-                error_message = handle_apex_modules(file_path, aosp_path, lunch_target)
+                error_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
 
             if not error_message:
                 inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path,
@@ -337,12 +337,12 @@ def get_signing_key_from_manifest(apk_file):
     return signing_key
 
 
-def handle_apex_modules(file_path, aosp_path, lunch_target):
+def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     error_message = None
     apex_filename_new = str(os.path.basename(file_path).replace(".apex", ".v2.apex"))
     apex_dir_path = str(os.path.dirname(file_path))
     apex_out_file = str(os.path.join(apex_dir_path, apex_filename_new))
-    is_repack_success, log_message = repackage_apex_file(aosp_path, file_path, apex_out_file, lunch_target)
+    is_repack_success, log_message = repackage_apex_file(aosp_path, file_path, apex_out_file, lunch_target, target_out_path)
     if not is_repack_success:
         error_message = f"Error repackaging APEX file: {file_path}|{log_message}"
     else:
@@ -640,7 +640,7 @@ def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
     subprocess.run(avb_extract_command, check=True)
     logging.info(f"AVB public key extracted at: {avb_pub_out_path}")
 
-def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_target):
+def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_target, target_out_path):
     """
     Extracts the APEX file using deapexer, repackages it using apexer, and signs all the APK files in the APEX using apksigner.
 
@@ -696,7 +696,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                 if is_success:
                     logging.info(f"APEX repackaged: {output_file_path}")
                     success = True
-                    is_success, log_message = replace_apex_avb_public_key(apex_file_path, avb_pub_key_path)
+                    is_success, log_message = replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path)
                     if is_success:
                         logging.info(f"AVB public key replaced in APEX: {apex_file_path}")
                     else:
@@ -712,7 +712,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
     return success, log_message
 
 
-def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path):
+def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path):
     """
     Replaces the AVB public key in the APEX file with the given public key.
     :param apex_file_path: str - path to the APEX file.
@@ -721,14 +721,15 @@ def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path):
     :return: tuple - (bool, str) - True if the replacement was successful, False otherwise. String containing the log.
     """
     is_success = False
-    apex_dir_path = os.path.dirname(apex_file_path)
     apex_filename = os.path.basename(apex_file_path)
     apex_filename_no_ext = os.path.splitext(apex_filename)[0]
-    apex_pub_dir_path = apex_dir_path.replace(apex_filename_no_ext, f"apex_pubkey.{apex_filename_no_ext}")
-    apex_pub_file_path = os.path.join(apex_pub_dir_path, "apex_pubkey")
+
+    apex_pub_key_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS, "ETC", f"apex_pubkey.{apex_filename_no_ext}_intermediates")
+    apex_pub_file_path = os.path.join(apex_pub_key_obj_path, "apex_pubkey")
     log_message = None
     logging.info(f"APEX public key file path: {apex_pub_file_path} | {apex_file_path}")
     if not os.path.exists(apex_pub_file_path):
+        logging.info(f"AVB public key file not found: {apex_pub_file_path}")
         log_message = f"AVB public key file not found: {apex_pub_file_path}"
     else:
         is_success = True
