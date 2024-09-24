@@ -735,7 +735,7 @@ def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_pat
         log_message = f"AVB public key file not found: {apex_pub_file_path}"
     else:
         is_success = True
-        logging.info(f"Replacing AVB public key in APEX: {apex_file_path}")
+        logging.info(f"Replacing AVB public key: src: {avb_pub_key_path}, dst: {apex_pub_file_path}")
         shutil.copy(avb_pub_key_path, apex_pub_file_path)
     return is_success, log_message
 
