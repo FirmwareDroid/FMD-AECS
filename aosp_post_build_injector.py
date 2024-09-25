@@ -4,6 +4,7 @@ before it is packaged into a firmware image. The script is used to inject blobs 
 the replacement of the original blobs (from AOSP) with the vendor flavoured blobs.
 """
 import argparse
+import hashlib
 import shutil
 import logging
 import subprocess
@@ -15,6 +16,7 @@ import traceback
 import zipfile
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 
+from filelock import FileLock
 from jinja2 import Environment, FileSystemLoader
 
 from config import AOSP_DEFAULT_PACKAGE_NAMES, VENDOR_BLACKLISTED_PACKAGES, EXTRACTED_PACKAGES_PATH, \
@@ -250,28 +252,42 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     inj_obj = None
     inj_partition = None
     error_message = None
+    lock_path = f"{file_path}.fmd-aecs-lock"
+    processed_marker = f"{file_path}.fmd-aecs-processed"
+    lock = FileLock(lock_path)
+
+    if os.path.exists(processed_marker):
+        return f"File already processed: {file_path}", None, None
+
     try:
-        module_type = get_module_type(file_path)
-        if module_type in ["SKIPPED"]:
-            error_message = f"Skipped File inject (Keyword/Extension/Filename): {file_path}"
-        else:
-            filename = os.path.basename(file_path)
-            if filename and filename != "":
-                allow_file_overwrite = (filename in ALLOW_FILE_OVERWRITE)
+        with lock:
+            if os.path.exists(processed_marker):
+                return f"File already processed: {file_path}", None, None
+
+            module_type = get_module_type(file_path)
+            if module_type in ["SKIPPED"]:
+                error_message = f"Skipped File inject (Keyword/Extension/Filename): {file_path}"
             else:
-                allow_file_overwrite = False
+                filename = os.path.basename(file_path)
+                if filename and filename != "":
+                    allow_file_overwrite = (filename in ALLOW_FILE_OVERWRITE)
+                else:
+                    allow_file_overwrite = False
 
-            file_extension = os.path.splitext(file_path)[1]
-            if module_type == "APPS" and file_extension.lower() == ".apk":
-                error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
-            elif module_type == "STATIC_CONFIG":
-                error_message = handle_static_config(file_path)
-            elif module_type == "ETC" and (file_extension.lower() == ".apex" or file_extension.lower() == ".capex"):
-                error_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
+                file_extension = os.path.splitext(file_path)[1]
+                if module_type == "APPS" and file_extension.lower() == ".apk":
+                    error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
+                elif module_type == "STATIC_CONFIG":
+                    error_message = handle_static_config(file_path)
+                elif module_type == "ETC" and (file_extension.lower() == ".apex" or file_extension.lower() == ".capex"):
+                    error_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
 
-            if not error_message:
-                inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path,
-                                                           allow_file_overwrite)
+                if not error_message:
+                    inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path,
+                                                               allow_file_overwrite)
+
+                with open(processed_marker, 'w') as marker:
+                    marker.write("")
     except Exception as e:
         error_message = f"{e}:{traceback.format_exc()}"
 
@@ -731,11 +747,15 @@ def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_pat
     log_message = None
     logging.info(f"APEX public key file path: {apex_pub_file_path} | {apex_file_path}")
     if not os.path.exists(apex_pub_file_path):
-        logging.info(f"AVB public key file not found: {apex_pub_file_path}")
-        log_message = f"AVB public key file not found: {apex_pub_file_path}"
+        logging.info(f"AVB public key file to replace not found: {apex_pub_file_path}")
+        log_message = f"AVB public key file to replace not found: {apex_pub_file_path}"
+    elif not os.path.exists(avb_pub_key_path):
+        logging.info(f"AVB public key file not found: {avb_pub_key_path}")
+        log_message = f"AVB public key file not found: {avb_pub_key_path}"
     else:
         is_success = True
-        logging.info(f"Replacing AVB public key: src: {avb_pub_key_path}, dst: {apex_pub_file_path}")
+        md5 = hashlib.md5(open(avb_pub_key_path, 'rb').read()).hexdigest()
+        logging.info(f"Replacing AVB public key: src: {avb_pub_key_path}:{md5}, dst: {apex_pub_file_path}")
         shutil.copy(avb_pub_key_path, apex_pub_file_path)
     return is_success, log_message
 
@@ -760,6 +780,23 @@ def sign_apk_file(apk_file_path, signing_key_path):
                     '--out', apk_file_path]
     success, log_message = execute_command(sign_command)
     return success, log_message
+
+
+def cleanup_files(directory):
+    """
+    Remove all .lock and .processed files in the given directory and its subdirectories.
+
+    :param directory: str - path to the directory to clean up.
+    """
+    for root, _, files in os.walk(directory):
+        for file in files:
+            if file.endswith('.fmd-aecs-lock') or file.endswith('.fmd-aecs-processed'):
+                file_path = os.path.join(root, file)
+                try:
+                    os.remove(file_path)
+                    logging.info(f"Removed file: {file_path}")
+                except Exception as e:
+                    logging.error(f"Error removing file {file_path}: {e}")
 
 
 def process_partition_files(aosp_path, folder_path, target_out_path, executor, lunch_target):
@@ -797,6 +834,8 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
 
     # Close the progress bar after all tasks are completed
     progress_bar.close()
+
+    cleanup_files(folder_path)
 
     return error_list, inj_obj_list, inj_partition_list
 
