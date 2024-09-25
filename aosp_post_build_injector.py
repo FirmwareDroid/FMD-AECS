@@ -336,14 +336,6 @@ def search_string_in_apk(apk_file, search_string):
 
 
 def get_signing_key_from_manifest(apk_file):
-    """
-    Get the signing key from the manifest file of the APK.
-    Args:
-        apk_file:
-
-    Returns:
-
-    """
     signing_key = "platform"
     for key, shared_uid_list in SHARED_USER_ID_MAPPING_DICT.items():
         for shared_uid in shared_uid_list:
@@ -648,6 +640,7 @@ def generate_apex_keys(private_key_path, public_key_path):
 def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
     """
     Extracts the AVB public key from the given RSA private key.
+
     :param key: str - path to the RSA private key.
     :param avb_pub_out_path: str - path to the output file where the AVB public key will
     :param aosp_path: str - log message to return in case of an error.
