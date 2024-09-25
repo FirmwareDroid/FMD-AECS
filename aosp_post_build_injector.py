@@ -155,6 +155,7 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.conscrypt.apex",
                      "com.google.android.wifi.apex",
                      "com.google.android.cellbroadcast.apex",
+                     "boot-framework.art",
                      ]
 
 
