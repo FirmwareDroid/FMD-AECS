@@ -53,7 +53,7 @@ SKIPPED_FILE_EXTENSION_LIST = [".bprof",
                                #".prof",
                                #".odex",
                                #".vdex",
-                               ".art",
+                               #".art",
                                ".oat",
                                ".apex",
                                ".original_apex" # Leftover from apex repacking
