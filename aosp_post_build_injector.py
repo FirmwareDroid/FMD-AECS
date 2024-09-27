@@ -92,7 +92,8 @@ SKIPPED_BINARY_LIST = ["vold",
                        "raw.image",  # Leftover from the file extraction process
                        "com.google.android.adbd.apex",  # Blocks ADB access
                        "com.android.vndk.current.apex",
-                       "com.google.android.tzdata3.apex"
+                       "com.google.android.tzdata3.apex",
+                       "bootclasspath.pb",
                        ]
 
 SKIPPED_KEYWORD_LIST = ["selinux",
@@ -144,7 +145,7 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.extservices.apex",
                      "com.google.android.permission.apex",
                      "com.google.android.media.apex",
-                     #"com.google.android.art.apex",
+                     "com.google.android.art.apex",
                      "com.google.android.media.swcodec.apex",
                      "com.google.android.telephony.apex",
                      "com.google.android.os.statsd.apex",
