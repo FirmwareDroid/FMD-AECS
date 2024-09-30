@@ -154,8 +154,8 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.ipsec.apex",
                      "com.google.android.resolv.apex",
                      "com.google.android.os.statsd.apex",
-                     #"com.android.runtime.apex", # Maybe problematic
-                     #"com.google.android.art.apex", # Maybe problematic
+                     "com.android.runtime.apex", # Problematic
+                     "com.google.android.art.apex", # Problematic
                      "com.google.mainline.primary.libs.apex",
                      #"com.google.android.tzdata3.apex",
                      "com.android.apex.cts.shim.apex",
