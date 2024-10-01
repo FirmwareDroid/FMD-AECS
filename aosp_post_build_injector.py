@@ -53,7 +53,7 @@ SKIPPED_FILE_EXTENSION_LIST = [".bprof",
                                ".prof",
                                ".odex",
                                ".vdex",
-                               ".art",
+                               #".art",
                                ".oat",
                                ".apex",
                                ".original_apex" # Leftover from apex repacking
@@ -169,10 +169,10 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.permission.apex",
                      "com.google.pixel.camera.hal.apex"
                      "boot-framework.art",
-                     "init.zygote32.rc",
-                     "init.zygote64.rc",
-                     "init.zygote64_32.rc",
-                     "boot-framework.art",
+                     #"init.zygote32.rc",
+                     #"init.zygote64.rc",
+                     #"init.zygote64_32.rc",
+                     #"boot-framework.art",
                      ]
 
 
