@@ -108,7 +108,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "exfat",
                         "vendor.qti.hardware",
                         "hardware",
-                        "zygote",
+                        #"zygote",
                         "android.hidl",
                         "qti",
                         "hwservicemanager",
@@ -169,6 +169,9 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.permission.apex",
                      "com.google.pixel.camera.hal.apex"
                      "boot-framework.art",
+                     "init.zygote32.rc",
+                     "init.zygote64.rc",
+                     "init.zygote64_32.rc"
                      ]
 
 
