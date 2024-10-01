@@ -171,7 +171,8 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "boot-framework.art",
                      "init.zygote32.rc",
                      "init.zygote64.rc",
-                     "init.zygote64_32.rc"
+                     "init.zygote64_32.rc",
+                     "boot-framework.art",
                      ]
 
 
