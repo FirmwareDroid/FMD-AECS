@@ -93,6 +93,7 @@ SKIPPED_BINARY_LIST = ["vold",
                        "com.google.android.adbd.apex",  # Blocks ADB access
                        "com.android.vndk.current.apex",
                        "com.google.android.tzdata3.apex",
+                       "libminijail.so" #ERROR: libminijail[365]: failed to compile seccomp filter BPF program from fd 4 -> Likely incompatible with android.hardware.media.c2@1.0-service-goldfish
                        ]
 
 SKIPPED_KEYWORD_LIST = ["selinux",
