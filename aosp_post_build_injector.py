@@ -44,17 +44,17 @@ for blacklisted_module_name in VENDOR_BLACKLISTED_PACKAGES:
 
 SKIPPED_STATIC_FILE_KEYWORD_LIST = ["vintf", "vndk"]
 
-SKIPPED_FILE_EXTENSION_LIST = [".bprof",
-                               ".policy",
+SKIPPED_FILE_EXTENSION_LIST = [#".bprof",
+                               #".policy",
                                ".rc",
                                ".ko",
                                ".prop",
                                ".capex",
                                ".prof",
-                               ".odex",
-                               ".vdex",
+                               #".odex",
+                               #".vdex",
                                #".art",
-                               ".oat",
+                               #".oat",
                                ".apex",
                                ".original_apex" # Leftover from apex repacking
                                ]
