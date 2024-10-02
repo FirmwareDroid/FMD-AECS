@@ -93,7 +93,8 @@ SKIPPED_BINARY_LIST = ["vold",
                        "com.google.android.adbd.apex",  # Blocks ADB access
                        "com.android.vndk.current.apex",
                        "com.google.android.tzdata3.apex",
-                       "libminijail.so" #ERROR: libminijail[365]: failed to compile seccomp filter BPF program from fd 4 -> Likely incompatible with android.hardware.media.c2@1.0-service-goldfish
+                       "libminijail.so", #ERROR: libminijail[365]: failed to compile seccomp filter BPF program from fd 4 -> Likely incompatible with android.hardware.media.c2@1.0-service-goldfish
+                       "libavservices_minijail_vendor.so"
                        ]
 
 SKIPPED_KEYWORD_LIST = ["selinux",
@@ -112,7 +113,8 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "android.hidl",
                         "qti",
                         "hwservicemanager",
-                        "secureboot"]
+                        "secureboot",
+                        "minijail"]
 
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg",
                                          ".otf",
@@ -143,7 +145,7 @@ ALLOWED_KEYWORD = ["Overlay",
 #, --> No exact file match com.android.tzdata.apex is used
 ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.tethering.apex",
-                     "com.android.vndk.current.apex",
+                     #"com.android.vndk.current.apex",
                      "com.android.i18n.apex",
                      "com.google.android.extservices.apex",
                      "com.google.android.conscrypt.apex",
