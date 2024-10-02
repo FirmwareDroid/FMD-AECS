@@ -93,7 +93,6 @@ SKIPPED_BINARY_LIST = ["vold",
                        "com.google.android.adbd.apex",  # Blocks ADB access
                        "com.android.vndk.current.apex",
                        "com.google.android.tzdata3.apex",
-                       "bootclasspath.pb",
                        ]
 
 SKIPPED_KEYWORD_LIST = ["selinux",
@@ -169,6 +168,7 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.permission.apex",
                      "com.google.pixel.camera.hal.apex"
                      "boot-framework.art",
+                     "bootclasspath.pb",
                      #"init.zygote32.rc",
                      #"init.zygote64.rc",
                      #"init.zygote64_32.rc",
