@@ -91,10 +91,7 @@ SKIPPED_BINARY_LIST = ["vold",
                        "otacerts.zip",  # Allow to overwrite with own certificates
                        "raw.image",  # Leftover from the file extraction process
                        "com.google.android.adbd.apex",  # Blocks ADB access
-                       "com.android.vndk.current.apex",
-                       "com.google.android.tzdata3.apex",
-                       "libminijail.so", #ERROR: libminijail[365]: failed to compile seccomp filter BPF program from fd 4 -> Likely incompatible with android.hardware.media.c2@1.0-service-goldfish
-                       "libavservices_minijail_vendor.so"
+                       "com.google.android.tzdata3.apex"
                        ]
 
 SKIPPED_KEYWORD_LIST = ["selinux",
@@ -143,9 +140,15 @@ ALLOWED_KEYWORD = ["Overlay",
 #    ALLOWED_KEYWORD.append(blacklisted_keyword)
 
 #, --> No exact file match com.android.tzdata.apex is used
+# "com.google.android.tzdata3.apex",
+# "com.google.android.adbd.apex",
+# "init.zygote32.rc",
+# "init.zygote64.rc",
+# "init.zygote64_32.rc",
+# "boot-framework.art",
 ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.tethering.apex",
-                     #"com.android.vndk.current.apex",
+                     "com.android.vndk.current.apex",
                      "com.android.i18n.apex",
                      "com.google.android.extservices.apex",
                      "com.google.android.conscrypt.apex",
@@ -159,25 +162,18 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.android.runtime.apex", # Problematic
                      "com.google.android.art.apex", # Problematic
                      "com.google.mainline.primary.libs.apex",
-                     #"com.google.android.tzdata3.apex",
                      "com.android.apex.cts.shim.apex",
                      "com.google.android.telephony.apex",
                      "com.google.android.media.swcodec.apex",
                      "com.google.android.scheduling.apex",
                      "com.google.android.appsearch.apex",
-                     #"com.google.android.adbd.apex",
                      "com.google.android.neuralnetworks.apex",
                      "com.google.android.media.apex",
                      "com.google.android.permission.apex",
                      "com.google.pixel.camera.hal.apex"
                      "boot-framework.art",
-                     "bootclasspath.pb",
-                     #"init.zygote32.rc",
-                     #"init.zygote64.rc",
-                     #"init.zygote64_32.rc",
-                     #"boot-framework.art",
+                     "bootclasspath.pb"
                      ]
-
 
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target):
     """
@@ -858,6 +854,7 @@ def get_module_type(source_file_path):
     """
     Determines the module type of the source file.
     """
+    source_file_path = source_file_path.strip()
     file_extension = os.path.splitext(source_file_path)[1]
     file_name = os.path.basename(source_file_path)
     if file_extension in ["", None] and "/bin/" in source_file_path:
