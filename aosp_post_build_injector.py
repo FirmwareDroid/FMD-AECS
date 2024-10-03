@@ -44,17 +44,19 @@ for blacklisted_module_name in VENDOR_BLACKLISTED_PACKAGES:
 
 SKIPPED_STATIC_FILE_KEYWORD_LIST = ["vintf", "vndk"]
 
-SKIPPED_FILE_EXTENSION_LIST = [#".bprof",
-                               #".policy",
+                #".bprof",
+                #".policy",
+                ##".odex",
+               #".vdex",
+               #".art",
+               #".oat",
+
+SKIPPED_FILE_EXTENSION_LIST = [
                                ".rc",
                                ".ko",
                                ".prop",
                                ".capex",
                                ".prof",
-                               #".odex",
-                               #".vdex",
-                               #".art",
-                               #".oat",
                                ".apex",
                                ".original_apex" # Leftover from apex repacking
                                ]
@@ -90,8 +92,6 @@ SKIPPED_BINARY_LIST = ["vold",
                        "build.prop",
                        "otacerts.zip",  # Allow to overwrite with own certificates
                        "raw.image",  # Leftover from the file extraction process
-                       "com.google.android.adbd.apex",  # Blocks ADB access
-                       "com.google.android.tzdata3.apex"
                        ]
 
 SKIPPED_KEYWORD_LIST = ["selinux",
@@ -106,7 +106,6 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "exfat",
                         "vendor.qti.hardware",
                         "hardware",
-                        #"zygote",
                         "android.hidl",
                         "qti",
                         "hwservicemanager",
@@ -140,8 +139,8 @@ ALLOWED_KEYWORD = ["Overlay",
 #    ALLOWED_KEYWORD.append(blacklisted_keyword)
 
 #, --> No exact file match com.android.tzdata.apex is used
-# "com.google.android.tzdata3.apex",
-# "com.google.android.adbd.apex",
+# "com.google.android.tzdata3.apex", --> Conflict with com.google.android.tzdata.apex
+# "com.google.android.adbd.apex", --> Blocks adb access
 # "init.zygote32.rc",
 # "init.zygote64.rc",
 # "init.zygote64_32.rc",
@@ -868,6 +867,7 @@ def get_module_type(source_file_path):
     elif file_extension in [".xml"]:
         module_type = "STATIC_CONFIG"
     elif "/etc/" in source_file_path:
+        logging.info(f"ETC file: {source_file_path}")
         module_type = "ETC"
     elif file_extension in [".apex", ".capex"]:
         module_type = "ETC"
