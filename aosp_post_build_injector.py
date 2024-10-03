@@ -42,7 +42,8 @@ SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.ap
 for blacklisted_module_name in VENDOR_BLACKLISTED_PACKAGES:
     SKIPPED_APP_LIST.append(f"{blacklisted_module_name}.apk")
 
-SKIPPED_STATIC_FILE_KEYWORD_LIST = ["vintf", "vndk"]
+# "vintf", "vndk"
+SKIPPED_STATIC_FILE_KEYWORD_LIST = []
 
                 #".bprof",
                 #".policy",
@@ -518,6 +519,8 @@ def align_apk_file(apk_file_path):
     return success, log_message
 
 
+
+
 def generate_canned_fs_config(apex_extract_dir_path, output_file):
     """
     Generates a canned_fs_config file for the given directory. The config contains the file paths and their
@@ -540,6 +543,10 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
 
             for file_name in files:
                 file_path = str(os.path.join(root, file_name))
+                module_type = get_module_type(file_path)
+                if module_type == "SKIPPED":
+                    os.remove(file_path)
+                    continue
                 relative_file_path = os.path.relpath(file_path, apex_extract_dir_path)
                 user_id = 1000  # system
                 group_id = 1000  # system
