@@ -60,18 +60,19 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".apex",
                                ".original_apex" # Leftover from apex repacking
                                ]
+
+# "vndservicemanager",
+# "servicemanager",
+# "hwservicemanager",
+# "boringssl_self_test32",
+# "boringssl_self_test64",
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
                        "vdc",
-                       #"vndservicemanager",
-                       "servicemanager",
-                       "hwservicemanager",
                        "console",
                        "zygote",
                        "tee",
                        "qemu-props",
-                       "boringssl_self_test32",
-                       "boringssl_self_test64",
                        "ueventd",
                        "wait_for_keymaster",
                        "linkerconfig",
@@ -94,10 +95,13 @@ SKIPPED_BINARY_LIST = ["vold",
                        "raw.image",  # Leftover from the file extraction process
                        ]
 
+# "android.hardware",
+# "hardware",
+# "android.hidl",
+# "hwservicemanager",
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
                         "keymaster",
-                        "android.hardware",
                         "vold",
                         "recovery-refresh",
                         "vendor.sensors",
@@ -105,10 +109,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "qseecom",
                         "exfat",
                         "vendor.qti.hardware",
-                        "hardware",
-                        "android.hidl",
                         "qti",
-                        "hwservicemanager",
                         "secureboot"
                         ]
 
@@ -147,7 +148,7 @@ ALLOWED_KEYWORD = ["Overlay",
 # "boot-framework.art",
 ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.tethering.apex",
-                     "com.android.vndk.current.apex",
+                     "com.android.vndk.current.apex", # Problematic update com.android.hardware libraries
                      "com.android.i18n.apex",
                      "com.google.android.extservices.apex",
                      "com.google.android.conscrypt.apex",
@@ -169,9 +170,7 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.neuralnetworks.apex",
                      "com.google.android.media.apex",
                      "com.google.android.permission.apex",
-                     "com.google.pixel.camera.hal.apex"
-                     "boot-framework.art",
-                     "bootclasspath.pb"
+                     "com.google.pixel.camera.hal.apex",
                      ]
 
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target):
