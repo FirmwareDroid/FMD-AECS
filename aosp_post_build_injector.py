@@ -110,8 +110,8 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "android.hidl",
                         "qti",
                         "hwservicemanager",
-                        "secureboot",
-                        "minijail"]
+                        "secureboot"
+                        ]
 
 ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg",
                                          ".otf",
