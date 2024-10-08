@@ -174,6 +174,13 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.pixel.camera.hal.apex",
                      ]
 
+ALLOWED_APEX_FILE_INJECT = ["linkerconfig", "derive_classpath.rc", "derive_sdk.rc"]
+ALLOWED_APEX_KEYWORD = ["keystore2", "keymaster"]
+
+
+
+
+
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target):
     """
     Start the post build injector. Replaces the original objects in the AOSP source code with the vendor flavoured
@@ -534,7 +541,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
 
             for file_name in files:
                 file_path = str(os.path.join(root, file_name))
-                module_type = get_module_type(file_path)
+                module_type = get_module_type(file_path, is_apex=True)
                 if module_type == "SKIPPED":
                     logging.error(f"Deleting file from APEX. Known problematic filename: {file_path}")
                     os.remove(file_path)
@@ -847,7 +854,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     return error_list, inj_obj_list, inj_partition_list
 
 
-def get_module_type(source_file_path):
+def get_module_type(source_file_path, is_apex=False):
     """
     Determines the module type of the source file.
     """
@@ -876,12 +883,16 @@ def get_module_type(source_file_path):
         if (file_name in SKIPPED_BINARY_LIST
                 or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST)
                 or file_extension in SKIPPED_FILE_EXTENSION_LIST):
-
-            if module_type == "APPS" and any(keyword in file_name for keyword in ALLOWED_KEYWORD):
-                module_type = "APPS"
+            if not is_apex:
+                if module_type == "APPS" and any(keyword in file_name for keyword in ALLOWED_KEYWORD):
+                    module_type = "APPS"
+                else:
+                    module_type = "SKIPPED"
             else:
-                module_type = "SKIPPED"
-
+                if any(keyword in file_name for keyword in ALLOWED_APEX_KEYWORD) or file_name in ALLOWED_APEX_FILE_INJECT:
+                    logging.info(f"Allowed APEX file injection (Keword/Direct Match): {source_file_path}")
+                else:
+                    module_type = "SKIPPED"
     return module_type
 
 
