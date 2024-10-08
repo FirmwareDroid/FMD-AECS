@@ -61,7 +61,6 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ]
 
 # "vndservicemanager",
-# "servicemanager",
 # "hwservicemanager",
 # "boringssl_self_test32",
 # "boringssl_self_test64",
@@ -75,6 +74,7 @@ SKIPPED_BINARY_LIST = ["vold",
                        "qemu-props",
                        "ueventd",
                        "wait_for_keymaster",
+                       "servicemanager",
                        "linkerconfig",
                        "bootstat",
                        "wpa_supplicant",
