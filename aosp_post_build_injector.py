@@ -42,16 +42,14 @@ SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.ap
 for blacklisted_module_name in VENDOR_BLACKLISTED_PACKAGES:
     SKIPPED_APP_LIST.append(f"{blacklisted_module_name}.apk")
 
-# "vintf", "vndk"
-SKIPPED_STATIC_FILE_KEYWORD_LIST = []
 
-                #".bprof",
-                #".policy",
-                ##".odex",
-               #".vdex",
-               #".art",
-               #".oat",
 
+#".bprof",
+#".policy",
+##".odex",
+#".vdex",
+#".art",
+#".oat",
 SKIPPED_FILE_EXTENSION_LIST = [
                                ".rc",
                                ".ko",
@@ -100,6 +98,8 @@ SKIPPED_BINARY_LIST = ["vold",
 # "hardware",
 # "android.hidl",
 # "hwservicemanager",
+# "vintf",
+# "vndk"
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
                         "keymaster",
@@ -293,8 +293,6 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 file_extension = os.path.splitext(file_path)[1]
                 if module_type == "APPS" and file_extension.lower() == ".apk":
                     error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
-                elif module_type == "STATIC_CONFIG":
-                    error_message = handle_static_config(file_path)
                 elif module_type == "ETC" and (file_extension.lower() == ".apex" or file_extension.lower() == ".capex"):
                     error_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
 
@@ -309,13 +307,6 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 
     result = error_message, inj_obj, inj_partition
     return result
-
-
-def handle_static_config(file_path):
-    error_message = None
-    if any(keyword in file_path for keyword in SKIPPED_STATIC_FILE_KEYWORD_LIST):
-        error_message = f"Skipped file due known problematic keyword in path: {file_path}"
-    return error_message
 
 
 def get_apex_signing_key_from_filename(file_path):
@@ -545,6 +536,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                 file_path = str(os.path.join(root, file_name))
                 module_type = get_module_type(file_path)
                 if module_type == "SKIPPED":
+                    logging.error(f"Deleting file from APEX. Known problematic filename: {file_path}")
                     os.remove(file_path)
                     continue
                 relative_file_path = os.path.relpath(file_path, apex_extract_dir_path)
