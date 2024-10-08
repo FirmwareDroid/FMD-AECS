@@ -94,15 +94,18 @@ SKIPPED_BINARY_LIST = ["vold",
                        "raw.image",  # Leftover from the file extraction process
                        ]
 
-# "android.hardware",
-# "hardware",
-# "android.hidl",
-# "hwservicemanager",
-# "vintf",
-# "vndk"
+
+
+
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
                         "keymaster",
+                        "android.hardware",
+                        "hardware",
+                        "android.hidl",
+                        "hwservicemanager",
+                        "vintf",
+                        "vndk",
                         "vold",
                         "recovery-refresh",
                         "vendor.sensors",
@@ -546,6 +549,8 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                     logging.error(f"Deleting file from APEX. Known problematic filename: {file_path}")
                     os.remove(file_path)
                     continue
+                else:
+                    logging.info(f"Adding file to APEX: {file_path}")
                 relative_file_path = os.path.relpath(file_path, apex_extract_dir_path)
                 user_id = 1000  # system
                 group_id = 1000  # system
@@ -883,16 +888,20 @@ def get_module_type(source_file_path, is_apex=False):
         if (file_name in SKIPPED_BINARY_LIST
                 or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST)
                 or file_extension in SKIPPED_FILE_EXTENSION_LIST):
-            if not is_apex:
+
+            if is_apex:
+                if any(keyword in source_file_path for keyword in ALLOWED_APEX_KEYWORD):
+                    logging.info(f"Allowed APEX file injection (Keyword: {source_file_path}")
+                elif file_name in ALLOWED_APEX_FILE_INJECT:
+                    logging.info(f"Allowed APEX file injection (Direct Match): {source_file_path}")
+                else:
+                    module_type = "SKIPPED"
+            else:
                 if module_type == "APPS" and any(keyword in file_name for keyword in ALLOWED_KEYWORD):
                     module_type = "APPS"
                 else:
                     module_type = "SKIPPED"
-            else:
-                if any(keyword in file_name for keyword in ALLOWED_APEX_KEYWORD) or file_name in ALLOWED_APEX_FILE_INJECT:
-                    logging.info(f"Allowed APEX file injection (Keword/Direct Match): {source_file_path}")
-                else:
-                    module_type = "SKIPPED"
+
     return module_type
 
 
