@@ -65,6 +65,7 @@ SKIPPED_FILE_EXTENSION_LIST = [
 # "hwservicemanager",
 # "boringssl_self_test32",
 # "boringssl_self_test64",
+# "servicemanager",
 SKIPPED_BINARY_LIST = ["vold",
                        "keystore2",
                        "vdc",
@@ -178,7 +179,7 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      ]
 
 ALLOWED_APEX_FILE_INJECT = ["linkerconfig", "derive_classpath.rc", "derive_sdk.rc"]
-ALLOWED_APEX_KEYWORD = ["keystore2", "keymaster"]
+ALLOWED_APEX_KEYWORD = []
 
 
 
