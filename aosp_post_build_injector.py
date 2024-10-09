@@ -60,7 +60,8 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".original_apex" # Leftover from apex repacking
                                ]
 
-SKIPPED_BINARY_LIST = ["vndservicemanager", # problematic
+# "vndservicemanager", # problematic
+SKIPPED_BINARY_LIST = [
                        "hwservicemanager", # problematic
                        "servicemanager", # problematic
                        "vold",
@@ -92,9 +93,8 @@ SKIPPED_BINARY_LIST = ["vndservicemanager", # problematic
                        "raw.image",  # Leftover from the file extraction process
                        ]
 
-
-SKIPPED_KEYWORD_LIST = ["selinux",
-                        "keystore",
+# "selinux"
+SKIPPED_KEYWORD_LIST = ["keystore",
                         "keymaster",
                         "android.hardware",
                         "hardware",
@@ -176,7 +176,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.hardwareinfo.xml",
                             ]
 
-ALLOWED_APEX_FILE_INJECT = ["linkerconfig", "derive_classpath.rc", "derive_sdk.rc"]
+ALLOWED_APEX_FILE_INJECT = ["derive_classpath.rc", "derive_sdk.rc"]
 ALLOWED_APEX_KEYWORD = []
 
 
