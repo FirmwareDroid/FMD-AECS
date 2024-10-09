@@ -93,8 +93,6 @@ SKIPPED_BINARY_LIST = ["vndservicemanager", # problematic
                        ]
 
 
-
-
 SKIPPED_KEYWORD_LIST = ["selinux",
                         "keystore",
                         "keymaster",
@@ -115,7 +113,7 @@ SKIPPED_KEYWORD_LIST = ["selinux",
                         "secureboot"
                         ]
 
-ALLOWED_OVERWRITE_FILE_EXTENSION_LIST = [".ogg",
+ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
                                          ".otf",
                                          ".ttf"]
 
@@ -125,8 +123,10 @@ ALLOW_FILE_OVERWRITE = ["framework-res.apk",
                         "group",
                         "com.google.android.hardwareinfo.xml",
                         ]
+
 for default_module_name in AOSP_DEFAULT_PACKAGE_NAMES:
     ALLOW_FILE_OVERWRITE.append(f"{default_module_name}.apk")
+
 ALLOWED_KEYWORD = ["Overlay",
                    "Connectivity",
                    "Wifi",
@@ -148,9 +148,9 @@ ALLOWED_KEYWORD = ["Overlay",
 # "init.zygote64.rc",
 # "init.zygote64_32.rc",
 # "boot-framework.art",
-ALLOW_FILE_INJECT = ["installd.rc",
+ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                      "com.google.android.tethering.apex",
-                     "com.android.vndk.current.apex", # Problematic update com.android.hardware libraries
+                     "com.android.vndk.current.apex",  # Problematic update com.android.hardware libraries
                      "com.android.i18n.apex",
                      "com.google.android.extservices.apex",
                      "com.google.android.conscrypt.apex",
@@ -159,21 +159,22 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.mediaprovider.apex",
                      "com.google.android.sdkext.apex",
                      "com.google.android.ipsec.apex",
-                     "com.google.android.resolv.apex",
-                     "com.google.android.os.statsd.apex",
-                     "com.android.runtime.apex", # Problematic
-                     "com.google.android.art.apex", # Problematic
-                     "com.google.mainline.primary.libs.apex",
-                     "com.android.apex.cts.shim.apex",
-                     "com.google.android.telephony.apex",
-                     "com.google.android.media.swcodec.apex",
-                     "com.google.android.scheduling.apex",
-                     "com.google.android.appsearch.apex",
-                     "com.google.android.neuralnetworks.apex",
-                     "com.google.android.media.apex",
-                     "com.google.android.permission.apex",
-                     "com.google.pixel.camera.hal.apex",
-                     ]
+                            "com.google.android.resolv.apex",
+                            "com.google.android.os.statsd.apex",
+                            "com.android.runtime.apex",  # Problematic
+                            "com.google.android.art.apex",  # Problematic
+                            "com.google.mainline.primary.libs.apex",
+                            "com.android.apex.cts.shim.apex",
+                            "com.google.android.telephony.apex",
+                            "com.google.android.media.swcodec.apex",
+                            "com.google.android.scheduling.apex",
+                            "com.google.android.appsearch.apex",
+                            "com.google.android.neuralnetworks.apex",
+                            "com.google.android.media.apex",
+                            "com.google.android.permission.apex",
+                            "com.google.pixel.camera.hal.apex",
+                            "com.google.android.hardwareinfo.xml"
+                            ]
 
 ALLOWED_APEX_FILE_INJECT = ["linkerconfig", "derive_classpath.rc", "derive_sdk.rc"]
 ALLOWED_APEX_KEYWORD = []
@@ -882,28 +883,53 @@ def get_module_type(source_file_path, is_apex=False):
     else:
         module_type = "MISC"
 
-    if file_name not in ALLOW_FILE_INJECT:
-        if (file_name in SKIPPED_BINARY_LIST
-                or any(keyword in source_file_path for keyword in SKIPPED_KEYWORD_LIST)
-                or file_extension in SKIPPED_FILE_EXTENSION_LIST):
 
-            if is_apex:
+    tmp_module_type = module_type
+    if not is_file_path_allowed(source_file_path):
+        module_type = "SKIPPED"
 
-                if any(keyword in source_file_path for keyword in ALLOWED_APEX_KEYWORD):
-                    logging.info(f"Allowed APEX file injection (Keyword: {source_file_path}")
-                elif file_name in ALLOWED_APEX_FILE_INJECT:
-                    logging.info(f"Allowed APEX file injection (Direct Match): {source_file_path}")
-                else:
-                    logging.info(f"Skipped APEX file injection (Keyword/Extension/Filename): {source_file_path}")
-                    module_type = "SKIPPED"
-            else:
-                if module_type == "APPS" and any(keyword in file_name for keyword in ALLOWED_KEYWORD):
-                    module_type = "APPS"
-                else:
-                    module_type = "SKIPPED"
+    if not is_file_extension_allowed(file_extension):
+        module_type = "SKIPPED"
+
+    if not is_file_inject_allowed(file_name):
+        module_type = "SKIPPED"
+
+    if file_name in ALLOW_FILE_INJECT_ALWAYS:
+        module_type = tmp_module_type
 
     return module_type
 
+
+def is_file_inject_allowed(file_name):
+    """
+    Determines if a file is allowed to be injected based on various criteria.
+
+    :param file_name: str - The name of the file.
+
+    :return: bool - True if the file is allowed to be injected, False otherwise.
+    """
+    if file_name in SKIPPED_BINARY_LIST:
+        return False
+    return True
+
+def is_file_extension_allowed(file_extension):
+    if file_extension in SKIPPED_FILE_EXTENSION_LIST:
+        return False
+    return True
+
+def is_file_path_allowed(file_path):
+    """
+    Determines if a file path is allowed based on the keyword list.
+
+    :param file_path: str - The path to the file.
+
+    :return: bool - True if the file path is allowed, False otherwise.
+
+    """
+    if any(keyword in file_path for keyword in SKIPPED_KEYWORD_LIST):
+        return False
+
+    return True
 
 def scandir_walk(dir_path):
     """
@@ -1128,7 +1154,7 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
 
     if os.path.exists(target_file_injection_path):
         file_extension = os.path.splitext(target_file_injection_path)[1]
-        if os.path.islink(target_file_injection_path) or file_extension in ALLOWED_OVERWRITE_FILE_EXTENSION_LIST:
+        if os.path.islink(target_file_injection_path) or file_extension in ALLOWED_FILE_OVERWRITE_EXTENSION_LIST:
             shutil.copyfile(source_file_path, target_file_injection_path)
         else:
             if overwrite:
