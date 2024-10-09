@@ -149,16 +149,16 @@ ALLOWED_KEYWORD = ["Overlay",
 # "init.zygote64_32.rc",
 # "boot-framework.art",
 ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
-                     "com.google.android.tethering.apex",
-                     "com.android.vndk.current.apex",  # Problematic update com.android.hardware libraries
-                     "com.android.i18n.apex",
-                     "com.google.android.extservices.apex",
-                     "com.google.android.conscrypt.apex",
-                     "com.google.android.wifi.apex",
-                     "com.google.android.cellbroadcast.apex",
-                     "com.google.android.mediaprovider.apex",
-                     "com.google.android.sdkext.apex",
-                     "com.google.android.ipsec.apex",
+                            "com.google.android.tethering.apex",
+                            "com.android.vndk.current.apex",  # Problematic update com.android.hardware libraries
+                            "com.android.i18n.apex",
+                            "com.google.android.extservices.apex",
+                            "com.google.android.conscrypt.apex",
+                            "com.google.android.wifi.apex",
+                            "com.google.android.cellbroadcast.apex",
+                            "com.google.android.mediaprovider.apex",
+                            "com.google.android.sdkext.apex",
+                            "com.google.android.ipsec.apex",
                             "com.google.android.resolv.apex",
                             "com.google.android.os.statsd.apex",
                             "com.android.runtime.apex",  # Problematic
@@ -173,7 +173,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.media.apex",
                             "com.google.android.permission.apex",
                             "com.google.pixel.camera.hal.apex",
-                            "com.google.android.hardwareinfo.xml"
+                            "com.google.android.hardwareinfo.xml",
                             ]
 
 ALLOWED_APEX_FILE_INJECT = ["linkerconfig", "derive_classpath.rc", "derive_sdk.rc"]
@@ -885,13 +885,9 @@ def get_module_type(source_file_path, is_apex=False):
 
 
     tmp_module_type = module_type
-    if not is_file_path_allowed(source_file_path):
-        module_type = "SKIPPED"
-
-    if not is_file_extension_allowed(file_extension):
-        module_type = "SKIPPED"
-
-    if not is_file_inject_allowed(file_name):
+    if (not is_file_path_allowed(source_file_path)
+            or not is_file_extension_allowed(file_extension)
+            or not is_file_inject_allowed(file_name)):
         module_type = "SKIPPED"
 
     if file_name in ALLOW_FILE_INJECT_ALWAYS:
