@@ -60,12 +60,11 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".original_apex" # Leftover from apex repacking
                                ]
 
-# "vndservicemanager",
-# "hwservicemanager",
-# "boringssl_self_test32",
-# "boringssl_self_test64",
-# "servicemanager",
-SKIPPED_BINARY_LIST = ["vold",
+SKIPPED_BINARY_LIST = [
+                       "vndservicemanager", # problematic
+                       "hwservicemanager", # problematic
+                       "servicemanager", # problematic
+                       "vold",
                        "keystore2",
                        "vdc",
                        "console",
@@ -74,7 +73,6 @@ SKIPPED_BINARY_LIST = ["vold",
                        "qemu-props",
                        "ueventd",
                        "wait_for_keymaster",
-                       "servicemanager",
                        "linkerconfig",
                        "bootstat",
                        "wpa_supplicant",
@@ -176,9 +174,9 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.media.apex",
                      "com.google.android.permission.apex",
                      "com.google.pixel.camera.hal.apex",
-                     "android.system.keystore2-service.xml",
-                     "android.hardware.strongbox_keystore.xml",
-                     "android.hardware.hardware_keystore.xml",
+                     #"android.system.keystore2-service.xml",
+                     #"android.hardware.strongbox_keystore.xml",
+                     #"android.hardware.hardware_keystore.xml",
                      ]
 
 ALLOWED_APEX_FILE_INJECT = ["linkerconfig", "derive_classpath.rc", "derive_sdk.rc"]
@@ -817,7 +815,7 @@ def cleanup_files(directory):
                 file_path = os.path.join(root, file)
                 try:
                     os.remove(file_path)
-                    logging.info(f"Removed file: {file_path}")
+                    #logging.info(f"Removed file: {file_path}")
                 except Exception as e:
                     logging.error(f"Error removing file {file_path}: {e}")
 
@@ -894,11 +892,13 @@ def get_module_type(source_file_path, is_apex=False):
                 or file_extension in SKIPPED_FILE_EXTENSION_LIST):
 
             if is_apex:
+
                 if any(keyword in source_file_path for keyword in ALLOWED_APEX_KEYWORD):
                     logging.info(f"Allowed APEX file injection (Keyword: {source_file_path}")
                 elif file_name in ALLOWED_APEX_FILE_INJECT:
                     logging.info(f"Allowed APEX file injection (Direct Match): {source_file_path}")
                 else:
+                    logging.info(f"Skipped APEX file injection (Keyword/Extension/Filename): {source_file_path}")
                     module_type = "SKIPPED"
             else:
                 if module_type == "APPS" and any(keyword in file_name for keyword in ALLOWED_KEYWORD):
