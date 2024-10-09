@@ -60,8 +60,7 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".original_apex" # Leftover from apex repacking
                                ]
 
-SKIPPED_BINARY_LIST = [
-                       "vndservicemanager", # problematic
+SKIPPED_BINARY_LIST = ["vndservicemanager", # problematic
                        "hwservicemanager", # problematic
                        "servicemanager", # problematic
                        "vold",
@@ -174,9 +173,6 @@ ALLOW_FILE_INJECT = ["installd.rc",
                      "com.google.android.media.apex",
                      "com.google.android.permission.apex",
                      "com.google.pixel.camera.hal.apex",
-                     #"android.system.keystore2-service.xml",
-                     #"android.hardware.strongbox_keystore.xml",
-                     #"android.hardware.hardware_keystore.xml",
                      ]
 
 ALLOWED_APEX_FILE_INJECT = ["linkerconfig", "derive_classpath.rc", "derive_sdk.rc"]
