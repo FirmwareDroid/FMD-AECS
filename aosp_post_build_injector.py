@@ -548,11 +548,11 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                 module_type = get_module_type(file_path, is_apex=True)
                 if module_type == "SKIPPED":
                     logging.error(f"Deleting file from APEX. Known problematic filename: {file_path}")
-                    try:
-                        os.remove(file_path)
-                    except Exception as e:
-                        logging.error(f"Error deleting file: {file_path} | {e}")
-                    continue
+                    # try:
+                    #     os.remove(file_path)
+                    # except Exception as e:
+                    #     logging.error(f"Error deleting file: {file_path} | {e}")
+                    # continue
                 else:
                     logging.info(f"Adding file to APEX: {file_path}")
                 relative_file_path = os.path.relpath(file_path, apex_extract_dir_path)
