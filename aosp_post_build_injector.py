@@ -303,7 +303,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 file_extension = os.path.splitext(file_path)[1]
                 if module_type == "APPS" and file_extension.lower() == ".apk":
                     error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
-                elif module_type == "ETC" and (file_extension.lower() == ".apex" or file_extension.lower() == ".capex"):
+                elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
                     error_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
 
                 if not error_message:
@@ -364,6 +364,10 @@ def get_signing_key_from_manifest(apk_file):
 
 def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     error_message = None
+    org_apex_file = f"{file_path}.original_apex"
+    if os.path.exists(org_apex_file):
+        os.remove(file_path)
+        shutil.copyfile(org_apex_file, file_path)
     apex_filename_new = str(os.path.basename(file_path).replace(".apex", ".v2.apex"))
     apex_dir_path = str(os.path.dirname(file_path))
     apex_out_file = str(os.path.join(apex_dir_path, apex_filename_new))
@@ -544,7 +548,6 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
 
             for file_name in files:
                 file_path = str(os.path.join(root, file_name))
-                logging.info(f"Checking APEX file inclusion: {file_path}")
                 module_type = get_module_type(file_path, is_apex=True)
                 if module_type == "SKIPPED":
                     logging.error(f"Deleting file from APEX. Known problematic filename: {file_path}")
