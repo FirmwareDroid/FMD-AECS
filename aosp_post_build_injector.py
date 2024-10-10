@@ -73,7 +73,6 @@ SKIPPED_BINARY_LIST = [
                        "qemu-props",
                        "ueventd",
                        "wait_for_keymaster",
-                       "linkerconfig",
                        "bootstat",
                        "wpa_supplicant",
                        "apexd-bootstrap",
@@ -174,6 +173,8 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.permission.apex",
                             "com.google.pixel.camera.hal.apex",
                             "com.google.android.hardwareinfo.xml",
+                            "vndservicemanager.rc",
+                            "linkerconfig",
                             ]
 
 ALLOWED_APEX_FILE_INJECT = ["derive_classpath.rc", "derive_sdk.rc"]
