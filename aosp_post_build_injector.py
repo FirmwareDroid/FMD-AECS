@@ -90,6 +90,9 @@ SKIPPED_BINARY_LIST = [
                        "build.prop",
                        "otacerts.zip",  # Allow to overwrite with own certificates
                        "raw.image",  # Leftover from the file extraction process
+                       "libminijail.so",
+                       "libavservices_minijail_vendor.so",
+                       "odrefresh"
                        ]
 
 # "selinux"
