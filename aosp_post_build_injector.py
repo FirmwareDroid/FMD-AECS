@@ -574,6 +574,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                     shutil.copyfile(file_path, parent_dir + "boot.art")
                     dst_file_path = os.path.join(parent_dir, "boot.art")
                     relative_file_path = os.path.relpath(dst_file_path, apex_extract_dir_path)
+                    logging.info(f"Copying boot.art to boot.art for arm64: {relative_file_path}:{parent_dir}/boot.art")
                     out_file.write(f"/{relative_file_path} {user_id} {group_id} {mode}\n")
 
 
