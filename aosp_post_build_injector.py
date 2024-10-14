@@ -920,7 +920,7 @@ def get_module_type(source_file_path, is_apex=False):
         module_type = tmp_module_type
 
     if is_apex:
-        if file_name in ALLOW_APEX_FILE_INJECT or any(keyword in source_file_path for keyword in ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST):
+        if file_name in ALLOW_APEX_FILE_INJECT or any(keyword in source_file_path for keyword in ALLOW_APEX_FILE_INJECT_ALWAYS_KEYWORD_LIST):
             module_type = tmp_module_type
 
 
