@@ -572,11 +572,12 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
 
                 if file_name == "boot.art" and "arm64" in file_path:
                     parent_dir = os.path.dirname(file_path)
+                    grandparent_dir = os.path.dirname(parent_dir)
                     shutil.copyfile(file_path, parent_dir + "boot.art")
-                    logging.info(f"Copying boot.art to boot.art for arm64: {file_path}:{parent_dir}/boot.art")
-                    dst_file_path = os.path.join(parent_dir, "boot.art")
+                    logging.info(f"Copying boot.art to boot.art for arm64: {file_path}:{grandparent_dir}/boot.art")
+                    dst_file_path = os.path.join(grandparent_dir, "boot.art")
                     relative_file_path = os.path.relpath(dst_file_path, apex_extract_dir_path)
-                    logging.info(f"Copying boot.art to boot.art for arm64: {relative_file_path}:{parent_dir}/boot.art")
+                    logging.info(f"Copying boot.art to boot.art for arm64: {relative_file_path}:{dst_file_path}:{parent_dir}")
                     out_file.write(f"/{relative_file_path} {user_id} {group_id} {mode}\n")
 
 
