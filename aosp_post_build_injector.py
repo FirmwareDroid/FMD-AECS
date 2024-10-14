@@ -94,6 +94,7 @@ SKIPPED_BINARY_LIST = [
                        "libavservices_minijail_vendor.so",
                        "boot-framework.art",
                        "boot-core-icu4j.art",
+                       "libgatekeeper.so",
                        ]
 
 # "selinux"
@@ -153,7 +154,7 @@ ALLOWED_KEYWORD = ["Overlay",
 # "boot-framework.art",
 ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.tethering.apex",
-                            "com.android.vndk.current.apex",  # Problematic update com.android.hardware libraries
+                            #"com.android.vndk.current.apex",  # Problematic updates many com.android.hardware libraries
                             "com.android.i18n.apex",
                             "com.google.android.extservices.apex",
                             "com.google.android.conscrypt.apex",
@@ -557,7 +558,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file, apex_file_path
                 file_path = str(os.path.join(root, file_name))
                 module_type = get_module_type(file_path, is_apex=True)
                 if module_type == "SKIPPED":
-                    logging.error(f"Deleting file from APEX. Known problematic filename: {file_path} from {apex_file_path}")
+                    logging.error(f"Deleting file from APEX {apex_file_path}. Known problematic filename: {file_path}")
                     try:
                         os.remove(file_path)
                     except Exception as e:
@@ -902,7 +903,6 @@ def get_module_type(source_file_path, is_apex=False):
     elif file_extension in [".xml"]:
         module_type = "STATIC_CONFIG"
     elif "/etc/" in source_file_path:
-        logging.info(f"ETC file: {source_file_path}")
         module_type = "ETC"
     elif file_extension in [".apex", ".capex"]:
         module_type = "ETC"
