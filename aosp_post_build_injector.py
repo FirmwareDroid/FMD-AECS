@@ -181,8 +181,11 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "linkerconfig",
                             ]
 
-ALLOWED_APEX_FILE_INJECT = ["derive_classpath.rc", "derive_sdk.rc"]
-ALLOWED_APEX_KEYWORD = []
+ALLOW_APEX_FILE_INJECT = ["derive_classpath.rc",
+                         "derive_sdk.rc",]
+
+ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST = []
+ALLOW_APEX_FILE_INJECT_ALWAYS_KEYWORD_LIST = [".txt"]
 
 
 
@@ -530,7 +533,7 @@ def align_apk_file(apk_file_path):
 
 
 
-def generate_canned_fs_config(apex_extract_dir_path, output_file):
+def generate_canned_fs_config(apex_extract_dir_path, output_file, apex_file_path):
     """
     Generates a canned_fs_config file for the given directory. The config contains the file paths and their
     permissions. The method gives all the files and directories the default permissions.
@@ -554,7 +557,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                 file_path = str(os.path.join(root, file_name))
                 module_type = get_module_type(file_path, is_apex=True)
                 if module_type == "SKIPPED":
-                    logging.error(f"Deleting file from APEX. Known problematic filename: {file_path}")
+                    logging.error(f"Deleting file from APEX. Known problematic filename: {file_path} from {apex_file_path}")
                     try:
                         os.remove(file_path)
                     except Exception as e:
@@ -723,7 +726,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
         if extract_success:
             logging.info(f"APEX extracted: {apex_file_path}")
             with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
-                generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
+                generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name, apex_file_path)
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
 
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
@@ -913,8 +916,13 @@ def get_module_type(source_file_path, is_apex=False):
             or not is_file_inject_allowed(file_name)):
         module_type = "SKIPPED"
 
-    if file_name in ALLOW_FILE_INJECT_ALWAYS:
+    if file_name in ALLOW_FILE_INJECT_ALWAYS or any(keyword in source_file_path for keyword in ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST):
         module_type = tmp_module_type
+
+    if is_apex:
+        if file_name in ALLOW_APEX_FILE_INJECT or any(keyword in source_file_path for keyword in ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST):
+            module_type = tmp_module_type
+
 
     return module_type
 
