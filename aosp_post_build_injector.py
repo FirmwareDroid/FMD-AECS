@@ -92,7 +92,8 @@ SKIPPED_BINARY_LIST = [
                        "raw.image",  # Leftover from the file extraction process
                        "libminijail.so",
                        "libavservices_minijail_vendor.so",
-                       "odrefresh"
+                       "boot-framework.art",
+                       "boot-core-icu4j.art",
                        ]
 
 # "selinux"
