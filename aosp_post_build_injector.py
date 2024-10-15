@@ -90,12 +90,12 @@ SKIPPED_BINARY_LIST = [
                        "build.prop",
                        "otacerts.zip",  # Allow to overwrite with own certificates
                        "raw.image",  # Leftover from the file extraction process
-                       "libminijail.so",
-                       "libavservices_minijail_vendor.so",
-                       "boot-framework.art",
                        "boot-core-icu4j.art",
                        "libgatekeeper.so",
                        ]
+# "libminijail.so",
+# "libavservices_minijail_vendor.so",
+# "boot-framework.art",
 
 # "selinux"
 SKIPPED_KEYWORD_LIST = ["keystore",
@@ -115,7 +115,7 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         "vendor.qti.hardware",
                         "qti",
                         "secureboot",
-                        "seccomp" # BPF filters might break the emulator
+                        #"seccomp", # BPF filters might break the emulator
                         ]
 
 ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
@@ -175,7 +175,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.scheduling.apex",
                             "com.google.android.appsearch.apex",
                             "com.google.android.neuralnetworks.apex",
-                            "com.google.android.media.apex",
+                            #"com.google.android.media.apex",   # Seccomp filter breaks goldfish media service
                             "com.google.android.permission.apex",
                             "com.google.pixel.camera.hal.apex",
                             "com.google.android.hardwareinfo.xml",
@@ -184,14 +184,19 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             ]
 
 ALLOW_APEX_FILE_INJECT = ["derive_classpath.rc",
-                         "derive_sdk.rc",
+                          "derive_sdk.rc",
+                          "libminijail.so",
+                          "libavservices_minijail_vendor.so",
                           "mediaextractor.policy",
-                          "mediaswcodec.policy"]
+                          "mediaswcodec.policy"
+                          ]
 
 ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST = []
 ALLOW_APEX_FILE_INJECT_ALWAYS_KEYWORD_LIST = [".txt"]
 
-
+COPY_TO_SPECIFIC_PATH = {
+    "boot-framework.art": "/system/framework/"
+}
 
 
 
