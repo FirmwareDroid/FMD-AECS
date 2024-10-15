@@ -115,6 +115,7 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         "vendor.qti.hardware",
                         "qti",
                         "secureboot",
+                        "app_process64", # Basically zygote64 -> problematic classpaths
                         #"seccomp", # BPF filters might break the emulator
                         ]
 
