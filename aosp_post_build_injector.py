@@ -184,7 +184,9 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             ]
 
 ALLOW_APEX_FILE_INJECT = ["derive_classpath.rc",
-                         "derive_sdk.rc",]
+                         "derive_sdk.rc",
+                          "mediaextractor.policy",
+                          "mediaswcodec.policy"]
 
 ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST = []
 ALLOW_APEX_FILE_INJECT_ALWAYS_KEYWORD_LIST = [".txt"]
