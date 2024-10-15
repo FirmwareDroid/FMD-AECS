@@ -114,7 +114,8 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         "exfat",
                         "vendor.qti.hardware",
                         "qti",
-                        "secureboot"
+                        "secureboot",
+                        "seccomp" # BPF filters might break the emulator
                         ]
 
 ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
