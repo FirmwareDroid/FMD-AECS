@@ -1048,10 +1048,11 @@ def is_parent_dir_arm_and_target_arm(parent_dir_match_file, parent_dir_candidate
     Prevent matching of arm to arm64 and vice versa.
     """
     is_match = False
+    logging.debug(f"Checking arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
     if parent_dir_match_file == "arm" or parent_dir_match_file == "arm64":
         logging.debug(f"Checking arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
         if parent_dir_candidate == parent_dir_match_file:
-            logging.debug(f"Checking arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
+            logging.debug(f"Matched arm to arm64 {parent_dir_candidate} == {parent_dir_match_file}")
             is_match = True
     return is_match
 
