@@ -1050,7 +1050,7 @@ def is_parent_dir_arm_and_target_arm(parent_dir_match_file, parent_dir_candidate
     is_match = False
     logging.info(f"Checking arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
     if parent_dir_match_file == "arm" or parent_dir_match_file == "arm64":
-        logging.info(f"Checking arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
+        logging.info(f"Parent Matched arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
         if parent_dir_candidate == parent_dir_match_file:
             logging.info(f"Matched arm to arm64 {parent_dir_candidate} == {parent_dir_match_file}")
             is_match = True
@@ -1093,7 +1093,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
         root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace(f"_{partition_name}",
                                                                                         "")
 
-        parent_dir_match_file = os.path.dirname(file_path)
+        parent_dir_match_file = os.path.basename(os.path.dirname(file_path))
         # Check if there is an exact match for the file name
         if exact_match_files:
             candidate_path = os.path.join(root, file_name)
@@ -1121,7 +1121,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                         if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
                                                                                                file_path):
                             continue
-                    parent_dir_candidate = os.path.dirname(candidate_path)
+                    parent_dir_candidate = os.path.basename(os.path.dirname(candidate_path))
                     if is_parent_dir_arm_and_target_arm(parent_dir_match_file, parent_dir_candidate):
                         continue
                     result_file_path = candidate_path
