@@ -1043,6 +1043,18 @@ def is_elf_binary(file_path):
         return False
 
 
+def is_parent_dir_arm_and_target_arm(parent_dir_match_file, parent_dir_candidate):
+    """
+    Prevent matching of arm to arm64 and vice versa.
+    """
+    is_match = False
+    if parent_dir_match_file == "arm" or parent_dir_match_file == "arm64":
+        logging.debug(f"Checking arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
+        if parent_dir_candidate == parent_dir_match_file:
+            logging.debug(f"Checking arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
+            is_match = True
+    return is_match
+
 def search_original_file_in_obj(partition_name, module_type, file_path, file_name, target_out_path):
     """
     Searches for the original file in the AOSP source code.
@@ -1080,6 +1092,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
         root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace(f"_{partition_name}",
                                                                                         "")
 
+        parent_dir_match_file = os.path.dirname(file_path)
         # Check if there is an exact match for the file name
         if exact_match_files:
             candidate_path = os.path.join(root, file_name)
@@ -1089,12 +1102,9 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                     if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
                                                                                            file_path):
                         continue
-                parent_dir_match_file = os.path.dirname(file_path)
+
                 parent_dir_candidate = os.path.dirname(candidate_path)
-                # Prevent matching of arm to arm64 and vice versa
-                if parent_dir_match_file == "arm" or parent_dir_match_file == "arm64":
-                    logging.debug(f"boot Checking {parent_dir_candidate} == {parent_dir_match_file}")
-                    if parent_dir_candidate != parent_dir_match_file:
+                if is_parent_dir_arm_and_target_arm(parent_dir_match_file, parent_dir_candidate):
                         continue
                 result_file_path = candidate_path
                 break  # Terminate search early
@@ -1110,6 +1120,9 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                         if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
                                                                                                file_path):
                             continue
+                    parent_dir_candidate = os.path.dirname(candidate_path)
+                    if is_parent_dir_arm_and_target_arm(parent_dir_match_file, parent_dir_candidate):
+                        continue
 
                     result_file_path = candidate_path
                     break
