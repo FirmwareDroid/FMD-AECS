@@ -1093,6 +1093,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                 parent_dir_candidate = os.path.dirname(candidate_path)
                 # Prevent matching of arm to arm64 and vice versa
                 if parent_dir_match_file == "arm" or parent_dir_match_file == "arm64":
+                    logging.debug(f"boot Checking {parent_dir_candidate} == {parent_dir_match_file}")
                     if parent_dir_candidate != parent_dir_match_file:
                         continue
                 result_file_path = candidate_path
