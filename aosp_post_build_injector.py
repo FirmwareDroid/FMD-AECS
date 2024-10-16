@@ -176,7 +176,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.scheduling.apex",
                             "com.google.android.appsearch.apex",
                             "com.google.android.neuralnetworks.apex",
-                            #"com.google.android.media.apex",   # Seccomp filter breaks goldfish media service
+                            "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service
                             "com.google.android.permission.apex",
                             "com.google.pixel.camera.hal.apex",
                             "com.google.android.hardwareinfo.xml",
