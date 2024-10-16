@@ -1049,9 +1049,14 @@ def is_parent_dir_arm_and_target_arm(parent_dir_match_file, parent_dir_candidate
     """
     is_match = False
     logging.info(f"Checking arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
-    if parent_dir_match_file == "arm" or parent_dir_match_file == "arm64":
+    if parent_dir_match_file == "arm64":
         logging.info(f"Parent match arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
-        if parent_dir_candidate == parent_dir_match_file:
+        if "arm64" in parent_dir_candidate:
+            logging.info(f"Matched arm to arm64 {parent_dir_candidate} == {parent_dir_match_file}")
+            is_match = True
+    elif parent_dir_match_file == "arm":
+        logging.info(f"Parent match arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
+        if "arm" in parent_dir_candidate and not "arm64" in parent_dir_candidate:
             logging.info(f"Matched arm to arm64 {parent_dir_candidate} == {parent_dir_match_file}")
             is_match = True
     return is_match
