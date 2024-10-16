@@ -168,7 +168,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.resolv.apex",
                             "com.google.android.os.statsd.apex",
                             "com.android.runtime.apex",  # Problematic
-                            "com.google.android.art.apex",  # Problematic
+                            "com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
                             "com.google.mainline.primary.libs.apex",
                             "com.android.apex.cts.shim.apex",
                             "com.google.android.telephony.apex",
@@ -176,7 +176,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.scheduling.apex",
                             "com.google.android.appsearch.apex",
                             "com.google.android.neuralnetworks.apex",
-                            "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service
+                            "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service? (emulator)
                             "com.google.android.permission.apex",
                             "com.google.pixel.camera.hal.apex",
                             "com.google.android.hardwareinfo.xml",
@@ -584,10 +584,10 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file, apex_file_path
                     mode = '0755'  # Executable files get 0755
                 out_file.write(f"/{relative_file_path} {user_id} {group_id} {mode}\n")
 
-                if file_name == "boot.art" and "arm64" in file_path:
+                if "boot" in file_name and "arm64" in file_path:
                     parent_dir = os.path.dirname(file_path)
                     grandparent_dir = os.path.dirname(parent_dir)
-                    copy_dst = os.path.join(grandparent_dir, "boot.art")
+                    copy_dst = os.path.join(grandparent_dir, file_name)
                     logging.info(f"Copying boot.art javalib: {file_path}:{copy_dst}")
                     shutil.copyfile(file_path, copy_dst)
                     relative_file_path = os.path.relpath(copy_dst, apex_extract_dir_path)
