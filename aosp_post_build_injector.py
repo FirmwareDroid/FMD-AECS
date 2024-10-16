@@ -90,7 +90,7 @@ SKIPPED_BINARY_LIST = [
                        "build.prop",
                        "otacerts.zip",  # Allow to overwrite with own certificates
                        "raw.image",  # Leftover from the file extraction process
-                       "boot-core-icu4j.art",
+                       #"boot-core-icu4j.art",
                        "libgatekeeper.so",
                        ]
 # "libminijail.so",
@@ -115,7 +115,7 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         "vendor.qti.hardware",
                         "qti",
                         "secureboot",
-                        "app_process", # Basically zygote64 -> problematic classpaths
+                        #"app_process", # Basically zygote64
                         #"seccomp", # BPF filters might break the emulator
                         ]
 
@@ -1079,6 +1079,8 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
         root_folder_name_stripped = os.path.basename(root).replace("_intermediates", "")
         root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace(f"_{partition_name}",
                                                                                         "")
+
+        # Check if there is an exact match for the file name
         if exact_match_files:
             candidate_path = os.path.join(root, file_name)
             # Verify if it matches the partition criteria
@@ -1086,6 +1088,12 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                 if is_elf_binary(file_path):
                     if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
                                                                                            file_path):
+                        continue
+                parent_dir_match_file = os.path.dirname(file_path)
+                parent_dir_candidate = os.path.dirname(candidate_path)
+                # Prevent matching of arm to arm64 and vice versa
+                if parent_dir_match_file == "arm" or parent_dir_match_file == "arm64":
+                    if parent_dir_candidate != parent_dir_match_file:
                         continue
                 result_file_path = candidate_path
                 break  # Terminate search early
