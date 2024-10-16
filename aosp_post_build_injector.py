@@ -115,7 +115,7 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         "vendor.qti.hardware",
                         "qti",
                         "secureboot",
-                        "app_process64", # Basically zygote64 -> problematic classpaths
+                        "app_process", # Basically zygote64 -> problematic classpaths
                         #"seccomp", # BPF filters might break the emulator
                         ]
 
@@ -588,10 +588,10 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file, apex_file_path
                     parent_dir = os.path.dirname(file_path)
                     grandparent_dir = os.path.dirname(parent_dir)
                     copy_dst = os.path.join(grandparent_dir, file_name)
-                    logging.info(f"Copying boot.art javalib: {file_path}:{copy_dst}")
+                    logging.info(f"APEX Copying boot.art javalib: {file_path}:{copy_dst}")
                     shutil.copyfile(file_path, copy_dst)
                     relative_file_path = os.path.relpath(copy_dst, apex_extract_dir_path)
-                    logging.info(f"Write new boot.art path: {relative_file_path}:{copy_dst}:{parent_dir}")
+                    logging.info(f"APEX Write new boot.art path: {relative_file_path}:{copy_dst}:{parent_dir}")
                     out_file.write(f"/{relative_file_path} {user_id} {group_id} {mode}\n")
 
 
