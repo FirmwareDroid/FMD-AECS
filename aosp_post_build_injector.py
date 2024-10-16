@@ -1050,7 +1050,7 @@ def is_parent_dir_arm_and_target_arm(parent_dir_match_file, parent_dir_candidate
     is_match = False
     logging.info(f"Checking arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
     if parent_dir_match_file == "arm" or parent_dir_match_file == "arm64":
-        logging.info(f"Parent Matched arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
+        logging.info(f"Parent match arm to arm64 match {parent_dir_candidate} == {parent_dir_match_file}")
         if parent_dir_candidate == parent_dir_match_file:
             logging.info(f"Matched arm to arm64 {parent_dir_candidate} == {parent_dir_match_file}")
             is_match = True
@@ -1104,7 +1104,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                                                                                            file_path):
                         continue
 
-                parent_dir_candidate = os.path.dirname(candidate_path)
+                parent_dir_candidate = os.path.basename(os.path.dirname(candidate_path))
                 if is_parent_dir_arm_and_target_arm(parent_dir_match_file, parent_dir_candidate):
                         continue
                 result_file_path = candidate_path
