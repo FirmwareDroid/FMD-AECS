@@ -90,12 +90,12 @@ SKIPPED_BINARY_LIST = [
                        "build.prop",
                        "otacerts.zip",  # Allow to overwrite with own certificates
                        "raw.image",  # Leftover from the file extraction process
-                       #"boot-core-icu4j.art",
                        "libgatekeeper.so",
                        ]
 # "libminijail.so",
 # "libavservices_minijail_vendor.so",
 # "boot-framework.art",
+# "boot-core-icu4j.art",
 
 # "selinux"
 SKIPPED_KEYWORD_LIST = ["keystore",
@@ -128,6 +128,8 @@ ALLOW_FILE_OVERWRITE = ["framework-res.apk",
                         "passwd",
                         "group",
                         "com.google.android.hardwareinfo.xml",
+                        "boot-framework.art",
+                        "boot-core-icu4j.art",
                         ]
 
 for default_module_name in AOSP_DEFAULT_PACKAGE_NAMES:
@@ -196,7 +198,7 @@ ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST = []
 ALLOW_APEX_FILE_INJECT_ALWAYS_KEYWORD_LIST = [".txt"]
 
 COPY_TO_SPECIFIC_PATH = {
-    "boot-framework.art": "/system/framework/"
+    "boot-framework.art": "./system/system/framework/"
 }
 
 
@@ -433,6 +435,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                      file_name,
                                                      target_out_path)
     if original_file_path is None:
+        # To match naming of vendors with the emulator
         file_path_vendor_replaced = file_path.replace(".google", "").replace("Google", "")
         file_name_vendor_replaced = os.path.basename(file_path_vendor_replaced)
         original_file_path = search_original_file_in_obj(partition_name,
@@ -447,6 +450,12 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     else:
         inject_file_into_obj(file_path, original_file_path)
         inj_obj = (file_path, original_file_path)
+
+    if file_name in COPY_TO_SPECIFIC_PATH.keys():
+        inject_path = COPY_TO_SPECIFIC_PATH[file_name]
+        inject_path = str(os.path.join(target_out_path, inject_path))
+        shutil.copy(file_path, inject_path)
+        logging.info(f"Copied file to specific path: {file_path} -> {inject_path}")
 
     return inj_obj, inj_partition
 
