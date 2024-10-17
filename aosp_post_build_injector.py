@@ -454,8 +454,12 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     if file_name in COPY_TO_SPECIFIC_PATH.keys():
         inject_path = COPY_TO_SPECIFIC_PATH[file_name]
         inject_path = str(os.path.join(target_out_path, inject_path))
-        shutil.copy(file_path, inject_path)
-        logging.info(f"Copied file to specific path: {file_path} -> {inject_path}")
+        logging.info(f"Copy file to specific path: {file_path} -> {inject_path}")
+        try:
+            os.makedirs(os.path.dirname(inject_path), exist_ok=True)
+            shutil.copy(file_path, inject_path)
+        except Exception as e:
+            logging.error(f"Error copying file to specific path: {file_path} -> {inject_path} | {e}")
 
     return inj_obj, inj_partition
 
