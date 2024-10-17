@@ -198,7 +198,7 @@ ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST = []
 ALLOW_APEX_FILE_INJECT_ALWAYS_KEYWORD_LIST = [".txt"]
 
 COPY_TO_SPECIFIC_PATH = {
-    "boot-framework.art": "./system/system/framework/"
+    "boot-framework.art": "./system/framework/"
 }
 
 
