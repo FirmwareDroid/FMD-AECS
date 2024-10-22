@@ -160,7 +160,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.tethering.apex",
                             #"com.android.vndk.current.apex",  # Problematic updates many com.android.hardware libraries
                             "com.android.i18n.apex",
-                            #"com.google.android.extservices.apex",
+                            "com.google.android.extservices.apex",
                             "com.google.android.conscrypt.apex",
                             "com.google.android.wifi.apex",
                             "com.google.android.cellbroadcast.apex",
@@ -178,7 +178,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.scheduling.apex",
                             "com.google.android.appsearch.apex",
                             "com.google.android.neuralnetworks.apex",
-                            #"com.google.android.media.apex",   # Seccomp filter breaks goldfish media service? (emulator)
+                            "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service? (emulator)
                             "com.google.android.permission.apex",
                             "com.google.pixel.camera.hal.apex",
                             "com.google.android.hardwareinfo.xml",
