@@ -271,8 +271,8 @@ def main():
     clear_image_artefacts()
 
     if not args.create_local:
-        if not args.repository_url:
-            raise ValueError("Repository URL must be provided when using local files.")
+        if not args.repository_url or not args.docker_repo_url or not args.repository_username:
+            raise ValueError("Repository URL, Docker repository URL and repository username must be provided.")
         emulator_image_list = get_emulator_image_list(args.repository_url)
         download_emulator_images(args.repository_url, emulator_image_list)
     else:
