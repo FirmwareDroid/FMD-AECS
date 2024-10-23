@@ -14,7 +14,7 @@ static_resources:
             name: local_route
             virtual_hosts:
             - name: local_service
-              domains: ["fmd.localhost", "firmwaredroid.cloudlab.zhaw.ch", "amy.cloudlab.zhaw.ch"]
+              domains: ["*"]
               routes:{% for line in envoy_match_list %}
               {{ line }}{% endfor %}
               cors:
@@ -22,15 +22,6 @@ static_resources:
                   - safe_regex:
                       google_re2: {}
                       regex: ".*"
-                  - safe_regex:
-                      google_re2: { }
-                      regex: "https://fmd.localhost"
-                  - safe_regex:
-                      google_re2: { }
-                      regex: "https://firmwaredroid.cloudlab.zhaw.ch"
-                  - safe_regex:
-                      google_re2: { }
-                      regex: "https://amy.cloudlab.zhaw.ch"
                 allow_methods: GET, PUT, DELETE, POST, OPTIONS
                 allow_headers: origin,keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,custom-header-1,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web,grpc-timeout,authorization
                 max_age: "1728000"
