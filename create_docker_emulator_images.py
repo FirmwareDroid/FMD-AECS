@@ -243,10 +243,10 @@ def parse_arguments():
         add_help=True)
     parser.add_argument("-l",
                         "--create_local",
-                        type=bool,
+                        action='store_true',
                         default=False,
                         required=False,
-                        help="If set skips the download of the emulator images and uses the local files.")
+                        help="If set, skips the download of the emulator images and uses the local files.")
     parser.add_argument("-r",
                         "--repository-url",
                         type=str,
