@@ -35,7 +35,9 @@ RUN mkdir -p /android/sdk/cmdline-tools/latest && mkdir -p /android/sdk/avd && m
     && mkdir -p /android/sdk/platform-tools && mkdir -p /android/sdk/system-images  \
     && mkdir /android/tmp && mkdir -p /android/user_home/ && mkdir -p /android/sdk/system-images/android/arm64-v8a/
 WORKDIR /android
-
+RUN wget https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip
+RUN unzip commandlinetools-mac-11076708_latest.zip  -d /android/tmp
+RUN mv /android/tmp/cmdline-tools/* /android/sdk/cmdline-tools/latest/
 RUN apt install -y android-sdk-platform-tools
 RUN cp /usr/lib/android-sdk/platform-tools/* /android/sdk/platform-tools/
 
@@ -47,6 +49,7 @@ ENV ANDROID_USER_HOME=/android/user_home/
 ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
 ENV PATH=$ANDROID_HOME/platform-tools:$PATH
 ENV PATH=$ANDROID_HOME/emulator/:$PATH
+ENV REPO_OS_OVERRIDE=macosx
 
 ################################
 # Prepare Android emulator using prebuilt ARM64 binary
