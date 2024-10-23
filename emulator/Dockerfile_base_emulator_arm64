@@ -1,4 +1,4 @@
-FROM --platform="linux/arm64" debian:12-slim as fmd-emulator_arm64
+FROM --platform="linux/arm64" debian:12-slim AS fmd-emulator_arm64
 
 # add arm64 architecture as workaround for apt-get update on linux amd64
 #RUN dpkg --add-architecture arm64

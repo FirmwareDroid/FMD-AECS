@@ -1,4 +1,4 @@
-FROM debian:10-slim as fmd-emulator_x86_64
+FROM debian:10-slim AS fmd-emulator_x86_64
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libc6 libdbus-1-3 libfontconfig1 libgcc1 \
