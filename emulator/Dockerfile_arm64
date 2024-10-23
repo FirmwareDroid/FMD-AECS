@@ -11,4 +11,8 @@ COPY ./image_artefacts/ /android/sdk/system-images/android/
 ###################################
 COPY ./emulator/emulator_start.sh /android/
 RUN chmod +x /android/emulator_start.sh
-CMD ["bash", "-c", "/android/emulator_start.sh"]
+#CMD ["bash", "-c", "/android/emulator_start.sh"]
+
+# Start SSH
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D"]
