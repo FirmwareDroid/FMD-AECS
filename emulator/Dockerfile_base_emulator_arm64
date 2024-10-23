@@ -61,11 +61,11 @@ COPY ./emulator/avd/ /android/sdk/avd/
 RUN apt-get update && apt-get install -y --no-install-recommends openssh-server fail2ban
 RUN mkdir /var/run/sshd
 RUN mkdir -p /root/.ssh
-COPY ./prebuilts/ssh/id_rsa.pub /root/.ssh/authorized_keys
+COPY ./emulator/prebuilts/ssh/id_rsa.pub /root/.ssh/authorized_keys
 RUN chmod 600 /root/.ssh/authorized_keys
 RUN chown root:root /root/.ssh/authorized_keys
 RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin without-password/' /etc/ssh/sshd_config
 
-COPY ./prebuilts/fail2ban/jail.local /etc/fail2ban/jail.local
+COPY ./emulator/prebuilts/fail2ban/jail.local /etc/fail2ban/jail.local
 CMD service fail2ban start && /usr/sbin/sshd -D
