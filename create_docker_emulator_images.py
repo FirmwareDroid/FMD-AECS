@@ -192,7 +192,7 @@ def check_if_base_images_exists():
             logging.info(f"Base image {image.id} exists.")
         except Exception as err:
             base_images_exist = False
-            logging.error(f"Base image fmd-emulator_{arch} not found.")
+            logging.error(f"Base image fmd-emulator_{arch} not found.: {err}")
             break
     return base_images_exist
 
@@ -208,14 +208,15 @@ def create_base_images():
         build_container_image(f"fmd-emulator_{arch}", f"linux/{arch}", f"{EMULATOR_DOCKERFILE_BASE_ABS_PATH}{arch}")
 
 
-def process_images(repository_url, docker_repo_url, repository_username):
-    repository_password = get_repo_password(repository_username)
+def process_images(repository_url, docker_repo_url, repository_username, build_local):
     if not check_if_base_images_exists():
         create_base_images()
 
     #emulator_image_list = get_emulator_image_list(repository_url)
     emulator_zip_file_list = get_image_file_list_form_disk()
+    logging.info(f"Processing images: {len(emulator_zip_file_list)}")
     for emulator_zip_path in emulator_zip_file_list:
+        logging.info(f"Processing emulator image: {emulator_zip_path}")
         extract_emulator_images_to_image_artefacts(emulator_zip_path)
         filename = os.path.basename(emulator_zip_path)
         if "arm64" in filename:
@@ -223,11 +224,16 @@ def process_images(repository_url, docker_repo_url, repository_username):
         else:
             docker_build_arch = "linux/amd64"
         build_container_image(filename.replace(".zip", ""), docker_build_arch)
-        authenticate_docker_registry(docker_repo_url, repository_username, repository_password)
-        push_container_image(docker_repo_url, filename.replace(".zip", ""))
+        if not build_local:
+            repository_password = get_repo_password(repository_username)
+            authenticate_docker_registry(docker_repo_url, repository_username, repository_password)
+            push_container_image(docker_repo_url, filename.replace(".zip", ""))
+        else:
+            logging.info("Skipping pushing the image to the docker repository.")
         clear_image_artefacts()
         clear_docker_builder()
     logging.info("Finished processing images.")
+
 
 
 def parse_arguments():
@@ -235,10 +241,16 @@ def parse_arguments():
         prog="create_startup_scripts.py",
         description="Downloads emulator images from the repository and builds docker images.",
         add_help=True)
+    parser.add_argument("-l",
+                        "--create_local",
+                        type=bool,
+                        default=False,
+                        required=False,
+                        help="If set skips the download of the emulator images and uses the local files.")
     parser.add_argument("-r",
                         "--repository-url",
                         type=str,
-                        required=True,
+                        required=False,
                         help="URL to the repository where images will be downloaded.")
     parser.add_argument("-d",
                         "--docker-repo-url",
@@ -256,9 +268,16 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
-    repository_url, docker_repo_url = validate_urls(args.repository_url, args.docker_repo_url)
     clear_image_artefacts()
-    process_images(repository_url, docker_repo_url, args.repository_username)
+
+    if not args.create_local:
+        if not args.repository_url:
+            raise ValueError("Repository URL must be provided when using local files.")
+        emulator_image_list = get_emulator_image_list(args.repository_url)
+        download_emulator_images(args.repository_url, emulator_image_list)
+    else:
+        logging.info("Skipping download of emulator images.")
+    process_images(args.repository_url, args.docker_repo_url, args.repository_username, args.create_local)
 
 
 if __name__ == "__main__":
