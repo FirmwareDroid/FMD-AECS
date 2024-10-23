@@ -14,7 +14,7 @@ static_resources:
             name: local_route
             virtual_hosts:
             - name: local_service
-              domains: ["*", "fmd.localhost"]
+              domains: ["fmd.localhost", "firmwaredroid.cloudlab.zhaw.ch", "amy.cloudlab.zhaw.ch"]
               routes:{% for line in envoy_match_list %}
               {{ line }}{% endfor %}
               cors:
