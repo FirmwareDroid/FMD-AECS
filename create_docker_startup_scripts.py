@@ -30,23 +30,23 @@ def main():
                         "--grpc-start-port",
                         type=int,
                         default=8554,
-                        help="Starting port for the grpc service.")
+                        help="Starting port for the grpc service. Default is 8554.")
     parser.add_argument("-a",
                         "--adb-start-port",
                         type=int,
                         default=5555,
-                        help="Starting port for the adb service.")
+                        help="Starting port for the adb service. Default is 5555.")
     parser.add_argument("-s",
                         "--ssh-start-port",
                         type=int,
                         default=2222,
-                        help="Starting port for the ssh service.")
+                        help="Starting port for the ssh service. Default is 2222.")
     parser.add_argument("-c",
                         "--cpu-arch",
                         type=str,
                         default=PLATFORM_X86_64,
                         choices=[PLATFORM_X86_64, PLATFORM_ARM64],
-                        help="Defines the CPU architecture for docker.")
+                        help="Defines the CPU architecture for docker. Default is linux/amd64.")
     parser.add_argument("-d",
                         "--debug",
                         action="store_true",
