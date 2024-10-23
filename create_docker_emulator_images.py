@@ -50,6 +50,8 @@ def download_emulator_images(repository_url, image_list):
 
 
 def get_image_file_list_form_disk():
+    if not os.path.exists(EMULATOR_IMG_ABS_PATH):
+        os.makedirs(EMULATOR_IMG_ABS_PATH, exist_ok=True)
     emulator_images = [os.path.join(EMULATOR_IMG_ABS_PATH, img) for img in os.listdir(EMULATOR_IMG_ABS_PATH)]
     logging.info(f"Emulator images: {len(emulator_images)}: {emulator_images}")
     return emulator_images
