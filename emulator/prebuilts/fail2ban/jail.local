@@ -1,5 +1,5 @@
 [sshd]
 enabled = true
 port    = ssh
-logpath = /var/log/auth.log
+logpath = /var/log/fail2ban.log
 maxretry = 5

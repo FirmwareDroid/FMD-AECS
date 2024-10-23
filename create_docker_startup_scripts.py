@@ -113,9 +113,7 @@ def create_docker_compose_file(template_variables_dict, environment, docker_imag
         adb_port_host = template_variables_dict["adb_port_host"] + x
         ssh_port_host = template_variables_dict["ssh_port_host"] + x
         platform = template_variables_dict["platform"]
-        optional_settings = []
-        if platform == PLATFORM_X86_64:
-            optional_settings.append("devices: [/dev/kvm]")
+        optional_settings = ["devices: [/dev/kvm]"]
         if template_variables_dict["debug"]:
             optional_settings.append("command: sleep infinity")
         content = template.render(
