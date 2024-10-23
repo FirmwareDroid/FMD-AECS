@@ -36,6 +36,11 @@ def main():
                         type=int,
                         default=5555,
                         help="Starting port for the adb service.")
+    parser.add_argument("-s",
+                        "--ssh-start-port",
+                        type=int,
+                        default=2222,
+                        help="Starting port for the ssh service.")
     parser.add_argument("-c",
                         "--cpu-arch",
                         type=str,
@@ -66,6 +71,7 @@ def main():
                                "adb_port_host": args.adb_start_port,
                                "platform": args.cpu_arch,
                                "debug": args.debug,
+                               "ssh_port_host": args.ssh_start_port,
                                "envoy_port_mapping": envoy_port_mapping
                                }
     environment = Environment(loader=FileSystemLoader("templates/"))
@@ -105,6 +111,7 @@ def create_docker_compose_file(template_variables_dict, environment, docker_imag
         container_name = template_variables_dict["container_name"] + str(x)
         grpc_port_host = template_variables_dict["grpc_port_host"] + x
         adb_port_host = template_variables_dict["adb_port_host"] + x
+        ssh_port_host = template_variables_dict["ssh_port_host"] + x
         platform = template_variables_dict["platform"]
         optional_settings = []
         if platform == PLATFORM_X86_64:
@@ -117,6 +124,7 @@ def create_docker_compose_file(template_variables_dict, environment, docker_imag
             image_name=image_name,
             grpc_port_host=grpc_port_host,
             adb_port_host=adb_port_host,
+            ssh_port_host=ssh_port_host,
             platform=platform,
             optional_settings=optional_settings,
         )

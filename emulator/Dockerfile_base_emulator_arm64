@@ -54,3 +54,18 @@ ENV PATH=$ANDROID_HOME/emulator/:$PATH
 COPY ./emulator/prebuilts/arm64/sdk-repo-linux_aarch64-emulator-11774154.zip /android/
 RUN unzip /android/sdk-repo-linux_aarch64-emulator-11774154.zip -d /android/sdk/
 COPY ./emulator/avd/ /android/sdk/avd/
+
+################################
+# Install and start SSH        #
+################################
+RUN apt-get update && apt-get install -y --no-install-recommends openssh-server fail2ban
+RUN mkdir /var/run/sshd
+RUN mkdir -p /root/.ssh
+COPY ./prebuilts/ssh/id_rsa.pub /root/.ssh/authorized_keys
+RUN chmod 600 /root/.ssh/authorized_keys
+RUN chown root:root /root/.ssh/authorized_keys
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin without-password/' /etc/ssh/sshd_config
+
+COPY ./prebuilts/fail2ban/jail.local /etc/fail2ban/jail.local
+CMD service fail2ban start && /usr/sbin/sshd -D
