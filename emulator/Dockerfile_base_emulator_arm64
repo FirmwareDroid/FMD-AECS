@@ -73,3 +73,15 @@ RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin without-password
 COPY ./emulator/prebuilts/fail2ban/jail.local /etc/fail2ban/jail.local
 RUN service ssh start
 RUN service fail2ban start
+
+################################
+# Set environment variables in .bashrc
+################################
+RUN echo 'export JAVA_HOME=/usr/local/jdk-21' >> /root/.bashrc
+RUN echo 'export ANDROID_HOME=/android/sdk' >> /root/.bashrc
+RUN echo 'export ANDROID_SDK_ROOT=/android/sdk' >> /root/.bashrc
+RUN echo 'export ANDROID_AVD_HOME=/android/sdk/avd' >> /root/.bashrc
+RUN echo 'export ANDROID_EMULATOR_HOME=/android/sdk/emulator' >> /root/.bashrc
+RUN echo 'export ANDROID_USER_HOME=/android/user_home/' >> /root/.bashrc
+RUN echo 'export PATH=$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH' >> /root/.bashrc
+RUN echo 'export REPO_OS_OVERRIDE=macosx' >> /root/.bashrc
