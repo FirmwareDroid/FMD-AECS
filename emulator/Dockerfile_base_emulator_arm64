@@ -68,4 +68,4 @@ RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/s
 RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin without-password/' /etc/ssh/sshd_config
 
 COPY ./emulator/prebuilts/fail2ban/jail.local /etc/fail2ban/jail.local
-CMD service fail2ban start && /usr/sbin/sshd -D
+CMD ["service", "fail2ban", "start", "&&", "/usr/sbin/sshd", "-D"]
