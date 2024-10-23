@@ -55,7 +55,7 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".ko",
                                ".prop",
                                ".capex",
-                               ".prof",
+                               #".prof",
                                ".apex",
                                ".original_apex" # Leftover from apex repacking
                                ]
