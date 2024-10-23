@@ -255,13 +255,13 @@ def parse_arguments():
     parser.add_argument("-d",
                         "--docker-repo-url",
                         type=str,
-                        required=True,
+                        required=False,
                         help="URL to the docker registry where images will be uploaded.")
     parser.add_argument("-u",
                         "--repository-username",
                         type=str,
                         default=None,
-                        required=True,
+                        required=False,
                         help="Username for the authentication to the docker registry.")
     return parser.parse_args()
 
