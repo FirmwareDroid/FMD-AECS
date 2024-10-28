@@ -119,6 +119,9 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         #"seccomp", # BPF filters might break the emulator
                         ]
 
+SKIPPED_APEX_KEYWORD_LIST = ["linker"]
+
+
 ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
                                          ".otf",
                                          ".ttf"]
@@ -169,8 +172,8 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.ipsec.apex",
                             "com.google.android.resolv.apex",
                             "com.google.android.os.statsd.apex",
-                            "com.android.runtime.apex",  # Problematic -> Without give boot-framework error?
-                            #"com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
+                            "com.android.runtime.apex",  # Problematic -> Without boot-framework error? Root cause of file not found error?
+                            "com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
                             "com.google.mainline.primary.libs.apex",
                             "com.android.apex.cts.shim.apex",
                             "com.google.android.telephony.apex",
@@ -938,6 +941,9 @@ def get_module_type(source_file_path, is_apex=False):
             or not is_file_inject_allowed(file_name)):
         module_type = "SKIPPED"
 
+    if is_apex and not is_apex_file_path_allowed(source_file_path):
+        module_type = "SKIPPED"
+
     if file_name in ALLOW_FILE_INJECT_ALWAYS or any(keyword in source_file_path for keyword in ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST):
         module_type = tmp_module_type
 
@@ -979,6 +985,18 @@ def is_file_path_allowed(file_path):
         return False
 
     return True
+
+def is_apex_file_path_allowed(file_path):
+    """
+    Determines if a file path is allowed based on the keyword list.
+    :param file_path: str - The path to the file.
+    :return: bool - True if the file path is allowed, False otherwise.
+    """
+    if any(keyword in file_path for keyword in SKIPPED_APEX_KEYWORD_LIST):
+        return False
+    return True
+
+
 
 def scandir_walk(dir_path):
     """
