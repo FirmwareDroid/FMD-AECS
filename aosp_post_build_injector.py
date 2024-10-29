@@ -119,7 +119,7 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         #"seccomp", # BPF filters might break the emulator
                         ]
 
-SKIPPED_APEX_KEYWORD_LIST = ["linker"]
+SKIPPED_APEX_KEYWORD_LIST = []
 
 
 ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
@@ -186,7 +186,6 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.pixel.camera.hal.apex",
                             "com.google.android.hardwareinfo.xml",
                             "vndservicemanager.rc",
-                            "linkerconfig",
                             ]
 
 ALLOW_APEX_FILE_INJECT = ["derive_classpath.rc",

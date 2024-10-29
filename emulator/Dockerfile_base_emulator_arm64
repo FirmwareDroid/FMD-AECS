@@ -52,6 +52,12 @@ ENV PATH=$ANDROID_HOME/emulator/:$PATH
 ENV REPO_OS_OVERRIDE=macosx
 
 ################################
+# Copy adbkey and adbkey.pub
+################################
+COPY ./emulator/prebuilts/adb/adbkey /android/sdk/emulator/adbkey
+COPY ./emulator/prebuilts/adb/adbkey.pub /android/sdk/emulator/adbkey.pub
+
+################################
 # Prepare Android emulator using prebuilt ARM64 binary
 ################################
 COPY ./emulator/prebuilts/arm64/sdk-repo-linux_aarch64-emulator-11774154.zip /android/
