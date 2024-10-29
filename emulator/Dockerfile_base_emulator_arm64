@@ -92,7 +92,3 @@ RUN echo 'export ANDROID_USER_HOME=/android/user_home/' >> /root/.bashrc
 RUN echo 'export PATH=$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH' >> /root/.bashrc
 RUN echo 'export REPO_OS_OVERRIDE=macosx' >> /root/.bashrc
 
-################################
-# Create certbot directory   #
-################################
-RUN mkdir -p /var/www/certbot/.well-known/acme-challenge
