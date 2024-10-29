@@ -15,4 +15,5 @@ docker-images.txt
 docker_images.txt
 env/envoy/*
 env/envoy/envoy.yaml
+/env/envoy/envoy.yaml
 ./docker_images.txt
