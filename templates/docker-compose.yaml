@@ -6,8 +6,8 @@ services:
     volumes:
       - ./env/envoy/envoy.yaml:/etc/envoy/envoy.yaml
       - ./env/envoy/fmd-aosp.init-lab.ch/:/etc/envoy/certs/
-    ports:
-      - {{ envoy_port_mapping }}
+    ports:{% for line in envoy_port_mapping %}
+      {{ line }}{% endfor %}
     networks:
       - frontend
 
