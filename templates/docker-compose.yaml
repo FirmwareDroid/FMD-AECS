@@ -18,7 +18,7 @@ services:
     volumes:
       - ./env/envoy/init_envoy.sh:/docker-entrypoint-initdb.d/init_envoy.sh
       - ./env/envoy/envoy.yaml:/etc/envoy/envoy.yaml
-      - ./env/envoy/fmd-aosp.init-lab.ch/:/etc/envoy/certs/
+      - ./env/envoy/amy.cloudlab.zhaw.ch/:/etc/envoy/certs/
       - ./public/.well-known/:/var/www/certbot/.well-known/
     ports:{% for line in envoy_port_mapping %}
       {{ line }}{% endfor %}
