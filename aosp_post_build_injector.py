@@ -119,7 +119,7 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         #"seccomp", # BPF filters might break the emulator
                         ]
 
-SKIPPED_APEX_KEYWORD_LIST = []
+SKIPPED_APEX_KEYWORD_LIST = ["dex2oat"]
 
 
 ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
