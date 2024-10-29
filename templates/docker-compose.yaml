@@ -6,6 +6,7 @@ services:
     volumes:
       - ./env/envoy/envoy.yaml:/etc/envoy/envoy.yaml
       - ./env/envoy/fmd-aosp.init-lab.ch/:/etc/envoy/certs/
+      - ./public/.well-known/:/var/www/certbot/.well-known/
     ports:{% for line in envoy_port_mapping %}
       {{ line }}{% endfor %}
     networks:

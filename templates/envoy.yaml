@@ -18,9 +18,11 @@ static_resources:
               routes:{% for line in envoy_match_list %}
               {{ line }}{% endfor %}
               - match:
-              prefix: "/.well-known/acme-challenge/"
-              route:
-                cluster: certbot
+                  prefix: "/.well-known/acme-challenge/"
+                direct_response:
+                  status: 200
+                  body:
+                    filename: "/var/www/certbot/.well-known/acme-challenge/"
               cors:
                 allow_origin_string_match:
                   - safe_regex:
@@ -67,8 +69,10 @@ static_resources:
               routes:
               - match:
                   prefix: "/.well-known/acme-challenge/"
-                route:
-                  cluster: certbot
+                direct_response:
+                  status: 200
+                  body:
+                    filename: "/var/www/certbot/.well-known/acme-challenge/"
               - match:
                   prefix: "/"
                 route:
@@ -79,19 +83,6 @@ static_resources:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
-  - name: certbot
-    connect_timeout: 0.250s
-    type: STRICT_DNS
-    lb_policy: ROUND_ROBIN
-    load_assignment:
-      cluster_name: certbot
-      endpoints:
-        - lb_endpoints:
-            - endpoint:
-                address:
-                  socket_address:
-                    address: certbot
-                    port_value: 80
 {% for line in cluster_config_list %}
 {{ line }}
 {% endfor %}
