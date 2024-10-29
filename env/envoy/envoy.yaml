@@ -26,10 +26,8 @@ static_resources:
                       grpc_timeout_header_max: 0s
               - match:
                   prefix: "/.well-known/acme-challenge/"
-                direct_response:
-                  status: 200
-                  body:
-                    filename: "/var/www/certbot/.well-known/acme-challenge/"
+                route:
+                  cluster: local_response
               cors:
                 allow_origin_string_match:
                   - safe_regex:
@@ -40,6 +38,27 @@ static_resources:
                 max_age: "1728000"
                 expose_headers: custom-header-1,grpc-status,grpc-message
           http_filters:
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              inline_code: |
+                function envoy_on_request(request_handle)
+                  local path = "/var/www/certbot" .. request_handle:headers():get(":path")
+                  local file = io.open(path, "r")
+                  if file then
+                    local content = file:read("*all")
+                    file:close()
+                    request_handle:respond(
+                      {[":status"] = "200"},
+                      content
+                    )
+                  else
+                    request_handle:respond(
+                      {[":status"] = "404"},
+                      "File not found"
+                    )
+                  end
+                end
           - name: envoy.filters.http.cors
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
@@ -76,10 +95,8 @@ static_resources:
               routes:
               - match:
                   prefix: "/.well-known/acme-challenge/"
-                direct_response:
-                  status: 200
-                  body:
-                    filename: "/var/www/certbot/.well-known/acme-challenge/"
+                route:
+                  cluster: local_response
               - match:
                   prefix: "/"
                 route:
@@ -90,6 +107,19 @@ static_resources:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
+  - name: local_response
+    connect_timeout: 0.250s
+    type: STATIC
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: local_response
+      endpoints:
+        - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 127.0.0.1
+                    port_value: 80
 
   - name: emulator_service_grpc_0
     connect_timeout: 0.250s
