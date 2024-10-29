@@ -3,7 +3,9 @@ services:
     platform: {{ platform }}
     image: envoyproxy/envoy:v1.27-latest
     restart: unless-stopped
+    command: /docker-entrypoint-initdb.d/init_envoy.sh
     volumes:
+      - ./env/envoy/init_envoy.sh:/docker-entrypoint-initdb.d/init_envoy.sh
       - ./env/envoy/envoy.yaml:/etc/envoy/envoy.yaml
       - ./env/envoy/fmd-aosp.init-lab.ch/:/etc/envoy/certs/
       - ./public/.well-known/:/var/www/certbot/.well-known/
