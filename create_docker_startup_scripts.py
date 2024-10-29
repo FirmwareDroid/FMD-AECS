@@ -61,9 +61,9 @@ def main():
         raise ValueError("CPU architecture must be either linux/amd64 or linux/arm64.")
 
     if args.debug:
-        envoy_port_mapping = "4443:443"
+        envoy_port_mapping = ["- \"4443:443\"", "- \"80:80\""]
     else:
-        envoy_port_mapping = "443:443"
+        envoy_port_mapping = ["- \"443:443\"", "- \"80:80\""]
 
     template_variables_dict = {"service_name": "android_emulator_",
                                "container_name": "android_emulator_",
