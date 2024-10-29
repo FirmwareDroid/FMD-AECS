@@ -3,7 +3,7 @@ services:
     image: nginx:latest
     restart: unless-stopped
     volumes:
-      - ./env/nginx/public/:/usr/share/nginx/html/
+      - ./env/nginx/public:/usr/share/nginx/html
       - ./env/nginx/nginx.conf:/etc/nginx/nginx.conf
     ports:
       - "80:80"
