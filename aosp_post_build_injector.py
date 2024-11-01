@@ -55,7 +55,7 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".ko",
                                ".prop",
                                ".capex",
-                               #".prof",
+                               ".prof",
                                ".apex",
                                ".original_apex" # Leftover from apex repacking
                                ]
@@ -119,7 +119,8 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         #"seccomp", # BPF filters might break the emulator
                         ]
 
-SKIPPED_APEX_KEYWORD_LIST = ["dex2oat"]
+# "dex2oat"
+SKIPPED_APEX_KEYWORD_LIST = []
 
 
 ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
@@ -181,7 +182,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.scheduling.apex",
                             "com.google.android.appsearch.apex",
                             "com.google.android.neuralnetworks.apex",
-                            "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service? (emulator)
+                            "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service? (emulator) -> Workaround change seccomp to allow all
                             "com.google.android.permission.apex",
                             "com.google.pixel.camera.hal.apex",
                             "com.google.android.hardwareinfo.xml",
