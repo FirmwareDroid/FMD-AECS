@@ -104,9 +104,9 @@ SKIPPED_BINARY_LIST = [
 # "boot-framework.art",
 # "boot-core-icu4j.art",
 
-# "selinux"
 SKIPPED_KEYWORD_LIST = ["keystore",
                         "keymaster",
+                        "selinux",
                         "android.hardware",
                         "hardware",
                         "android.hidl",
