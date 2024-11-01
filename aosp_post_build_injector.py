@@ -90,6 +90,13 @@ SKIPPED_BINARY_LIST = [
                        "build.prop",
                        "otacerts.zip",  # Allow to overwrite with own certificates
                        "raw.image",  # Leftover from the file extraction process
+                       ".product.img.raw",
+                       ".system.img.raw",
+                       ".vendor.img.raw",
+                       ".odm.img.raw",
+                       ".oem.img.raw",
+                       ".data.img.raw",
+                       ".super.img.raw",
                        "libgatekeeper.so",
                        ]
 # "libminijail.so",
