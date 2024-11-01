@@ -912,6 +912,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     # Close the progress bar after all tasks are completed
     progress_bar.close()
 
+    handle_duplicated_permissions(target_out_path)
     cleanup_files(folder_path)
 
     return error_list, inj_obj_list, inj_partition_list
@@ -1279,6 +1280,42 @@ def handle_special_matching(source_file_injection_path):
         source_file_injection_path = source_file_injection_path.replace("app_process32", "app_process64")
         logging.info(f"Special matching app_process32 replace with app_process64: {source_file_injection_path}")
     return source_file_injection_path
+
+
+def compute_file_hash(file_path):
+    """Compute the MD5 hash of a file."""
+    hash_md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
+
+def find_and_remove_duplicates(folder_paths):
+    """Find and remove duplicate files in the given folders."""
+    file_hashes = {}
+    for folder_path in folder_paths:
+        for root, _, files in os.walk(folder_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                file_hash = compute_file_hash(file_path)
+                if file_hash in file_hashes:
+                    logging.warning(f"Duplicate found: {file_path} (duplicate of {file_hashes[file_hash]})")
+                    os.remove(file_path)
+                else:
+                    file_hashes[file_hash] = file_path
+
+
+def handle_duplicated_permissions(target_out_path):
+    """
+    Deletes the duplicated permission files in the AOSP build. Checks if the filenames in the permissions folder
+    already exist and deletes the duplicated files. Keeps the
+    """
+    system_permission_path = os.path.join(target_out_path, "system/etc/permissions")
+    system_ext_permission_path =  os.path.join(target_out_path, "system_ext/etc/permissions")
+    vendor_permission_path =  os.path.join(target_out_path, "vendor/etc/permissions")
+    product_permission_path =  os.path.join(target_out_path, "product/etc/permissions")
+    permission_path_list = [system_permission_path, system_ext_permission_path, vendor_permission_path, product_permission_path]
+    find_and_remove_duplicates(permission_path_list)
 
 
 def inject_file_into_obj(source_file_path, original_file_path):
