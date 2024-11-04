@@ -104,6 +104,9 @@ SKIPPED_BINARY_LIST = [
 # "boot-framework.art",
 # "boot-core-icu4j.art",
 
+
+# "app_process", # Basically zygote64
+# "seccomp", # BPF filters might break the emulator
 SKIPPED_KEYWORD_LIST = ["keystore",
                         "keymaster",
                         "selinux",
@@ -122,8 +125,6 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         "vendor.qti.hardware",
                         "qti",
                         "secureboot",
-                        #"app_process", # Basically zygote64
-                        #"seccomp", # BPF filters might break the emulator
                         ]
 
 # "dex2oat"
@@ -1315,6 +1316,7 @@ def handle_duplicated_permissions(target_out_path):
     vendor_permission_path =  os.path.join(target_out_path, "vendor/etc/permissions")
     product_permission_path =  os.path.join(target_out_path, "product/etc/permissions")
     permission_path_list = [system_permission_path, system_ext_permission_path, vendor_permission_path, product_permission_path]
+    logging.info(f"Checking for duplicated permissions in {permission_path_list}")
     find_and_remove_duplicates(permission_path_list)
 
 
