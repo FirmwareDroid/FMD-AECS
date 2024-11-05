@@ -404,6 +404,8 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     apex_filename_new = str(os.path.basename(file_path).replace(".apex", ".v2.apex"))
     apex_dir_path = str(os.path.dirname(file_path))
     apex_out_file = str(os.path.join(apex_dir_path, apex_filename_new))
+    if os.path.exists(apex_out_file):
+        os.remove(apex_out_file)
     is_repack_success, log_message = repackage_apex_file(aosp_path, file_path, apex_out_file, lunch_target, target_out_path)
     if not is_repack_success:
         error_message = f"Error repackaging APEX file: {file_path}|{log_message}"
