@@ -58,6 +58,7 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".prof",
                                ".apex",
                                ".original_apex" # Leftover from apex repacking
+                               ".idsig", # Leftover from signing
                                ]
 
 # "vndservicemanager", # problematic
@@ -442,13 +443,14 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     inj_partition = None
     inj_obj = None
     file_name = os.path.basename(file_path)
+    file_extension = os.path.splitext(file_name)[1]
     original_file_path = search_original_file_in_obj(partition_name,
                                                      module_type,
                                                      file_path,
                                                      file_name,
                                                      target_out_path)
     if original_file_path is None:
-        # To match naming of vendors with the emulator
+        # To match naming of vendors with the emulators file
         file_path_vendor_replaced = file_path.replace(".google", "").replace("Google", "")
         file_name_vendor_replaced = os.path.basename(file_path_vendor_replaced)
         original_file_path = search_original_file_in_obj(partition_name,
@@ -456,8 +458,6 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                          file_path_vendor_replaced,
                                                          file_name_vendor_replaced,
                                                          target_out_path)
-
-
     #if file_name in FILES_TO_MODIFY:
     #    handle_file_modification(file_path, target_out_path)
 
@@ -1191,7 +1191,8 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                     result_file_path = candidate_path
                     break
                 elif ((file_extension_src == ".apex" and file_extension_obj == ".capex")
-                      or (file_extension_src == ".capex" and file_extension_obj == ".apex")):
+                      or (file_extension_src == ".capex" and file_extension_obj == ".apex")
+                      or (file_extension_src == ".apex" and file_extension_obj == ".apex")):
                     result_file_path = os.path.join(root, file)
                     logging.info(f"Found APEX file2: {file_name}, result_file_path: {result_file_path}")
                     break
