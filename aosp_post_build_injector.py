@@ -192,7 +192,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.neuralnetworks.apex",
                             "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service? (emulator) -> Workaround change seccomp to allow all
                             "com.google.android.permission.apex",
-                            "com.google.pixel.camera.hal.apex",
+                            #"com.google.pixel.camera.hal.apex", -> Gives parsing error?
                             "com.google.android.hardwareinfo.xml",
                             "vndservicemanager.rc",
                             ]
