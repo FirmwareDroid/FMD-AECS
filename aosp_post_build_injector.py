@@ -134,15 +134,23 @@ SKIPPED_APEX_KEYWORD_LIST = []
 
 ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
                                          ".otf",
-                                         ".ttf"]
+                                         ".ttf",
+                                         ".art"]
 
 ALLOW_FILE_OVERWRITE = ["framework-res.apk",
                         "framework-ext-res.apk",
                         "passwd",
                         "group",
                         "com.google.android.hardwareinfo.xml",
+                        "boot.art",
                         "boot-framework.art",
                         "boot-core-icu4j.art",
+                        "boot-ext.art",
+                        "boot-telephony-common.art",
+                        "services.art",
+                        "boot-ims-common.art",
+                        "boot-framework-graphics.art",
+                        "boot-voip-common.art"
                         ]
 
 for default_module_name in AOSP_DEFAULT_PACKAGE_NAMES:
