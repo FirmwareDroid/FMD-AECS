@@ -90,9 +90,10 @@ def get_firmware_ids(graphql_url, cookies, arch=None, pk_filter=None):
                                f"response: {response.text}")
         resp_dict = response.json()
         aecs_job_list = resp_dict["data"]["aecs_job_list"]
-        logging.info(f"Found {len(aecs_job_list)} aecs jobs.")
+        logging.info(f"Found {len(aecs_job_list)}")
         object_id_list = []
         for aecs_job in aecs_job_list:
+            logging.info(f"Processing aecs job with pk: {aecs_job['pk']} and arch: {aecs_job['arch']}")
             if (pk_filter and aecs_job["pk"] != pk_filter) or (arch and aecs_job["arch"] != arch):
                 logging.info(f"Skipping aecs job with pk: {aecs_job['pk']} and arch: {aecs_job['arch']} "
                              f"with pk_filter: {pk_filter}")
