@@ -105,8 +105,8 @@ def get_firmware_ids(graphql_url, cookies, arch=None, pk_filter=None):
                     decoded_string = decoded_bytes.decode('utf-8')
                     object_id_list.append(decoded_string.split(":")[1])
         if not object_id_list:
-            logging.error("No firmware ids found.")
-            raise RuntimeError("Could not fetch firmware ids.")
+            logging.info("No firmware ids found to process.")
+            exit(0)
     logging.info(f"Found ids: {object_id_list}")
     return object_id_list
 
