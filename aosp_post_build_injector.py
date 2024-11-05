@@ -1169,10 +1169,8 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                     if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
                                                                                            file_path):
                         continue
-
-
                 if is_parent_dir_arm_and_target_arm(file_path, candidate_path):
-                        continue
+                    continue
                 result_file_path = candidate_path
                 break  # Terminate search early
         # Check if the folder has the same name but the file within the folder is named differently
