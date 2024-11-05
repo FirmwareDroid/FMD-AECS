@@ -65,13 +65,14 @@ def get_csrf_token(url):
     return response.cookies
 
 
-def get_firmware_ids(graphql_url, cookies, arch=None):
+def get_firmware_ids(graphql_url, cookies, arch=None, pk_filter=None):
     """
     Fetches a list of firmware ids to process from the fmd service.
 
     :param graphql_url: str - fmd api url for graphql.
     :param cookies: str - cookies jar for requests.
     :param arch: str - cpu architecture of the firmware.
+    :param pk_filter: str - id of the aecs job to process.
 
     :returns: list(str) - list of firmware ids
 
@@ -91,7 +92,7 @@ def get_firmware_ids(graphql_url, cookies, arch=None):
         aecs_job_list = resp_dict["data"]["aecs_job_list"]
         object_id_list = []
         for aecs_job in aecs_job_list:
-            if arch and aecs_job["arch"] != arch:
+            if (pk_filter and aecs_job["id"] != pk_filter) or (arch and aecs_job["arch"] != arch):
                 continue
             else:
                 for firmware_data in aecs_job["firmwareIdList"]['edges']:

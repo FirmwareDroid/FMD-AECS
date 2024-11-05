@@ -661,6 +661,8 @@ def parse_arguments():
                         help='If set, the aosp build environment will be reset.')
     parser.add_argument("-c", "--skip-clean", action='store_true', default=False,
                         help='If set, skips the cleanup of the aosp build environment.')
+    parser.add_argument("-p", "--pk-filter", type=str, default=None, help='Set a specific aecs job id '
+                                                                          'to process. Other jobs will be ingored when set.')
     args = parser.parse_args()
 
     if not (args.fmd_url.startswith("https://") or args.fmd_url.startswith("http://")):
@@ -703,7 +705,7 @@ def fetch_firmware_ids(args, fmd_password, csrf_cookie):
     """
     graphql_url = get_graphql_url(args.fmd_url)
     cookies = authenticate_fmd(graphql_url, args.fmd_username, fmd_password, csrf_cookie)
-    firmware_id_list = get_firmware_ids(graphql_url, cookies, args.arch)
+    firmware_id_list = get_firmware_ids(graphql_url, cookies, args.arch, args.pk_filter)
     logging.info(f"Got {len(firmware_id_list)} firmware ids to process...")
     return firmware_id_list, cookies
 
