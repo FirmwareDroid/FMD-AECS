@@ -90,6 +90,7 @@ def get_firmware_ids(graphql_url, cookies, arch=None, pk_filter=None):
                                f"response: {response.text}")
         resp_dict = response.json()
         aecs_job_list = resp_dict["data"]["aecs_job_list"]
+        logging.info(f"Found {len(aecs_job_list)} aecs jobs.")
         object_id_list = []
         for aecs_job in aecs_job_list:
             if (pk_filter and aecs_job["pk"] != pk_filter) or (arch and aecs_job["arch"] != arch):
@@ -103,6 +104,7 @@ def get_firmware_ids(graphql_url, cookies, arch=None, pk_filter=None):
                     decoded_string = decoded_bytes.decode('utf-8')
                     object_id_list.append(decoded_string.split(":")[1])
         if not object_id_list:
+            logging.error("No firmware ids found.")
             raise RuntimeError("Could not fetch firmware ids.")
     logging.info(f"Found ids: {object_id_list}")
     return object_id_list
