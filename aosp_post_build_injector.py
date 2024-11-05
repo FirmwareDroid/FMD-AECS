@@ -576,6 +576,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file, apex_file_path
     :param output_file: str - path to the output file where the canned_fs_config will be saved.
 
     """
+    file_inserted_counter = 0
     with open(output_file, 'w') as out_file:
         out_file.write(f"/ 1000 1000 0755\n")
         for root, dirs, files in os.walk(apex_extract_dir_path):
@@ -607,7 +608,8 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file, apex_file_path
                 if os.access(file_path, os.X_OK):
                     mode = '0755'  # Executable files get 0755
                 out_file.write(f"/{relative_file_path} {user_id} {group_id} {mode}\n")
-
+                file_inserted_counter += 1
+                # Workaround for boot.art file in APEX
                 if "boot" in file_name and "arm64" in file_path:
                     parent_dir = os.path.dirname(file_path)
                     grandparent_dir = os.path.dirname(parent_dir)
@@ -617,6 +619,8 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file, apex_file_path
                     relative_file_path = os.path.relpath(copy_dst, apex_extract_dir_path)
                     logging.info(f"APEX Write new boot.art path: {relative_file_path}:{copy_dst}:{parent_dir}")
                     out_file.write(f"/{relative_file_path} {user_id} {group_id} {mode}\n")
+                    file_inserted_counter += 1
+    logging.info(f"Number of files inserted into canned_fs_config: {file_inserted_counter} for APEX: {apex_file_path}")
 
 
 
