@@ -92,7 +92,8 @@ def get_firmware_ids(graphql_url, cookies, arch=None, pk_filter=None):
         aecs_job_list = resp_dict["data"]["aecs_job_list"]
         object_id_list = []
         for aecs_job in aecs_job_list:
-            if (pk_filter and aecs_job["id"] != pk_filter) or (arch and aecs_job["arch"] != arch):
+            if (pk_filter and aecs_job["pk"] != pk_filter) or (arch and aecs_job["arch"] != arch):
+                logging.info(f"Skipping aecs job with pk: {aecs_job['pk']}")
                 continue
             else:
                 for firmware_data in aecs_job["firmwareIdList"]['edges']:
