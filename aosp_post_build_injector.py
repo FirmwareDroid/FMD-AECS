@@ -57,7 +57,7 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".capex",
                                ".prof",
                                ".apex",
-                               ".original_apex" # Leftover from apex repacking
+                               ".original_apex", # Leftover from apex repacking
                                ".idsig", # Leftover from signing
                                ]
 
