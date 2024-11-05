@@ -1191,8 +1191,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                     result_file_path = candidate_path
                     break
                 elif ((file_extension_src == ".apex" and file_extension_obj == ".capex")
-                      or (file_extension_src == ".capex" and file_extension_obj == ".apex")
-                      or (file_extension_src == ".apex" and file_extension_obj == ".apex")):
+                      or (file_extension_src == ".capex" and file_extension_obj == ".apex")):
                     result_file_path = os.path.join(root, file)
                     logging.info(f"Found APEX file2: {file_name}, result_file_path: {result_file_path}")
                     break
