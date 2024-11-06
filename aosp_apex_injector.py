@@ -5,6 +5,8 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+from fileinput import filename
+
 from jinja2 import Environment, FileSystemLoader
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file
@@ -47,10 +49,11 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
 
     :return: tuple - (bool, str) - True if the repackage was successful, False otherwise. String containing the log.
     """
+    filename = str(os.path.basename(apex_file_path))
     logging.info(f"Repackaging APEX file: {apex_file_path}")
     success = False
     try:
-        apex_root_path = tempfile.mkdtemp()
+        apex_root_path = tempfile.mkdtemp(suffix=f"_{filename}_apex_repack")
         apex_extract_dir_path = os.path.join(apex_root_path, "extract")
         extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target)
         if extract_success:
@@ -110,9 +113,9 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     filename_input = str(os.path.basename(input_apex))
     logging.info(f"Merging APEX files: {apex_emulator_folder} and {input_apex}")
     is_success, log_message = False, None
-    apex_root_path = tempfile.mkdtemp(suffix=f"{filename_input}_merged")
+    apex_root_path = tempfile.mkdtemp(suffix=f"_{filename_input}_merged")
     merged_apex_extract_dir_path = os.path.join(apex_root_path, "extract")
-    apex_vendor_extract_dir_path = tempfile.mkdtemp(suffix=f"{filename_input}_vendor")
+    apex_vendor_extract_dir_path = tempfile.mkdtemp(suffix=f"_{filename_input}_vendor")
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target)
     if extract_success:
         shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
@@ -330,6 +333,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
                 result_file_path = str(os.path.join(output_dir_path, file))
                 if os.path.exists(result_file_path):
                     is_apex_manifest_file_found = True
+                    logging.info(f"APEX manifest file found: {result_file_path}")
                 break
     return is_apex_manifest_file_found, result_file_path
 
