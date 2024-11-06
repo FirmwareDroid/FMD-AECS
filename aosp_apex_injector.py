@@ -6,8 +6,8 @@ import subprocess
 import tempfile
 import zipfile
 from jinja2 import Environment, FileSystemLoader
+from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file
-from aosp_post_build_injector import get_module_type
 from shell_command import execute_shell_command
 from config_post_injector import *
 
