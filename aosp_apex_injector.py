@@ -280,9 +280,6 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                     out_file.write(f"/{relative_file_path} {user_id} {group_id} {mode}\n")
                     file_inserted_counter += 1
 
-
-
-
 def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
     """
     Extracts the APEX file using deapexer.
