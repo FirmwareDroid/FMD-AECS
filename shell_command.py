@@ -1,9 +1,3 @@
-import logging
-import os
-import subprocess
-
-
-import logging
 import os
 import subprocess
 
@@ -17,14 +11,11 @@ def execute_shell_command(command, aosp_root_path):
     if result.returncode == 0:
         is_success = True
     else:
-        logging.error(f"Error executing command: {command}")
-        logging.error(f"Return code: {result.returncode}")
-        logging.error(f"stdout: {log_out}")
-        logging.error(f"stderr: {log_err}")
+        log_err = f"Error executing command: {command}, Return code: {result.returncode}, stdout: {log_out}, stderr: {log_err}"
         is_success = False
 
     os.chdir(current_directory)
-    log = f"is_success: {is_success}, stdout: {log_out} | stderr: {log_err}"
+    log = f"is_success: {is_success} result.returncode: {result.returncode}, stdout: {log_out} | error: {log_err}"
     return is_success, log
 
 def execute_command(command):
