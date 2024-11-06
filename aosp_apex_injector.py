@@ -31,10 +31,11 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
                                                              apex_out_file,
                                                              lunch_target,
                                                              target_out_path)
+
     if is_repack_success:
         error_message = sign_apex_file(file_path, aosp_path, apex_out_file)
     else:
-        error_message = f"Error repackaging APEX file: {file_path}|{log_message}"
+        error_message = f"Error repackaging/merging APEX file: {file_path}|{log_message}"
 
     return error_message
 
@@ -125,6 +126,10 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_vendor_extract_dir_path, merged_apex_extract_dir_path)
         if is_manifest_found and os.path.exists(apex_manifest_path):
             success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, merged_apex_extract_dir_path, apex_root_path, aosp_path, apex_out_file, lunch_target, canned_fs_config)
+            if success:
+                is_success, log_message = inject_apex_avb_public_key(input_apex, avb_pub_key_path, apex_out_file)
+        else:
+            log_message = f"APEX manifest file not found. {input_apex} | apex_manifest_path: {apex_manifest_path}"
     return is_success, log_message
 
 
