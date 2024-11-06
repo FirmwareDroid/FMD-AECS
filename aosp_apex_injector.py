@@ -25,13 +25,14 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     if apex_emulator_folder and os.path.exists(apex_emulator_folder):
         logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
         is_repack_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path)
+        logging.info(f"Merging APEX file complete: {file_path} | {is_repack_success} | {log_message}")
     else:
         is_repack_success, log_message = repackage_apex_file(aosp_path,
                                                              file_path,
                                                              apex_out_file,
                                                              lunch_target,
                                                              target_out_path)
-
+        logging.info(f"Repackaging APEX file complete: {file_path} | {is_repack_success} | {log_message}")
     if is_repack_success:
         error_message = sign_apex_file(file_path, aosp_path, apex_out_file)
     else:
@@ -52,7 +53,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
     """
     filename = str(os.path.basename(apex_file_path))
     logging.info(f"Repackaging APEX file: {apex_file_path}")
-    success = False
+    is_success = False
     try:
         apex_root_path = tempfile.mkdtemp(suffix=f"_{filename}_apex_repack")
         apex_extract_dir_path = os.path.join(apex_root_path, "extract")
@@ -66,8 +67,8 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             copy_android_prebuilt_jar(aosp_path, apex_root_path)
             if is_manifest_found and os.path.exists(apex_manifest_path):
-                success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config)
-                if success:
+                is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config)
+                if is_success:
                     is_success, log_message = inject_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path)
                 else:
                     log_message = f"APEX repackaging failed. {log_message}"
@@ -77,7 +78,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
             log_message = f"APEX extraction failed. {apex_file_path} | {log_message}"
     except Exception as e:
         log_message = f"Error repackaging APEX file: {apex_file_path} | {str(e)}"
-    return success, log_message
+    return is_success, log_message
 
 def get_apex_build_intermediate_folder(target_out_path):
     apex_folder_path = os.path.join(target_out_path, "apex")
@@ -181,10 +182,10 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     logging.info(f"Apexer Repacking command: {command}")
     is_success, log_message = execute_shell_command(command, aosp_path)
     if is_success:
-        logging.info(f"APEX repackaged: {output_file_path}")
+        logging.info(f"APEX create_apex_container success: {output_file_path}")
         success = True
     else:
-        log_message = f"APEX repackaging failed. {log_message} | {info}"
+        log_message = f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info}"
 
     return success, log_message, avb_pub_key_path
 
