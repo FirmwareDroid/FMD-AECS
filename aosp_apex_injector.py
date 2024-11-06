@@ -88,14 +88,11 @@ def get_apex_build_intermediate_folder(target_out_path):
 def find_emulator_apex_folder(target_out_path, file_path):
     filename = str(os.path.basename(file_path))
     filename_no_vendor = filename.replace(".google", "").replace(".apex", "").replace(".capex", "")
-    apex_emulator_folder = get_apex_build_intermediate_folder(target_out_path)
-    logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder}")
-    apex_module_folder = None
-    for root, dirs, files in os.walk(apex_emulator_folder):
-        for dir in dirs:
-            if filename_no_vendor == dir:
-                apex_module_folder = os.path.join(root, dir)
-                break
+    apex_emulator_folder_root = get_apex_build_intermediate_folder(target_out_path)
+    logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root}")
+    apex_module_folder = os.path.join(apex_emulator_folder_root, filename_no_vendor)
+    if os.path.exists(apex_module_folder):
+        logging.info(f"APEX module folder found: {apex_module_folder}")
     return apex_module_folder
 
 
