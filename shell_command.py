@@ -1,21 +1,30 @@
+import logging
 import os
 import subprocess
 
+
+import logging
+import os
+import subprocess
 
 def execute_shell_command(command, aosp_root_path):
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_root_path)
     result = subprocess.run(command, shell=True, capture_output=True, text=False)
-    log_stderr = ""
-    log_stdout = ""
+    log_out = result.stdout.decode('utf-8', errors='ignore').strip()
+    log_err = result.stderr.decode('utf-8', errors='ignore').strip()
+
     if result.returncode == 0:
-        log_stdout = result.stdout.decode('utf-8', errors='ignore').strip()
         is_success = True
     else:
+        logging.error(f"Error executing command: {command}")
+        logging.error(f"Return code: {result.returncode}")
+        logging.error(f"stdout: {log_out}")
+        logging.error(f"stderr: {log_err}")
         is_success = False
-        log_stderr = result.stderr.decode('utf-8', errors='ignore').strip()
+
     os.chdir(current_directory)
-    log = f"is_success: {is_success}, stdout: {log_stdout} | stderr: {log_stderr}"
+    log = f"is_success: {is_success}, stdout: {log_out} | stderr: {log_err}"
     return is_success, log
 
 def execute_command(command):
