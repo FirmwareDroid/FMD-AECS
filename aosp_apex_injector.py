@@ -107,11 +107,12 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     Keeps the structure of the emulator apex and injects additional files into the apex.
     Writes the merged apex to the apex_out_file
     """
+    filename_input = str(os.path.basename(input_apex))
     logging.info(f"Merging APEX files: {apex_emulator_folder} and {input_apex}")
     is_success, log_message = False, None
-    apex_root_path = tempfile.mkdtemp()
+    apex_root_path = tempfile.mkdtemp(suffix=f"{filename_input}_merged")
     merged_apex_extract_dir_path = os.path.join(apex_root_path, "extract")
-    apex_vendor_extract_dir_path = tempfile.mkdtemp()
+    apex_vendor_extract_dir_path = tempfile.mkdtemp(suffix=f"{filename_input}_vendor")
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target)
     if extract_success:
         shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
@@ -134,15 +135,15 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 logging.error(f"Skipping file from APEX {apex_emulator_folder}. Known problematic filename: {file_path}")
             else:
                 dst = os.path.join(merged_apex_extract_dir_path, os.path.relpath(file_path, apex_vendor_extract_dir_path))
-                logging.info(f"Copying file to APEX: {dst} from {file_path}")
+                logging.info(f"Copying file to APEX destination: {dst}")
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 if not os.path.exists(dst):
-                    logging.info(f"Adding file to APEX: {file_path}")
-                    shutil.copy(file_path, merged_apex_extract_dir_path)
+                    logging.info(f"Adding file to APEX: from {file_path} to {merged_apex_extract_dir_path}")
+                    shutil.copy(file_path, dst)
                 else:
                     if file in ALLOW_APEX_FILE_OVERWRITE:
                         logging.info(f"Overwriting file in APEX: {file_path}")
-                        shutil.copy(file_path, merged_apex_extract_dir_path)
+                        shutil.copy(file_path, dst)
                     else:
                         logging.error(f"File already exists in APEX and will not be copied: {file_path}")
 
