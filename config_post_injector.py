@@ -116,6 +116,7 @@ ALLOW_FILE_OVERWRITE = ["framework-res.apk",
                         "passwd",
                         "group",
                         "com.google.android.hardwareinfo.xml",
+                        "services.jar.bprof"
                         ]
 
 for default_module_name in AOSP_DEFAULT_PACKAGE_NAMES:
