@@ -14,7 +14,7 @@ def execute_shell_command(command, aosp_root_path):
     else:
         log_stderr = result.stderr.decode('utf-8', errors='ignore').strip()
     os.chdir(current_directory)
-    log = f"stdout: {log_stdout} | stderr: {log_stderr}"
+    log = f"is_success: {is_success}, stdout: {log_stdout} | stderr: {log_stderr}"
     return is_success, log
 
 def execute_command(command):
