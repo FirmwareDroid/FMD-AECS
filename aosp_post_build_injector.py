@@ -415,6 +415,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
         root_folder_name_stripped = os.path.basename(root).replace("_intermediates", "")
         root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace(f"_{partition_name}",
                                                                                         "")
+        root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace("v1_prebuilt","")
 
         # Check if there is an exact match for the file name
         if exact_match_files:
