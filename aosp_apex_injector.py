@@ -20,7 +20,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
         os.remove(apex_out_file)
 
     apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path)
-    if apex_emulator_folder:
+    if apex_emulator_folder and os.path.exists(apex_emulator_folder):
         logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
         is_repack_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file)
     else:
