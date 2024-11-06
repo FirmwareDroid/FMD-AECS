@@ -67,8 +67,8 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             copy_android_prebuilt_jar(aosp_path, apex_root_path)
             if apex_manifest_path:
-                is_success, log_message = start_repacking(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path,
-                                lunch_target, canned_fs_config, apex_file_path, target_out_path)
+                is_success, log_message, avb_pub_key_path = start_repacking(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path,
+                                lunch_target, canned_fs_config, apex_file_path)
         else:
             log_message = f"APEX extraction failed. {apex_file_path} | {log_message}"
     except Exception as e:
@@ -77,19 +77,15 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
 
 
 def start_repacking(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path,
-                    lunch_target, canned_fs_config, apex_file_path, target_out_path):
+                    lunch_target, canned_fs_config, apex_file_path):
     is_success = False
     if os.path.exists(apex_manifest_path):
         is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, apex_extract_dir_path,
                                                                           apex_root_path, aosp_path, output_file_path,
                                                                           lunch_target, canned_fs_config)
-        if is_success:
-            is_success, log_message = inject_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path)
-        else:
-            log_message = f"APEX repackaging failed. {log_message}"
     else:
         log_message = f"APEX manifest file not found. {apex_file_path} | apex_manifest_path: {apex_manifest_path}"
-    return is_success, log_message
+    return is_success, log_message, avb_pub_key_path
 
 
 def get_apex_build_intermediate_folder(target_out_path):
@@ -139,15 +135,20 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path, apex_root_path)
         if is_manifest_found and os.path.exists(apex_manifest_path):
             if apex_manifest_path:
-                is_success, log_message = start_repacking(apex_manifest_path,
+                is_success, log_message, avb_pub_key_path = start_repacking(apex_manifest_path,
                                                           merged_apex_extract_dir_path,
                                                           apex_root_path,
                                                           aosp_path,
                                                           apex_out_file,
                                                           lunch_target,
                                                           canned_fs_config,
-                                                          input_apex,
-                                                          target_out_path)
+                                                          input_apex)
+                if is_success:
+                    is_success, log_message = inject_apex_avb_public_key(input_apex,
+                                                                         avb_pub_key_path,
+                                                                         target_out_path)
+                else:
+                    log_message = f"APEX repackaging failed. {log_message}"
         else:
             log_message = f"APEX manifest file not found. {input_apex} | apex_manifest_path: {apex_manifest_path}"
     return is_success, log_message
@@ -200,7 +201,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     logging.info(f"Apexer Repacking command: {command}")
     is_success, log_message = execute_shell_command(command, aosp_path)
     if is_success:
-        logging.info(f"APEX create_apex_container success: {output_file_path}")
+        logging.info(f"APEX create_apex_container success: {output_file_path}. Command-Log: {log_message}")
         success = True
     else:
         log_message = f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info}"
