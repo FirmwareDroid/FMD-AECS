@@ -22,7 +22,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path)
     if apex_emulator_folder and os.path.exists(apex_emulator_folder):
         logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
-        is_repack_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file)
+        is_repack_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path)
     else:
         is_repack_success, log_message = repackage_apex_file(aosp_path,
                                                              file_path,
@@ -92,7 +92,10 @@ def find_emulator_apex_folder(target_out_path, file_path):
     logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root}")
     apex_module_folder = os.path.join(apex_emulator_folder_root, filename_no_vendor)
     if os.path.exists(apex_module_folder):
-        logging.info(f"APEX module folder found: {apex_module_folder}")
+        logging.info(f"APEX module folder found: {apex_module_folder} for apex {file_path}")
+    else:
+        apex_module_folder = None
+        logging.warning(f"APEX module folder not found: {filename_no_vendor} for apex {file_path}")
     return apex_module_folder
 
 
