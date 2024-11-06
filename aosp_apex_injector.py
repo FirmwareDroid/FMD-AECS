@@ -63,7 +63,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                 generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
 
-            is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
+            is_manifest_found, apex_manifest_path = copy_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             copy_android_prebuilt_jar(aosp_path, apex_root_path)
             if is_manifest_found and os.path.exists(apex_manifest_path):
                 success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config)
@@ -123,7 +123,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name)
-        is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_vendor_extract_dir_path, merged_apex_extract_dir_path)
+        is_manifest_found, apex_manifest_path = copy_apex_manifest_file(apex_vendor_extract_dir_path, merged_apex_extract_dir_path)
         if is_manifest_found and os.path.exists(apex_manifest_path):
             success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, merged_apex_extract_dir_path, apex_root_path, aosp_path, apex_out_file, lunch_target, canned_fs_config)
             if success:
@@ -170,7 +170,6 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     generate_apex_keys(priv_key_path, pub_key_path)
     extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
     # f"--android_manifest={apex_manifest_path} " \
-    shutil.copyfile(apex_manifest_path, os.path.join(apex_extract_dir_path, "apex_manifest.pb"))
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
               f"--key={priv_key_path} " \
               f"--pubkey={avb_pub_key_path} " \
@@ -317,7 +316,7 @@ def create_apex_manifest_file(apex_extract_dir_path, apex_package_name):
         manifest_file.write(rendered_template)
 
 
-def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
+def copy_apex_manifest_file(apex_extract_dir_path, output_dir_path):
     """
     Searches for the APEX manifest file in the APEX extract directory and moves it to the current directory.
 
@@ -334,7 +333,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
         for file in files:
             if file == "apex_manifest.pb":
                 file_path = str(os.path.join(root, file))
-                shutil.move(file_path, str(os.path.join(output_dir_path, file)))
+                shutil.copy(file_path, str(os.path.join(output_dir_path, file)))
                 logging.info(f"Copied APEX manifest file: {file_path} to {output_dir_path}.")
                 result_file_path = str(os.path.join(output_dir_path, file))
                 if os.path.exists(result_file_path):
