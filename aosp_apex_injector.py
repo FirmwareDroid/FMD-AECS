@@ -24,7 +24,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path)
     if apex_emulator_folder and os.path.exists(apex_emulator_folder):
         logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
-        is_repack_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path)
+        is_repack_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path)
         logging.info(f"Merging APEX file complete: {file_path} | {is_repack_success} | {log_message}")
     else:
         is_repack_success, log_message = repackage_apex_file(aosp_path,
@@ -66,19 +66,31 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
 
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             copy_android_prebuilt_jar(aosp_path, apex_root_path)
-            if is_manifest_found and os.path.exists(apex_manifest_path):
-                is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config)
-                if is_success:
-                    is_success, log_message = inject_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path)
-                else:
-                    log_message = f"APEX repackaging failed. {log_message}"
-            else:
-                log_message = f"APEX manifest file not found. {apex_file_path} | apex_manifest_path: {apex_manifest_path}"
+            if apex_manifest_path:
+                is_success, log_message = start_repacking(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path,
+                                lunch_target, canned_fs_config, apex_file_path, target_out_path)
         else:
             log_message = f"APEX extraction failed. {apex_file_path} | {log_message}"
     except Exception as e:
         log_message = f"Error repackaging APEX file: {apex_file_path} | {str(e)}"
     return is_success, log_message
+
+
+def start_repacking(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path,
+                    lunch_target, canned_fs_config, apex_file_path, target_out_path):
+    is_success = False
+    if os.path.exists(apex_manifest_path):
+        is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, apex_extract_dir_path,
+                                                                          apex_root_path, aosp_path, output_file_path,
+                                                                          lunch_target, canned_fs_config)
+        if is_success:
+            is_success, log_message = inject_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path)
+        else:
+            log_message = f"APEX repackaging failed. {log_message}"
+    else:
+        log_message = f"APEX manifest file not found. {apex_file_path} | apex_manifest_path: {apex_manifest_path}"
+    return is_success, log_message
+
 
 def get_apex_build_intermediate_folder(target_out_path):
     apex_folder_path = os.path.join(target_out_path, "apex")
@@ -106,7 +118,7 @@ def find_emulator_apex_folder(target_out_path, file_path):
 
 # Keep the structure of the original apex
 # Inject additional files into the apex
-def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_target, aosp_path):
+def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_target, aosp_path, target_out_path):
     """
     Merges the emulator APEX file with a vendor apex in case they have the same name.
     Keeps the structure of the emulator apex and injects additional files into the apex.
@@ -126,9 +138,16 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name)
         is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path, apex_root_path)
         if is_manifest_found and os.path.exists(apex_manifest_path):
-            success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, merged_apex_extract_dir_path, apex_root_path, aosp_path, apex_out_file, lunch_target, canned_fs_config)
-            if success:
-                is_success, log_message = inject_apex_avb_public_key(input_apex, avb_pub_key_path, apex_out_file)
+            if apex_manifest_path:
+                is_success, log_message = start_repacking(apex_manifest_path,
+                                                          merged_apex_extract_dir_path,
+                                                          apex_root_path,
+                                                          aosp_path,
+                                                          apex_out_file,
+                                                          lunch_target,
+                                                          canned_fs_config,
+                                                          input_apex,
+                                                          target_out_path)
         else:
             log_message = f"APEX manifest file not found. {input_apex} | apex_manifest_path: {apex_manifest_path}"
     return is_success, log_message
@@ -170,7 +189,6 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     avb_pub_key_path = os.path.join(temp_keys_dir, "apex_pubkey")
     generate_apex_keys(priv_key_path, pub_key_path)
     extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
-    # f"--android_manifest={apex_manifest_path} " \
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
               f"--key={priv_key_path} " \
               f"--pubkey={avb_pub_key_path} " \
