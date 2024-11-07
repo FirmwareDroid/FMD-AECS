@@ -158,9 +158,9 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.os.statsd.apex",
                             "com.android.runtime.apex",  # Problematic -> Without boot-framework error? Root cause of file not found error?
                             "com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
-                            "com.google.mainline.primary.libs.apex",
-                            #"com.android.apex.cts.shim.apex", -> Gives parsing error?
-                            "com.google.android.telephony.apex",
+                            #"com.google.mainline.primary.libs.apex", -> Gives certificate parsing error?
+                            #"com.android.apex.cts.shim.apex", -> Gives certificate parsing error?
+                            #"com.google.android.telephony.apex", -> Gives certificate parsing error?
                             "com.google.android.media.swcodec.apex",
                             "com.google.android.scheduling.apex",
                             "com.google.android.appsearch.apex",
