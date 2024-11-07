@@ -414,8 +414,8 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path, lunch
             uuid_dir = str(uuid.uuid4())
             if os.path.isdir(package_path) and check_file_extension(package_path, so_file_extension_list):
                 framework_lib_path = os.path.join(aosp_root_dir, "frameworks/libs/", uuid_dir)
+                logging.info(f"Moved library package: {package_path} to {framework_lib_path}")
                 shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
-                logging.info(f"Moved library package: {dir_name} to {framework_lib_path}")
             elif os.path.isdir(package_path) and check_file_extension(package_path, apex_file_extension_list):
                 package_dir_name = os.path.basename(package_path)
                 apex_file_path = get_apex_file(package_path)
@@ -424,8 +424,8 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path, lunch
                     logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
                     continue
                 modules_path = os.path.join(aosp_root_dir, "packages/modules/", package_dir_name)
+                logging.info(f"Moving APEX package: {package_path} to {modules_path}")
                 shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
-                logging.info(f"Moved APEX package: {dir_name} to {modules_path}")
                 apex_out_file = os.path.join(modules_path, apex_filename)
                 if os.path.exists(apex_out_file):
                     os.remove(apex_out_file)
