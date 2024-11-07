@@ -412,7 +412,7 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
                     continue
                 modules_path = os.path.join(aosp_root_dir, "packages/modules/", package_dir_name)
                 shutil.move(package_path, modules_path)
-                logging.info(f"Moved apex package: {dir_name} to {modules_path}")
+                logging.info(f"Moved APEX package: {dir_name} to {modules_path}")
             else:
                 shutil.move(package_path, aosp_packages_abs_path)
             logging.info(f"Moved package: {dir_name} to {aosp_packages_abs_path}")
