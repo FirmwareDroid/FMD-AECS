@@ -5,8 +5,6 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
-from fileinput import filename
-
 from jinja2 import Environment, FileSystemLoader
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file
@@ -30,18 +28,17 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
         is_repack_success, log_message = repackage_apex_file(aosp_path,
                                                              file_path,
                                                              apex_out_file,
-                                                             lunch_target,
-                                                             target_out_path)
+                                                             lunch_target)
         logging.info(f"Repackaging APEX file complete: {file_path} | {is_repack_success} | {log_message}")
 
     if is_repack_success:
-        error_message = sign_apex_file(file_path, aosp_path, apex_out_file)
+        log_message = sign_apex_file(file_path, aosp_path, apex_out_file)
     else:
-        error_message = f"Error repackaging/merging APEX file: {file_path}|{log_message}"
+        log_message = f"Error repackaging/merging APEX file: {file_path}|{log_message}"
 
-    return error_message
+    return log_message
 
-def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_target, target_out_path):
+def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_target):
     """
     Extracts the APEX file using deapexer, repackages it using apexer, and signs all the APK files in the APEX using apksigner.
 
@@ -51,6 +48,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
     :param lunch_target: str - lunch target for the AOSP build.
 
     :return: tuple - (bool, str) - True if the repackage was successful, False otherwise. String containing the log.
+
     """
     filename = str(os.path.basename(apex_file_path))
     logging.info(f"Repackaging APEX file: {apex_file_path}")
@@ -212,19 +210,23 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
 
 def sign_apex_file(file_path, aosp_path, apex_out_file):
     error_message = None
-    signing_key = get_apex_signing_key_from_filename(file_path)
-    signing_key_path = get_signing_key_path(aosp_path, signing_key)
-    if signing_key_path:
-        is_success, log_message = sign_apk_file(file_path, signing_key_path)
-        if is_success:
-            logging.info(f"APEX file signed: {file_path} with key: {signing_key}")
-            if not os.path.exists(f"{file_path}.original_apex"):
-                shutil.move(file_path, f"{file_path}.original_apex")
-            shutil.move(apex_out_file, file_path)
-        else:
-            error_message = f"Error signing APEX file: {file_path}|{signing_key}|{signing_key_path}|{log_message}"
+    #signing_key = get_apex_signing_key_from_filename(file_path)
+    #signing_key_path = get_signing_key_path(aosp_path, signing_key)
+    temp_dir = tempfile.mkdtemp()
+    signing_key_path = os.path.join(temp_dir, "private_key")
+    public_key_path = os.path.join(temp_dir, "public_key")
+    generate_apex_keys(signing_key_path, public_key_path)
+    # if signing_key_path:
+    is_success, log_message = sign_apk_file(file_path, signing_key_path)
+    if is_success:
+        logging.info(f"APEX file signed: {file_path} with key: {signing_key_path}")
+        if not os.path.exists(f"{file_path}.original_apex"):
+            shutil.move(file_path, f"{file_path}.original_apex")
+        shutil.move(apex_out_file, file_path)
     else:
-        error_message = f"Signing key name not found for {file_path}"
+        error_message = f"Error signing APEX file: {file_path}|{signing_key_path}|{log_message}"
+    # else:
+    #     error_message = f"Signing key name not found for {file_path}"
     return error_message
 
 def restore_original_apex(file_path, org_apex_file):
