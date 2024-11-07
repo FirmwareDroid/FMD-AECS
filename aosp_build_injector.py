@@ -399,7 +399,8 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
 
     :returns: list(str) - list of included package names.
     """
-    out_dir = os.path.join(aosp_path, "packages/modules/fmd/")
+    out_dir = os.path.join(aosp_path, MODULE_BASE_INJECT_DIR)
+    os.makedirs(out_dir, exist_ok=True)
     if not aosp_path.endswith("/"):
         aosp_path = aosp_path + "/"
     included_package_name_list = []
@@ -618,10 +619,10 @@ def clear_base_files(aosp_path, aosp_version):
 
 
 def clear_intermediate_files(aosp_path):
-    framework_out_path = os.path.join(aosp_path, "packages/frameworks")
-    if os.path.exists(framework_out_path):
-        shutil.rmtree(framework_out_path)
-        logging.debug(f"Removed {framework_out_path} from aosp source code.")
+    out_dir = os.path.join(aosp_path, MODULE_BASE_INJECT_DIR)
+    if os.path.exists(out_dir):
+        shutil.rmtree(out_dir)
+        logging.debug(f"Removed {out_dir} from aosp source code.")
 
 
 def clear_build_out(build_out_path):
