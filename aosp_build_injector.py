@@ -64,7 +64,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
 
     execute_build_command(aosp_path, firmware_id, f"bash -c 'source {aosp_path}/build/envsetup.sh "
                                                   f"&& lunch {lunch_target} "
-                                                  f"&& m blueprint_tools", aosp_path)
+                                                  f"&& m blueprint_tools'", aosp_path)
     move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
     move_packages_to_aosp(aosp_path, aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
     inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
