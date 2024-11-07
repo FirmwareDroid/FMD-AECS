@@ -1568,6 +1568,7 @@ ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
 
 
 APEX_PRE_INJECT_DISALLOWED_KEYWORDS = ["vndk",
+                                       "cts.shim",
                                        "i18n",
                                        "extservices",
                                        "conscrypt",
