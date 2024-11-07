@@ -399,6 +399,8 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
 
     :returns: list(str) - list of included package names.
     """
+    if not aosp_path.endswith("/"):
+        aosp_path = aosp_path + "/"
     included_package_name_list = []
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
