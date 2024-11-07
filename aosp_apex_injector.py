@@ -33,6 +33,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
                                                              lunch_target,
                                                              target_out_path)
         logging.info(f"Repackaging APEX file complete: {file_path} | {is_repack_success} | {log_message}")
+
     if is_repack_success:
         error_message = sign_apex_file(file_path, aosp_path, apex_out_file)
     else:

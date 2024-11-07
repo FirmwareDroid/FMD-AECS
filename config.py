@@ -1567,6 +1567,26 @@ ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "/product/app/LatinIME/lib/arm64/libjni_latinime.so"]
 
 
+APEX_PRE_INJECT_DISALLOWED_KEYWORDS = ["vndk",
+                                       "i18n",
+                                       "extservices",
+                                       "conscrypt",
+                                       "wifi",
+                                       "cellbroadcast",
+                                       "mediaprovider",
+                                       "sdkext",
+                                       "ipsec",
+                                       "resolv",
+                                       "os.statsd",
+                                       "runtime",
+                                       "art",
+                                       "media.swcodec",
+                                       "scheduling",
+                                       "appsearch",
+                                       "neuralnetworks",
+                                       "media",
+                                       "permission"]
+
 def get_blocked_module_names():
     blocked_module_names = [EXTRACTION_ALL_FILES_DIR_NAME]
     blocked_module_names.extend(AOSP_DEFAULT_PACKAGE_NAMES)
