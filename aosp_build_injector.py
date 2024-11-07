@@ -63,7 +63,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
 
     move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
-    move_packages_to_aosp(aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
+    move_packages_to_aosp(aosp_path, aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
     inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
 
     retry_attempts = BUILD_RETRY_COUNT
@@ -390,7 +390,7 @@ def get_apex_file(directory_path):
 
 
 
-def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path, lunch_target):
+def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_path, lunch_target):
     """
     Moves the prebuilt packages to the aosp source code.
 
@@ -410,10 +410,9 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path, lunch
         else:
             so_file_extension_list = [".so"]
             apex_file_extension_list = [".apex", ".capex"]
-            aosp_root_dir = get_two_levels_up(aosp_packages_abs_path)
             uuid_dir = str(uuid.uuid4())
             if os.path.isdir(package_path) and check_file_extension(package_path, so_file_extension_list):
-                framework_lib_path = os.path.join(aosp_root_dir, "frameworks/libs/", uuid_dir)
+                framework_lib_path = os.path.join(aosp_path, "packages/modules/libs/", uuid_dir)
                 logging.info(f"Moved library package: {package_path} to {framework_lib_path}")
                 shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
             elif os.path.isdir(package_path) and check_file_extension(package_path, apex_file_extension_list):
@@ -423,14 +422,14 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path, lunch
                 if any(keyword in package_dir_name for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
                     logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
                     continue
-                modules_path = os.path.join(aosp_root_dir, "packages/modules/", package_dir_name)
+                modules_path = os.path.join(aosp_path, "packages/modules/apex", package_dir_name)
                 logging.info(f"Moving APEX package: {package_path} to {modules_path}")
                 shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
                 apex_out_file = os.path.join(modules_path, apex_filename)
                 if os.path.exists(apex_out_file):
                     os.remove(apex_out_file)
                 if apex_file_path:
-                    is_success, log_message = repackage_apex_file(aosp_root_dir, apex_file_path, apex_out_file, lunch_target)
+                    is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target)
                     if is_success:
                         logging.info(f"Repackaged APEX package: {apex_file_path} to {modules_path}")
                     else:
