@@ -1566,6 +1566,7 @@ ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "/product/app/Gallery2/lib/arm64/libjni_eglfence.so",
     "/product/app/LatinIME/lib/arm64/libjni_latinime.so"]
 
+MODULE_BASE_INJECT_DIR = "packages/modules/fmd/"
 
 APEX_PRE_INJECT_DISALLOWED_KEYWORDS = ["vndk",
                                        "tzdata",
