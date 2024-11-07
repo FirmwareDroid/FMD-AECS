@@ -221,12 +221,18 @@ def get_packages_to_filter(aosp_path, aosp_packages_path):
                     dirnames_filtered.append(dirname)
             for file_name in filenames:
                 logging.debug(f"Checking file: {file_name} in {dirpath}")
-                filename_without_apk_extension = file_name.replace(".apk", "")
-                if (filename_without_apk_extension in AOSP_DEFAULT_PACKAGE_NAMES
-                    or filename_without_apk_extension in VENDOR_BLACKLISTED_PACKAGES) \
-                        or any(keyword in filename_without_apk_extension for keyword in BLACKLISTED_KEYWORDS):
-                    logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
-                    dirnames_filtered.append(str(os.path.basename(dirpath)))
+                if file_name.endswith(".apk"):
+                    filename_without_apk_extension = file_name.replace(".apk", "")
+                    if (filename_without_apk_extension in AOSP_DEFAULT_PACKAGE_NAMES
+                        or filename_without_apk_extension in VENDOR_BLACKLISTED_PACKAGES) \
+                            or any(keyword in filename_without_apk_extension for keyword in BLACKLISTED_KEYWORDS):
+                        logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
+                        dirnames_filtered.append(str(os.path.basename(dirpath)))
+                    elif file_name.endswith(".apex") or file_name.endswith(".capex"):
+                        filename_without_apex_extension = file_name.replace(".apex", "").replace(".capex", "")
+                        if any(keyword in filename_without_apex_extension for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
+                            logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
+                            dirnames_filtered.append(str(os.path.basename))
     except Exception as e:
         logging.error(f"An error occurred while filtering packages: {e}")
     return dirnames_filtered
@@ -357,11 +363,14 @@ def move_txt_files(source_directory, destination_directory):
             shutil.move(source_file, destination_file)
 
 
-def check_so_file(directory):
+def check_file_extension(directory, file_extension_list):
     for filename in os.listdir(directory):
-        if filename.endswith('.so'):
+        file_extension = os.path.splitext(filename)[1]
+        if file_extension in file_extension_list:
             return True
     return False
+
+
 
 
 def get_two_levels_up(path):
@@ -388,12 +397,22 @@ def move_packages_to_aosp(aosp_packages_abs_path, extracted_packages_path):
         elif any(keyword in dir_name.strip() for keyword in BLACKLISTED_KEYWORDS):
             logging.info(f"Skipping package by keyword: {dir_name} as it is likely a problematic module.")
         else:
-            if os.path.isdir(package_path) and check_so_file(package_path):
-                aosp_root_dir = get_two_levels_up(aosp_packages_abs_path)
-                uuid_dir = str(uuid.uuid4())
+            so_file_extension_list = [".so"]
+            apex_file_extension_list = [".apex", ".capex"]
+            aosp_root_dir = get_two_levels_up(aosp_packages_abs_path)
+            uuid_dir = str(uuid.uuid4())
+            if os.path.isdir(package_path) and check_file_extension(package_path, so_file_extension_list):
                 framework_lib_path = os.path.join(aosp_root_dir, "frameworks/libs/", uuid_dir)
                 shutil.move(package_path, framework_lib_path)
                 logging.info(f"Moved library package: {dir_name} to {framework_lib_path}")
+            elif os.path.isdir(package_path) and check_file_extension(package_path, apex_file_extension_list):
+                package_dir_name = os.path.basename(package_path)
+                if any(keyword in package_dir_name for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
+                    logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
+                    continue
+                modules_path = os.path.join(aosp_root_dir, "packages/modules/", package_dir_name)
+                shutil.move(package_path, modules_path)
+                logging.info(f"Moved apex package: {dir_name} to {modules_path}")
             else:
                 shutil.move(package_path, aosp_packages_abs_path)
             logging.info(f"Moved package: {dir_name} to {aosp_packages_abs_path}")
