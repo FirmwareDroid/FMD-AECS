@@ -365,7 +365,7 @@ def move_txt_files(source_directory, destination_directory):
         if file_name.endswith('.txt') or file_name.endswith('.log'):
             source_file = os.path.join(source_directory, file_name)
             destination_file = os.path.join(destination_directory, file_name)
-            shutil.move(source_file, destination_file)
+            shutil.copy(source_file, destination_file)
 
 
 def check_file_extension(directory, file_extension_list):
@@ -398,10 +398,13 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
 
     :param aosp_packages_abs_path: str - path to the prebuilt package folder of aosp.
     :param extracted_packages_path: str - path to the extracted packages.
+    :param aosp_path: str - path to aosp root folder.
+    :param lunch_target: str - aosp build argument to select the build arch.
 
     :returns: list(str) - list of included package names.
+
     """
-    out_dir = os.path.join(aosp_path, MODULE_BASE_INJECT_DIR)
+    out_dir = str(os.path.join(aosp_path, MODULE_BASE_INJECT_DIR))
     os.makedirs(out_dir, exist_ok=True)
     if not aosp_path.endswith("/"):
         aosp_path = aosp_path + "/"
@@ -444,11 +447,13 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                         exit(1)
                 else:
                     logging.error(f"Could not find apex file in: {modules_path}")
-            else:
-                logging.info(f"Moving package: {dir_name} to {aosp_packages_abs_path}")
+            elif os.path.isdir(package_path):
+                logging.info(f"Moving Other: {dir_name} to {aosp_packages_abs_path}")
                 shutil.copytree(package_path, out_dir, dirs_exist_ok=True)
-            logging.info(f"Moved package: {dir_name} to {aosp_packages_abs_path}")
+
+            logging.info(f"Included package in build: {dir_name} to {aosp_packages_abs_path}")
             included_package_name_list.append(dir_name)
+
     return included_package_name_list
 
 
