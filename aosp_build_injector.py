@@ -415,6 +415,7 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
         package_path = os.path.join(extracted_packages_path, dir_name)
         if os.path.isdir(package_path):
             logging.debug(f"Moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
+            uuid_dir = str(uuid.uuid4())
             if dir_name.strip() in BLOCKED_MODULE_NAMES:
                 logging.info(f"Skipping package: {dir_name} as it is a default module.")
             elif any(keyword in dir_name.strip() for keyword in BLACKLISTED_KEYWORDS):
@@ -422,7 +423,6 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
             else:
                 so_file_extension_list = [".so"]
                 apex_file_extension_list = [".apex", ".capex"]
-                uuid_dir = str(uuid.uuid4())
                 if check_file_extension(package_path, so_file_extension_list):
                     framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", uuid_dir)
                     logging.info(f"Moved library package: {package_path} to {framework_lib_path}")
@@ -452,7 +452,8 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                         logging.error(f"Could not find apex file in: {modules_path}")
                 else:
                     logging.info(f"Moving Other: {dir_name} from {package_path} to {out_dir}")
-                    shutil.copytree(package_path, f"{out_dir}apps/", dirs_exist_ok=True)
+                    app_modules_path = os.path.join(aosp_path, f"{out_dir}apps/", uuid_dir)
+                    shutil.copytree(package_path, app_modules_path, dirs_exist_ok=True)
                 logging.info(f"Included package in build: {dir_name} to {aosp_packages_abs_path}")
                 included_package_name_list.append(dir_name)
 
