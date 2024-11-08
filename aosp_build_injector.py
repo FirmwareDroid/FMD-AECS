@@ -202,78 +202,78 @@ def write_and_copy_file(content, out_file_path, aosp_base_file_path):
     logging.debug(f"Placed {os.path.basename(out_file_path)} {aosp_base_file_path} in aosp source")
 
 
-def get_packages_to_filter(aosp_path, aosp_packages_path):
-    """
-    Filters the packages based on the filter list.
+# def get_packages_to_filter(aosp_path, aosp_packages_path):
+#     """
+#     Filters the packages based on the filter list.
+#
+#     :param aosp_path: str - path to the root of the aosp source code.
+#     :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
+#
+#     :returns: list - list of filtered packages.
+#
+#     """
+#     if not os.path.isdir(aosp_path):
+#         raise ValueError(f"{aosp_path} is not a valid directory")
+#
+#     aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
+#     logging.debug(f"Search for packages to filter in {aosp_packages_abs_path}")
+#     dirnames_filtered = []
+#     try:
+#         for dirpath, dirnames, filename_list in os.walk(aosp_packages_abs_path):
+#             for dirname in dirnames:
+#                 if dirname in AOSP_DEFAULT_PACKAGE_NAMES or dirname in VENDOR_BLACKLISTED_PACKAGES:
+#                     dirnames_filtered.append(dirname)
+#
+#             for file_name in filename_list:
+#                 logging.debug(f"Checking file: {file_name} in {dirpath}")
+#                 if file_name.endswith(".apk"):
+#                     filename_without_apk_extension = file_name.replace(".apk", "")
+#                     if (filename_without_apk_extension in AOSP_DEFAULT_PACKAGE_NAMES
+#                         or filename_without_apk_extension in VENDOR_BLACKLISTED_PACKAGES) \
+#                             or any(keyword in filename_without_apk_extension for keyword in BLACKLISTED_KEYWORDS):
+#                         logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
+#                         dirnames_filtered.append(str(os.path.basename(dirpath)))
+#                     elif file_name.endswith(".apex") or file_name.endswith(".capex"):
+#                         filename_without_apex_extension = file_name.replace(".apex", "").replace(".capex", "")
+#                         logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
+#                         if any(keyword in filename_without_apex_extension for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
+#                             logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
+#                             dirnames_filtered.append(str(os.path.basename))
+#
+#     except Exception as e:
+#         logging.error(f"An error occurred while filtering packages: {e}")
+#     return dirnames_filtered
 
-    :param aosp_path: str - path to the root of the aosp source code.
-    :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
 
-    :returns: list - list of filtered packages.
-
-    """
-    if not os.path.isdir(aosp_path):
-        raise ValueError(f"{aosp_path} is not a valid directory")
-
-    aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
-    logging.debug(f"Search for packages to filter in {aosp_packages_abs_path}")
-    dirnames_filtered = []
-    try:
-        for dirpath, dirnames, filename_list in os.walk(aosp_packages_abs_path):
-            for dirname in dirnames:
-                if dirname in AOSP_DEFAULT_PACKAGE_NAMES or dirname in VENDOR_BLACKLISTED_PACKAGES:
-                    dirnames_filtered.append(dirname)
-
-            for file_name in filename_list:
-                logging.debug(f"Checking file: {file_name} in {dirpath}")
-                if file_name.endswith(".apk"):
-                    filename_without_apk_extension = file_name.replace(".apk", "")
-                    if (filename_without_apk_extension in AOSP_DEFAULT_PACKAGE_NAMES
-                        or filename_without_apk_extension in VENDOR_BLACKLISTED_PACKAGES) \
-                            or any(keyword in filename_without_apk_extension for keyword in BLACKLISTED_KEYWORDS):
-                        logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
-                        dirnames_filtered.append(str(os.path.basename(dirpath)))
-                    elif file_name.endswith(".apex") or file_name.endswith(".capex"):
-                        filename_without_apex_extension = file_name.replace(".apex", "").replace(".capex", "")
-                        logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
-                        if any(keyword in filename_without_apex_extension for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
-                            logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
-                            dirnames_filtered.append(str(os.path.basename))
-
-    except Exception as e:
-        logging.error(f"An error occurred while filtering packages: {e}")
-    return dirnames_filtered
-
-
-def filter_packages_from_meta(meta_build_path, aosp_path, aosp_packages_path, skip_filtering=False):
-    """
-    Removes the packages based on the filter list from the meta file.
-
-    :param meta_build_path: str - path to the meta_build.txt file.
-    :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
-    :param aosp_path: str - path to the root of the aosp source code.
-    :param skip_filtering: bool - skip the filtering process.
-
-    :returns: list - list of filtered packages.
-
-    """
-    logging.info(f"Search for packages to exclude from build process: {meta_build_path}")
-    with open(meta_build_path, 'r') as meta_build_file:
-        lines = meta_build_file.readlines()
-
-    # if skip_filtering:
-    #     package_dir_name_list = ["framework-res.apk"]
-    # else:
-    #     package_dir_name_list = get_packages_to_filter(aosp_path, aosp_packages_path)
-
-    logging.info(f"Found {len(package_dir_name_list)} modules to exclude from build.")
-    if len(package_dir_name_list) == 0:
-        logging.info("Did not find any package to filter. Likely something is wrong...")
-    if package_dir_name_list and len(package_dir_name_list) > 0:
-        logging.debug(f"Filtering packages: {package_dir_name_list} from {meta_build_path}")
-        lines = [line for line in lines if not any(s in line for s in package_dir_name_list)]
-        with open(meta_build_path, 'w') as file:
-            file.writelines(lines)
+# def filter_packages_from_meta(meta_build_path, aosp_path, aosp_packages_path, skip_filtering=False):
+#     """
+#     Removes the packages based on the filter list from the meta file.
+#
+#     :param meta_build_path: str - path to the meta_build.txt file.
+#     :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
+#     :param aosp_path: str - path to the root of the aosp source code.
+#     :param skip_filtering: bool - skip the filtering process.
+#
+#     :returns: list - list of filtered packages.
+#
+#     """
+#     logging.info(f"Search for packages to exclude from build process: {meta_build_path}")
+#     with open(meta_build_path, 'r') as meta_build_file:
+#         lines = meta_build_file.readlines()
+#
+#     # if skip_filtering:
+#     #     package_dir_name_list = ["framework-res.apk"]
+#     # else:
+#     #     package_dir_name_list = get_packages_to_filter(aosp_path, aosp_packages_path)
+#
+#     logging.info(f"Found {len(package_dir_name_list)} modules to exclude from build.")
+#     if len(package_dir_name_list) == 0:
+#         logging.info("Did not find any package to filter. Likely something is wrong...")
+#     if package_dir_name_list and len(package_dir_name_list) > 0:
+#         logging.debug(f"Filtering packages: {package_dir_name_list} from {meta_build_path}")
+#         lines = [line for line in lines if not any(s in line for s in package_dir_name_list)]
+#         with open(meta_build_path, 'w') as file:
+#             file.writelines(lines)
 
 
 def delete_directory_if_exists(directory_path):
@@ -413,45 +413,46 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
     included_package_name_list = []
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
-        logging.debug(f"Moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
-        if dir_name.strip() in BLOCKED_MODULE_NAMES:
-            logging.info(f"Skipping package: {dir_name} as it is a default module.")
-        elif any(keyword in dir_name.strip() for keyword in BLACKLISTED_KEYWORDS):
-            logging.info(f"Skipping package by keyword: {dir_name} as it is likely a problematic module.")
-        else:
-            so_file_extension_list = [".so"]
-            apex_file_extension_list = [".apex", ".capex"]
-            uuid_dir = str(uuid.uuid4())
-            if os.path.isdir(package_path) and check_file_extension(package_path, so_file_extension_list):
-                framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", uuid_dir)
-                logging.info(f"Moved library package: {package_path} to {framework_lib_path}")
-                shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
-            elif os.path.isdir(package_path) and check_file_extension(package_path, apex_file_extension_list):
-                package_dir_name = os.path.basename(package_path)
-                apex_file_path = get_apex_file(package_path)
-                apex_filename = os.path.basename(apex_file_path)
-                if any(keyword in package_dir_name for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
-                    logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
-                    continue
-                modules_path = os.path.join(aosp_path, f"{out_dir}apex", package_dir_name)
-                logging.info(f"Moving APEX package: {package_path} to {modules_path}")
+        if os.path.isdir(package_path):
+            logging.debug(f"Moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
+            if dir_name.strip() in BLOCKED_MODULE_NAMES:
+                logging.info(f"Skipping package: {dir_name} as it is a default module.")
+            elif any(keyword in dir_name.strip() for keyword in BLACKLISTED_KEYWORDS):
+                logging.info(f"Skipping package by keyword: {dir_name} as it is likely a problematic module.")
+            else:
+                so_file_extension_list = [".so"]
+                apex_file_extension_list = [".apex", ".capex"]
+                uuid_dir = str(uuid.uuid4())
+                if check_file_extension(package_path, so_file_extension_list):
+                    framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", uuid_dir)
+                    logging.info(f"Moved library package: {package_path} to {framework_lib_path}")
+                    shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
+                elif check_file_extension(package_path, apex_file_extension_list):
+                    package_dir_name = os.path.basename(package_path)
+                    apex_file_path = get_apex_file(package_path)
+                    apex_filename = os.path.basename(apex_file_path)
+                    if any(keyword in package_dir_name for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
+                        logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
+                        continue
+                    modules_path = os.path.join(aosp_path, f"{out_dir}apex", package_dir_name)
+                    logging.info(f"Moving APEX package: {package_path} to {modules_path}")
 
-                shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
-                apex_out_file = os.path.join(modules_path, apex_filename)
-                if os.path.exists(apex_out_file):
-                    os.remove(apex_out_file)
-                if apex_file_path:
-                    is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target)
-                    if is_success:
-                        logging.info(f"Repackaged APEX package: {apex_file_path} to {modules_path}")
+                    shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
+                    apex_out_file = os.path.join(modules_path, apex_filename)
+                    if os.path.exists(apex_out_file):
+                        os.remove(apex_out_file)
+                    if apex_file_path:
+                        is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target)
+                        if is_success:
+                            logging.info(f"Repackaged APEX package: {apex_file_path} to {modules_path}")
+                        else:
+                            logging.error(f"APEX repacking error: {log_message}")
+                            exit(1)
                     else:
-                        logging.error(f"APEX repacking error: {log_message}")
-                        exit(1)
+                        logging.error(f"Could not find apex file in: {modules_path}")
                 else:
-                    logging.error(f"Could not find apex file in: {modules_path}")
-            elif os.path.isdir(package_path):
-                logging.info(f"Moving Other: {dir_name} to {aosp_packages_abs_path}")
-                shutil.copytree(package_path, out_dir, dirs_exist_ok=True)
+                    logging.info(f"Moving Other: {package_path} from {package_path} to {aosp_packages_abs_path}")
+                    shutil.copytree(package_path, out_dir, dirs_exist_ok=True)
 
             logging.info(f"Included package in build: {dir_name} to {aosp_packages_abs_path}")
             included_package_name_list.append(dir_name)
