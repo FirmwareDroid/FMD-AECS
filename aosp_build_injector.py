@@ -219,11 +219,12 @@ def get_packages_to_filter(aosp_path, aosp_packages_path):
     logging.debug(f"Search for packages to filter in {aosp_packages_abs_path}")
     dirnames_filtered = []
     try:
-        for dirpath, dirnames, filenames in os.walk(aosp_packages_abs_path):
+        for dirpath, dirnames, filename_list in os.walk(aosp_packages_abs_path):
             for dirname in dirnames:
-                if dirname.lower() in AOSP_DEFAULT_PACKAGE_NAMES or dirname in VENDOR_BLACKLISTED_PACKAGES:
+                if dirname in AOSP_DEFAULT_PACKAGE_NAMES or dirname in VENDOR_BLACKLISTED_PACKAGES:
                     dirnames_filtered.append(dirname)
-            for file_name in filenames:
+
+            for file_name in filename_list:
                 logging.debug(f"Checking file: {file_name} in {dirpath}")
                 if file_name.endswith(".apk"):
                     filename_without_apk_extension = file_name.replace(".apk", "")
@@ -238,6 +239,7 @@ def get_packages_to_filter(aosp_path, aosp_packages_path):
                         if any(keyword in filename_without_apex_extension for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
                             logging.debug(f"Found file: {file_name} in {dirpath} to exclude from the build process.")
                             dirnames_filtered.append(str(os.path.basename))
+
     except Exception as e:
         logging.error(f"An error occurred while filtering packages: {e}")
     return dirnames_filtered
@@ -259,10 +261,10 @@ def filter_packages_from_meta(meta_build_path, aosp_path, aosp_packages_path, sk
     with open(meta_build_path, 'r') as meta_build_file:
         lines = meta_build_file.readlines()
 
-    if skip_filtering:
-        package_dir_name_list = ["framework-res.apk"]
-    else:
-        package_dir_name_list = get_packages_to_filter(aosp_path, aosp_packages_path)
+    # if skip_filtering:
+    #     package_dir_name_list = ["framework-res.apk"]
+    # else:
+    #     package_dir_name_list = get_packages_to_filter(aosp_path, aosp_packages_path)
 
     logging.info(f"Found {len(package_dir_name_list)} modules to exclude from build.")
     if len(package_dir_name_list) == 0:
@@ -477,7 +479,7 @@ def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filterin
                 with open(meta_build_path, 'w'):
                     pass
         base_filename = get_base_filename(meta_build_filename)
-        filter_packages_from_meta(meta_build_path, aosp_path, aosp_packages_path, skip_filtering)
+        #filter_packages_from_meta(meta_build_path, aosp_path, aosp_packages_path, skip_filtering)
         content = read_and_render_template(meta_build_path, base_filename, aosp_version)
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
         out_file_path = os.path.join(BUILD_OUT_PATH, base_filename)
