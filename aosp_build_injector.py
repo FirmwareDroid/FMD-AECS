@@ -434,7 +434,7 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                     if any(keyword in package_dir_name for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
                         logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
                         continue
-                    modules_path = os.path.join(aosp_path, f"{out_dir}apex", package_dir_name)
+                    modules_path = os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name)
                     logging.info(f"Moving APEX package: {package_path} to {modules_path}")
 
                     shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
@@ -451,11 +451,10 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                     else:
                         logging.error(f"Could not find apex file in: {modules_path}")
                 else:
-                    logging.info(f"Moving Other: {package_path} from {package_path} to {aosp_packages_abs_path}")
-                    shutil.copytree(package_path, out_dir, dirs_exist_ok=True)
-
-            logging.info(f"Included package in build: {dir_name} to {aosp_packages_abs_path}")
-            included_package_name_list.append(dir_name)
+                    logging.info(f"Moving Other: {dir_name} from {package_path} to {out_dir}")
+                    shutil.copytree(package_path, f"{out_dir}apps/", dirs_exist_ok=True)
+                logging.info(f"Included package in build: {dir_name} to {aosp_packages_abs_path}")
+                included_package_name_list.append(dir_name)
 
     return included_package_name_list
 
