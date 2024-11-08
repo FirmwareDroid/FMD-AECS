@@ -62,7 +62,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
 
     aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
 
-    blueprint_build_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m blueprint_tools'"
+    blueprint_build_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m blueprint_tools && m otatools '"
     execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path)
     move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
     move_packages_to_aosp(aosp_path, aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
@@ -430,6 +430,7 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                     continue
                 modules_path = os.path.join(aosp_path, f"{out_dir}apex", package_dir_name)
                 logging.info(f"Moving APEX package: {package_path} to {modules_path}")
+
                 shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
                 apex_out_file = os.path.join(modules_path, apex_filename)
                 if os.path.exists(apex_out_file):
