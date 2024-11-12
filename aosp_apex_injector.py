@@ -149,6 +149,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                     log_message = f"APEX container creation failed. {log_message}"
         else:
             log_message = f"APEX manifest file not found. {input_apex} | apex_manifest_path: {apex_manifest_path}"
+    logging.info(f"APEX merge_apex_files success: {is_success} | {log_message}")
     return is_success, log_message
 
 
