@@ -219,17 +219,19 @@ def sign_apex_file(file_path, aosp_path, apex_out_file):
     signing_key_path = os.path.join(temp_dir, "private_key")
     public_key_path = os.path.join(temp_dir, "public_key")
     generate_apex_keys(signing_key_path, public_key_path)
-    # if signing_key_path:
-    is_success, log_message = sign_apk_file(file_path, signing_key_path)
-    if is_success:
-        logging.info(f"APEX file signed: {file_path} with key: {signing_key_path}")
-        if not os.path.exists(f"{file_path}.original_apex"):
-            shutil.move(file_path, f"{file_path}.original_apex")
-        shutil.move(apex_out_file, file_path)
+    keys_exist = os.path.exists(signing_key_path) and os.path.exists(public_key_path)
+
+    if keys_exist:
+        is_success, log_message = sign_apk_file(file_path, signing_key_path)
+        if is_success:
+            logging.info(f"APEX file signed: {file_path} with key: {signing_key_path}")
+            if not os.path.exists(f"{file_path}.original_apex"):
+                shutil.move(file_path, f"{file_path}.original_apex")
+            shutil.move(apex_out_file, file_path)
+        else:
+            error_message = f"Error signing APEX file: {file_path}|{signing_key_path}|{log_message}"
     else:
-        error_message = f"Error signing APEX file: {file_path}|{signing_key_path}|{log_message}"
-    # else:
-    #     error_message = f"Signing key name not found for {file_path}"
+        error_message = f"Error generating signing keys for APEX file: {file_path}"
     return error_message
 
 def restore_original_apex(file_path, org_apex_file):
@@ -428,16 +430,18 @@ def generate_apex_keys(private_key_path, public_key_path):
         'openssl', 'genpkey', '-algorithm', 'RSA', '-out', private_key_path, '-pkeyopt', 'rsa_keygen_bits:4096'
     ]
     with open(os.devnull, 'w') as devnull:
-        subprocess.run(private_key_command, check=True, stdout=devnull, stderr=devnull)
-    logging.info(f"Private key generated at: {private_key_path}")
+        process1 = subprocess.run(private_key_command, check=True, stdout=devnull, stderr=devnull)
+        logging.info(f"Private key generated at: {private_key_path}")
+        process1.check_returncode()
 
     # Generate the public key from the private key
     public_key_command = [
         'openssl', 'rsa', '-pubout', '-in', private_key_path, '-out', public_key_path
     ]
     with open(os.devnull, 'w') as devnull:
-        subprocess.run(public_key_command, check=True, stdout=devnull, stderr=devnull)
-    logging.info(f"Public key generated at: {public_key_path}")
+        process2 = subprocess.run(public_key_command, check=True, stdout=devnull, stderr=devnull)
+        process2.check_returncode()
+        logging.info(f"Public key generated at: {public_key_path}")
 
 
 def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
