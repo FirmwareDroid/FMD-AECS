@@ -5,6 +5,9 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+from runpy import run_path
+from typing import runtime_checkable
+
 from jinja2 import Environment, FileSystemLoader
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file
@@ -413,8 +416,10 @@ def copy_android_prebuilt_jar(aosp_path, apex_root_path):
     prebuilt_folder = "prebuilts/sdk/current/public/"
     jar_name = "android.jar"
     android_jar_file_path = os.path.join(aosp_path, prebuilt_folder, jar_name)
-    extract_android_jar_file_path = os.path.join(apex_root_path, prebuilt_folder)
+    extract_android_jar_file_path = os.path.join(apex_root_path, prebuilt_folder, jar_name)
     os.makedirs(extract_android_jar_file_path, exist_ok=True)
+    if not os.path.exists(android_jar_file_path):
+        raise ValueError(f"Android jar file not found: {android_jar_file_path}")
     shutil.copy(android_jar_file_path, extract_android_jar_file_path)
 
 
