@@ -547,7 +547,10 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
                     logging.info(f"Skipped Inject File {target_file_injection_path} already exists.")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
-        shutil.copyfile(source_file_path, target_file_injection_path)
+        if not os.path.exists(source_file_path):
+            logging.error(f"Injecting file: Source file does not exist anymore: {source_file_path}")
+        else:
+            shutil.copyfile(source_file_path, target_file_injection_path)
         if not set_executable_permission(target_file_injection_path):
             raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
     return target_file_injection_path
