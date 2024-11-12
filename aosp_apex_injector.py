@@ -168,23 +168,23 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 if not os.path.exists(dst):
                     if not os.path.exists(file_path):
                         logging.error(f"File not found in APEX vendor folder, can't copy to container: {file_path}")
-                        files_not_copied_list.append(file_path)
+                        files_not_copied_list.append(dst)
                     elif os.path.exists(dst):
                         logging.error(f"File already exists in APEX and will not be copied to container: {file_path}")
-                        files_not_copied_list.append(file_path)
+                        files_not_copied_list.append(dst)
                     else:
                         if not file == "apex_manifest.pb":
                             logging.info(f"APEX: Copying file into container: {file_path} to {merged_apex_extract_dir_path}")
                             shutil.copy(file_path, dst)
-                            files_coped_list.append(file_path)
+                            files_coped_list.append(dst)
                 else:
                     if file in ALLOW_APEX_FILE_OVERWRITE:
                         logging.info(f"Overwriting file in APEX container: {file_path}")
                         shutil.copy(file_path, dst)
-                        files_coped_list.append(file_path)
+                        files_coped_list.append(dst)
                     else:
                         logging.error(f"File already exists in APEX container and will not be copied: {file_path}")
-                        files_not_copied_list.append(file_path)
+                        files_not_copied_list.append(dst)
         logging.info(f"APEX: Files copied into container: {files_coped_list};\nFiles not copied: {files_not_copied_list}")
 
 
