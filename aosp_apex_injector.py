@@ -154,6 +154,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
 
 def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder):
     logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
+    files_coped_list = []
     for root, dirs, files in os.walk(apex_vendor_extract_dir_path):
         for file in files:
             file_path = str(os.path.join(root, file))
@@ -172,12 +173,15 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         if not file == "apex_manifest.pb":
                             logging.info(f"APEX: Copying file into container: {file_path} to {merged_apex_extract_dir_path}")
                             shutil.copy(file_path, dst)
+                            files_coped_list.append(file_path)
                 else:
                     if file in ALLOW_APEX_FILE_OVERWRITE:
                         logging.info(f"Overwriting file in APEX container: {file_path}")
                         shutil.copy(file_path, dst)
+                        files_coped_list.append(file_path)
                     else:
                         logging.error(f"File already exists in APEX container and will not be copied: {file_path}")
+        logging.info(f"APEX: Files copied into container: {files_coped_list}")
 
 
 def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config):
