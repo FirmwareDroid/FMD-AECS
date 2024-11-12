@@ -126,7 +126,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name)
-        #is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path, apex_root_path)
+
         is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_vendor_extract_dir_path, apex_root_path)
         if is_manifest_found and os.path.exists(apex_manifest_path):
             if apex_manifest_path:
@@ -169,7 +169,8 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     if not os.path.exists(file_path) or os.path.exists(dst):
                         logging.error(f"File not found or already exists in APEX - will not be added to APEX: {file_path}")
                     else:
-                        shutil.copy(file_path, dst)
+                        if not file == "apex_manifest.pb":
+                            shutil.copy(file_path, dst)
                 else:
                     if file in ALLOW_APEX_FILE_OVERWRITE:
                         logging.info(f"Overwriting file in APEX: {file_path}")
@@ -191,14 +192,6 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     avb_pub_key_path = os.path.join(temp_keys_dir, "apex_pubkey")
     generate_apex_keys(priv_key_path, pub_key_path)
     extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
-
-    manifests_dir = os.path.join(apex_root_path, "manifests")
-    os.makedirs(manifests_dir, exist_ok=True)
-    apex_manifest_pb_path = os.path.join(manifests_dir, "apex_manifest.pb")
-    if os.path.exists(apex_manifest_pb_path):
-        os.remove(apex_manifest_pb_path)
-        logging.info(f"Removed existing apex_manifest.pb file: {apex_manifest_pb_path}")
-
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
               f"--key={priv_key_path} " \
               f"--pubkey={avb_pub_key_path} " \
