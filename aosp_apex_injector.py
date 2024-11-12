@@ -199,13 +199,24 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
               f"{apex_extract_dir_path} " \
               f"{output_file_path}"
     logging.info(f"Apexer Repacking command: {command}")
-    is_success, log_message = execute_shell_command(command, aosp_path)
-    if is_success and os.path.exists(output_file_path):
-        logging.info(f"APEX create_apex_container success: {output_file_path}. Command-Log: {log_message}")
-        success = True
+
+    if os.path.exists(apex_root_path) \
+        and os.path.exists(apexer_bin_path) \
+        and os.path.exists(apex_manifest_path) \
+        and os.path.exists(apex_extract_dir_path) \
+        and os.path.exists(canned_fs_config.name) \
+        and os.path.exists(FILE_CONTEXT_TEMPLATE_PATH) \
+        and os.path.exists(avb_pub_key_path) \
+        and os.path.exists(priv_key_path):
+        is_success, log_message = execute_shell_command(command, aosp_path)
+        if is_success and os.path.exists(output_file_path):
+            logging.info(f"APEX create_apex_container success: {output_file_path}. Command-Log: {log_message}")
+            success = True
+        else:
+            logging.error(f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info}")
+            log_message = f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info}"
     else:
-        logging.error(f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info}")
-        log_message = f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info}"
+        log_message = f"APEX create_apex_container failed. Error-Info: Missing files. Debug INFO: {info}"
 
     return success, log_message, avb_pub_key_path
 
@@ -250,7 +261,6 @@ def convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path):
     else:
         log_message = result.stderr
     return is_success, log_message
-
 
 
 def restore_original_apex(file_path, org_apex_file):
