@@ -176,7 +176,10 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 if not os.path.exists(dst):
                     logging.info(f"Adding file to APEX: from {file_path} to {merged_apex_extract_dir_path}")
-                    shutil.copy(file_path, dst)
+                    if not os.path.exists(file_path) or os.path.exists(dst):
+                        logging.error(f"File not found or already exists in APEX - will not be added to APEX: {file_path}")
+                    else:
+                        shutil.copy(file_path, dst)
                 else:
                     if file in ALLOW_APEX_FILE_OVERWRITE:
                         logging.info(f"Overwriting file in APEX: {file_path}")
