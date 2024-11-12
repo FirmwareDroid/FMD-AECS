@@ -219,22 +219,23 @@ def sign_apex_file(file_path, aosp_path, apex_out_file):
     priv_key_path = os.path.join(temp_dir, "private_key")
     public_key_path = os.path.join(temp_dir, "public_key")
     signing_key_path = os.path.join(temp_dir, "key.p12")
-    convert_apex_keys_to_p12(priv_key_path, public_key_path, signing_key_path)
-    generate_apex_keys(signing_key_path, public_key_path)
-
-    keys_exist = os.path.exists(signing_key_path) and os.path.exists(public_key_path)
-
-    if keys_exist:
-        is_success, log_message = sign_apk_file(file_path, signing_key_path)
-        if is_success:
-            logging.info(f"APEX file signed: {file_path} with key: {signing_key_path}")
-            if not os.path.exists(f"{file_path}.original_apex"):
-                shutil.move(file_path, f"{file_path}.original_apex")
-            shutil.move(apex_out_file, file_path)
+    is_success, log_message = convert_apex_keys_to_p12(priv_key_path, public_key_path, signing_key_path)
+    if is_success:
+        generate_apex_keys(signing_key_path, public_key_path)
+        keys_exist = os.path.exists(signing_key_path) and os.path.exists(public_key_path)
+        if keys_exist:
+            is_success, log_message = sign_apk_file(file_path, signing_key_path)
+            if is_success:
+                logging.info(f"APEX file signed: {file_path} with key: {signing_key_path}")
+                if not os.path.exists(f"{file_path}.original_apex"):
+                    shutil.move(file_path, f"{file_path}.original_apex")
+                shutil.move(apex_out_file, file_path)
+            else:
+                error_message = f"Error signing APEX file: {file_path}|{signing_key_path}|{log_message}"
         else:
-            error_message = f"Error signing APEX file: {file_path}|{signing_key_path}|{log_message}"
+            error_message = f"Error generating signing keys for APEX file: {file_path}"
     else:
-        error_message = f"Error generating signing keys for APEX file: {file_path}"
+        error_message = f"Error converting keys to p12: {log_message}"
     return error_message
 
 def convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path):
