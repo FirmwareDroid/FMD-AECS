@@ -216,9 +216,12 @@ def sign_apex_file(file_path, aosp_path, apex_out_file):
     #signing_key = get_apex_signing_key_from_filename(file_path)
     #signing_key_path = get_signing_key_path(aosp_path, signing_key)
     temp_dir = tempfile.mkdtemp()
-    signing_key_path = os.path.join(temp_dir, "private_key")
+    priv_key_path = os.path.join(temp_dir, "private_key")
     public_key_path = os.path.join(temp_dir, "public_key")
+    signing_key_path = os.path.join(temp_dir, "key.p12")
+    convert_apex_keys_to_p12(priv_key_path, public_key_path, signing_key_path)
     generate_apex_keys(signing_key_path, public_key_path)
+
     keys_exist = os.path.exists(signing_key_path) and os.path.exists(public_key_path)
 
     if keys_exist:
@@ -233,6 +236,27 @@ def sign_apex_file(file_path, aosp_path, apex_out_file):
     else:
         error_message = f"Error generating signing keys for APEX file: {file_path}"
     return error_message
+
+def convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path):
+    """
+    Converts the private and public keys to a p12 file.
+    :param private_key_path: str - path to the private key.
+    :param public_key_path: str - path to the public key.
+    :param p12_path: str - path to the p12 file.
+
+    :return: Tuple - (bool, str) - True if the conversion was successful, False otherwise. String containing the log.
+    """
+    is_success = False
+    command = f"openssl pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    if result.returncode == 0:
+        is_success = True
+        log_message = result.stdout
+    else:
+        log_message = result.stderr
+    return is_success, log_message
+
+
 
 def restore_original_apex(file_path, org_apex_file):
     os.remove(file_path)
