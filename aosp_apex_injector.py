@@ -454,22 +454,15 @@ def copy_android_prebuilt_jar(aosp_path, apex_root_path):
 
 
 def generate_apex_keys(private_key_path, public_key_path):
-    private_key_command = [
-        'openssl', 'genpkey', '-algorithm', 'RSA', '-out', private_key_path, '-pkeyopt', 'rsa_keygen_bits:4096'
+    command = [
+        'openssl', 'req', '-x509', '-newkey', 'rsa:4096', '-keyout', private_key_path,
+        '-out', public_key_path, '-days', '99999', '-nodes', '-subj', '/CN=example.com'
     ]
-    with open(os.devnull, 'w') as devnull:
-        process1 = subprocess.run(private_key_command, check=True, stdout=devnull, stderr=devnull)
-        logging.info(f"Private key generated at: {private_key_path}")
-        process1.check_returncode()
-
-    # Generate the public key from the private key
-    public_key_command = [
-        'openssl', 'rsa', '-pubout', '-in', private_key_path, '-out', public_key_path
-    ]
-    with open(os.devnull, 'w') as devnull:
-        process2 = subprocess.run(public_key_command, check=True, stdout=devnull, stderr=devnull)
-        process2.check_returncode()
-        logging.info(f"Public key generated at: {public_key_path}")
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise ValueError(f"Error generating keys: {result.stderr}")
+    else:
+        logging.info(f"Keys generated successfully: {private_key_path}, {public_key_path}")
 
 
 def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
