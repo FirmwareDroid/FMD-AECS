@@ -126,7 +126,8 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name)
-        is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path, apex_root_path)
+        #is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path, apex_root_path)
+        is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_vendor_extract_dir_path, apex_root_path)
         if is_manifest_found and os.path.exists(apex_manifest_path):
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
