@@ -123,7 +123,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target)
     if extract_success:
         shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
-        #inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
+        inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name)
 
@@ -413,6 +413,8 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
             if file == "apex_manifest.pb":
                 file_path = str(os.path.join(root, file))
                 shutil.move(file_path, str(os.path.join(output_dir_path, file)))
+                if os.path.exists(file_path):
+                    os.remove(file_path)
                 logging.info(f"Copied APEX manifest file: {file_path} to {output_dir_path}.")
                 result_file_path = str(os.path.join(output_dir_path, file))
                 if os.path.exists(result_file_path):
