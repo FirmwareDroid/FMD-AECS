@@ -34,9 +34,9 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
                                                              file_path,
                                                              apex_out_file,
                                                              lunch_target)
-        logging.info(f"Repackaging APEX file complete: {file_path} | {is_repack_success} | {log_message}")
+        logging.info(f"Repackaging APEX file complete: {file_path} | {is_repack_success} | {log_message} | {apex_out_file}")
 
-    if is_repack_success:
+    if is_repack_success and os.path.exists(apex_out_file):
         logging.info(f"Repackaging APEX file success...start signing: {apex_out_file}")
         log_message = sign_apex_file(apex_out_file)
     else:
@@ -72,26 +72,14 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             copy_android_prebuilt_jar(aosp_path, apex_root_path)
             if apex_manifest_path:
-                is_success, log_message, avb_pub_key_path = start_repacking(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path,
-                                lunch_target, canned_fs_config, apex_file_path)
+                is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, apex_extract_dir_path,
+                                                                          apex_root_path, aosp_path, output_file_path,
+                                                                          lunch_target, canned_fs_config)
         else:
             log_message = f"APEX extraction failed. {apex_file_path} | {log_message}"
     except Exception as e:
         log_message = f"Error repackaging APEX file: {apex_file_path} | {str(e)}"
     return is_success, log_message
-
-
-def start_repacking(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path,
-                    lunch_target, canned_fs_config, apex_file_path):
-    is_success = False
-    avb_pub_key_path = None
-    if os.path.exists(apex_manifest_path):
-        is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, apex_extract_dir_path,
-                                                                          apex_root_path, aosp_path, output_file_path,
-                                                                          lunch_target, canned_fs_config)
-    else:
-        log_message = f"APEX manifest file not found. {apex_file_path} | apex_manifest_path: {apex_manifest_path}"
-    return is_success, log_message, avb_pub_key_path
 
 
 def get_apex_build_intermediate_folder(target_out_path):
@@ -141,22 +129,21 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path, apex_root_path)
         if is_manifest_found and os.path.exists(apex_manifest_path):
             if apex_manifest_path:
-                logging.info(f"APEX manifest file found: {apex_manifest_path}...start repacking")
-                is_success, log_message, avb_pub_key_path = start_repacking(apex_manifest_path,
-                                                          merged_apex_extract_dir_path,
-                                                          apex_root_path,
-                                                          aosp_path,
-                                                          apex_out_file,
-                                                          lunch_target,
-                                                          canned_fs_config,
-                                                          input_apex)
+                logging.info(f"APEX manifest file found: {apex_manifest_path}...start container creation")
+                is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path,
+                                                                                  merged_apex_extract_dir_path,
+                                                                                  apex_root_path,
+                                                                                  aosp_path,
+                                                                                  apex_out_file,
+                                                                                  lunch_target,
+                                                                                  canned_fs_config)
                 if is_success:
-                    logging.info(f"APEX repackaging success: {apex_out_file}...start injecting AVB public key")
+                    logging.info(f"APEX container creation success: {apex_out_file}...start injecting AVB public key")
                     is_success, log_message = inject_apex_avb_public_key(input_apex,
                                                                          avb_pub_key_path,
                                                                          target_out_path)
                 else:
-                    log_message = f"APEX repackaging failed. {log_message}"
+                    log_message = f"APEX container creation failed. {log_message}"
         else:
             log_message = f"APEX manifest file not found. {input_apex} | apex_manifest_path: {apex_manifest_path}"
     return is_success, log_message
@@ -176,7 +163,10 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 if not os.path.exists(dst):
                     logging.info(f"Adding file to APEX: from {file_path} to {merged_apex_extract_dir_path}")
-                    shutil.copy(file_path, dst)
+                    if not os.path.exists(file_path) or os.path.exists(dst):
+                        logging.error(f"File not found or already exists in APEX - will not be added to APEX: {file_path}")
+                    else:
+                        shutil.copy(file_path, dst)
                 else:
                     if file in ALLOW_APEX_FILE_OVERWRITE:
                         logging.info(f"Overwriting file in APEX: {file_path}")
@@ -208,7 +198,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
               f"{output_file_path}"
     logging.info(f"Apexer Repacking command: {command}")
     is_success, log_message = execute_shell_command(command, aosp_path)
-    if is_success:
+    if is_success and os.path.exists(output_file_path):
         logging.info(f"APEX create_apex_container success: {output_file_path}. Command-Log: {log_message}")
         success = True
     else:
@@ -225,7 +215,7 @@ def sign_apex_file(file_path):
     signing_key_path = os.path.join(temp_dir, "key.p12")
     is_success, log_message = generate_apex_keys_p12(private_key_path, public_key_path, signing_key_path)
     if is_success:
-        logging.info(f"APEX Keys generated: {private_key_path}, {public_key_path}, {signing_key_path}")
+        logging.info(f"APEX Keys generated: {private_key_path}, {public_key_path}, {signing_key_path}...start signing APEX file: {file_path}")
         is_success, log_message = sign_apk_file(file_path, signing_key_path)
         if is_success:
             logging.info(f"APEX file signed: {file_path} with key: {signing_key_path}")
