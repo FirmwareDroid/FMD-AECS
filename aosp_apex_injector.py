@@ -474,7 +474,7 @@ def copy_android_prebuilt_jar(aosp_path, apex_root_path):
     prebuilt_folder = "prebuilts/sdk/current/public/"
     jar_name = "android.jar"
     android_jar_file_path = os.path.join(aosp_path, prebuilt_folder, jar_name)
-    extract_android_jar_file_path = os.path.join(apex_root_path, prebuilt_folder, jar_name)
+    extract_android_jar_file_path = os.path.join(apex_root_path, prebuilt_folder)
     os.makedirs(extract_android_jar_file_path, exist_ok=True)
     if not os.path.exists(android_jar_file_path):
         logging.error(f"Android jar file not found: {android_jar_file_path}")
