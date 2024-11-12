@@ -123,7 +123,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target)
     if extract_success:
         shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
-        inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
+        #inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name)
 
