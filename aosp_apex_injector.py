@@ -14,9 +14,12 @@ from config_post_injector import *
 def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     org_apex_file = f"{file_path}.original_apex"
     if os.path.exists(org_apex_file):
+        logging.info(f"Original APEX file found - restoring: {org_apex_file}")
         restore_original_apex(file_path, org_apex_file)
     else:
         shutil.copyfile(file_path, org_apex_file)
+        logging.info(f"Original APEX file not found creating new one: {org_apex_file}")
+
     apex_out_file = prepare_apex_out_file(file_path)
     if os.path.exists(apex_out_file):
         os.remove(apex_out_file)
@@ -34,6 +37,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
         logging.info(f"Repackaging APEX file complete: {file_path} | {is_repack_success} | {log_message}")
 
     if is_repack_success:
+        logging.info(f"Repackaging APEX file success...start signing: {apex_out_file}")
         log_message = sign_apex_file(apex_out_file)
     else:
         log_message = f"Error repackaging/merging APEX file: {file_path}|{log_message}"
@@ -137,6 +141,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path, apex_root_path)
         if is_manifest_found and os.path.exists(apex_manifest_path):
             if apex_manifest_path:
+                logging.info(f"APEX manifest file found: {apex_manifest_path}...start repacking")
                 is_success, log_message, avb_pub_key_path = start_repacking(apex_manifest_path,
                                                           merged_apex_extract_dir_path,
                                                           apex_root_path,
@@ -146,6 +151,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                           canned_fs_config,
                                                           input_apex)
                 if is_success:
+                    logging.info(f"APEX repackaging success: {apex_out_file}...start injecting AVB public key")
                     is_success, log_message = inject_apex_avb_public_key(input_apex,
                                                                          avb_pub_key_path,
                                                                          target_out_path)
@@ -519,9 +525,9 @@ def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
 def inject_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path):
     is_success, log_message = replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path)
     if is_success:
-        logging.info(f"AVB public key replaced in APEX: {apex_file_path}")
+        logging.info(f"APEX: AVB public key replaced: {apex_file_path}")
     else:
-        log_message = f"AVB public key replacement failed. {log_message}"
+        log_message = f"APEX: AVB public key replacement failed. {log_message}"
     return is_success, log_message
 
 
