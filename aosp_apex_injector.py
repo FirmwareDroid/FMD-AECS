@@ -216,25 +216,21 @@ def sign_apex_file(file_path, aosp_path, apex_out_file):
     #signing_key = get_apex_signing_key_from_filename(file_path)
     #signing_key_path = get_signing_key_path(aosp_path, signing_key)
     temp_dir = tempfile.mkdtemp()
-    priv_key_path = os.path.join(temp_dir, "private_key")
+    private_key_path = os.path.join(temp_dir, "private_key")
     public_key_path = os.path.join(temp_dir, "public_key")
     signing_key_path = os.path.join(temp_dir, "key.p12")
-    is_success, log_message = generate_apex_keys(signing_key_path, public_key_path)
+    is_success, log_message = generate_apex_keys_p12(private_key_path, public_key_path, signing_key_path)
     if is_success:
-        is_success, log_message = convert_apex_keys_to_p12(priv_key_path, public_key_path, signing_key_path)
+        is_success, log_message = sign_apk_file(file_path, signing_key_path)
         if is_success:
-            is_success, log_message = sign_apk_file(file_path, signing_key_path)
-            if is_success:
-                logging.info(f"APEX file signed: {file_path} with key: {signing_key_path}")
-                if not os.path.exists(f"{file_path}.original_apex"):
-                    shutil.move(file_path, f"{file_path}.original_apex")
-                shutil.move(apex_out_file, file_path)
-            else:
-                error_message = f"Error signing APEX file: {file_path}|{signing_key_path}|{log_message}"
+            logging.info(f"APEX file signed: {file_path} with key: {signing_key_path}")
+            if not os.path.exists(f"{file_path}.original_apex"):
+                shutil.move(file_path, f"{file_path}.original_apex")
+            shutil.move(apex_out_file, file_path)
         else:
-            error_message = f"Error converting keys to p12: {log_message}"
+            error_message = f"Error signing APEX file: {file_path}|{signing_key_path}|{log_message}"
     else:
-        error_message = f"Error generating signing keys for APEX file: {file_path}"
+        error_message = f"Error generating keys: {log_message}"
     return error_message
 
 def convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path):
@@ -465,6 +461,45 @@ def generate_apex_keys(private_key_path, public_key_path):
         logging.info(f"Keys generated successfully: {private_key_path}, {public_key_path}")
         log_message = result.stdout
         is_success = True
+    return is_success, log_message
+
+
+def generate_apex_keys_p12(private_key_path, public_key_path, p12_path):
+    """
+    Generates a private key, a public key, and converts them to a .p12 file.
+
+    :param private_key_path: str - path to the private key.
+    :param public_key_path: str - path to the public key.
+    :param p12_path: str - path to the .p12 file.
+    :return: Tuple - (bool, str) - True if the generation was successful, False otherwise. String containing the log.
+    """
+    is_success = False
+    log_message = ""
+
+    # Generate private and public keys
+    command = [
+        'openssl', 'req', '-x509', '-newkey', 'rsa:4096', '-keyout', private_key_path,
+        '-out', public_key_path, '-days', '365', '-nodes', '-subj', '/CN=example.com'
+    ]
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0 or not os.path.exists(private_key_path) or not os.path.exists(public_key_path):
+        log_message = f"Error generating keys: {result.stderr}"
+        logging.error(log_message)
+    else:
+        logging.info(f"Keys generated successfully: {private_key_path}, {public_key_path}")
+        log_message = result.stdout
+
+        # Convert keys to .p12
+        command = f"openssl pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        if result.returncode == 0:
+            log_message = result.stdout
+            logging.info(f".p12 file generated successfully: {p12_path}")
+            is_success = True
+        else:
+            log_message = result.stderr
+            logging.error(f"Error converting keys to .p12: {log_message}")
+
     return is_success, log_message
 
 
