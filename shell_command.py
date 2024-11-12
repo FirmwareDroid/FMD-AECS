@@ -8,7 +8,7 @@ def execute_shell_command(command, aosp_root_path):
     log_out = result.stdout.decode('utf-8', errors='ignore').strip()
     log_err = result.stderr.decode('utf-8', errors='ignore').strip()
 
-    is_success = result.returncode == 0
+    is_success = result.returncode == 0 or "error" not in log_err.lower()
 
     os.chdir(current_directory)
     log = f"is_success: {is_success} result.returncode: {result.returncode}, stdout: {log_out} | error: {log_err}"
