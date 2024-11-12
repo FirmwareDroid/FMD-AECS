@@ -170,6 +170,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         logging.error(f"File not found or already exists in APEX - will not be added to APEX: {file_path}")
                     else:
                         if not file == "apex_manifest.pb":
+                            logging.info(f"APEX: Copying file into container: {file_path}")
                             shutil.copy(file_path, dst)
                 else:
                     if file in ALLOW_APEX_FILE_OVERWRITE:
@@ -314,10 +315,10 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                     try:
                         os.remove(file_path)
                     except Exception as e:
-                        logging.error(f"Error deleting file: {file_path} | {e}")
+                        logging.error(f"Error deleting file from canned_fs: {file_path} | {e}")
                     continue
                 else:
-                    logging.info(f"Adding file to APEX: {file_path}")
+                    logging.info(f"APEX: Adding file to canned_fs: {file_path}")
 
                 relative_file_path = os.path.relpath(file_path, apex_extract_dir_path)
                 user_id = 1000  # system
