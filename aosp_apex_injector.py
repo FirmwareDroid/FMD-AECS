@@ -34,7 +34,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
         logging.info(f"Repackaging APEX file complete: {file_path} | {is_repack_success} | {log_message}")
 
     if is_repack_success:
-        log_message = sign_apex_file(file_path, aosp_path, apex_out_file)
+        log_message = sign_apex_file(apex_out_file)
     else:
         log_message = f"Error repackaging/merging APEX file: {file_path}|{log_message}"
 
@@ -80,6 +80,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
 def start_repacking(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path,
                     lunch_target, canned_fs_config, apex_file_path):
     is_success = False
+    avb_pub_key_path = None
     if os.path.exists(apex_manifest_path):
         is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, apex_extract_dir_path,
                                                                           apex_root_path, aosp_path, output_file_path,
@@ -210,23 +211,23 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     return success, log_message, avb_pub_key_path
 
 
-def sign_apex_file(file_path, aosp_path, apex_out_file):
+def sign_apex_file(file_path):
     error_message = None
-    #signing_key = get_apex_signing_key_from_filename(file_path)
-    #signing_key_path = get_signing_key_path(aosp_path, signing_key)
     temp_dir = tempfile.mkdtemp()
     private_key_path = os.path.join(temp_dir, "private_key")
     public_key_path = os.path.join(temp_dir, "public_key")
     signing_key_path = os.path.join(temp_dir, "key.p12")
     is_success, log_message = generate_apex_keys_p12(private_key_path, public_key_path, signing_key_path)
     if is_success:
+        logging.info(f"APEX Keys generated: {private_key_path}, {public_key_path}, {signing_key_path}")
         is_success, log_message = sign_apk_file(file_path, signing_key_path)
         if is_success:
             logging.info(f"APEX file signed: {file_path} with key: {signing_key_path}")
         else:
             error_message = f"Error signing APEX file: {file_path}|{signing_key_path}|{log_message}"
     else:
-        error_message = f"Error generating keys: {log_message}"
+        logging.error(f"Error generating APEX keys:  {log_message}")
+        error_message = f"Error generating APEX keys: {log_message}"
     return error_message
 
 
