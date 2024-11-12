@@ -143,6 +143,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                          avb_pub_key_path,
                                                                          target_out_path)
                 else:
+                    logging.error(f"APEX container creation failed: {apex_out_file} | {log_message}")
                     log_message = f"APEX container creation failed. {log_message}"
         else:
             log_message = f"APEX manifest file not found. {input_apex} | apex_manifest_path: {apex_manifest_path}"
@@ -202,6 +203,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
         logging.info(f"APEX create_apex_container success: {output_file_path}. Command-Log: {log_message}")
         success = True
     else:
+        logging.error(f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info}")
         log_message = f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info}"
 
     return success, log_message, avb_pub_key_path
