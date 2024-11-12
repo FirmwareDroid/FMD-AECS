@@ -70,8 +70,8 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
 
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
-            copy_android_prebuilt_jar(aosp_path, apex_root_path)
             if apex_manifest_path:
+                copy_android_prebuilt_jar(aosp_path, apex_root_path)
                 is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, apex_extract_dir_path,
                                                                           apex_root_path, aosp_path, output_file_path,
                                                                           lunch_target, canned_fs_config)
@@ -127,9 +127,9 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name)
         is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path, apex_root_path)
-        copy_android_prebuilt_jar(aosp_path, apex_root_path)
         if is_manifest_found and os.path.exists(apex_manifest_path):
             if apex_manifest_path:
+                copy_android_prebuilt_jar(aosp_path, apex_root_path)
                 logging.info(f"APEX manifest file found: {apex_manifest_path}...start container creation")
                 is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path,
                                                                                   merged_apex_extract_dir_path,
@@ -431,6 +431,7 @@ def resign_apex_apk_files(apex_extract_dir_path):
                 signing_key = get_signing_key_from_manifest(apk_file_path)
                 signing_key_path = get_signing_key_path(apk_file_path, signing_key)
                 sign_apk_file(apk_file_path, signing_key_path)
+                logging.info(f"APEX: Resigned APK file: {file}")
 
 
 def copy_android_prebuilt_jar(aosp_path, apex_root_path):
@@ -440,8 +441,10 @@ def copy_android_prebuilt_jar(aosp_path, apex_root_path):
     extract_android_jar_file_path = os.path.join(apex_root_path, prebuilt_folder, jar_name)
     os.makedirs(extract_android_jar_file_path, exist_ok=True)
     if not os.path.exists(android_jar_file_path):
-        raise ValueError(f"Android jar file not found: {android_jar_file_path}")
-    shutil.copy(android_jar_file_path, extract_android_jar_file_path)
+        logging.error(f"Android jar file not found: {android_jar_file_path}")
+    else:
+        logging.info(f"Copying Android jar file: {android_jar_file_path} to {extract_android_jar_file_path}")
+        shutil.copy(android_jar_file_path, extract_android_jar_file_path)
 
 
 def generate_apex_keys(private_key_path, public_key_path):
