@@ -5,9 +5,6 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
-from runpy import run_path
-from typing import runtime_checkable
-
 from jinja2 import Environment, FileSystemLoader
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file
@@ -18,6 +15,8 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     org_apex_file = f"{file_path}.original_apex"
     if os.path.exists(org_apex_file):
         restore_original_apex(file_path, org_apex_file)
+    else:
+        shutil.copyfile(file_path, org_apex_file)
     apex_out_file = prepare_apex_out_file(file_path)
     if os.path.exists(apex_out_file):
         os.remove(apex_out_file)
@@ -224,14 +223,12 @@ def sign_apex_file(file_path, aosp_path, apex_out_file):
         is_success, log_message = sign_apk_file(file_path, signing_key_path)
         if is_success:
             logging.info(f"APEX file signed: {file_path} with key: {signing_key_path}")
-            if not os.path.exists(f"{file_path}.original_apex"):
-                shutil.move(file_path, f"{file_path}.original_apex")
-            shutil.move(apex_out_file, file_path)
         else:
             error_message = f"Error signing APEX file: {file_path}|{signing_key_path}|{log_message}"
     else:
         error_message = f"Error generating keys: {log_message}"
     return error_message
+
 
 def convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path):
     """
