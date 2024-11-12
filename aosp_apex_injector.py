@@ -159,25 +159,25 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
             file_path = str(os.path.join(root, file))
             module_type = get_module_type(file_path)
             if module_type == "SKIPPED":
-                logging.error(f"Skipping file from APEX {apex_emulator_folder}. Known problematic filename: {file_path}")
+                logging.error(f"Skipping file from APEX container {apex_emulator_folder}. Known problematic filename: {file_path}")
             else:
                 dst = os.path.join(merged_apex_extract_dir_path, os.path.relpath(file_path, apex_vendor_extract_dir_path))
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 if not os.path.exists(dst):
                     if not os.path.exists(file_path):
-                        logging.error(f"File not found in APEX vendor folder: {file_path}")
+                        logging.error(f"File not found in APEX vendor folder, can't copy to container: {file_path}")
                     elif os.path.exists(dst):
-                        logging.error(f"File already exists in APEX and will not be copied: {file_path}")
+                        logging.error(f"File already exists in APEX and will not be copied to container: {file_path}")
                     else:
                         if not file == "apex_manifest.pb":
                             logging.info(f"APEX: Copying file into container: {file_path} to {merged_apex_extract_dir_path}")
                             shutil.copy(file_path, dst)
                 else:
                     if file in ALLOW_APEX_FILE_OVERWRITE:
-                        logging.info(f"Overwriting file in APEX: {file_path}")
+                        logging.info(f"Overwriting file in APEX container: {file_path}")
                         shutil.copy(file_path, dst)
                     else:
-                        logging.error(f"File already exists in APEX and will not be copied: {file_path}")
+                        logging.error(f"File already exists in APEX container and will not be copied: {file_path}")
 
 
 def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config):
@@ -185,7 +185,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     logging.info(f"APEX manifest file found: {apex_manifest_path}")
     resign_apex_apk_files(apex_extract_dir_path)
     apexer_bin_path = os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer")
-    info = f"Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
+    info = f"APEX: Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
     logging.info(info)
     temp_keys_dir = tempfile.mkdtemp(dir=apex_root_path)
     priv_key_path = os.path.join(temp_keys_dir, "priv.key")
@@ -445,6 +445,7 @@ def resign_apex_apk_files(apex_extract_dir_path):
                 signing_key_path = get_signing_key_path(apk_file_path, signing_key)
                 sign_apk_file(apk_file_path, signing_key_path)
                 logging.info(f"APEX: Resigned APK file: {file}")
+    logging.info(f"Resigning APK files in APEX complete.")
 
 
 def copy_android_prebuilt_jar(aosp_path, apex_root_path):
