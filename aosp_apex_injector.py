@@ -191,6 +191,14 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     avb_pub_key_path = os.path.join(temp_keys_dir, "apex_pubkey")
     generate_apex_keys(priv_key_path, pub_key_path)
     extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
+
+    manifests_dir = os.path.join(apex_root_path, "manifests")
+    os.makedirs(manifests_dir, exist_ok=True)
+    apex_manifest_pb_path = os.path.join(manifests_dir, "apex_manifest.pb")
+    if os.path.exists(apex_manifest_pb_path):
+        os.remove(apex_manifest_pb_path)
+        logging.info(f"Removed existing apex_manifest.pb file: {apex_manifest_pb_path}")
+
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
               f"--key={priv_key_path} " \
               f"--pubkey={avb_pub_key_path} " \
