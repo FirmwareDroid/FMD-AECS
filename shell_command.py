@@ -11,7 +11,6 @@ def execute_shell_command(command, aosp_root_path):
     if result.returncode == 0 or result.returncode == 1:
         is_success = True
     else:
-        log_err = f"Error executing command: {command}, Return code: {result.returncode}, stdout: {log_out}, stderr: {log_err}"
         is_success = False
 
     os.chdir(current_directory)
