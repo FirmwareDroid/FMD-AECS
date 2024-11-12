@@ -296,7 +296,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
     :param output_file: str - path to the output file where the canned_fs_config will be saved.
 
     """
-    file_inserted_counter = 0
+    file_inserted_entries = []
     with open(output_file, 'w') as out_file:
         out_file.write(f"/ 1000 1000 0755\n")
         for root, dirs, files in os.walk(apex_extract_dir_path):
@@ -307,11 +307,12 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                 group_id = 2000  # system
                 mode = '0755'
                 out_file.write(f"/{relative_dir_path} {user_id} {group_id} {mode}\n")
+                file_inserted_entries.append(f"/{relative_dir_path} {user_id} {group_id} {mode}")
 
             for file_name in files:
                 file_path = str(os.path.join(root, file_name))
                 module_type = get_module_type(file_path)
-                if module_type == "SKIPPED" or file_name == "apex_manifest.pb":
+                if module_type == "SKIPPED":
                     try:
                         os.remove(file_path)
                     except Exception as e:
@@ -327,7 +328,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                 if os.access(file_path, os.X_OK):
                     mode = '0755'  # Executable files get 0755
                 out_file.write(f"/{relative_file_path} {user_id} {group_id} {mode}\n")
-                file_inserted_counter += 1
+                file_inserted_entries.append(f"/{relative_file_path} {user_id} {group_id} {mode}")
                 # Workaround for boot.art file in APEX
                 if "boot" in file_name and "arm64" in file_path:
                     parent_dir = os.path.dirname(file_path)
@@ -338,7 +339,8 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                     relative_file_path = os.path.relpath(copy_dst, apex_extract_dir_path)
                     logging.info(f"APEX Write new boot.art path: {relative_file_path}:{copy_dst}:{parent_dir}")
                     out_file.write(f"/{relative_file_path} {user_id} {group_id} {mode}\n")
-                    file_inserted_counter += 1
+                    file_inserted_entries.append(f"/{relative_file_path} {user_id} {group_id} {mode}")
+    logging.info(f"APEX: Canned FS Config file created: {output_file} | {file_inserted_entries}")
 
 def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
     """
