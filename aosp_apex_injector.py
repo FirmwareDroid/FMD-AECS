@@ -219,9 +219,8 @@ def sign_apex_file(file_path, aosp_path, apex_out_file):
     priv_key_path = os.path.join(temp_dir, "private_key")
     public_key_path = os.path.join(temp_dir, "public_key")
     signing_key_path = os.path.join(temp_dir, "key.p12")
-    generate_apex_keys(signing_key_path, public_key_path)
-    keys_exist = os.path.exists(signing_key_path) and os.path.exists(public_key_path)
-    if keys_exist:
+    is_success, log_message = generate_apex_keys(signing_key_path, public_key_path)
+    if is_success:
         is_success, log_message = convert_apex_keys_to_p12(priv_key_path, public_key_path, signing_key_path)
         if is_success:
             is_success, log_message = sign_apk_file(file_path, signing_key_path)
@@ -232,7 +231,6 @@ def sign_apex_file(file_path, aosp_path, apex_out_file):
                 shutil.move(apex_out_file, file_path)
             else:
                 error_message = f"Error signing APEX file: {file_path}|{signing_key_path}|{log_message}"
-
         else:
             error_message = f"Error converting keys to p12: {log_message}"
     else:
@@ -454,15 +452,20 @@ def copy_android_prebuilt_jar(aosp_path, apex_root_path):
 
 
 def generate_apex_keys(private_key_path, public_key_path):
+    is_success = False
     command = [
         'openssl', 'req', '-x509', '-newkey', 'rsa:4096', '-keyout', private_key_path,
         '-out', public_key_path, '-days', '99999', '-nodes', '-subj', '/CN=example.com'
     ]
     result = subprocess.run(command, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise ValueError(f"Error generating keys: {result.stderr}")
+    if result.returncode != 0 or not os.path.exists(private_key_path) or not os.path.exists(public_key_path):
+        log_message = f"Error generating keys: {result.stderr}"
+        logging.error(log_message)
     else:
         logging.info(f"Keys generated successfully: {private_key_path}, {public_key_path}")
+        log_message = result.stdout
+        is_success = True
+    return is_success, log_message
 
 
 def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
