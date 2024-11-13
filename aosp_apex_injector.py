@@ -126,16 +126,13 @@ def copy_avb_public_key_to_apex_module(input_apex, apex_main_folder, avb_pub_key
     apex_name = os.path.basename(input_apex).replace(".apex", "")
     public_key_name = f"{apex_name}_pubkey.pem"
     public_key_out = os.path.join(apex_main_folder, public_key_name)
-    if not os.path.exists(public_key_out):
-        log_message = f"Copying AVB public key to APEX module: {public_key_out}"
-        logging.error(log_message)
-    elif not os.path.exists(avb_pub_key_path):
-        log_message = f"AVB public key already exists in APEX module: {public_key_out}"
-        logging.error(log_message)
-    else:
-        shutil.copy(avb_pub_key_path, public_key_out)
-        logging.info(f"AVB public key copied to APEX build module: {public_key_out}")
+    shutil.copy(avb_pub_key_path, public_key_out)
+    logging.info(f"AVB public key copied to APEX build module: {public_key_out}")
+    if os.path.exists(public_key_out):
         is_success = True
+        logging.info(f"AVB public key copied to APEX build module: {public_key_out}")
+    else:
+        log_message = f"AVB public key not found in APEX build module: {public_key_out}"
     return is_success, log_message
 
 
