@@ -95,7 +95,7 @@ def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path):
     logging.info(f"Injecting AVB public key in APEX module for repacker: {input_apex}")
     apex_main_folder = os.path.dirname(input_apex)
     key_name = os.path.basename(avb_pub_key_path)
-    is_success, log_message = copy_avb_public_key_to_apex_module(input_apex, apex_main_folder, avb_pub_key_path)
+    is_success, log_message, public_key_name = copy_avb_public_key_to_apex_module(input_apex, apex_main_folder, avb_pub_key_path)
     if is_success:
         android_bp_file = os.path.join(apex_main_folder, "Android.bp")
         if os.path.exists(android_bp_file):
@@ -104,7 +104,7 @@ def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path):
                 if "apex_key" not in content:
                     insert_position = content.find('name:')
                     if insert_position != -1:
-                        content = content[:insert_position] + f"apex_key: {{public_key: \"{key_name}\",}},\n" + content[insert_position:]
+                        content = content[:insert_position] + f"apex_key: {{public_key: \"{public_key_name}\",}},\n" + content[insert_position:]
                         android_bp.seek(0)
                         android_bp.write(content)
                         android_bp.truncate()
@@ -133,7 +133,7 @@ def copy_avb_public_key_to_apex_module(input_apex, apex_main_folder, avb_pub_key
         logging.info(f"AVB public key copied to APEX build module: {public_key_out}")
     else:
         log_message = f"AVB public key not found in APEX build module: {public_key_out}"
-    return is_success, log_message
+    return is_success, log_message, public_key_name
 
 
 def get_apex_build_intermediate_folder(target_out_path):
