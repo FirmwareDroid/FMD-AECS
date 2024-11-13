@@ -104,9 +104,12 @@ def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path):
                     android_bp.write(content)
                     android_bp.truncate()
                     is_success = True
+                    logging.info(f"AVB public key injected in APEX module Android.bp file: {android_bp_file}")
                 else:
+                    logging.error(f"Error injecting AVB public key in APEX module: {android_bp_file}")
                     is_success = False
             else:
+                logging.info(f"AVB public key already injected in APEX module: {android_bp_file}")
                 is_success = True
     return is_success, log_message
 
@@ -120,6 +123,7 @@ def copy_avb_public_key_to_apex_module(input_apex, apex_main_folder, avb_pub_key
         logging.info(f"AVB public key already exists in APEX module: {public_key_out}")
     else:
         shutil.copy(avb_pub_key_path, public_key_out)
+        logging.info(f"AVB public key copied to APEX build module: {public_key_out}")
 
 
 
