@@ -445,11 +445,6 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                         is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target)
                         if is_success:
                             logging.info(f"Repackaged APEX package: {apex_file_path} to {modules_path}")
-                            package_dir_path = os.path.dirname(package_path)
-                            android_bp_source = os.path.join(package_dir_path, "Android.bp")
-                            android_bp_target = os.path.join(modules_path, "Android.bp")
-                            if os.path.exists(android_bp_source):
-                                shutil.copy(android_bp_source, android_bp_target)
                         else:
                             logging.error(f"APEX repacking error: {log_message}")
                             exit(1)
