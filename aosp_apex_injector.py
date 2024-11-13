@@ -72,14 +72,55 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
-                is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path, apex_extract_dir_path,
-                                                                          apex_root_path, aosp_path, output_file_path,
-                                                                          lunch_target, canned_fs_config)
+                is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path,
+                                                                                  apex_extract_dir_path,
+                                                                                  apex_root_path,
+                                                                                  aosp_path,
+                                                                                  output_file_path,
+                                                                                  lunch_target,
+                                                                                  canned_fs_config)
+                inject_apex_avb_public_key_module(apex_file_path, avb_pub_key_path)
         else:
             log_message = f"APEX extraction failed. {apex_file_path} | {log_message}"
     except Exception as e:
         log_message = f"Error repackaging APEX file: {apex_file_path} | {str(e)}"
     return is_success, log_message
+
+def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path):
+    is_success = False
+    log_message = ""
+    apex_main_folder = os.path.dirname(input_apex)
+    key_name = os.path.basename(avb_pub_key_path)
+    copy_avb_public_key_to_apex_module(input_apex, apex_main_folder, avb_pub_key_path)
+    android_bp_file = os.path.join(apex_main_folder, "Android.bp")
+    if os.path.exists(android_bp_file):
+        with open(android_bp_file, 'r+') as android_bp:
+            content = android_bp.read()
+            if "apex_key" not in content:
+                insert_position = content.find('name:')
+                if insert_position != -1:
+                    content = content[:insert_position] + f"apex_key: {{public_key: \"{key_name}\",}},\n" + content[insert_position:]
+                    android_bp.seek(0)
+                    android_bp.write(content)
+                    android_bp.truncate()
+                    is_success = True
+                else:
+                    is_success = False
+            else:
+                is_success = True
+    return is_success, log_message
+
+def copy_avb_public_key_to_apex_module(input_apex, apex_main_folder, avb_pub_key_path):
+    apex_name = os.path.basename(input_apex).replace(".apex", "")
+    public_key_name = f"{apex_name}_pubkey.pem"
+    public_key_out = os.path.join(apex_main_folder, public_key_name)
+    if not os.path.exists(public_key_out):
+        logging.info(f"Copying AVB public key to APEX module: {public_key_out}")
+    elif not os.path.exists(avb_pub_key_path):
+        logging.info(f"AVB public key already exists in APEX module: {public_key_out}")
+    else:
+        shutil.copy(avb_pub_key_path, public_key_out)
+
 
 
 def get_apex_build_intermediate_folder(target_out_path):
