@@ -96,6 +96,7 @@ def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path):
     apex_main_folder = os.path.dirname(input_apex)
     key_name = os.path.basename(avb_pub_key_path)
     is_success, log_message, public_key_name = copy_avb_public_key_to_apex_module(input_apex, apex_main_folder, avb_pub_key_path)
+    key_id = public_key_name.replace(".pem", "")
     if is_success:
         android_bp_file = os.path.join(apex_main_folder, "Android.bp")
         if os.path.exists(android_bp_file):
@@ -104,8 +105,8 @@ def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path):
                 if "apex_key" not in content:
                     insert_position = content.find('name:')
                     if insert_position != -1:
-                        content = content[:insert_position] + f"apex_key: {{public_key: \"{key_name}\",}},\n key: \"{key_name}\",\n" + content[insert_position:]
-                        content += f'\napex_key {{\n    name: \"{key_name}\",\n    public_key: \"{public_key_name}\",\n}}'
+                        content = content[:insert_position] + f"apex_key: {{public_key: \"{key_id}\",}},\n key: \"{key_id}\",\n" + content[insert_position:]
+                        content += f'\napex_key {{\n    name: \"{key_id}\",\n    public_key: \"{public_key_name}\",\n}}'
                         android_bp.seek(0)
                         android_bp.write(content)
                         android_bp.truncate()
