@@ -111,8 +111,9 @@ def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path, output_file_
                         android_bp.truncate()
                         is_success = True
                         logging.info(f"AVB public key injected in APEX module Android.bp file: {android_bp_file}")
-                        shutil.copy(avb_pub_key_path, output_file_path)
-                        shutil.copy(android_bp_file, output_file_path)
+                        output_dir_path = os.path.dirname(output_file_path)
+                        shutil.copy(avb_pub_key_path, output_dir_path)
+                        shutil.copy(android_bp_file, output_dir_path)
                         logging.info(f"AVB public key and Android.bp file copied to APEX module: {output_file_path}")
                     else:
                         logging.error(f"Error injecting AVB public key in APEX module: {android_bp_file}")
