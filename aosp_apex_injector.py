@@ -104,7 +104,8 @@ def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path):
                 if "apex_key" not in content:
                     insert_position = content.find('name:')
                     if insert_position != -1:
-                        content = content[:insert_position] + f"apex_key: {{public_key: \"{public_key_name}\",}},\n" + content[insert_position:]
+                        content = content[:insert_position] + f"apex_key: {{public_key: \"{key_name}\",}},\n key: \"{key_name}\",\n" + content[insert_position:]
+                        content += f'\napex_key {{\n    name: \"{key_name}\",\n    public_key: \"{public_key_name}\",\n}}'
                         android_bp.seek(0)
                         android_bp.write(content)
                         android_bp.truncate()
