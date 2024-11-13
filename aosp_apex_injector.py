@@ -79,7 +79,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
                                                                                   output_file_path,
                                                                                   lunch_target,
                                                                                   canned_fs_config)
-                is_success, log_message = inject_apex_avb_public_key_module(apex_file_path, avb_pub_key_path)
+                is_success, log_message = inject_apex_avb_public_key_module(apex_file_path, avb_pub_key_path, output_file_path)
                 if is_success:
                     log_message = f"APEX extraction success: {output_file_path}"
                     logging.info(log_message)
@@ -91,10 +91,9 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
         log_message = f"Error repackaging APEX file: {apex_file_path} | {str(e)}"
     return is_success, log_message
 
-def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path):
+def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path, output_file_path):
     logging.info(f"Injecting AVB public key in APEX module for repacker: {input_apex}")
     apex_main_folder = os.path.dirname(input_apex)
-    key_name = os.path.basename(avb_pub_key_path)
     is_success, log_message, public_key_name = copy_avb_public_key_to_apex_module(input_apex, apex_main_folder, avb_pub_key_path)
     key_id = public_key_name.replace(".pem", "")
     if is_success:
@@ -112,6 +111,8 @@ def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path):
                         android_bp.truncate()
                         is_success = True
                         logging.info(f"AVB public key injected in APEX module Android.bp file: {android_bp_file}")
+                        shutil.copy(avb_pub_key_path, output_file_path)
+                        shutil.copy(android_bp_file, output_file_path)
                     else:
                         logging.error(f"Error injecting AVB public key in APEX module: {android_bp_file}")
                         is_success = False
