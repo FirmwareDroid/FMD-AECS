@@ -262,7 +262,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     priv_pem_file_path = os.path.join(temp_keys_dir, "priv.pem")
     pub_key_path = os.path.join(temp_keys_dir, "pub.key")
     avb_pub_key_path = os.path.join(temp_keys_dir, "apex_pubkey")
-    generate_apex_keys(priv_key_path, pub_key_path)
+    generate_apex_keys(priv_key_path, pub_key_path, priv_pem_file_path)
     extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
               f"--key={priv_key_path} " \
