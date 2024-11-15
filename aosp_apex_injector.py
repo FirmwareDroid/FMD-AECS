@@ -72,14 +72,14 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
-                is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path,
+                is_success, log_message, avb_pub_key_path, priv_pem_file_path = create_apex_container(apex_manifest_path,
                                                                                   apex_extract_dir_path,
                                                                                   apex_root_path,
                                                                                   aosp_path,
                                                                                   output_file_path,
                                                                                   lunch_target,
                                                                                   canned_fs_config)
-                is_success, log_message = inject_apex_avb_public_key_module(apex_file_path, avb_pub_key_path, output_file_path)
+                is_success, log_message = inject_apex_keys_module(apex_file_path, avb_pub_key_path, output_file_path, priv_pem_file_path)
                 if is_success:
                     log_message = f"APEX extraction success: {output_file_path}"
                     logging.info(log_message)
@@ -91,11 +91,12 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
         log_message = f"Error repackaging APEX file: {apex_file_path} | {str(e)}"
     return is_success, log_message
 
-def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path, output_file_path):
+def inject_apex_keys_module(input_apex, avb_pub_key_path, output_file_path, priv_pem_file_path):
     logging.info(f"Injecting AVB public key in APEX module for repacker: {input_apex}")
     apex_main_folder = os.path.dirname(input_apex)
     is_success, log_message, public_key_name = copy_avb_public_key_to_apex_module(input_apex, apex_main_folder, avb_pub_key_path)
     key_id = public_key_name.replace(".pem", "")
+    priv_pem_filename = os.path.basename(priv_pem_file_path)
     if is_success:
         android_bp_file = os.path.join(apex_main_folder, "Android.bp")
         if os.path.exists(android_bp_file):
@@ -105,7 +106,7 @@ def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path, output_file_
                     insert_position = content.find('name:')
                     if insert_position != -1:
                         content = content[:insert_position] + f"apex_key: {{public_key: \"{key_id}\",}},\n key: \"{key_id}\",\n" + content[insert_position:]
-                        content += f'\napex_key {{\n    name: \"{key_id}\",\n    public_key: \"{public_key_name}\",\n}}'
+                        content += f'\napex_key {{\n    name: \"{key_id}\",\n    public_key: \"{public_key_name}\",\n    private_key: \"{priv_pem_filename}\", \n    installable: \"true\"\n}}'
                         android_bp.seek(0)
                         android_bp.write(content)
                         android_bp.truncate()
@@ -114,6 +115,7 @@ def inject_apex_avb_public_key_module(input_apex, avb_pub_key_path, output_file_
                         output_dir_path = os.path.dirname(output_file_path)
                         shutil.copyfile(avb_pub_key_path, os.path.join(output_dir_path, public_key_name))
                         shutil.copy(android_bp_file, output_dir_path)
+                        shutil.copy(priv_pem_file_path, output_dir_path)
                         logging.info(f"AVB public key and Android.bp file copied to APEX module: {output_file_path}")
                     else:
                         logging.error(f"Error injecting AVB public key in APEX module: {android_bp_file}")
@@ -191,7 +193,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
                 logging.info(f"APEX manifest file found: {apex_manifest_path}...start container creation")
-                is_success, log_message, avb_pub_key_path = create_apex_container(apex_manifest_path,
+                is_success, log_message, avb_pub_key_path, priv_key_path = create_apex_container(apex_manifest_path,
                                                                                   merged_apex_extract_dir_path,
                                                                                   apex_root_path,
                                                                                   aosp_path,
@@ -257,6 +259,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     logging.info(info)
     temp_keys_dir = tempfile.mkdtemp(dir=apex_root_path)
     priv_key_path = os.path.join(temp_keys_dir, "priv.key")
+    priv_pem_file_path = os.path.join(temp_keys_dir, "priv.pem")
     pub_key_path = os.path.join(temp_keys_dir, "pub.key")
     avb_pub_key_path = os.path.join(temp_keys_dir, "apex_pubkey")
     generate_apex_keys(priv_key_path, pub_key_path)
@@ -290,7 +293,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     else:
         log_message = f"APEX create_apex_container failed. Error-Info: Missing files. Debug INFO: {info}"
 
-    return success, log_message, avb_pub_key_path
+    return success, log_message, avb_pub_key_path, priv_pem_file_path
 
 def log_files_in_dir(dir_path):
     files_and_dirs = []
@@ -543,7 +546,7 @@ def copy_android_prebuilt_jar(aosp_path, apex_root_path):
         shutil.copy(android_jar_file_path, extract_android_jar_file_path)
 
 
-def generate_apex_keys(private_key_path, public_key_path):
+def generate_apex_keys(private_key_path, public_key_path, pem_file_path):
     is_success = False
     command = [
         'openssl', 'req', '-x509', '-newkey', 'rsa:4096', '-keyout', private_key_path,
@@ -556,6 +559,11 @@ def generate_apex_keys(private_key_path, public_key_path):
     else:
         logging.info(f"Keys generated successfully: {private_key_path}, {public_key_path}")
         log_message = result.stdout
+        with open(private_key_path, "rb") as key_file:
+            private_key = key_file.read()
+        with open(pem_file_path, "wb") as pem_out:
+            pem_out.write(private_key)
+        logging.info(f"PEM file generated successfully: {pem_file_path}")
         is_success = True
     return is_success, log_message
 
@@ -614,7 +622,7 @@ def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
     logging.info(f"AVB public key extracted at: {avb_pub_out_path}")
 
 
-def inject_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path):
+def inject_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path, priv_key_path):
     is_success, log_message = replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path)
     if is_success:
         logging.info(f"APEX: AVB public key replaced: {apex_file_path}")
