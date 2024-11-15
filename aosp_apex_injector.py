@@ -105,8 +105,8 @@ def inject_apex_keys_module(input_apex, avb_pub_key_path, output_file_path, priv
                 if "apex_key" not in content:
                     insert_position = content.find('name:')
                     if insert_position != -1:
-                        content = content[:insert_position] + f"apex_key: {{public_key: \"{key_id}\",}},\n key: \"{key_id}\",\n" + content[insert_position:]
-                        content += f'\napex_key {{\n    name: \"{key_id}\",\n    public_key: \"{public_key_name}\",\n    private_key: \"{priv_pem_filename}\", \n    installable: \"true\"\n}}'
+                        #content = content[:insert_position] + f"apex_key: {{public_key: \"{key_id}\",}},\n key: \"{key_id}\",\n" + content[insert_position:]
+                        content += f'\n\napex_key {{\n    name: \"{key_id}\",\n    public_key: \"{public_key_name}\",\n    private_key: \"{priv_pem_filename}\", \n    installable: \"true\"\n}}'
                         android_bp.seek(0)
                         android_bp.write(content)
                         android_bp.truncate()
@@ -262,7 +262,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     priv_pem_file_path = os.path.join(temp_keys_dir, "priv.pem")
     pub_key_path = os.path.join(temp_keys_dir, "pub.key")
     avb_pub_key_path = os.path.join(temp_keys_dir, "apex_pubkey")
-    generate_apex_keys(priv_key_path, pub_key_path)
+    generate_apex_keys(priv_key_path, pub_key_path, priv_pem_file_path)
     extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
               f"--key={priv_key_path} " \
