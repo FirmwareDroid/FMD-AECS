@@ -96,6 +96,8 @@ def inject_apex_keys_module(input_apex, avb_pub_key_path, output_file_path, priv
     apex_main_folder = os.path.dirname(input_apex)
     is_success, log_message, public_key_name = copy_avb_public_key_to_apex_module(input_apex, apex_main_folder, avb_pub_key_path)
     key_id = public_key_name.replace(".pem", "")
+    public_key_name = f"{key_id}.avbpubkey"
+    priv_key_name = f"{key_id}.pem"
     priv_pem_filename = os.path.basename(priv_pem_file_path)
     if is_success:
         android_bp_file = os.path.join(apex_main_folder, "Android.bp")
@@ -115,7 +117,8 @@ def inject_apex_keys_module(input_apex, avb_pub_key_path, output_file_path, priv
                         output_dir_path = os.path.dirname(output_file_path)
                         shutil.copyfile(avb_pub_key_path, os.path.join(output_dir_path, public_key_name))
                         shutil.copy(android_bp_file, output_dir_path)
-                        shutil.copy(priv_pem_file_path, output_dir_path)
+                        priv_pem_out_path = os.path.join(output_dir_path, priv_key_name)
+                        shutil.copyfile(priv_pem_file_path, priv_pem_out_path)
                         logging.info(f"AVB public key and Android.bp file copied to APEX module: {output_file_path}")
                     else:
                         logging.error(f"Error injecting AVB public key in APEX module: {android_bp_file}")
