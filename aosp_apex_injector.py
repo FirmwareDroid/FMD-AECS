@@ -108,7 +108,7 @@ def inject_apex_keys_module(input_apex, avb_pub_key_path, output_file_path, priv
                     insert_position = content.find('name:')
                     if insert_position != -1:
                         #content = content[:insert_position] + f"apex_key: {{public_key: \"{key_id}\",}},\n key: \"{key_id}\",\n" + content[insert_position:]
-                        content += f'\n\napex_key {{\n    name: \"{key_id}\",\n    public_key: \"{public_key_name}\",\n    private_key: \"{priv_pem_filename}\", \n    installable: true\n}}'
+                        content += f'\n\napex_key {{\n    name: \"{key_id}\",\n    public_key: \"{public_key_name}\",\n    private_key: \"{priv_key_name}\", \n    installable: true\n}}'
                         android_bp.seek(0)
                         android_bp.write(content)
                         android_bp.truncate()
