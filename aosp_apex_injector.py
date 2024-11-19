@@ -41,7 +41,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
 
     if is_repack_success and os.path.exists(apex_out_file):
         logging.info(f"Repackaging APEX file success...start signing: {apex_out_file}")
-        log_message = sign_apex_file(apex_out_file, aosp_path)
+        #log_message = sign_apex_file(apex_out_file, aosp_path)
     else:
         log_message = f"Error repackaging/merging APEX file: {file_path}|{log_message}"
 
@@ -425,7 +425,7 @@ def sign_apex_file(file_path, aosp_path):
     #else:
     #    logging.error(f"Error generating APEX keys:  {log_message}")
     #    error_message = f"Error generating APEX keys: {log_message}"
-    return error_message
+    return is_success, error_message
 
 
 def convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path):
