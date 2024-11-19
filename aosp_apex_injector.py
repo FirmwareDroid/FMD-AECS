@@ -64,7 +64,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
     is_success = False
     try:
         apex_root_path = tempfile.mkdtemp(suffix=f"_{filename}_apex_repack")
-        apex_extract_dir_path = tempfile.mkdtemp(dir=apex_root_path,suffix=f"_{filename}_extract")
+        apex_extract_dir_path = tempfile.mkdtemp(dir=apex_root_path, suffix=f"_{filename}_extract")
         extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target)
         if extract_success:
             logging.info(f"APEX extracted: {apex_file_path}")
@@ -541,11 +541,12 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
     logging.info(f"Extracting APEX file: {apex_file_path}")
     #deapexer_tool_path = f"{aosp_path}out/host/linux-x86/bin/deapexer"
     deapexer_tool_path = f"{aosp_path}out/soong/host/linux-x86/bin/deapexer"
-    info = f"Deapexer tool path: {deapexer_tool_path}|{lunch_target}|{apex_file_path}|{output_dir_path}"
+    info = f"APEX: Deapexer tool path: {deapexer_tool_path}|{lunch_target}|{apex_file_path}|{output_dir_path}"
     logging.info(info)
     command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
                f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}'"
     is_success, log = execute_shell_command(command, aosp_path)
+    logging.info(f"APEX: Deapexer extraction command: {command} | {is_success} | {log}")
     return is_success, {f"{log}|{info}"}
 
 
