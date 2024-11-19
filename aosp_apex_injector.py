@@ -59,7 +59,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
     :return: tuple - (bool, str) - True if the repackage was successful, False otherwise. String containing the log.
 
     """
-    filename = str(os.path.basename(apex_file_path))
+    filename = str(os.path.basename(apex_file_path)).replace(".apex", "")
     logging.info(f"Repackaging APEX file: {apex_file_path}")
     is_success = False
     try:
@@ -67,7 +67,7 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
         apex_extract_dir_path = tempfile.mkdtemp(dir=apex_root_path, suffix=f"_{filename}_extract")
         extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target)
         if extract_success:
-            logging.info(f"APEX extracted: {apex_file_path}")
+            logging.info(f"APEX extracted: {apex_file_path} to {apex_extract_dir_path}")
             with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
                 generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
