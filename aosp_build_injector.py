@@ -425,7 +425,7 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                 apex_file_extension_list = [".apex", ".capex"]
                 if check_file_extension(package_path, so_file_extension_list):
                     framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", f"{uuid_dir}_{dir_name}")
-                    logging.info(f"Moved library package: {package_path} to {framework_lib_path}")
+                    logging.info(f"Copying library package: {package_path} to {framework_lib_path}")
                     shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
                 elif check_file_extension(package_path, apex_file_extension_list):
                     package_dir_name = os.path.basename(package_path)
@@ -435,13 +435,13 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                         logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
                         continue
                     modules_path = os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name)
-                    logging.info(f"Moving APEX package: {package_path} to {modules_path}")
+                    logging.info(f"Copying APEX package: {package_path} to {modules_path}")
 
                     shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
-                    apex_out_file = os.path.join(modules_path, apex_filename)
-                    if os.path.exists(apex_out_file):
-                        os.remove(apex_out_file)
                     if apex_file_path:
+                        apex_out_file = os.path.join(modules_path, apex_filename)
+                        if os.path.exists(apex_out_file):
+                            os.remove(apex_out_file)
                         is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target)
                         #is_success, log_message = create_apex_module(aosp_path, apex_file_path, apex_out_file, lunch_target, modules_path)
                         if is_success:
