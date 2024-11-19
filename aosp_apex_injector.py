@@ -353,18 +353,18 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     logging.info(f"APEX manifest file found: {apex_manifest_path}")
     resign_apex_apk_files(apex_extract_dir_path)
     apexer_bin_path = os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer")
+    apex_file_name = os.path.basename(output_file_path)
     info = f"APEX: Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
     logging.info(info)
-    temp_keys_dir = tempfile.mkdtemp(dir=apex_root_path)
-    #priv_key_path = os.path.join(temp_keys_dir, "priv.key")
-    #priv_pem_file_path = os.path.join(temp_keys_dir, "priv.pem")
-    #pub_key_path = os.path.join(temp_keys_dir, "pub.key")
-    #avb_pub_key_path = os.path.join(temp_keys_dir, "apex_pubkey")
-    #shutil.copyfile()
-    #generate_apex_keys(priv_key_path, pub_key_path, priv_pem_file_path)
-    priv_key_path, avb_pub_key_path = get_aosp_default_keys(aosp_path)
-    #extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
-
+    temp_keys_dir = tempfile.mkdtemp(dir=apex_root_path, suffix="_apex_keys")
+    priv_key_path = os.path.join(temp_keys_dir, f"{apex_file_name}.key")
+    priv_pem_file_path = os.path.join(temp_keys_dir, f"{apex_file_name}.pem")
+    pub_key_path = os.path.join(temp_keys_dir, f"{apex_file_name}.pubkey")
+    avb_pub_key_path = os.path.join(temp_keys_dir, f"{apex_file_name}.avbpubkey")
+    generate_apex_keys(priv_key_path, pub_key_path, priv_pem_file_path)
+    shutil.copytree(temp_keys_dir, os.path.join(aosp_path, "build/target/product/security/"), dirs_exist_ok=True)
+    #priv_key_path, avb_pub_key_path = get_aosp_default_keys(aosp_path)
+    extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
               f"--key={priv_key_path} " \
               f"--pubkey={avb_pub_key_path} " \
@@ -394,7 +394,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     else:
         log_message = f"APEX create_apex_container failed. Error-Info: Missing files. Debug INFO: {info}"
 
-    return success, log_message, avb_pub_key_path, priv_key_path
+    return success, log_message, avb_pub_key_path, priv_pem_file_path
 
 def log_files_in_dir(dir_path):
     files_and_dirs = []
