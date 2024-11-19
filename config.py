@@ -1590,6 +1590,7 @@ APEX_PRE_INJECT_DISALLOWED_KEYWORDS = ["vndk",
                                        "neuralnetworks",
                                        "media",
                                        "tethering",
+                                       "telephony",
                                        "permission"]
 
 def get_blocked_module_names():
