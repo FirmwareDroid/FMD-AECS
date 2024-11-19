@@ -1,0 +1,22 @@
+apex {
+    name: "${apex_name}",
+    manifest: "apex_manifest.json",
+    file_contexts: "file_contexts",
+    ${native_shared_libs}
+    ${binaries}
+    ${java_libs}
+    ${prebuilts}
+    ${key}
+    ${certificate}
+}
+
+apex_key {
+    name: "${apex_key_name}",
+    public_key: "${apex_key_public}",
+    private_key: "${apex_key_private}",
+}
+
+android_app_certificate {
+    name: "${apex_app_name}",
+    certificate: "${apex_app_certificate}",
+}
