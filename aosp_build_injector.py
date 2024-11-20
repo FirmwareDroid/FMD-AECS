@@ -13,7 +13,7 @@ from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
 
-from aosp_apex_injector import repackage_apex_file, create_apex_module
+from aosp_apex_injector import repackage_apex_file
 from aosp_post_build_injector import start_post_build_injector
 from common import extract_zip
 from config import *
