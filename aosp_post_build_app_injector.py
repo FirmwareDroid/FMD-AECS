@@ -78,3 +78,9 @@ def sign_apk_file(apk_file_path, signing_key_path):
                     '--out', apk_file_path]
     success, log_message = execute_command(sign_command)
     return success, log_message
+
+def verify_apk_file(apk_file_path):
+    logging.info(f"Verifying APK file: {apk_file_path}")
+    verify_command = ['apksigner', 'verify', apk_file_path]
+    success, log_message = execute_command(verify_command)
+    return success, log_message
