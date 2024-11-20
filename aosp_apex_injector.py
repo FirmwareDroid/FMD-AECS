@@ -33,27 +33,28 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
         is_repack_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path)
         logging.info(f"Merging APEX file complete: {file_path} | {is_repack_success} | {log_message}")
     else:
-        is_repack_success, log_message = repackage_apex_file(aosp_path,
-                                                             file_path,
-                                                             apex_out_file,
-                                                             lunch_target)
-        logging.info(f"Repackaging APEX file complete: {file_path} | {is_repack_success} | {log_message} | {apex_out_file}")
-
-    if is_repack_success and os.path.exists(apex_out_file):
-        logging.info(f"Repackaging APEX file success...start signing: {apex_out_file}")
-        log_message = sign_apex_file(apex_out_file, aosp_path)
-    else:
-        log_message = f"Error repackaging/merging APEX file: {file_path}|{log_message}"
+        log_message = f"Error merging APEX file: {file_path}"
+    # else:
+    #     is_repack_success, log_message = repackage_apex_file(aosp_path,
+    #                                                          file_path,
+    #                                                          apex_out_file,
+    #                                                          lunch_target)
+    #     logging.info(f"Repackaging APEX file complete: {file_path} | {is_repack_success} | {log_message} | {apex_out_file}")
+    #
+    # if is_repack_success and os.path.exists(apex_out_file):
+    #     logging.info(f"Repackaging APEX file success...start signing: {apex_out_file}")
+    #     log_message = sign_apex_file(apex_out_file, aosp_path)
+    #
 
     return log_message
 
-def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_target):
+def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
     """
     Extracts the APEX file using deapexer, repackages it using apexer, and signs all the APK files in the APEX using apksigner.
 
     :param aosp_path: str - path to the AOSP source code.
     :param apex_file_path: str - path to the APEX file.
-    :param output_file_path: str - path to the output file where the repackage APEX file will be saved.
+    :param apex_out_file: str - path to the output file where the repackage APEX file will be saved.
     :param lunch_target: str - lunch target for the AOSP build.
 
     :return: tuple - (bool, str) - True if the repackage was successful, False otherwise. String containing the log.
@@ -76,18 +77,25 @@ def repackage_apex_file(aosp_path, apex_file_path, output_file_path, lunch_targe
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
                 is_success, log_message, avb_pub_key_path, priv_pem_file_path = create_apex_container(apex_manifest_path,
-                                                                                  apex_extract_dir_path,
-                                                                                  apex_root_path,
-                                                                                  aosp_path,
-                                                                                  output_file_path,
-                                                                                  lunch_target,
-                                                                                  canned_fs_config)
-                is_success, log_message = inject_apex_keys_module(apex_file_path, avb_pub_key_path, output_file_path, priv_pem_file_path)
+                                                                                                      apex_extract_dir_path,
+                                                                                                      apex_root_path,
+                                                                                                      aosp_path,
+                                                                                                      apex_out_file,
+                                                                                                      lunch_target,
+                                                                                                      canned_fs_config)
+                is_success, log_message = inject_apex_keys_module(apex_file_path, avb_pub_key_path, apex_out_file, priv_pem_file_path)
                 if is_success:
-                    log_message = f"APEX extraction success: {output_file_path}"
-                    logging.info(log_message)
+                    logging.info(f"APEX extraction success: {apex_out_file}")
+                    is_success, error_message = sign_apex_file(apex_out_file, aosp_path)
+                    if is_success:
+                        logging.info(f"APEX signing success: {apex_out_file}")
+                        success, log_message = verify_apk_file(apex_out_file)
+                        logging.info(f"APEX file verified: {apex_out_file} | {success} | {log_message}")
+                    else:
+                        logging.error(f"APEX signing failed: {apex_out_file} | {error_message}")
+                        log_message = f"APEX signing failed. {error_message}"
                 else:
-                    log_message = f"APEX extraction failed. {output_file_path} | {log_message}"
+                    log_message = f"APEX extraction failed. {apex_out_file} | {log_message}"
         else:
             log_message = f"APEX extraction failed. {apex_file_path} | {log_message}"
     except Exception as e:

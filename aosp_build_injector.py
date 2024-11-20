@@ -445,7 +445,7 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                         is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target)
                         #is_success, log_message = create_apex_module(aosp_path, apex_file_path, apex_out_file, lunch_target, modules_path)
                         if is_success:
-                            logging.info(f"Repackaged APEX package: {apex_file_path} to {modules_path}")
+                            logging.info(f"Repackaged APEX package: {apex_file_path} to module path {modules_path}")
                         else:
                             logging.error(f"APEX repacking error: {log_message}")
                             exit(1)
