@@ -738,7 +738,7 @@ def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
     logging.info(f"AVB public key extracted at: {avb_pub_out_path}")
 
 
-def inject_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path, priv_key_path):
+def inject_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path):
     is_success, log_message = replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path)
     if is_success:
         logging.info(f"APEX: AVB public key replaced: {apex_file_path}")
