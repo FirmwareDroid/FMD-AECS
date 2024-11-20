@@ -10,7 +10,7 @@ from tempfile import mkdtemp
 
 from jinja2 import Environment, FileSystemLoader
 from aosp_module_type import get_module_type
-from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file
+from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file
 from shell_command import execute_shell_command
 from config_post_injector import *
 
@@ -420,6 +420,8 @@ def sign_apex_file(file_path, aosp_path):
     is_success, log_message = sign_apk_file(file_path, signing_key_path)
     if is_success:
         logging.info(f"APEX file signed: {file_path} with key: {signing_key_path}")
+        success, log_message = verify_apk_file(file_path)
+        logging.info(f"APEX file verified: {file_path} | {success} | {log_message}")
     else:
         error_message = f"Error signing APEX file: {file_path}|{signing_key_path}|{log_message}"
     #else:
