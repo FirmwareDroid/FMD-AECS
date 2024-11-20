@@ -41,7 +41,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
 
     if is_repack_success and os.path.exists(apex_out_file):
         logging.info(f"Repackaging APEX file success...start signing: {apex_out_file}")
-        #log_message = sign_apex_file(apex_out_file, aosp_path)
+        log_message = sign_apex_file(apex_out_file, aosp_path)
     else:
         log_message = f"Error repackaging/merging APEX file: {file_path}|{log_message}"
 
@@ -416,7 +416,7 @@ def sign_apex_file(file_path, aosp_path):
     #logging.info(f"APEX Keys generated: {private_key_path}, {public_key_path}, {signing_key_path}...start signing APEX file: {file_path}")
 
     #if is_success:
-    signing_key_path = get_signing_key_path(aosp_path, "testkey")
+    signing_key_path = get_signing_key_path(aosp_path, "platform")
     is_success, log_message = sign_apk_file(file_path, signing_key_path)
     if is_success:
         logging.info(f"APEX file signed: {file_path} with key: {signing_key_path}")
