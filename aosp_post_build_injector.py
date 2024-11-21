@@ -535,11 +535,11 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
     if os.path.exists(target_file_injection_path):
         file_extension = os.path.splitext(target_file_injection_path)[1]
         if os.path.islink(target_file_injection_path) or file_extension in ALLOWED_FILE_OVERWRITE_EXTENSION_LIST:
-            shutil.copyfile(source_file_path, target_file_injection_path)
+            shutil.copy(source_file_path, target_file_injection_path)
         else:
             if overwrite:
                 logging.info(f"Overwriting file: {source_file_path} into {target_file_injection_path}")
-                shutil.copyfile(source_file_path, target_file_injection_path)
+                shutil.copy(source_file_path, target_file_injection_path)
                 if not set_executable_permission(target_file_injection_path):
                     raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
             else:
@@ -551,7 +551,10 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
             logging.error(f"Injecting file: Source file does not exist anymore: {source_file_path}")
         else:
             os.makedirs(os.path.dirname(target_file_injection_path), exist_ok=True)
-            shutil.copyfile(source_file_path, target_file_injection_path)
+            try:
+                shutil.copy(source_file_path, target_file_injection_path)
+            except Exception as e:
+                logging.error(f"Error copying file: {source_file_path} -> {target_file_injection_path} | {e}")
         if not set_executable_permission(target_file_injection_path):
             raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
     return target_file_injection_path
