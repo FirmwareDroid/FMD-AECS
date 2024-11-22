@@ -359,7 +359,7 @@ def get_aosp_default_keys(aosp_path):
 def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config):
     success = False
     logging.info(f"APEX manifest file found: {apex_manifest_path}")
-    resign_apex_apk_files(apex_extract_dir_path)
+    resign_apex_apk_files(aosp_path, apex_extract_dir_path)
     apexer_bin_path = os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer")
     apex_file_name = os.path.basename(output_file_path)
     info = f"APEX: Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
@@ -640,7 +640,7 @@ def get_signing_key_from_filename(apk_file):
     return key
 
 
-def resign_apex_apk_files(apex_extract_dir_path):
+def resign_apex_apk_files(aosp_path, apex_extract_dir_path):
     """
     Searches for apk files within the apex extract directory. Signs all the apk files of the apex file.
 
@@ -659,7 +659,7 @@ def resign_apex_apk_files(apex_extract_dir_path):
                 else:
                     logging.info(f"Signing key found in APK manifest: {apk_file_path}. Using manifest to determine key: {signing_key}")
 
-                signing_key_path = get_signing_key_path(apk_file_path, signing_key)
+                signing_key_path = get_signing_key_path(aosp_path, signing_key)
                 success, log_message = sign_apk_file(apk_file_path, signing_key_path)
                 if success:
                     logging.info(f"APEX: Resigned APK file: {file} with key {signing_key_path}")
