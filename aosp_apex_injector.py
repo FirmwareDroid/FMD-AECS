@@ -630,7 +630,7 @@ def get_signing_key_from_manifest(apk_file):
     return signing_key
 
 def get_signing_key_from_filename(apk_file):
-    file_name = os.path.basename(apk_file)
+    file_name = os.path.basename(apk_file).lower()
     if "media" in file_name:
         key = "media"
     elif any(keyword in file_name for keyword in ["network", "tethering", "wifi", "bluetooth", "cellbroadcast"]):
