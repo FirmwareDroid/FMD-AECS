@@ -67,7 +67,7 @@ def sign_apk_file(apk_file_path, signing_key_path):
     :param signing_key_path: str - path to the signing key.
 
     """
-    logging.info(f"Signing APK file: {apk_file_path}")
+    logging.info(f"Signing APK file: {apk_file_path} with key: {signing_key_path}")
     sign_command = ['apksigner', 'sign',
                     '--ks', signing_key_path,
                     '--v2-signing-enabled', 'true',

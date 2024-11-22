@@ -653,11 +653,18 @@ def resign_apex_apk_files(apex_extract_dir_path):
             if file.endswith(".apk"):
                 apk_file_path = os.path.join(root, file)
                 signing_key = get_signing_key_from_manifest(apk_file_path)
-                if not signing_key:
+                if signing_key is None:
                     signing_key = get_signing_key_from_filename(apk_file_path)
+                    logging.info(f"Signing key not found in APK manifest: {apk_file_path}. Using filename to determine key: {signing_key}")
+                else:
+                    logging.info(f"Signing key found in APK manifest: {apk_file_path}. Using manifest to determine key: {signing_key}")
+
                 signing_key_path = get_signing_key_path(apk_file_path, signing_key)
-                sign_apk_file(apk_file_path, signing_key_path)
-                logging.info(f"APEX: Resigned APK file: {file}")
+                success, log_message = sign_apk_file(apk_file_path, signing_key_path)
+                if success:
+                    logging.info(f"APEX: Resigned APK file: {file} with key {signing_key_path}")
+                else:
+                    logging.error(f"APEX: Error resigning APK file: {file} with key {signing_key_path} | {log_message}")
     logging.info(f"Resigning APK files in APEX complete.")
 
 
