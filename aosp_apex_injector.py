@@ -102,59 +102,6 @@ def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
         log_message = f"Error repackaging APEX file: {apex_file_path} | {str(e)}"
     return is_success, log_message
 
-
-
-def get_apex_module_files(output_dir):
-    """
-    Detects files for native_shared_libs, binaries, java_libs, and prebuilts.
-    """
-    detected_files = {
-        "native_shared_libs": [],
-        "binaries": [],
-        "java_libs": [],
-        "prebuilts": []
-    }
-
-    for root, _, files in os.walk(output_dir):
-        for file in files:
-            file_path = os.path.join(root, file)
-            if file.endswith(".so"):
-                detected_files["native_shared_libs"].append(os.path.splitext(file)[0])  # Add without extension
-            elif os.access(file_path, os.X_OK):  # Check if executable
-                detected_files["binaries"].append(file)
-            elif file.endswith(".jar"):
-                detected_files["java_libs"].append(os.path.splitext(file)[0])  # Add without extension
-            else:
-                detected_files["prebuilts"].append(file)
-    return detected_files
-
-def create_android_bp(output_dir, apex_name, bp_file, detected_files):
-    """
-    Creates an Android.bp file with the specified content.
-    """
-    file_template = str(os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "aosp_apex.bp"))
-    native_shared_libs = detected_files["native_shared_libs"]
-    binaries = detected_files["binaries"]
-    java_libs = detected_files["java_libs"]
-    prebuilts = detected_files["prebuilts"]
-    bp_content = Template(file_template).substitute(apex_name=apex_name,
-                                                      native_shared_libs=native_shared_libs,
-                                                      binaries=binaries,
-                                                      java_libs=java_libs,
-                                                      prebuilts=prebuilts,
-                                                      key=key,
-                                                      certificate=certificate,
-                                                      apex_key_name=apex_key_name,
-                                                      apex_key_public=apex_key_public,
-                                                      apex_key_private=apex_key_private,
-                                                      apex_app_name=apex_app_name,
-                                                      apex_app_certificate=apex_app_certificate,
-                                                      )
-    bp_path = os.path.join(output_dir, bp_file)
-    with open(bp_path, "w") as bp_file:
-        bp_file.write(bp_content)
-
-
 def create_apex_manifest(output_dir, apex_name):
     """
     Creates an apex_manifest.json file with default values.
@@ -163,30 +110,6 @@ def create_apex_manifest(output_dir, apex_name):
     manifest_path = str(os.path.join(output_dir, "apex_manifest.json"))
     with open(manifest_path, "w") as manifest_file:
         manifest_file.write(manifest_content)
-
-
-def create_apex_module(aosp_path, input_apex, lunch_target, modules_path):
-    is_success = False
-    log_message = ""
-    apex_root_dir = mkdtemp()
-    apex_extract_dir_path = mkdtemp(dir=apex_root_dir)
-    apex_name = os.path.basename(input_apex).replace(".apex", "")
-    create_apex_manifest(apex_root_dir, apex_name)
-    extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_extract_dir_path, lunch_target)
-    if extract_success:
-        detected_file_dict = get_apex_module_files(apex_extract_dir_path)
-        create_android_bp(modules_path, apex_name, "Android.bp", detected_file_dict)
-    with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
-        generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
-
-    return is_success, log_message
-
-
-
-
-
-
-
 
 
 def inject_apex_keys_module(input_apex, avb_pub_key_path, output_file_path, priv_pem_file_path):
@@ -341,13 +264,14 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                             shutil.copy(file_path, dst)
                             files_coped_list.append(dst)
                 else:
-                    if file in ALLOW_APEX_FILE_OVERWRITE:
+                    if file in DISALLOW_APEX_FILE_OVERWRITE:
+                        logging.error(f"File already exists in APEX container and will not be copied: {file_path}")
+                        files_not_copied_list.append(dst)
+                    else:
                         logging.info(f"Overwriting file in APEX container: {file_path}")
                         shutil.copy(file_path, dst)
                         files_coped_list.append(dst)
-                    else:
-                        logging.error(f"File already exists in APEX container and will not be copied: {file_path}")
-                        files_not_copied_list.append(dst)
+
         logging.info(f"APEX: Files copied into container: {files_coped_list};\nFiles not copied: {files_not_copied_list}")
 
 def get_aosp_default_keys(aosp_path):
