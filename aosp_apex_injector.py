@@ -621,13 +621,23 @@ def search_string_in_apk(apk_file, search_string):
 
 
 def get_signing_key_from_manifest(apk_file):
-    signing_key = "platform"
+    signing_key = None
     for key, shared_uid_list in SHARED_USER_ID_MAPPING_DICT.items():
         for shared_uid in shared_uid_list:
             if search_string_in_apk(apk_file, shared_uid):
                 signing_key = key
                 break
     return signing_key
+
+def get_signing_key_from_filename(apk_file):
+    file_name = os.path.basename(apk_file)
+    if "media" in file_name:
+        key = "media"
+    elif any(keyword in file_name for keyword in ["network", "tethering", "wifi", "bluetooth", "cellbroadcast"]):
+        key = "networkstack"
+    else:
+        key = "platform"
+    return key
 
 
 def resign_apex_apk_files(apex_extract_dir_path):
@@ -643,6 +653,8 @@ def resign_apex_apk_files(apex_extract_dir_path):
             if file.endswith(".apk"):
                 apk_file_path = os.path.join(root, file)
                 signing_key = get_signing_key_from_manifest(apk_file_path)
+                if not signing_key:
+                    signing_key = get_signing_key_from_filename(apk_file_path)
                 signing_key_path = get_signing_key_path(apk_file_path, signing_key)
                 sign_apk_file(apk_file_path, signing_key_path)
                 logging.info(f"APEX: Resigned APK file: {file}")
