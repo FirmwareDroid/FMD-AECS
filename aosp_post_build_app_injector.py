@@ -70,9 +70,9 @@ def sign_apk_file(apk_file_path, signing_key_path, v2_signing_enabled=True, v3_s
     logging.info(f"Signing APK file: {apk_file_path} with key: {signing_key_path}")
     sign_command = ['apksigner', 'sign',
                     '--ks', signing_key_path,
-                    '--v2-signing-enabled', f'{v2_signing_enabled}',
-                    '--v3-signing-enabled', f'{v3_signing_enabled}',
-                    '--v4-signing-enabled', f'{v4_signing_enabled}',
+                    '--v2-signing-enabled', str(v2_signing_enabled).lower(),
+                    '--v3-signing-enabled', str(v3_signing_enabled).lower(),
+                    '--v4-signing-enabled', str(v4_signing_enabled).lower(),
                     '--ks-pass', 'pass:',
                     '--in', apk_file_path,
                     '--out', apk_file_path]
