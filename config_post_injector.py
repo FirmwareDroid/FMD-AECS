@@ -160,7 +160,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
                             #"com.google.mainline.primary.libs.apex", -> Gives certificate parsing error?
                             #"com.android.apex.cts.shim.apex", -> Gives certificate parsing error?
-                            "com.google.android.telephony.apex",
+                            #"com.google.android.telephony.apex", -> Skipped is added via pre-injector
                             "com.google.android.media.swcodec.apex",
                             "com.google.android.scheduling.apex",
                             "com.google.android.appsearch.apex",

@@ -1,13 +1,10 @@
 import hashlib
-from string import Template
 import logging
 import os
 import shutil
 import subprocess
 import tempfile
 import zipfile
-from tempfile import mkdtemp
-
 from jinja2 import Environment, FileSystemLoader
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file
@@ -34,18 +31,6 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
         logging.info(f"Merging APEX file complete: {file_path} | {is_repack_success} | {log_message}")
     else:
         log_message = f"Error merging APEX file: {file_path} no emulator folder found in: {target_out_path}"
-    # else:
-    #     is_repack_success, log_message = repackage_apex_file(aosp_path,
-    #                                                          file_path,
-    #                                                          apex_out_file,
-    #                                                          lunch_target)
-    #     logging.info(f"Repackaging APEX file complete: {file_path} | {is_repack_success} | {log_message} | {apex_out_file}")
-    #
-    # if is_repack_success and os.path.exists(apex_out_file):
-    #     logging.info(f"Repackaging APEX file success...start signing: {apex_out_file}")
-    #     log_message = sign_apex_file(apex_out_file, aosp_path)
-    #
-
     return log_message
 
 def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
@@ -179,8 +164,7 @@ def get_apex_build_intermediate_folder(target_out_path):
 
 def find_emulator_apex_folder(target_out_path, file_path):
     filename = str(os.path.basename(file_path))
-    # .replace(".google", "")
-    filename_no_vendor = filename.replace(".apex", "").replace(".capex", "")
+    filename_no_vendor = filename.replace(".google", "").replace(".apex", "").replace(".capex", "")
     apex_emulator_folder_root = get_apex_build_intermediate_folder(target_out_path)
     logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
     apex_module_folder = os.path.join(apex_emulator_folder_root, filename_no_vendor)
