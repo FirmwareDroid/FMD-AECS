@@ -33,7 +33,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
         is_repack_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path)
         logging.info(f"Merging APEX file complete: {file_path} | {is_repack_success} | {log_message}")
     else:
-        log_message = f"Error merging APEX file: {file_path}"
+        log_message = f"Error merging APEX file: {file_path} no emulator folder found in: {target_out_path}"
     # else:
     #     is_repack_success, log_message = repackage_apex_file(aosp_path,
     #                                                          file_path,
@@ -179,9 +179,10 @@ def get_apex_build_intermediate_folder(target_out_path):
 
 def find_emulator_apex_folder(target_out_path, file_path):
     filename = str(os.path.basename(file_path))
-    filename_no_vendor = filename.replace(".google", "").replace(".apex", "").replace(".capex", "")
+    # .replace(".google", "")
+    filename_no_vendor = filename.replace(".apex", "").replace(".capex", "")
     apex_emulator_folder_root = get_apex_build_intermediate_folder(target_out_path)
-    logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root}")
+    logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
     apex_module_folder = os.path.join(apex_emulator_folder_root, filename_no_vendor)
     if os.path.exists(apex_module_folder):
         logging.info(f"APEX module folder found: {apex_module_folder} for apex {file_path}")
@@ -584,7 +585,7 @@ def resign_apex_apk_files(aosp_path, apex_extract_dir_path):
                     logging.info(f"Signing key found in APK manifest: {apk_file_path}. Using manifest to determine key: {signing_key}")
 
                 signing_key_path = get_signing_key_path(aosp_path, signing_key)
-                success, log_message = sign_apk_file(apk_file_path, signing_key_path)
+                success, log_message = sign_apk_file(apk_file_path, signing_key_path, v4_signing_enabled=False)
                 if success:
                     logging.info(f"APEX: Resigned APK file: {file} with key {signing_key_path}")
                 else:
