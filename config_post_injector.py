@@ -143,9 +143,16 @@ ALLOWED_KEYWORD = ["Overlay",
 # "init.zygote64.rc",
 # "init.zygote64_32.rc",
 # "boot-framework.art",
+
+
+#"com.google.pixel.camera.hal.apex", > Skipped is added via pre-injector
+# "com.google.android.telephony.apex", -> Skipped is added via pre-injector
+# "com.google.mainline.primary.libs.apex", -> Skipped is added via pre-injector
+
+# "com.android.apex.cts.shim.apex", ->  Not important
+# "com.android.vndk.current.apex",  # No Injection: Problematic updates many com.android.hardware libraries
 ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.tethering.apex",
-                            #"com.android.vndk.current.apex",  # Problematic updates many com.android.hardware libraries
                             "com.android.i18n.apex",
                             "com.google.android.extservices.apex",
                             "com.google.android.conscrypt.apex",
@@ -158,16 +165,12 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.os.statsd.apex",
                             "com.android.runtime.apex",  # Problematic -> Without boot-framework error? Root cause of file not found error?
                             "com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
-                            #"com.google.mainline.primary.libs.apex", -> Gives certificate parsing error?
-                            #"com.android.apex.cts.shim.apex", -> Gives certificate parsing error?
-                            #"com.google.android.telephony.apex", -> Skipped is added via pre-injector
                             "com.google.android.media.swcodec.apex",
                             "com.google.android.scheduling.apex",
                             "com.google.android.appsearch.apex",
                             "com.google.android.neuralnetworks.apex",
-                            "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service? (emulator) -> Workaround change seccomp to allow all
+                            "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service? (emulator) -> Workaround change seccompfilter
                             "com.google.android.permission.apex",
-                            #"com.google.pixel.camera.hal.apex", -> Gives parsing error?
                             "com.google.android.hardwareinfo.xml",
                             "vndservicemanager.rc",
                             ]

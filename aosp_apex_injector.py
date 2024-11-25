@@ -564,7 +564,7 @@ def resign_apex_apk_files(aosp_path, apex_extract_dir_path):
                 signing_key = get_signing_key_from_manifest(apk_file_path)
                 if signing_key is None:
                     signing_key = get_signing_key_from_filename(apk_file_path)
-                    logging.info(f"Signing key not found in APK manifest: {apk_file_path}. Using filename to determine key: {signing_key}")
+                    logging.info(f"Signing key not found in APK manifest. Using filename to determine key: {apk_file_path} | {signing_key}")
                 else:
                     logging.info(f"Signing key found in APK manifest: {apk_file_path}. Using manifest to determine key: {signing_key}")
 
