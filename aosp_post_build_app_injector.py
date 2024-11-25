@@ -72,7 +72,7 @@ def sign_apk_file(apk_file_path, signing_key_path):
                     '--ks', signing_key_path,
                     '--v2-signing-enabled', 'true',
                     '--v3-signing-enabled', 'true',
-                    '--v4-signing-enabled', 'true',
+                    '--v4-signing-enabled', 'false',
                     '--ks-pass', 'pass:',
                     '--in', apk_file_path,
                     '--out', apk_file_path]
