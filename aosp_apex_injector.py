@@ -175,19 +175,6 @@ def find_emulator_apex_folder(target_out_path, file_path):
         logging.warning(f"APEX module folder not found: {filename_no_vendor} for apex {file_path}")
     return apex_module_folder
 
-
-def delete_apk_files(directory_path):
-    """
-    Deletes all .apk files in the given folder.
-    """
-    for root, dirs, files in os.walk(directory_path):
-        for file in files:
-            if file.endswith(".apk"):
-                file_path = os.path.join(root, file)
-                os.remove(file_path)
-                logging.info(f"APK file deleted: {file_path}")
-
-
 # Keep the structure of the original apex
 # Inject additional files into the apex
 def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_target, aosp_path, target_out_path):
@@ -204,8 +191,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     apex_vendor_extract_dir_path = tempfile.mkdtemp(suffix=f"_{filename_input}_vendor")
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target)
     if extract_success:
-        shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
-        delete_apk_files(merged_apex_extract_dir_path)
+        #shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
         inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name)
@@ -267,6 +253,9 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         files_not_copied_list.append(dst)
                     else:
                         logging.info(f"Overwriting file in APEX container: {file_path}")
+                        file_path_no_vendor = str(os.path.join(root, file.replace("Google","").replace("google","")))
+                        dst = os.path.join(merged_apex_extract_dir_path,
+                                           os.path.relpath(file_path_no_vendor, apex_vendor_extract_dir_path))
                         shutil.copy(file_path, dst)
                         files_coped_list.append(dst)
 
