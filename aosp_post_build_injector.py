@@ -504,8 +504,8 @@ def set_executable_permission(file_path):
     try:
         os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
         return True
-    except PermissionError as e:
-        logging.error(f"Permission denied: {e}")
+    except Exception as e:
+        logging.warning(f"Error: {e}")
         return False
 
 
