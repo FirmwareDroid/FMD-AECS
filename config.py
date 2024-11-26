@@ -1568,6 +1568,7 @@ ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
 
 MODULE_BASE_INJECT_DIR = "packages/modules/fmd/"
 
+# List contains APEX that have to be merged
 APEX_PRE_INJECT_DISALLOWED_KEYWORDS = ["vndk",
                                        "tzdata",
                                        "adbd",
@@ -1590,7 +1591,6 @@ APEX_PRE_INJECT_DISALLOWED_KEYWORDS = ["vndk",
                                        "neuralnetworks",
                                        "media",
                                        "tethering",
-                                       "telephony",
                                        "permission"]
 
 def get_blocked_module_names():
