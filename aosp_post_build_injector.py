@@ -505,7 +505,7 @@ def set_executable_permission(file_path):
         os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
         return True
     except Exception as e:
-        logging.warning(f"Error: {e}")
+        logging.warning(f"{e}")
         return False
 
 
