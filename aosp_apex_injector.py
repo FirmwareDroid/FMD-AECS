@@ -234,30 +234,29 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 logging.error(f"Skipping file from APEX container {apex_emulator_folder}. Known problematic filename: {file_path}")
             else:
                 dst = os.path.join(merged_apex_extract_dir_path, os.path.relpath(file_path, apex_vendor_extract_dir_path))
+                dst = dst.replace("Google","").replace("google","")
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
-                if not os.path.exists(dst):
+                dst_file_path = os.path.join(dst, file.replace("Google","").replace("google",""))
+                if not os.path.exists(dst_file_path):
                     if not os.path.exists(file_path):
                         logging.error(f"File not found in APEX vendor folder, can't copy to container: {file_path}")
-                        files_not_copied_list.append(dst)
-                    elif os.path.exists(dst):
+                        files_not_copied_list.append(dst_file_path)
+                    elif os.path.exists(dst_file_path):
                         logging.error(f"File already exists in APEX and will not be copied to container: {file_path}")
-                        files_not_copied_list.append(dst)
+                        files_not_copied_list.append(dst_file_path)
                     else:
                         if not file == "apex_manifest.pb":
                             logging.info(f"APEX: Copying file into container: {file_path} to {merged_apex_extract_dir_path}")
-                            shutil.copy(file_path, dst)
-                            files_coped_list.append(dst)
+                            shutil.copy(file_path, dst_file_path)
+                            files_coped_list.append(dst_file_path)
                 else:
                     if file in DISALLOW_APEX_FILE_OVERWRITE:
                         logging.error(f"File already exists in APEX container and will not be copied: {file_path}")
-                        files_not_copied_list.append(dst)
+                        files_not_copied_list.append(dst_file_path)
                     else:
-                        file_path_no_vendor = str(os.path.join(root, file.replace("Google","").replace("google","")))
-                        logging.info(f"Overwriting file in APEX container: {file_path}")
-                        dst = os.path.join(merged_apex_extract_dir_path,
-                                           os.path.relpath(file_path_no_vendor, apex_vendor_extract_dir_path))
-                        shutil.copy(file_path, dst)
-                        files_coped_list.append(dst)
+                        logging.info(f"Overwriting file in APEX container: {file_path} with {dst_file_path}")
+                        shutil.copy(file_path, dst_file_path)
+                        files_coped_list.append(dst_file_path)
 
         logging.info(f"APEX: Files copied into container: {files_coped_list};\nFiles not copied: {files_not_copied_list}")
 
