@@ -176,6 +176,18 @@ def find_emulator_apex_folder(target_out_path, file_path):
     return apex_module_folder
 
 
+def delete_apk_files(directory_path):
+    """
+    Deletes all .apk files in the given folder.
+    """
+    for root, dirs, files in os.walk(directory_path):
+        for file in files:
+            if file.endswith(".apk"):
+                file_path = os.path.join(root, file)
+                os.remove(file_path)
+                logging.info(f"APK file deleted: {file_path}")
+
+
 # Keep the structure of the original apex
 # Inject additional files into the apex
 def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_target, aosp_path, target_out_path):
@@ -193,6 +205,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target)
     if extract_success:
         shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
+        delete_apk_files(merged_apex_extract_dir_path)
         inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name)
