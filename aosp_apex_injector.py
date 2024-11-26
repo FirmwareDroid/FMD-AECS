@@ -573,6 +573,8 @@ def resign_apex_apk_files(aosp_path, apex_extract_dir_path):
                 success, log_message = sign_apk_file(apk_file_path, signing_key_path, v4_signing_enabled=False)
                 if success:
                     logging.info(f"APEX: Success resigning APK file: {file}|{apk_file_path} with key {signing_key_path}")
+                    is_signature_verified, log_message = verify_apk_file(apk_file_path)
+                    logging.info(f"APEX: APK file verified: {apk_file_path} | {is_signature_verified} | {log_message}")
                 else:
                     logging.error(f"APEX: Error resigning APK file: {file}|{apk_file_path} with key {signing_key_path} | {log_message}")
     logging.info(f"Resigning APK files in APEX complete.")
