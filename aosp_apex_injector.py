@@ -252,8 +252,8 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         logging.error(f"File already exists in APEX container and will not be copied: {file_path}")
                         files_not_copied_list.append(dst)
                     else:
-                        logging.info(f"Overwriting file in APEX container: {file_path}")
                         file_path_no_vendor = str(os.path.join(root, file.replace("Google","").replace("google","")))
+                        logging.info(f"Overwriting file in APEX container: {file_path}")
                         dst = os.path.join(merged_apex_extract_dir_path,
                                            os.path.relpath(file_path_no_vendor, apex_vendor_extract_dir_path))
                         shutil.copy(file_path, dst)
