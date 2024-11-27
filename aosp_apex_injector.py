@@ -245,7 +245,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         logging.error(f"File already exists in APEX and will not be copied to container: {file_path}")
                         files_not_copied_list.append(dst_file_path)
                     else:
-                        if not file == "apex_manifest.pb":
+                        if not "apex_manifest.pb" in file:
                             logging.info(f"APEX: Copying file into container: {file_path} to {merged_apex_extract_dir_path}")
                             shutil.copy(file_path, dst_file_path)
                             files_coped_list.append(dst_file_path)
