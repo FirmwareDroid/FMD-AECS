@@ -232,9 +232,10 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
             if module_type == "SKIPPED":
                 logging.error(f"Skipping file from APEX container {apex_emulator_folder}. Known problematic filename: {file_path}")
             else:
-                file_path = file_path.replace(".Google", "").replace(".google", "")
-                file_path = file_path.replace(apex_vendor_extract_dir_path, "")
-                dst_file_path = os.path.join(merged_apex_extract_dir_path, "./" + file_path)
+                file_path_no_vendor = file_path.replace(".Google", "").replace(".google", "")
+                file_path_no_vendor = file_path_no_vendor.replace(apex_vendor_extract_dir_path, "")
+                dst_file_path = os.path.join(merged_apex_extract_dir_path, file_path_no_vendor)
+                logging.info(f"APEX: Copying file into container: {file_path} | {dst_file_path} | ")
                 os.makedirs(os.path.dirname(dst_file_path), exist_ok=True)
                 if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path:
                     continue
