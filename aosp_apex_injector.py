@@ -234,7 +234,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 logging.error(f"Skipping file from APEX container {apex_emulator_folder}. Known problematic filename: {file_path}")
             else:
                 dst = os.path.join(merged_apex_extract_dir_path, os.path.relpath(file_path, apex_vendor_extract_dir_path))
-                dst_file_path = dst.replace("Google","").replace("google","")
+                dst_file_path = dst.replace(".Google","").replace(".google","")
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 if not os.path.exists(dst_file_path):
                     if not os.path.exists(file_path):
