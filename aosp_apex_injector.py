@@ -263,6 +263,9 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         except PermissionError as e:
                             logging.error(f"Permission denied: {e.filename}")
                             files_not_copied_list.append(dst_file_path)
+                        except FileNotFoundError as e:
+                            logging.error(f"File not found: {e.filename}")
+                            files_not_copied_list.append(dst_file_path)
                 else:
                     if file in DISALLOW_APEX_FILE_OVERWRITE:
                         logging.error(f"File already exists in APEX container and will not be copied: {file_path}")
@@ -275,6 +278,9 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                             else:
                                 shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
                             files_coped_list.append(dst_file_path)
+                        except FileNotFoundError as e:
+                            logging.error(f"File not found: {e.filename}")
+                            files_not_copied_list.append(dst_file_path)
                         except PermissionError as e:
                             logging.error(f"Permission denied: {e.filename}")
                             files_not_copied_list.append(dst_file_path)
