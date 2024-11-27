@@ -221,6 +221,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     logging.info(f"APEX merge_apex_files success: {is_success} | {log_message}")
     return is_success, log_message
 
+
 def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder):
     logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
     files_coped_list = []
@@ -248,17 +249,25 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         logging.error(f"File already exists in APEX and will not be copied to container: {file_path}")
                         files_not_copied_list.append(dst_file_path)
                     else:
-                        logging.info(f"APEX: Copying file into container: {file_path} to {merged_apex_extract_dir_path}")
-                        shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
-                        files_coped_list.append(dst_file_path)
+                        try:
+                            logging.info(f"APEX: Copying file into container: {file_path} to {merged_apex_extract_dir_path}")
+                            shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
+                            files_coped_list.append(dst_file_path)
+                        except PermissionError as e:
+                            logging.error(f"Permission denied: {e.filename}")
+                            files_not_copied_list.append(dst_file_path)
                 else:
                     if file in DISALLOW_APEX_FILE_OVERWRITE:
                         logging.error(f"File already exists in APEX container and will not be copied: {file_path}")
                         files_not_copied_list.append(dst_file_path)
                     else:
-                        logging.info(f"Overwriting file in APEX container: {file_path} with {dst_file_path}")
-                        shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
-                        files_coped_list.append(dst_file_path)
+                        try:
+                            logging.info(f"Overwriting file in APEX container: {file_path} with {dst_file_path}")
+                            shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
+                            files_coped_list.append(dst_file_path)
+                        except PermissionError as e:
+                            logging.error(f"Permission denied: {e.filename}")
+                            files_not_copied_list.append(dst_file_path)
 
         logging.info(f"APEX: Files copied into container: {files_coped_list};\nFiles not copied: {files_not_copied_list}")
 
