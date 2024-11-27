@@ -237,7 +237,8 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 file_path_no_vendor = file_path_no_vendor.replace(apex_vendor_extract_dir_path, "")
                 dst_file_path = os.path.join(merged_apex_extract_dir_path, file_path_no_vendor)
                 logging.info(f"APEX: Tst {file_path} | {dst_file_path} | ")
-                os.makedirs(os.path.dirname(dst_file_path), exist_ok=True)
+                if not os.path.islink(dst_file_path):
+                    os.makedirs(os.path.dirname(dst_file_path), exist_ok=True)
                 if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path:
                     continue
 
