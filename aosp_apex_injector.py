@@ -236,11 +236,14 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 file_path = file_path.replace(apex_vendor_extract_dir_path, "")
                 dst_file_path = os.path.join(merged_apex_extract_dir_path, "./" + file_path)
                 os.makedirs(os.path.dirname(dst_file_path), exist_ok=True)
+                if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path:
+                    continue
+
                 if not os.path.exists(dst_file_path):
                     if not os.path.exists(file_path):
                         logging.error(f"File not found in APEX vendor folder, can't copy to container: {file_path}")
                         files_not_copied_list.append(dst_file_path)
-                    elif os.path.exists(dst_file_path) or "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path:
+                    elif os.path.exists(dst_file_path):
                         logging.error(f"File already exists in APEX and will not be copied to container: {file_path}")
                         files_not_copied_list.append(dst_file_path)
                     else:
