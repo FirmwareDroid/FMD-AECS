@@ -207,7 +207,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         logging.info(f"Copy file to specific path: {file_path} -> {inject_path}")
         try:
             os.makedirs(os.path.dirname(inject_path), exist_ok=True)
-            shutil.copy(file_path, inject_path)
+            shutil.copy2(file_path, inject_path, follow_symlinks=False)
         except Exception as e:
             logging.error(f"Error copying file to specific path: {file_path} -> {inject_path} | {e}")
 
@@ -535,11 +535,11 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
     if os.path.exists(target_file_injection_path):
         file_extension = os.path.splitext(target_file_injection_path)[1]
         if os.path.islink(target_file_injection_path) or file_extension in ALLOWED_FILE_OVERWRITE_EXTENSION_LIST:
-            shutil.copy(source_file_path, target_file_injection_path)
+            shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
         else:
             if overwrite:
                 logging.info(f"Overwriting file: {source_file_path} into {target_file_injection_path}")
-                shutil.copy(source_file_path, target_file_injection_path)
+                shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
                 if not set_executable_permission(target_file_injection_path):
                     raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
             else:
@@ -552,7 +552,7 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
         else:
             os.makedirs(os.path.dirname(target_file_injection_path), exist_ok=True)
             try:
-                shutil.copy(source_file_path, target_file_injection_path)
+                shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
             except Exception as e:
                 logging.error(f"Error copying file: {source_file_path} -> {target_file_injection_path} | {e}")
 

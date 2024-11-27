@@ -122,7 +122,7 @@ def inject_apex_keys_module(input_apex, avb_pub_key_path, output_file_path, priv
                         logging.info(f"AVB public key injected in APEX module Android.bp file: {android_bp_file}")
                         output_dir_path = os.path.dirname(output_file_path)
                         shutil.copyfile(avb_pub_key_path, os.path.join(output_dir_path, public_key_name))
-                        shutil.copy(android_bp_file, output_dir_path)
+                        shutil.copy2(android_bp_file, output_dir_path, follow_symlinks=False)
                         priv_pem_out_path = os.path.join(output_dir_path, priv_key_name)
                         shutil.copyfile(priv_pem_file_path, priv_pem_out_path)
                         logging.info(f"AVB public key and Android.bp file copied to APEX module: {output_file_path}")
@@ -142,7 +142,7 @@ def copy_avb_public_key_to_apex_module(input_apex, apex_main_folder, avb_pub_key
     apex_name = os.path.basename(input_apex).replace(".apex", "")
     public_key_name = f"{apex_name}_pubkey.pem"
     public_key_out = os.path.join(apex_main_folder, public_key_name)
-    shutil.copy(avb_pub_key_path, public_key_out)
+    shutil.copy2(avb_pub_key_path, public_key_out, follow_symlinks=False)
     logging.info(f"AVB public key copied to APEX build module: {public_key_out}")
     if os.path.exists(public_key_out):
         is_success = True
@@ -249,7 +249,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         files_not_copied_list.append(dst_file_path)
                     else:
                         logging.info(f"APEX: Copying file into container: {file_path} to {merged_apex_extract_dir_path}")
-                        shutil.copy(file_path, dst_file_path)
+                        shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
                         files_coped_list.append(dst_file_path)
                 else:
                     if file in DISALLOW_APEX_FILE_OVERWRITE:
@@ -257,7 +257,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         files_not_copied_list.append(dst_file_path)
                     else:
                         logging.info(f"Overwriting file in APEX container: {file_path} with {dst_file_path}")
-                        shutil.copy(file_path, dst_file_path)
+                        shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
                         files_coped_list.append(dst_file_path)
 
         logging.info(f"APEX: Files copied into container: {files_coped_list};\nFiles not copied: {files_not_copied_list}")
@@ -592,7 +592,7 @@ def copy_android_prebuilt_jar(aosp_path, apex_root_path):
         logging.error(f"Android jar file not found: {android_jar_file_path}")
     else:
         logging.info(f"Copying Android jar file: {android_jar_file_path} to {extract_android_jar_file_path}")
-        shutil.copy(android_jar_file_path, extract_android_jar_file_path)
+        shutil.copy2(android_jar_file_path, extract_android_jar_file_path, follow_symlinks=False)
 
 
 def generate_apex_keys(private_key_path, public_key_path, pem_file_path):
@@ -707,5 +707,5 @@ def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_pat
         is_success = True
         md5 = hashlib.md5(open(avb_pub_key_path, 'rb').read()).hexdigest()
         logging.info(f"Replacing AVB public key: src: {avb_pub_key_path}:{md5}, dst: {apex_pub_file_path}")
-        shutil.copy(avb_pub_key_path, apex_pub_file_path)
+        shutil.copy2(avb_pub_key_path, apex_pub_file_path, follow_symlinks=False)
     return is_success, log_message
