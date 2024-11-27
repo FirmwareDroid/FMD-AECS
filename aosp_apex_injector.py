@@ -221,7 +221,6 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     logging.info(f"APEX merge_apex_files success: {is_success} | {log_message}")
     return is_success, log_message
 
-
 def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder):
     logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
     files_coped_list = []
@@ -233,7 +232,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
             if module_type == "SKIPPED":
                 logging.error(f"Skipping file from APEX container {apex_emulator_folder}. Known problematic filename: {file_path}")
             else:
-                file_path.replace(".Google", "").replace(".google", "")
+                file_path = file_path.replace(".Google", "").replace(".google", "")
                 file_path = file_path.replace(apex_vendor_extract_dir_path, "")
                 dst_file_path = os.path.join(merged_apex_extract_dir_path, "./" + file_path)
                 os.makedirs(os.path.dirname(dst_file_path), exist_ok=True)
