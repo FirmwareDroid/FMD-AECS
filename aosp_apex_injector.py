@@ -28,6 +28,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     if apex_emulator_folder and os.path.exists(apex_emulator_folder):
         logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
         is_repack_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path)
+        shutil.copyfile(apex_out_file, file_path)
         logging.info(f"Merging APEX file complete: {file_path} | {is_repack_success} | {log_message}")
     else:
         log_message = f"Error merging APEX file: {file_path} no emulator folder found in: {target_out_path}"
