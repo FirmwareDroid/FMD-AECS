@@ -232,7 +232,8 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
             file_path = str(os.path.join(root, file))
             module_type = get_module_type(file_path)
             if module_type == "SKIPPED":
-                logging.error(f"Skipping file from APEX container {apex_emulator_folder}. Known problematic filename: {file_path}")
+                logging.error(f"APEX: Skipping file from APEX container {apex_emulator_folder}. Known problematic filename: {file_path}")
+                continue
             else:
                 file_path_no_vendor = file_path.replace(".Google", "").replace(".google", "")
                 file_path_no_vendor = file_path_no_vendor.replace(apex_vendor_extract_dir_path, "")
@@ -244,6 +245,11 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 except PermissionError as e:
                     logging.error(f"Permission denied: {e.filename}")
                 if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path:
+                    continue
+
+                if file in DISALLOW_APEX_FILE_OVERWRITE:
+                    logging.error(f"APEX: File in DISALLOW_APEX_FILE_OVERWRITE. Thus, not included: {file_path}")
+                    files_not_copied_list.append(dst_file_path)
                     continue
 
                 if not os.path.exists(dst_file_path):
@@ -268,23 +274,19 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                             logging.error(f"File not found: {e.filename}")
                             files_not_copied_list.append(dst_file_path)
                 else:
-                    if file in DISALLOW_APEX_FILE_OVERWRITE:
-                        logging.error(f"File already exists in APEX container and will not be copied: {file_path}")
+                    try:
+                        logging.info(f"Overwriting file in APEX container: {file_path} with {dst_file_path}")
+                        if os.path.islink(file_path):
+                            os.symlink(file_path, dst_file_path)
+                        else:
+                            shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
+                        files_coped_list.append(dst_file_path)
+                    except FileNotFoundError as e:
+                        logging.error(f"File not found: {e.filename}")
                         files_not_copied_list.append(dst_file_path)
-                    else:
-                        try:
-                            logging.info(f"Overwriting file in APEX container: {file_path} with {dst_file_path}")
-                            if os.path.islink(file_path):
-                                os.symlink(file_path, dst_file_path)
-                            else:
-                                shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
-                            files_coped_list.append(dst_file_path)
-                        except FileNotFoundError as e:
-                            logging.error(f"File not found: {e.filename}")
-                            files_not_copied_list.append(dst_file_path)
-                        except PermissionError as e:
-                            logging.error(f"Permission denied: {e.filename}")
-                            files_not_copied_list.append(dst_file_path)
+                    except PermissionError as e:
+                        logging.error(f"Permission denied: {e.filename}")
+                        files_not_copied_list.append(dst_file_path)
 
         logging.info(f"APEX: Files copied into container: {files_coped_list};\nFiles not copied: {files_not_copied_list}")
 

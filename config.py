@@ -1568,7 +1568,7 @@ ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
 
 MODULE_BASE_INJECT_DIR = "packages/modules/fmd/"
 
-# List contains APEX that have to be merged
+# List contains APEX files that have to be merged
 APEX_PRE_INJECT_DISALLOWED_KEYWORDS = ["vndk",
                                        "tzdata",
                                        "adbd",
