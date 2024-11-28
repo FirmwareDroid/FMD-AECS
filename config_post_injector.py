@@ -163,7 +163,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.ipsec.apex",
                             "com.google.android.resolv.apex",
                             "com.google.android.os.statsd.apex",
-                            "com.android.runtime.apex",  # Problematic -> Without boot-framework error? Root cause of file not found error?
+                            #"com.android.runtime.apex",  # Problematic -> Without boot-framework error? Root cause of file not found error?
                             "com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
                             "com.google.android.media.swcodec.apex",
                             "com.google.android.scheduling.apex",
