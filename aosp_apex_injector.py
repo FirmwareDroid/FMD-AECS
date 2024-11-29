@@ -263,7 +263,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 except FileNotFoundError as e:
                     logging.error(f"APEX: File not found: {e.filename}")
                 except PermissionError as e:
-                    logging.error(f"APEX: Permission denied: {e.filename}")
+                    logging.error(f"APEX: Permission denied: {e.filename} | {e}")
                 except Exception as e:
                     logging.error(f"APEX: Error copying file: {file_path} | {dst_file_path} | {e}")
 
