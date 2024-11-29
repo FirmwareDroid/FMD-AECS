@@ -257,7 +257,9 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         os.symlink(linkto, file_path)
                     else:
                         if not can_read_file(file_path):
-                            change_file_permission(file_path, "644")
+                            change_file_permission(file_path, "777")
+                            if os.path.exists(dst_file_path):
+                                change_file_permission(dst_file_path, "777")
                         shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
                 except FileNotFoundError as e:
                     logging.error(f"APEX: File not found: {e.filename}")
