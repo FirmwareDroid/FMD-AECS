@@ -230,10 +230,10 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
         for file in files:
             file_path = str(os.path.join(root, file))
             module_type = get_module_type(file_path)
-            if module_type == "SKIPPED":
-                logging.error(f"APEX: Skipping file from APEX container {apex_emulator_folder}. Known problematic filename: {file_path}")
-                continue
-            elif os.path.islink(file_path):
+            #if module_type == "SKIPPED":
+            #    logging.error(f"APEX: Skipping file from APEX container {apex_emulator_folder}. Known problematic filename: {file_path}")
+            #    continue
+            if os.path.islink(file_path):
                 dst_file_path = merged_apex_extract_dir_path + root.replace(apex_vendor_extract_dir_path, "").replace("//", "/")
                 command = f'sudo cp -a {file_path} {dst_file_path}'
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
