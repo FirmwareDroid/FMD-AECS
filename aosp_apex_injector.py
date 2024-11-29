@@ -234,10 +234,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 logging.error(f"APEX: Skipping file from APEX container {apex_emulator_folder}. Known problematic filename: {file_path}")
                 continue
             elif os.path.islink(file_path):
-                if merged_apex_extract_dir_path.endswith("/"):
-                    dst_file_path = merged_apex_extract_dir_path + root.replace(apex_vendor_extract_dir_path, "")
-                else:
-                    dst_file_path = merged_apex_extract_dir_path + "/" + root.replace(apex_vendor_extract_dir_path, "")
+                dst_file_path = merged_apex_extract_dir_path + root.replace(apex_vendor_extract_dir_path, "").replace("//", "/")
                 command = f'sudo cp -a {file_path} {dst_file_path}'
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
                 if result.returncode != 0:
