@@ -258,7 +258,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         os.remove(dst_file_path)
 
                     if os.path.islink(file_path):
-                        command = f'cp -P {file_path} {dst_file_path}'
+                        command = f'sudo cp -P {file_path} {dst_file_path}'
                         os.system(command)
                     else:
                         shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
