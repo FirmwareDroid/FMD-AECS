@@ -252,10 +252,10 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
 
                 try:
                     logging.info(f"Copying file in APEX container: {file_path} with {dst_file_path}")
-                    if os.path.exists(dst_file_path):
-                        change_file_ownership(dst_file_path)
-                        change_file_permission(dst_file_path, "777")
-                        os.remove(dst_file_path)
+                    #if os.path.exists(dst_file_path):
+                    #    change_file_ownership(dst_file_path)
+                    #    change_file_permission(dst_file_path, "777")
+                    #    os.remove(dst_file_path)
 
                     # Copy with cp to keep simlinks intact and permissions
                     command = f'sudo cp -P {file_path} {dst_file_path}'
