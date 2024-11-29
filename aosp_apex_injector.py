@@ -260,9 +260,9 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     # Copy with cp to keep simlinks intact and sudo for permissions
                     if os.path.exists(dst_file_path):
                         command = f'sudo rm {dst_file_path}'
-                        os.system(command)
+                        result = subprocess.run(command, shell=True, capture_output=True, text=True)
                     command = f'sudo cp -P {file_path} {dst_file_path}'
-                    os.system(command)
+                    result = subprocess.run(command, shell=True, capture_output=True, text=True)
                     if os.path.islink(file_path):
                         if os.path.exists(dst_file_path):
                             logging.info(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
