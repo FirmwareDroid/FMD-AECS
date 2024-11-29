@@ -262,7 +262,10 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     command = f'sudo cp -P {file_path} {dst_file_path}'
                     os.system(command)
                     if os.path.islink(file_path):
-                        logging.info(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
+                        if os.path.exists(dst_file_path):
+                            logging.info(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
+                            files_coped_list.append(dst_file_path)
+
                     #if os.path.islink(file_path):
                     #else:
                     #    shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
