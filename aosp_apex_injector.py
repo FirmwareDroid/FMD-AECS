@@ -235,18 +235,17 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 continue
             elif os.path.islink(file_path):
                 if merged_apex_extract_dir_path.endswith("/"):
-                    dst_file_path = merged_apex_extract_dir_path + root
+                    dst_file_path = merged_apex_extract_dir_path + root.replace(apex_vendor_extract_dir_path, "")
                 else:
-                    dst_file_path = merged_apex_extract_dir_path + "/" + root
-                command = f'sudo cp -P {file_path} {dst_file_path}'
+                    dst_file_path = merged_apex_extract_dir_path + "/" + root.replace(apex_vendor_extract_dir_path, "")
+                command = f'sudo cp -a {file_path} {dst_file_path}'
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
                 if result.returncode != 0:
                     logging.error(
                         f"Error copying file in APEX container: {file_path} with {dst_file_path} | {result.stderr}")
-                if os.path.islink(file_path):
-                    if os.path.exists(dst_file_path):
-                        logging.info(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
-                        files_coped_list.append(dst_file_path)
+                if os.path.exists(dst_file_path):
+                    logging.info(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
+                    files_coped_list.append(dst_file_path)
             else:
                 file_path_no_vendor = file_path.replace(".Google", "").replace(".google", "")
                 file_path_no_vendor = file_path_no_vendor.replace(apex_vendor_extract_dir_path, "")
