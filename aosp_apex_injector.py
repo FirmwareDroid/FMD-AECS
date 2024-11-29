@@ -257,8 +257,10 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         os.symlink(linkto, file_path)
                     else:
                         if not can_read_file(file_path):
+                            change_file_ownership(file_path)
                             change_file_permission(file_path, "777")
                             if os.path.exists(dst_file_path):
+                                change_file_ownership(dst_file_path)
                                 change_file_permission(dst_file_path, "777")
                         shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
                 except FileNotFoundError as e:
@@ -277,6 +279,15 @@ def change_file_permission(file_path, permission):
         print(f"Permissions for {file_path} changed to {permission}")
     except subprocess.CalledProcessError as e:
         print(f"Error changing permissions for {file_path}: {e.stderr}")
+
+def change_file_ownership(file_path):
+    try:
+        current_user = os.getlogin()
+        command = ['sudo', 'chown', current_user, file_path]
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        print(f"Ownership of {file_path} changed to {current_user}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error changing ownership of {file_path}: {e.stderr}")
 
 def can_read_file(file_path):
     return os.access(file_path, os.R_OK)
