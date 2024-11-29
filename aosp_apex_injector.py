@@ -275,7 +275,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
 
 def change_file_permission(file_path, permission):
     try:
-        command = ['sudo', 'chmod', permission, file_path]
+        command = ['sudo', 'chmod', "-h", permission, file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True)
         print(f"Permissions for {file_path} changed to {permission}")
     except subprocess.CalledProcessError as e:
@@ -284,7 +284,7 @@ def change_file_permission(file_path, permission):
 def change_file_ownership(file_path):
     try:
         current_user = os.getlogin()
-        command = ['sudo', 'chown', current_user, file_path]
+        command = ['sudo', 'chown', "-h", current_user, file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True)
         print(f"Ownership of {file_path} changed to {current_user}")
     except subprocess.CalledProcessError as e:
