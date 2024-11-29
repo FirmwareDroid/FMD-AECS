@@ -255,19 +255,17 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     logging.error(f"Permission denied: {e.filename}")
                 if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path or "fmd-aecs-lock" in file_path:
                     continue
-
                 if file in DISALLOW_APEX_FILE_OVERWRITE:
                     logging.error(f"APEX: File in DISALLOW_APEX_FILE_OVERWRITE. Thus, not included: {file_path}")
                     continue
 
                 try:
-                    logging.info(f"Copying file in APEX container: {file_path} with {dst_file_path}")
                     shutil.copy2(file_path, dst_file_path)
+                    logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
+                    files_coped_list.append(dst_file_path)
                 except FileNotFoundError as e:
                     logging.error(f"APEX: File not found: {e.filename}")
                 except PermissionError as e:
-                    change_file_ownership(dst_file_path)
-                    change_file_permission(dst_file_path, "777")
                     logging.error(f"APEX: Permission denied: {e.filename} | {e}")
                 except Exception as e:
                     logging.error(f"APEX: Error copying file: {file_path} | {dst_file_path} | {e}")
