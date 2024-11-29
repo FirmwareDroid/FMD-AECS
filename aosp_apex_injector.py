@@ -256,18 +256,14 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         change_file_ownership(dst_file_path)
                         change_file_permission(dst_file_path, "777")
                         os.remove(dst_file_path)
-                    shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
+                    if os.path.islink(file_path):
+                        shutil.copy(file_path, dst_file_path, follow_symlinks=False)
+                    else:
+                        shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
                 except FileNotFoundError as e:
                     logging.error(f"APEX: File not found: {e.filename}")
                 except PermissionError as e:
-                    try:
-                        change_file_ownership(file_path)
-                        change_file_permission(file_path, "777")
-                        shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
-                    except PermissionError as e:
-                        logging.error(f"APEX: Permission denied: {e.filename}")
-                    except Exception as e:
-                        logging.error(f"APEX: Error copying file: {file_path} | {dst_file_path} | {e}")
+                    logging.error(f"APEX: Permission denied: {e.filename}")
                 except Exception as e:
                     logging.error(f"APEX: Error copying file: {file_path} | {dst_file_path} | {e}")
 
@@ -275,7 +271,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
 
 def change_file_permission(file_path, permission):
     try:
-        command = ['sudo', 'chmod', "-h", permission, file_path]
+        command = ['sudo', 'chmod', permission, file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True)
         print(f"Permissions for {file_path} changed to {permission}")
     except subprocess.CalledProcessError as e:
@@ -284,7 +280,7 @@ def change_file_permission(file_path, permission):
 def change_file_ownership(file_path):
     try:
         current_user = os.getlogin()
-        command = ['sudo', 'chown', "-h", current_user, file_path]
+        command = ['sudo', 'chown', current_user, file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True)
         print(f"Ownership of {file_path} changed to {current_user}")
     except subprocess.CalledProcessError as e:
