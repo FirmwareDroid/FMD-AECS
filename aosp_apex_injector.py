@@ -256,7 +256,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         change_file_ownership(dst_file_path)
                         change_file_permission(dst_file_path, "777")
                         os.remove(dst_file_path)
-                        shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
+                    shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
                 except FileNotFoundError as e:
                     logging.error(f"APEX: File not found: {e.filename}")
                 except PermissionError as e:
