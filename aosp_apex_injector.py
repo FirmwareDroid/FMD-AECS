@@ -256,6 +256,8 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         linkto = os.readlink(file_path)
                         os.symlink(linkto, file_path)
                     else:
+                        if not can_read_file(file_path):
+                            change_file_permission(file_path, "644")
                         shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
                 except FileNotFoundError as e:
                     logging.error(f"APEX: File not found: {e.filename}")
@@ -265,6 +267,17 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     logging.error(f"APEX: Error copying file: {file_path} | {dst_file_path} | {e}")
 
         logging.info(f"APEX: Files copied into container: {files_coped_list};\n")
+
+def change_file_permission(file_path, permission):
+    try:
+        command = ['sudo', 'chmod', permission, file_path]
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        print(f"Permissions for {file_path} changed to {permission}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error changing permissions for {file_path}: {e.stderr}")
+
+def can_read_file(file_path):
+    return os.access(file_path, os.R_OK)
 
 def get_aosp_default_keys(aosp_path):
     priv_key_path = os.path.join(aosp_path, "build/target/product/security/testkey.pem")
