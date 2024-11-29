@@ -257,12 +257,15 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         change_file_permission(dst_file_path, "777")
                         os.remove(dst_file_path)
                     if os.path.islink(file_path):
-                        shutil.copy(file_path, dst_file_path, follow_symlinks=False)
+                        command = f'cp -P {file_path} {dst_file_path}'
+                        os.system(command)
                     else:
                         shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
                 except FileNotFoundError as e:
                     logging.error(f"APEX: File not found: {e.filename}")
                 except PermissionError as e:
+                    change_file_ownership(dst_file_path)
+                    change_file_permission(dst_file_path, "777")
                     logging.error(f"APEX: Permission denied: {e.filename} | {e}")
                 except Exception as e:
                     logging.error(f"APEX: Error copying file: {file_path} | {dst_file_path} | {e}")
