@@ -243,7 +243,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         os.makedirs(os.path.dirname(dst_file_path), exist_ok=True)
                 except PermissionError as e:
                     logging.error(f"Permission denied: {e.filename}")
-                if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path:
+                if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path or "fmd-aecs-lock" in file_path:
                     continue
 
                 if file in DISALLOW_APEX_FILE_OVERWRITE:
