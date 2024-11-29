@@ -258,7 +258,9 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     #    os.remove(dst_file_path)
 
                     # Copy with cp to keep simlinks intact and sudo for permissions
-
+                    if os.path.exists(dst_file_path):
+                        command = f'sudo rm {dst_file_path}'
+                        os.system(command)
                     command = f'sudo cp -P {file_path} {dst_file_path}'
                     os.system(command)
                     if os.path.islink(file_path):
