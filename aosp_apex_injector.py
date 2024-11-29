@@ -261,8 +261,12 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     if os.path.exists(dst_file_path):
                         command = f'sudo rm {dst_file_path}'
                         result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                        if result.returncode != 0:
+                            logging.error(f"Error removing file in APEX container: {dst_file_path} | {result.stderr}")
                     command = f'sudo cp -P {file_path} {dst_file_path}'
                     result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        logging.error(f"Error copying file in APEX container: {file_path} with {dst_file_path} | {result.stderr}")
                     if os.path.islink(file_path):
                         if os.path.exists(dst_file_path):
                             logging.info(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
