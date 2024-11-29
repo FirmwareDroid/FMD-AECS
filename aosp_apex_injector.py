@@ -257,11 +257,12 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         change_file_permission(dst_file_path, "777")
                         os.remove(dst_file_path)
 
-                    if os.path.islink(file_path):
-                        command = f'sudo cp -P {file_path} {dst_file_path}'
-                        os.system(command)
-                    else:
-                        shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
+                    # Copy with cp to keep simlinks intact and permissions
+                    command = f'sudo cp -P {file_path} {dst_file_path}'
+                    os.system(command)
+                    #if os.path.islink(file_path):
+                    #else:
+                    #    shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
                 except FileNotFoundError as e:
                     logging.error(f"APEX: File not found: {e.filename}")
                 except PermissionError as e:
