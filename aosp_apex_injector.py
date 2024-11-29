@@ -226,7 +226,6 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
 def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder):
     logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
     files_coped_list = []
-    files_not_copied_list = []
     for root, dirs, files in os.walk(apex_vendor_extract_dir_path):
         for file in files:
             file_path = str(os.path.join(root, file))
@@ -249,40 +248,23 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
 
                 if file in DISALLOW_APEX_FILE_OVERWRITE:
                     logging.error(f"APEX: File in DISALLOW_APEX_FILE_OVERWRITE. Thus, not included: {file_path}")
-                    files_not_copied_list.append(dst_file_path)
                     continue
 
-                if not os.path.exists(dst_file_path):
-                    if not os.path.exists(file_path):
-                        logging.error(f"File not found in APEX vendor folder, can't copy to container: {file_path}")
-                        files_not_copied_list.append(dst_file_path)
-                    elif os.path.exists(dst_file_path):
-                        logging.error(f"File already exists in APEX and will not be copied to container: {file_path}")
-                        files_not_copied_list.append(dst_file_path)
+                try:
+                    logging.info(f"Copying file in APEX container: {file_path} with {dst_file_path}")
+                    if os.path.islink(file_path):
+                        linkto = os.readlink(file_path)
+                        os.symlink(linkto, file_path)
                     else:
-                        try:
-                            logging.info(f"APEX: Copying file into container: {file_path} to {merged_apex_extract_dir_path}")
-                            shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
-                            files_coped_list.append(dst_file_path)
-                        except PermissionError as e:
-                            logging.error(f"Permission denied: {e.filename}")
-                            files_not_copied_list.append(dst_file_path)
-                        except FileNotFoundError as e:
-                            logging.error(f"File not found: {e.filename}")
-                            files_not_copied_list.append(dst_file_path)
-                else:
-                    try:
-                        logging.info(f"Overwriting file in APEX container: {file_path} with {dst_file_path}")
                         shutil.copy2(file_path, dst_file_path, follow_symlinks=False)
-                        files_coped_list.append(dst_file_path)
-                    except FileNotFoundError as e:
-                        logging.error(f"File not found: {e.filename}")
-                        files_not_copied_list.append(dst_file_path)
-                    except PermissionError as e:
-                        logging.error(f"Permission denied: {e.filename}")
-                        files_not_copied_list.append(dst_file_path)
+                except FileNotFoundError as e:
+                    logging.error(f"APEX: File not found: {e.filename}")
+                except PermissionError as e:
+                    logging.error(f"APEX: Permission denied: {e.filename}")
+                except Exception as e:
+                    logging.error(f"APEX: Error copying file: {file_path} | {dst_file_path} | {e}")
 
-        logging.info(f"APEX: Files copied into container: {files_coped_list};\nFiles not copied: {files_not_copied_list}")
+        logging.info(f"APEX: Files copied into container: {files_coped_list};\n")
 
 def get_aosp_default_keys(aosp_path):
     priv_key_path = os.path.join(aosp_path, "build/target/product/security/testkey.pem")
