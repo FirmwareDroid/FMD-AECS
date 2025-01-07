@@ -248,7 +248,7 @@ def parse_arguments():
                         action='store_true',
                         default=False,
                         required=False,
-                        help="If set, skips the download of the emulator images and uses the local files.")
+                        help="If set, skips the download of the emulator images and uses the local files from 'emulator_images' directory.")
     parser.add_argument("-r",
                         "--repository-url",
                         type=str,
