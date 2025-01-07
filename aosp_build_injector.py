@@ -133,7 +133,7 @@ def extract_emulator_image(aosp_path, lunch_target):
     logging.debug(f"Extract image_source_path: {image_source_path} to {extract_dir}")
     if os.path.exists(image_source_path):
         if not os.path.exists(extract_dir):
-            os.makedirs(extract_dir)
+            os.makedirs(extract_dir, exist_ok=True)
         extract_zip(image_source_path, extract_dir)
     else:
         raise RuntimeError(f"Could not find image zip file: {image_source_path}")
@@ -361,7 +361,7 @@ def move_txt_files(source_directory, destination_directory):
     :param destination_directory: str - path of the destination directory.
     """
     if not os.path.exists(destination_directory):
-        os.makedirs(destination_directory)
+        os.makedirs(destination_directory, exist_ok=True)
 
     for file_name in os.listdir(source_directory):
         if file_name.endswith('.txt') or file_name.endswith('.log'):
@@ -685,7 +685,7 @@ def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder)
                                                           cookies,
                                                           extract_destination_folder)
             tmp_path = os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME)
-            os.makedirs(tmp_path)
+            os.makedirs(tmp_path, exist_ok=True)
             extract_zip(zip_file_path, tmp_path)
             os.remove(zip_file_path)
             is_successful = True
