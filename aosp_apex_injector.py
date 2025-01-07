@@ -450,7 +450,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                 module_type = get_module_type(file_path)
                 if module_type == "SKIPPED":
                     try:
-                        logging.error(f"APEX: SKIPPED file from canned_fs: {file_path}")
+                        logging.error(f"APEX: SKIPPED module type. File not included into canned_fs: {file_path}")
                         os.remove(file_path)
                     except Exception as e:
                         logging.error(f"Error deleting file from canned_fs: {file_path} | {e}")
