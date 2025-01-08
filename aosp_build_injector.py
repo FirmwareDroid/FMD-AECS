@@ -4,6 +4,7 @@ on disk. Directly extract the downloaded zip content.
 """
 import argparse
 import re
+import traceback
 import uuid
 import logging
 import shutil
@@ -848,6 +849,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                 raise RuntimeError(f"Build process for firmware-id: {firmware_id} failed.")
         except Exception as err:
             logging.error(f"Got an error processing firmware-id: {firmware_id}. Error: {err}")
+            traceback.print_exc()
+            traceback.print_stack()
             failed_firmware_ids.append(firmware_id)
         finally:
             if not args.skip_clean:
