@@ -229,7 +229,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
     for root, dirs, files in os.walk(apex_vendor_extract_dir_path):
         for file in files:
             file_path = str(os.path.join(root, file))
-            module_type = get_module_type(file_path)
+            module_type = get_module_type(file_path, is_apex=True)
             #if module_type == "SKIPPED":
             #    logging.error(f"APEX: Skipping file from APEX container {apex_emulator_folder}. Known problematic filename: {file_path}")
             #    continue
@@ -447,7 +447,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
 
             for file_name in files:
                 file_path = str(os.path.join(root, file_name))
-                module_type = get_module_type(file_path)
+                module_type = get_module_type(file_path, is_apex=True)
                 if module_type == "SKIPPED":
                     try:
                         logging.error(f"APEX: SKIPPED module type. File not included into canned_fs: {file_path}")
