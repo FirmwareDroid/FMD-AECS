@@ -368,7 +368,8 @@ def move_txt_files(source_directory, destination_directory):
         if file_name.endswith('.txt') or file_name.endswith('.log'):
             source_file = os.path.join(source_directory, file_name)
             destination_file = os.path.join(destination_directory, file_name)
-            shutil.copy2(source_file, destination_file, follow_symlinks=False)
+            if os.path.isdir(source_file):
+                shutil.copy2(source_file, destination_file, follow_symlinks=False)
 
 
 def check_file_extension(directory, file_extension_list):
