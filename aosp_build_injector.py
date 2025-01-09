@@ -430,29 +430,32 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                     logging.info(f"Copying library package: {package_path} to {framework_lib_path}")
                     shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
                 elif check_file_extension(package_path, apex_file_extension_list):
-                    package_dir_name = os.path.basename(package_path)
-                    apex_file_path = get_apex_file(package_path)
-                    apex_filename = os.path.basename(apex_file_path)
-                    if any(keyword in package_dir_name for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
-                        logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
-                        continue
-                    modules_path = os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name)
-                    logging.info(f"Copying APEX package: {package_path} to {modules_path}")
+                    if ALLOW_APEX_INJECTION:
+                        package_dir_name = os.path.basename(package_path)
+                        apex_file_path = get_apex_file(package_path)
+                        apex_filename = os.path.basename(apex_file_path)
+                        if any(keyword in package_dir_name for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
+                            logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
+                            continue
+                        modules_path = os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name)
+                        logging.info(f"Copying APEX package: {package_path} to {modules_path}")
 
-                    shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
-                    if apex_file_path:
-                        apex_out_file = os.path.join(modules_path, apex_filename)
-                        if os.path.exists(apex_out_file):
-                            os.remove(apex_out_file)
-                        is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target)
-                        #is_success, log_message = create_apex_module(aosp_path, apex_file_path, apex_out_file, lunch_target, modules_path)
-                        if is_success:
-                            logging.info(f"Repackaged APEX package: {apex_file_path} to module path {modules_path}")
+                        shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
+                        if apex_file_path:
+                            apex_out_file = os.path.join(modules_path, apex_filename)
+                            if os.path.exists(apex_out_file):
+                                os.remove(apex_out_file)
+                            is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target)
+                            #is_success, log_message = create_apex_module(aosp_path, apex_file_path, apex_out_file, lunch_target, modules_path)
+                            if is_success:
+                                logging.info(f"Repackaged APEX package: {apex_file_path} to module path {modules_path}")
+                            else:
+                                logging.error(f"APEX repacking error: {log_message}")
+                                exit(1)
                         else:
-                            logging.error(f"APEX repacking error: {log_message}")
-                            exit(1)
+                            logging.error(f"Could not find apex file in: {modules_path}")
                     else:
-                        logging.error(f"Could not find apex file in: {modules_path}")
+                        logging.info(f"APEX injection disabled in pre-injector: {dir_name}")
                 else:
                     logging.info(f"Moving App: {dir_name} from {package_path} to {out_dir}")
                     app_modules_path = os.path.join(aosp_path, f"{out_dir}apps/", f"{uuid_dir}_{dir_name}")

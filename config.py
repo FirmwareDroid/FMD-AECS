@@ -1567,6 +1567,9 @@ ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "/product/app/LatinIME/lib/arm64/libjni_latinime.so"]
 
 MODULE_BASE_INJECT_DIR = "packages/modules/fmd/"
+ALLOW_APEX_INJECTION = False
+
+
 
 # List contains APEX files that have to be merged
 APEX_PRE_INJECT_DISALLOWED_KEYWORDS = ["vndk",
