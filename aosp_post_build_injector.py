@@ -145,7 +145,8 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 if module_type == "APPS" and file_extension.lower() == ".apk":
                     error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
                 elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
-                    error_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
+                    if ALLOW_APEX_INJECTION:
+                        error_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
 
                 if not error_message:
                     inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path,
@@ -391,9 +392,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
 
     :return: str - path to the original file.
 
-
     """
-
     target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
     search_folder_path = str(os.path.join(target_obj_path,
                                           module_type if module_type not in ["MISC", "STATIC_CONFIG"] else ""))

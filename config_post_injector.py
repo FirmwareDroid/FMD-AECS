@@ -24,9 +24,9 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".rc",
                                ".ko",
                                ".prop",
+                               ".apex",
                                ".capex",
                                ".prof",
-                               ".apex",
                                ".original_apex", # Leftover from apex repacking
                                ".idsig", # Leftover from signing
                                ".art",
@@ -174,6 +174,8 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.hardwareinfo.xml",
                             "vndservicemanager.rc",
                             ]
+
+ALLOW_APEX_INJECTION = False
 
 ALLOW_APEX_FILE_INJECT = ["derive_classpath.rc",
                           "derive_sdk.rc",
