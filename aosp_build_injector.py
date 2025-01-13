@@ -639,33 +639,35 @@ def clear_intermediate_files(aosp_path):
     out_dir = os.path.join(aosp_path, MODULE_BASE_INJECT_DIR)
     if os.path.exists(out_dir):
         shutil.rmtree(out_dir)
-        logging.debug(f"Removed {out_dir} from aosp source code.")
+        logging.info(f"Removed {out_dir} from aosp source code.")
+    else:
+        RuntimeError(f"Could not find directory: {out_dir} in aosp source code.")
 
 
-def clear_build_out(build_out_path):
+def clear_extracted_packages():
     """
     Deletes the build out directory.
 
     :param build_out_path: str - path to the build out directory.
     """
     try:
-        if os.path.exists(build_out_path):
-            shutil.rmtree(build_out_path)
-            logging.debug(f"Removed {build_out_path}")
+        extracted_packages_path = os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME)
+        if os.path.exists(extracted_packages_path):
+            shutil.rmtree(extracted_packages_path)
+            logging.debug(f"Removed {extracted_packages_path}")
     except Exception as err:
         logging.error(err)
 
 
-def clear_environment(aosp_path, aosp_packages_path, aosp_version):
+def clear_environment(aosp_path, aosp_packages_apps_path, aosp_version):
     """
     Reverts the build environment
     Returns:
 
     """
-    clear_packages(aosp_packages_path)
+    clear_packages(aosp_packages_apps_path)
     clear_intermediate_files(aosp_path)
-    extracted_files_path = os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME)
-    clear_build_out(extracted_files_path)
+    clear_extracted_packages()
     clear_base_files(aosp_path, aosp_version)
 
 
@@ -869,8 +871,8 @@ def main():
     logging.info("=======================BUILD INJECTOR=======================")
     args = parse_arguments()
     if args.reset_aosp:
-        aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
-        clear_environment(args.aosp_path, aosp_packages_abs_path, args.version)
+        aosp_packages_apps_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
+        clear_environment(args.aosp_path, aosp_packages_apps_abs_path, args.version)
         logging.info("Reset aosp build environment.")
         exit(0)
     if args.arch not in SUPPORTED_ARCHITECTURES:

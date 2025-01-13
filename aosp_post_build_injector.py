@@ -169,7 +169,7 @@ def handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite):
         if not signing_success:
             error_message = f"Error signing APK file: {file_path}|{subprocess_error_message}"
     else:
-        error_message = f"Skipped APP inject (should already be in the image): {file_path}"
+        error_message = f"Skipped APP inject in post-injection (should already be in the image): {file_path}"
     return error_message
 
 
@@ -199,7 +199,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         target_path = inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
         inj_partition = (file_path, target_path)
     else:
-        inject_file_into_obj(file_path, original_file_path)
+        inject_file_into_obj(file_path, original_file_path, module_type)
         inj_obj = (file_path, original_file_path)
 
     if file_name in COPY_TO_SPECIFIC_PATH.keys():
@@ -449,9 +449,11 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                     break
                 elif ((file_extension_src == ".apex" and file_extension_obj == ".capex")
                       or (file_extension_src == ".capex" and file_extension_obj == ".apex")):
-                    result_file_path = os.path.join(root, file)
-                    logging.info(f"Found APEX file2: {file_name}, result_file_path: {result_file_path}")
-                    break
+                    # Matching apex to capex files
+                    if ALLOW_APEX_INJECTION:
+                        result_file_path = os.path.join(root, file)
+                        logging.info(f"Found APEX file2: {file_name}, result_file_path: {result_file_path}")
+                        break
 
     if result_file_path:
         return result_file_path
@@ -604,13 +606,24 @@ def handle_duplicated_permissions(target_out_path):
     find_and_remove_duplicates(permission_path_list)
 
 
-def inject_file_into_obj(source_file_path, original_file_path):
+def inject_file_into_obj(source_file_path, original_file_path, module_type):
     """
-    Injects a file into the AOSP source code.
+    Injects a file into the AOSP source code directly without matching to existing files.
     """
     logging.debug(f"Overwriting Obj file: {source_file_path} into {original_file_path}")
-    shutil.copyfile(source_file_path, original_file_path)
-    os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
+    file_name = os.path.basename(original_file_path)
+    if "/apex/" in original_file_path:
+        if module_type == "JAVA_LIBRARIES":
+            new_file_path = "/system/framework/" + file_name
+            logging.info(f"Injecting file from apex: {source_file_path} into {new_file_path}")
+        elif module_type == "BINARY":
+            new_file_path = "/bin/" + file_name
+        else:
+            new_file_path = "/etc/" + file_name
+        shutil.copyfile(source_file_path, new_file_path)
+    else:
+        shutil.copyfile(source_file_path, original_file_path)
+        os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
 
 
 def parse_arguments():
