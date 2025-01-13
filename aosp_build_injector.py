@@ -665,6 +665,7 @@ def clear_environment(aosp_path, aosp_packages_apps_path, aosp_version):
     Returns:
 
     """
+    logging.info("Clearing injection environment...")
     clear_packages(aosp_packages_apps_path)
     clear_intermediate_files(aosp_path)
     clear_extracted_packages()
