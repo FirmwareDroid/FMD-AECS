@@ -365,8 +365,8 @@ def move_txt_files(source_directory, destination_directory):
         os.makedirs(destination_directory, exist_ok=True)
 
     for file_name in os.listdir(source_directory):
-        if os.path.isfile(file_name) and (file_name.endswith('.txt') or file_name.endswith('.log')):
-            source_file = os.path.join(source_directory, file_name)
+        source_file = os.path.join(source_directory, file_name)
+        if os.path.isfile(source_file) and (file_name.endswith('.txt') or file_name.endswith('.log')):
             destination_file = os.path.join(destination_directory, file_name)
             if os.path.isdir(source_file):
                 shutil.copy2(source_file, destination_file, follow_symlinks=False)
