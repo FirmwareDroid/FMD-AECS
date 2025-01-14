@@ -177,7 +177,6 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version):
         for line in meta_build_file:
             if any(blacklisted_module in line for blacklisted_module in BLOCKED_MODULE_NAMES):
                 logging.info(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
-                package_name_list.remove(line)
             else:
                 logging.info(f"Allowing module meta in build: {line}")
                 package_name_list.append(line)
@@ -489,11 +488,12 @@ def inject_meta_files(aosp_path, aosp_version):
     for meta_build_filename in META_BUILD_FILENAMES:
         meta_build_path = os.path.join(BUILD_OUT_PATH, meta_build_filename)
         if not os.path.exists(meta_build_path):
+            # Some meta files are optional. If they are not found, we skip them.
             if meta_build_filename == META_BUILD_SYSTEM_FILENAME:
+                # If the system file is missing, we need to stop the build process.
                 raise RuntimeError(f"Could not find file: {meta_build_filename} from {meta_build_path}")
             else:
-                with open(meta_build_path, 'w'):
-                    pass
+                continue
         base_filename = get_base_filename(meta_build_filename)
         content = read_and_render_template(meta_build_path, base_filename, aosp_version)
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
