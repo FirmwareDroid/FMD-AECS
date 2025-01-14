@@ -65,6 +65,8 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
 
     blueprint_build_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static'"
     execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path)
+    logging.info(f"Environment setup for {lunch_target} completed. Moving packages to aosp source code next.")
+
     move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
     move_packages_to_aosp(aosp_path, aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
     inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
@@ -628,7 +630,9 @@ def clear_base_files(aosp_path, aosp_version):
                 template_folder_abs_path = get_template_folder_path(aosp_version)
                 environment = Environment(loader=FileSystemLoader(str(template_folder_abs_path)))
                 template = environment.get_template(base_filename)
-                return template.render(package_name_list=[])
+                base_file_content = template.render(package_name_list=[])
+                with open(aosp_base_file_path, 'w') as base_file:
+                    base_file.write(base_file_content)
     except Exception as err:
         logging.error(err)
         pass

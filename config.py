@@ -907,7 +907,10 @@ BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "libjni_eglfence",
     "libjni_latinime",
     "libadb_protos",
+]
 
+
+HOST_PACKAGES_LIST = [
     "libadb_pairing_auth",
     "libadb_pairing_connection",
     "libadb_protos",
@@ -941,6 +944,7 @@ BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "libprofile",
     "libsigchain"
 ]
+
 
 ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "/system/lib64/aaudio-aidl-cpp.so",
