@@ -171,14 +171,16 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version):
     :returns: str - rendered aosp build file template.
 
     """
+    logging.info(f"Reading meta file: {meta_build_path}")
     with open(meta_build_path, 'r') as meta_build_file:
-        package_name_list = meta_build_file.readlines()
-        for line in package_name_list:
+        package_name_list = []
+        for line in meta_build_file:
             if any(blacklisted_module in line for blacklisted_module in BLOCKED_MODULE_NAMES):
                 logging.info(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
                 package_name_list.remove(line)
             else:
                 logging.info(f"Allowing module meta in build: {line}")
+                package_name_list.append(line)
         template_folder_abs_path = get_template_folder_path(aosp_version)
         logging.debug(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
         environment = Environment(loader=FileSystemLoader(str(template_folder_abs_path)))
