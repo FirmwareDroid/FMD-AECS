@@ -171,6 +171,7 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version):
     :returns: str - rendered aosp build file template.
 
     """
+    logging.info(f"Reading meta file: {meta_build_path}")
     with open(meta_build_path, 'r') as meta_build_file:
         package_name_list = meta_build_file.readlines()
         for line in package_name_list:
