@@ -69,7 +69,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
 
     move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
     move_packages_to_aosp(aosp_path, aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
-    inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering)
+    inject_meta_files(aosp_path, aosp_version)
 
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
@@ -173,6 +173,10 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version):
     """
     with open(meta_build_path, 'r') as meta_build_file:
         package_name_list = meta_build_file.readlines()
+        for line in package_name_list:
+            if any(blacklisted_module in line for blacklisted_module in BLOCKED_MODULE_NAMES):
+                logging.info(f"Removing blacklisted module from meta file: {line} from {meta_build_path}")
+                package_name_list.remove(line)
         template_folder_abs_path = get_template_folder_path(aosp_version)
         logging.debug(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
         environment = Environment(loader=FileSystemLoader(str(template_folder_abs_path)))
@@ -467,15 +471,15 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
     return included_package_name_list
 
 
-def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filtering):
+def inject_meta_files(aosp_path, aosp_version):
     """
     Replaces the original base_system.mk of the AOSP source code with a modified version.
     The modified version includes all the packages to inject into the build process.
+    Meta file contain the package names to inject into the aosp source code. Base files are the original files
+    from the aosp source code.
 
-    :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
     :param aosp_path: str -  path to aosp root folder.
     :param aosp_version: str - version of the aosp build.
-    :param skip_filtering: bool - skip the filtering process.
 
     """
     for meta_build_filename in META_BUILD_FILENAMES:
@@ -487,7 +491,6 @@ def inject_meta_files(aosp_path, aosp_packages_path, aosp_version, skip_filterin
                 with open(meta_build_path, 'w'):
                     pass
         base_filename = get_base_filename(meta_build_filename)
-        #filter_packages_from_meta(meta_build_path, aosp_path, aosp_packages_path, skip_filtering)
         content = read_and_render_template(meta_build_path, base_filename, aosp_version)
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
         out_file_path = os.path.join(BUILD_OUT_PATH, base_filename)
