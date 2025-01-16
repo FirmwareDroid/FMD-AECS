@@ -175,7 +175,7 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version):
     with open(meta_build_path, 'r') as meta_build_file:
         package_name_list = []
         for line in meta_build_file:
-            if any(line.strip().replace("/","") == blacklisted_module for blacklisted_module in BLOCKED_MODULE_NAMES):
+            if any(line.replace("/","").strip() == blacklisted_module for blacklisted_module in BLOCKED_MODULE_NAMES):
                 logging.info(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
             else:
                 logging.info(f"Allowing module meta in build: {line}")
