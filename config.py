@@ -945,6 +945,10 @@ HOST_PACKAGES_LIST = [
     "libsigchain"
 ]
 
+# Following modules are requested to be installed. But are not available for platform because they do not have "//apex_available:platform" or they depend on other modules that are not available for platform
+APEX_AVAILABLE_LIST = ["libicui18n",
+                       "libmidiextractor"]
+
 
 ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "/system/lib64/aaudio-aidl-cpp.so",
@@ -1639,5 +1643,6 @@ def get_blocked_module_names():
     blocked_module_names.extend(VENDOR_BLACKLISTED_PACKAGES)
     blocked_module_names.extend(BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES)
     blocked_module_names.extend(HOST_PACKAGES_LIST)
+    blocked_module_names.extend(APEX_AVAILABLE_LIST)
     return blocked_module_names
 
