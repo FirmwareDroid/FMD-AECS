@@ -195,3 +195,42 @@ COPY_TO_SPECIFIC_PATH = {
 
 # Files that need to be adjusted for the emulator
 FILES_TO_MODIFY = ["systemserverclasspath.pb", "bootclasspath.pb"]
+
+
+LIST_SINGLETON_APPS = [
+    "PackageInstaller.apk",          # com.android.packageinstaller
+    "SystemUI.apk",                  # com.android.systemui
+    "Settings.apk",                  # com.android.settings
+    "Telecom.apk",                   # com.android.server.telecom
+    "ContactsProvider.apk",          # com.android.providers.contacts
+    "MediaProvider.apk",             # com.android.providers.media
+    "PermissionController.apk",      # com.android.permissioncontroller
+    "LatinIME.apk",                  # com.android.inputmethod.latin
+    "Dialer.apk",                    # com.android.dialer
+    "NetworkStack.apk",              # com.android.networkstack
+    #"Launcher3.apk",                 # com.android.launcher3
+    #"Phone.apk",                     # com.android.phone
+    #"DownloadProvider.apk",          # com.android.providers.downloads
+    #"Messaging.apk",                 # com.android.messaging
+    #"BackupTransport.apk",           # com.android.backuptransport
+    #"Updater.apk",                   # com.android.updater
+    #"DevicePolicyManager.apk",       # com.android.devicepolicy
+    #"PlayServices.apk",              # com.google.android.gms
+    #"WebView.apk"                    # com.android.webview
+]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

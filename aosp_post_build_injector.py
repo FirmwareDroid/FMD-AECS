@@ -545,7 +545,12 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
                     raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
             else:
                 if os.path.isfile(target_file_injection_path):
-                    logging.info(f"Skipped Inject File {target_file_injection_path} already exists.")
+                    file_extension = os.path.splitext(target_file_injection_path)[1]
+                    if not file_extension:
+                        logging.error(f"Skipped Inject File of binary: {target_file_injection_path}")
+                    else:
+                        logging.info(f"Skipped Inject File {target_file_injection_path} already exists.")
+
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         if not os.path.exists(source_file_path):
