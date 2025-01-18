@@ -207,9 +207,10 @@ LIST_SINGLETON_APPS = [
     "PermissionController.apk",      # com.android.permissioncontroller
     "LatinIME.apk",                  # com.android.inputmethod.latin
     "Dialer.apk",                    # com.android.dialer
-    "NetworkStack.apk",              # com.android.networkstack
+    "NetworkStack.apk",              # com.android.networkstack -> Removing works
     #"Launcher3.apk",                 # com.android.launcher3
     #"Phone.apk",                     # com.android.phone
+    #"TeleService.apk"                # com.android.phone.IccProvider
     #"DownloadProvider.apk",          # com.android.providers.downloads
     #"Messaging.apk",                 # com.android.messaging
     #"BackupTransport.apk",           # com.android.backuptransport

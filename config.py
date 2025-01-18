@@ -907,6 +907,13 @@ BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "libjni_eglfence",
     "libjni_latinime",
     "libadb_protos",
+    "libclang_rt.scudo_minimal-aarch64-android",
+    "libclang_rt.scudo_minimal-arm-android",
+    "libclang_rt.scudo-aarch64-android",
+    "libclang_rt.scudo-arm-android",
+    "libclang_rt.ubsan_standalone-arm-android",
+    "libclang_rt.asan-arm-android",
+    "libstatssocke"
 ]
 
 
