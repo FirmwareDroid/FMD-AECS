@@ -915,6 +915,7 @@ BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "libclang_rt.asan-arm-android",
     "libstatssocket",
     "android.hardware.gnss-V1-ndk_platform"
+    "android.hardware.power-V2-ndk_platform",
 ]
 
 
