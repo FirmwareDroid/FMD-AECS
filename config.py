@@ -913,7 +913,7 @@ BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "libclang_rt.scudo-arm-android",
     "libclang_rt.ubsan_standalone-arm-android",
     "libclang_rt.asan-arm-android",
-    "libstatssocke"
+    "libstatssocket"
 ]
 
 
