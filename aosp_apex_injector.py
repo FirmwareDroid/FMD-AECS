@@ -448,16 +448,24 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
 
             for file_name in files:
                 file_path = str(os.path.join(root, file_name))
-                module_type = get_module_type(file_path, is_apex=True)
-                if module_type == "SKIPPED":
+                #module_type = get_module_type(file_path, is_apex=True)
+
+                # if module_type == "SKIPPED":
+                #     try:
+                #         logging.error(f"APEX: SKIPPED module type. File not included into canned_fs: {file_path}")
+                #         os.remove(file_path)
+                #     except Exception as e:
+                #         logging.error(f"Error deleting file from canned_fs: {file_path} | {e}")
+                #     continue
+                # else:
+                #     logging.info(f"APEX: Adding file to canned_fs: {file_path}")
+                if file_path.strip().endswith(".apk"):
                     try:
                         logging.error(f"APEX: SKIPPED module type. File not included into canned_fs: {file_path}")
                         os.remove(file_path)
                     except Exception as e:
                         logging.error(f"Error deleting file from canned_fs: {file_path} | {e}")
                     continue
-                else:
-                    logging.info(f"APEX: Adding file to canned_fs: {file_path}")
 
                 relative_file_path = os.path.relpath(file_path, apex_extract_dir_path)
                 user_id = 1000  # system
