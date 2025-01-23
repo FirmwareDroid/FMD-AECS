@@ -378,6 +378,8 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
 
                         shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
                         if apex_file_path:
+                            is_success = False
+                            log_message = ""
                             apex_out_file = os.path.join(modules_path, apex_filename)
                             if os.path.exists(apex_out_file):
                                 os.remove(apex_out_file)
