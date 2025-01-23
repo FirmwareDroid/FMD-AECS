@@ -152,25 +152,25 @@ ALLOWED_KEYWORD = ["Overlay",
 # "com.android.apex.cts.shim.apex", ->  Not important
 # "com.android.vndk.current.apex",  # No Injection: Problematic updates many com.android.hardware libraries
 ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
-                            # "com.google.android.tethering.apex",
-                            # "com.android.i18n.apex",
-                            # "com.google.android.extservices.apex",
-                            # "com.google.android.conscrypt.apex",
-                            # "com.google.android.wifi.apex",
-                            # "com.google.android.cellbroadcast.apex",
-                            # "com.google.android.mediaprovider.apex",
-                            # "com.google.android.sdkext.apex",
-                            # "com.google.android.ipsec.apex",
-                            # "com.google.android.resolv.apex",
-                            # "com.google.android.os.statsd.apex",
-                            # "com.android.runtime.apex",  # Problematic -> Without boot-framework error? Root cause of file not found error?
-                            # "com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
-                            # "com.google.android.media.swcodec.apex",
-                            # "com.google.android.scheduling.apex",
-                            # "com.google.android.appsearch.apex",
-                            # "com.google.android.neuralnetworks.apex",
-                            # "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service? (emulator) -> Workaround change seccompfilter
-                            # "com.google.android.permission.apex",
+                            "com.google.android.tethering.apex",
+                            "com.android.i18n.apex",
+                            "com.google.android.extservices.apex",
+                            "com.google.android.conscrypt.apex",
+                            "com.google.android.wifi.apex",
+                            "com.google.android.cellbroadcast.apex",
+                            "com.google.android.mediaprovider.apex",
+                            "com.google.android.sdkext.apex",
+                            "com.google.android.ipsec.apex",
+                            "com.google.android.resolv.apex",
+                            "com.google.android.os.statsd.apex",
+                            "com.android.runtime.apex",  # Problematic -> Without boot-framework error? Root cause of file not found error?
+                            "com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
+                            "com.google.android.media.swcodec.apex",
+                            "com.google.android.scheduling.apex",
+                            "com.google.android.appsearch.apex",
+                            "com.google.android.neuralnetworks.apex",
+                            "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service? (emulator) -> Workaround change seccompfilter
+                            "com.google.android.permission.apex",
                             "com.google.android.hardwareinfo.xml",
                             "vndservicemanager.rc",
                             ]
