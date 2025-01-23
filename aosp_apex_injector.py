@@ -193,7 +193,8 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target)
     if extract_success:
         shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
-        inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
+        if INJECT_APEX_VENDOR_FILES:
+            inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name)
 
@@ -244,7 +245,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     logging.info(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
                     files_coped_list.append(dst_file_path)
             else:
-                file_path_no_vendor = file_path.replace(".Google", "").replace(".google", "")
+                file_path_no_vendor = str(file_path.replace(".Google", "").replace(".google", ""))
                 file_path_no_vendor = file_path_no_vendor.replace(apex_vendor_extract_dir_path, "")
                 dst_file_path = os.path.join(merged_apex_extract_dir_path, file_path_no_vendor)
                 logging.info(f"APEX: Tst {file_path} | {dst_file_path} | ")

@@ -175,7 +175,10 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "vndservicemanager.rc",
                             ]
 
+
 ALLOW_APEX_INJECTION = False
+INJECT_APEX_VENDOR_FILES = False
+REMOVE_APEX_APK_FILE = True
 
 ALLOW_APEX_FILE_INJECT = ["derive_classpath.rc",
                           "derive_sdk.rc",

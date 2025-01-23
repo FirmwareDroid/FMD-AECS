@@ -381,7 +381,8 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                             apex_out_file = os.path.join(modules_path, apex_filename)
                             if os.path.exists(apex_out_file):
                                 os.remove(apex_out_file)
-                            is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target)
+                            if ALLOW_APEX_REPACKING:
+                                is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target)
                             #is_success, log_message = create_apex_module(aosp_path, apex_file_path, apex_out_file, lunch_target, modules_path)
                             if is_success:
                                 logging.info(f"Repackaged APEX package: {apex_file_path} to module path {modules_path}")
