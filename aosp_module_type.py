@@ -87,4 +87,7 @@ def get_module_type(source_file_path, is_apex=False):
         if file_name in ALLOW_APEX_FILE_INJECT or any(keyword in source_file_path for keyword in ALLOW_APEX_FILE_INJECT_ALWAYS_KEYWORD_LIST):
             module_type = tmp_module_type
 
+    if REMOVE_APEX_APK_FILE and is_apex and file_extension == ".apk":
+        module_type = "SKIPPED"
+
     return module_type
