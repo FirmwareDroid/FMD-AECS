@@ -459,7 +459,8 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                 #     continue
                 # else:
                 #     logging.info(f"APEX: Adding file to canned_fs: {file_path}")
-                if file_path.strip().endswith(".apk"):
+                is_apk = file_path.endswith(".apk")
+                if is_apk:
                     try:
                         logging.error(f"APEX: SKIPPED module type. File not included into canned_fs: {file_path}")
                         os.remove(file_path)
