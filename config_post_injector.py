@@ -194,13 +194,19 @@ APEX_DEFAULT_PATHS_DICT = {
     "ipsec": "packages/modules/IPsec/apex",
     "scheduling": "packages/modules/Scheduling/apex",
     "adbd": "packages/modules/adb/apex",
-    "statsd": "packages/modules/StatsD/apex",
-    "resolv": "packages/modules/DnsResolver/apex",
+    "statsd": "packages/modules/StatsD/apex", #
+    "resolv": "packages/modules/DnsResolver/apex", #
     "neuralnetworks": "packages/modules/NeuralNetworks/apex",
     "cellbroadcast": "packages/apps/CellBroadcastReceiver/apex",
     "mediaprovider": "packages/providers/MediaProvider/apex",
     "telephony": "packages/services/Telephony/apex",
     "permission": "packages/modules/Permission",
+    "runtime":"bionic/apex/",
+    "art": "art/build/apex",
+    "conscrypt":"external/conscrypt/apex",
+    "appsearch":"frameworks/base/apex/appsearch/",
+    "swcodec":"frameworks/av/apex",
+    "media": "frameworks/av/apex",
 }
 
 
