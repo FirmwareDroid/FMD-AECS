@@ -300,8 +300,8 @@ def get_aosp_default_keys(aosp_path):
     return priv_key_path, pub_key_path
 
 def get_apex_default_keys(aosp_path, apex_file_name):
-    if apex_file_name in APEX_DEFAULT_PATHS_DICT.keys():
-        apex_file_name_no_extension = apex_file_name.replace(".v2.apex", "").replace(".v2.capex", "")
+    apex_file_name_no_extension = apex_file_name.replace(".v2.apex", "").replace(".v2.capex", "")
+    if apex_file_name_no_extension in APEX_DEFAULT_PATHS_DICT.keys():
         module_path = str(os.path.join(aosp_path, APEX_DEFAULT_PATHS_DICT[apex_file_name]))
         priv_pem_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pem")
         priv_key_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pk8")
