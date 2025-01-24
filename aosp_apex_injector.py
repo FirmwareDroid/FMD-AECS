@@ -198,6 +198,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     if extract_success:
         shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
         if INJECT_APEX_VENDOR_FILES:
+            logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
             inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name)
@@ -215,8 +216,9 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                                   lunch_target,
                                                                                   canned_fs_config)
                 if is_success:
-                    logging.info(f"APEX container creation success: {apex_out_file}...start injecting AVB public key")
+                    logging.info(f"APEX container creation success: {apex_out_file}")
                     if REPLACE_AVB_KEYS:
+                        logging.info(f"Overwriting AVB keys for APEX: {apex_out_file}")
                         is_success, log_message = inject_apex_avb_public_key(input_apex,
                                                                              avb_pub_key_path,
                                                                              target_out_path)
@@ -225,7 +227,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                     log_message = f"APEX container creation failed. {log_message}"
         else:
             log_message = f"APEX manifest file not found. {input_apex} | apex_manifest_path: {apex_manifest_path}"
-    logging.info(f"APEX merge_apex_files success: {is_success} | {log_message} | {apex_out_file}")
+    logging.info(f"APEX merge_apex_files success: {is_success} | {log_message} | out: {apex_out_file}")
     return is_success, log_message
 
 
@@ -339,10 +341,12 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     logging.info(info)
 
     if REPLACE_AVB_KEYS:
+        logging.info(f"Generating new AVB keys for APEX: {apex_file_name}")
         is_success, log_message, temp_keys_dir, private_key_path, priv_pem_file_path, public_key_path, avb_pub_key_path = (
             generate_apex_keys(apex_root_path, apex_file_name))
         extract_avb_public_key(aosp_path, private_key_path, avb_pub_key_path)
     else:
+        logging.info(f"Using default AVB keys for APEX: {apex_file_name}")
         private_key_path, priv_pem_file_path, avb_pub_key_path = get_apex_default_keys(aosp_path, apex_file_name)
 
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
