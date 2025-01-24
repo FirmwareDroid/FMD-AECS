@@ -184,21 +184,21 @@ REMOVE_APEX_APK_FILE = True
 REPLACE_AVB_KEYS = False
 
 APEX_DEFAULT_PATHS_DICT = {
-    "com.android.sdkext": "packages/modules/SdkExtensions",
-    "com.android.extservices": "packages/modules/ExtServices/apex",
-    "com.android.wifi": "packages/modules/Wifi/apex",
-    "com.android.tethering": "packages/modules/Connectivity/Tethering/apex",
-    "com.android.i18n": "packages/modules/RuntimeI18n/apex",
-    "com.android.vndk.current": "packages/modules/vndk/apex",
-    "com.android.ipsec": "packages/modules/IPsec/apex",
-    "com.android.scheduling": "packages/modules/Scheduling/apex",
-    "com.android.adbd": "packages/modules/adb/apex",
-    "com.android.os.statsd": "packages/modules/StatsD/apex",
-    "com.android.resolv": "packages/modules/DnsResolver/apex",
-    "com.android.neuralnetworks": "packages/modules/NeuralNetworks/apex",
-    "com.android.cellbroadcast": "packages/apps/CellBroadcastReceiver/apex",
-    "com.android.mediaprovider": "packages/providers/MediaProvider/apex",
-    "com.android.telephony": "packages/services/Telephony/apex",
+    "sdkext": "packages/modules/SdkExtensions",
+    "extservices": "packages/modules/ExtServices/apex",
+    "wifi": "packages/modules/Wifi/apex",
+    "tethering": "packages/modules/Connectivity/Tethering/apex",
+    "i18n": "packages/modules/RuntimeI18n/apex",
+    "vndk": "packages/modules/vndk/apex",
+    "ipsec": "packages/modules/IPsec/apex",
+    "scheduling": "packages/modules/Scheduling/apex",
+    "adbd": "packages/modules/adb/apex",
+    "statsd": "packages/modules/StatsD/apex",
+    "resolv": "packages/modules/DnsResolver/apex",
+    "neuralnetworks": "packages/modules/NeuralNetworks/apex",
+    "cellbroadcast": "packages/apps/CellBroadcastReceiver/apex",
+    "mediaprovider": "packages/providers/MediaProvider/apex",
+    "telephony": "packages/services/Telephony/apex",
 }
 
 

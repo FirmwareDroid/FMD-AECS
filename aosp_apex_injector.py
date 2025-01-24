@@ -300,20 +300,21 @@ def get_aosp_default_keys(aosp_path):
     return priv_key_path, pub_key_path
 
 def get_apex_default_keys(aosp_path, apex_file_name):
-    apex_file_name_no_extension = apex_file_name.replace(".v2.apex", "").replace(".v2.capex", "")
-    logging.info(f"APEX: Getting default keys for: {apex_file_name_no_extension}")
-    if apex_file_name_no_extension in APEX_DEFAULT_PATHS_DICT.keys():
-        module_path = str(os.path.join(aosp_path, APEX_DEFAULT_PATHS_DICT[apex_file_name]))
-        priv_pem_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pem")
-        priv_key_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pk8")
-        pub_key_path = os.path.join(module_path, apex_file_name_no_extension + ".avbpubkey")
-        logging.info(f"APEX: Default keys found: {priv_key_file_path} | {priv_pem_file_path} | {pub_key_path}")
-        if os.path.exists(priv_key_file_path) and os.path.exists(priv_pem_file_path) and os.path.exists(pub_key_path):
-            return str(priv_key_file_path), str(priv_pem_file_path), str(pub_key_path)
-        else:
-            raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Key files not found in {module_path}.")
-    else:
-        raise ValueError(f"Error getting APEX default keys: {apex_file_name}")
+    apex_split_name_list = apex_file_name.split(".")
+    logging.info(f"APEX: Getting default keys for: {apex_split_name_list}")
+    for key, value in APEX_DEFAULT_PATHS_DICT.items():
+        if key in apex_split_name_list:
+            apex_file_name_no_extension = apex_file_name.replace(".v2.apex", "").replace(".v2.capex", "")
+            module_path = str(os.path.join(aosp_path, value))
+            priv_pem_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pem")
+            priv_key_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pk8")
+            pub_key_path = os.path.join(module_path, apex_file_name_no_extension + ".avbpubkey")
+            logging.info(f"APEX: Default keys found: {priv_key_file_path} | {priv_pem_file_path} | {pub_key_path}")
+            if os.path.exists(priv_key_file_path) and os.path.exists(priv_pem_file_path) and os.path.exists(pub_key_path):
+                return str(priv_key_file_path), str(priv_pem_file_path), str(pub_key_path)
+            else:
+                raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Key files not found in {module_path}.")
+    raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Key files not found in {APEX_DEFAULT_PATHS_DICT}")
 
 
 def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config):
