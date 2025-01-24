@@ -146,11 +146,16 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                     error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
                 elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
                     if ALLOW_APEX_INJECTION:
-                        error_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
+                        logging.info(f"Injecting APEX file: {file_path} with module type: {module_type}")
+                        is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
+                        if not is_merge_success:
+                            error_message = f"Error repacking APEX file: {file_path}|{log_message}"
 
                 if not error_message:
                     inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path,
                                                                allow_file_overwrite)
+                else:
+                    logging.info(f"File not further processed: {file_path} | {error_message}")
 
                 with open(processed_marker, 'w') as marker:
                     marker.write("")

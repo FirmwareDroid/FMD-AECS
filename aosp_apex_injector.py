@@ -12,6 +12,10 @@ from shell_command import execute_shell_command
 from config_post_injector import *
 
 def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
+    """
+    Merges two apex file into one. Overwrite the apex of the vendor for later injection.
+    """
+    is_merge_success = False
     org_apex_file = f"{file_path}.original_apex"
     if os.path.exists(org_apex_file):
         logging.info(f"Original APEX file found - restoring: {org_apex_file}")
@@ -27,12 +31,12 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path)
     if apex_emulator_folder and os.path.exists(apex_emulator_folder):
         logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
-        is_repack_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path)
+        is_merge_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path)
         shutil.copyfile(apex_out_file, file_path)
-        logging.info(f"Merging APEX file complete: {file_path} | {is_repack_success} | {log_message}")
+        logging.info(f"Merging APEX file complete: {apex_out_file} overwrites {file_path} | {is_merge_success} | {log_message}")
     else:
         log_message = f"Error merging APEX file: {file_path} no emulator folder found in: {target_out_path}"
-    return log_message
+    return is_merge_success, log_message
 
 def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
     """
@@ -221,7 +225,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                     log_message = f"APEX container creation failed. {log_message}"
         else:
             log_message = f"APEX manifest file not found. {input_apex} | apex_manifest_path: {apex_manifest_path}"
-    logging.info(f"APEX merge_apex_files success: {is_success} | {log_message}")
+    logging.info(f"APEX merge_apex_files success: {is_success} | {log_message} | {apex_out_file}")
     return is_success, log_message
 
 
