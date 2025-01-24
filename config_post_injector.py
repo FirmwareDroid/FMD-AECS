@@ -199,6 +199,7 @@ APEX_DEFAULT_PATHS_DICT = {
     "cellbroadcast": "packages/apps/CellBroadcastReceiver/apex",
     "mediaprovider": "packages/providers/MediaProvider/apex",
     "telephony": "packages/services/Telephony/apex",
+    "permission": "packages/modules/Permission/apex",
 }
 
 
