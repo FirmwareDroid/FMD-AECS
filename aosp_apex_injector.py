@@ -212,9 +212,10 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                                   canned_fs_config)
                 if is_success:
                     logging.info(f"APEX container creation success: {apex_out_file}...start injecting AVB public key")
-                    is_success, log_message = inject_apex_avb_public_key(input_apex,
-                                                                         avb_pub_key_path,
-                                                                         target_out_path)
+                    if REPLACE_AVB_KEYS:
+                        is_success, log_message = inject_apex_avb_public_key(input_apex,
+                                                                             avb_pub_key_path,
+                                                                             target_out_path)
                 else:
                     logging.error(f"APEX container creation failed: {apex_out_file} | {log_message}")
                     log_message = f"APEX container creation failed. {log_message}"
@@ -298,6 +299,21 @@ def get_aosp_default_keys(aosp_path):
     pub_key_path = os.path.join(aosp_path, "build/target/product/security/testkey.avbpubkey")
     return priv_key_path, pub_key_path
 
+def get_apex_default_keys(aosp_path, apex_file_name):
+    if apex_file_name in APEX_DEFAULT_PATHS_DICT.keys():
+        apex_file_name_no_extension = apex_file_name.replace(".apex", "").replace(".capex", "")
+        module_path = str(os.path.join(aosp_path, APEX_DEFAULT_PATHS_DICT[apex_file_name]))
+        priv_pem_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pem")
+        priv_key_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pk8")
+        pub_key_path = os.path.join(module_path, apex_file_name_no_extension + ".avbpubkey")
+        logging.info(f"APEX: Default keys found: {priv_key_file_path} | {priv_pem_file_path} | {pub_key_path}")
+        if os.path.exists(priv_key_file_path) and os.path.exists(priv_pem_file_path) and os.path.exists(pub_key_path):
+            return str(priv_key_file_path), str(priv_pem_file_path), str(pub_key_path)
+        else:
+            raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Key files not found in {module_path}.")
+    else:
+        raise ValueError(f"Error getting APEX default keys: {apex_file_name}")
+
 
 def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config):
     success = False
@@ -307,17 +323,16 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     apex_file_name = os.path.basename(output_file_path)
     info = f"APEX: Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
     logging.info(info)
-    temp_keys_dir = tempfile.mkdtemp(dir=apex_root_path, suffix="_apex_keys")
-    priv_key_path = os.path.join(temp_keys_dir, f"{apex_file_name}.key")
-    priv_pem_file_path = os.path.join(temp_keys_dir, f"{apex_file_name}.pem")
-    pub_key_path = os.path.join(temp_keys_dir, f"{apex_file_name}.pubkey")
-    avb_pub_key_path = os.path.join(temp_keys_dir, f"{apex_file_name}.avbpubkey")
-    generate_apex_keys(priv_key_path, pub_key_path, priv_pem_file_path)
-    shutil.copytree(temp_keys_dir, os.path.join(aosp_path, "build/target/product/security/"), dirs_exist_ok=True)
-    #priv_key_path, avb_pub_key_path = get_aosp_default_keys(aosp_path)
-    extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
+
+    if REPLACE_AVB_KEYS:
+        is_success, log_message, temp_keys_dir, private_key_path, priv_pem_file_path, public_key_path, avb_pub_key_path = (
+            generate_apex_keys(apex_root_path, apex_file_name))
+        extract_avb_public_key(aosp_path, private_key_path, avb_pub_key_path)
+    else:
+        private_key_path, priv_pem_file_path, avb_pub_key_path = get_apex_default_keys(aosp_path, apex_file_name)
+
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
-              f"--key={priv_key_path} " \
+              f"--key={private_key_path} " \
               f"--pubkey={avb_pub_key_path} " \
               f"--apexer_tool_path={aosp_path}out/host/linux-x86/bin/:{aosp_path}out/soong/host/linux-x86/bin/ " \
               f"--file_contexts={FILE_CONTEXT_TEMPLATE_PATH} " \
@@ -333,7 +348,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
         and os.path.exists(canned_fs_config.name) \
         and os.path.exists(FILE_CONTEXT_TEMPLATE_PATH) \
         and os.path.exists(avb_pub_key_path) \
-        and os.path.exists(priv_key_path):
+        and os.path.exists(private_key_path):
         log_files_in_dir(apex_root_path)
         is_success, log_message = execute_shell_command(command, aosp_path)
         if is_success and os.path.exists(output_file_path):
@@ -635,7 +650,17 @@ def copy_android_prebuilt_jar(aosp_path, apex_root_path):
         shutil.copy2(android_jar_file_path, extract_android_jar_file_path, follow_symlinks=False)
 
 
-def generate_apex_keys(private_key_path, public_key_path, pem_file_path):
+def create_key_paths(apex_root_path, apex_file_name):
+    temp_keys_dir = tempfile.mkdtemp(dir=apex_root_path, suffix="_apex_keys")
+    priv_key_path = os.path.join(temp_keys_dir, f"{apex_file_name}.key")
+    priv_pem_file_path = os.path.join(temp_keys_dir, f"{apex_file_name}.pem")
+    pub_key_path = os.path.join(temp_keys_dir, f"{apex_file_name}.pubkey")
+    avb_pub_key_path = os.path.join(temp_keys_dir, f"{apex_file_name}.avbpubkey")
+    return temp_keys_dir, priv_key_path, priv_pem_file_path, pub_key_path, avb_pub_key_path
+
+
+def generate_apex_keys(apex_root_path, apex_file_name):
+    temp_keys_dir, private_key_path, priv_pem_file_path, public_key_path, avb_pub_key_path = create_key_paths(apex_root_path, apex_file_name)
     is_success = False
     command = [
         'openssl', 'req', '-x509', '-newkey', 'rsa:4096', '-keyout', private_key_path,
@@ -650,11 +675,11 @@ def generate_apex_keys(private_key_path, public_key_path, pem_file_path):
         log_message = result.stdout
         with open(private_key_path, "rb") as key_file:
             private_key = key_file.read()
-        with open(pem_file_path, "wb") as pem_out:
+        with open(priv_pem_file_path, "wb") as pem_out:
             pem_out.write(private_key)
-        logging.info(f"PEM file generated successfully: {pem_file_path}")
+        logging.info(f"PEM file generated successfully: {priv_pem_file_path}")
         is_success = True
-    return is_success, log_message
+    return is_success, log_message, temp_keys_dir, private_key_path, priv_pem_file_path, public_key_path, avb_pub_key_path
 
 
 def generate_apex_keys_p12(private_key_path, public_key_path, p12_path):
