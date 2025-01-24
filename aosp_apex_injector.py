@@ -309,8 +309,6 @@ def get_apex_default_keys(aosp_path, apex_file_name):
                 apex_file_name_no_extension = f"com.android.vndk.current"
             elif key == "statsd":
                 apex_file_name_no_extension = f"com.android.os.statsd"
-            elif key == "resolv":
-                apex_file_name_no_extension = f"com.android.os.statsd"
             elif key == "swcodec":
                 apex_file_name_no_extension = f"com.android.media.swcodec"
 
