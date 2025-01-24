@@ -100,6 +100,7 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         "vendor.qti.hardware",
                         "qti",
                         "secureboot",
+                        "_apex"         # Skipped all files from extracted apex folder
                         ]
 
 # "dex2oat"
