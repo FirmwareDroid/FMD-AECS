@@ -151,7 +151,7 @@ ALLOWED_KEYWORD = ["Overlay",
 # "com.google.mainline.primary.libs.apex", -> Skipped is added via pre-injector
 
 # "com.android.apex.cts.shim.apex", ->  Not important
-# "com.android.vndk.current.apex",  # No Injection: Problematic updates many com.android.hardware libraries
+# ,  # No Injection: Problematic updates many com.android.hardware libraries
 ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.tethering.apex",
                             #"com.android.i18n.apex",
@@ -160,6 +160,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.wifi.apex",
                             "com.google.android.cellbroadcast.apex",
                             "com.google.android.mediaprovider.apex",
+                            #"com.android.vndk.current.apex",
                             #"com.google.android.sdkext.apex",
                             #"com.google.android.ipsec.apex",
                             #"com.google.android.resolv.apex",
@@ -180,6 +181,27 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
 ALLOW_APEX_INJECTION = True
 INJECT_APEX_VENDOR_FILES = False
 REMOVE_APEX_APK_FILE = True
+REPLACE_AVB_KEYS = False
+
+APEX_DEFAULT_PATHS_DICT = {
+    "com.android.sdkext": "packages/modules/SdkExtensions",
+    "com.android.extservices": "packages/modules/ExtServices/apex",
+    "com.android.wifi": "packages/modules/Wifi/apex",
+    "com.android.tethering": "packages/modules/Connectivity/Tethering/apex",
+    "com.android.i18n": "packages/modules/RuntimeI18n/apex",
+    "com.android.vndk.current": "packages/modules/vndk/apex",
+    "com.android.ipsec": "packages/modules/IPsec/apex",
+    "com.android.scheduling": "packages/modules/Scheduling/apex",
+    "com.android.adbd": "packages/modules/adb/apex",
+    "com.android.os.statsd": "packages/modules/StatsD/apex",
+    "com.android.resolv": "packages/modules/DnsResolver/apex",
+    "com.android.neuralnetworks": "packages/modules/NeuralNetworks/apex",
+    "com.android.cellbroadcast": "packages/apps/CellBroadcastReceiver/apex",
+    "com.android.mediaprovider": "packages/providers/MediaProvider/apex",
+    "com.android.telephony": "packages/services/Telephony/apex",
+}
+
+
 
 ALLOW_APEX_FILE_INJECT = ["derive_classpath.rc",
                           "derive_sdk.rc",
