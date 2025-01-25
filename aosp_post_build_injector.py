@@ -150,6 +150,8 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                         is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
                         if not is_merge_success:
                             error_message = f"Error repacking APEX file: {file_path}|{log_message}"
+                        else:
+                            error_message = None
 
                 if not error_message:
                     inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path,

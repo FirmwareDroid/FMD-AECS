@@ -208,7 +208,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
                 logging.info(f"APEX manifest file found: {apex_manifest_path}...start container creation")
-                is_success, log_message, avb_pub_key_path, priv_key_path = create_apex_container(apex_manifest_path,
+                is_success, log_message, avb_pub_key_path, priv_pem_file_path = create_apex_container(apex_manifest_path,
                                                                                   merged_apex_extract_dir_path,
                                                                                   apex_root_path,
                                                                                   aosp_path,
@@ -321,11 +321,14 @@ def get_apex_default_keys(aosp_path, apex_file_name):
             module_path = str(os.path.join(aosp_path, value))
             priv_pem_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pem")
             priv_key_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pk8")
-            pub_key_path = os.path.join(module_path, apex_file_name_no_extension + ".avbpubkey")
-            if os.path.exists(priv_key_file_path) and os.path.exists(priv_pem_file_path) and os.path.exists(pub_key_path):
-                logging.info(
-                    f"APEX: Default keys found: {priv_key_file_path} | {priv_pem_file_path} | {pub_key_path} | {apex_file_name_no_extension}")
-                return str(priv_key_file_path), str(priv_pem_file_path), str(pub_key_path)
+            avb_pub_key_path = os.path.join(module_path, apex_file_name_no_extension + ".avbpubkey")
+
+            if os.path.exists(priv_key_file_path) and os.path.exists(priv_pem_file_path) and os.path.exists(avb_pub_key_path):
+                logging.info(f"APEX: Default keys found: {priv_key_file_path} "
+                             f"| {priv_pem_file_path} "
+                             f"| {avb_pub_key_path} "
+                             f"| {apex_file_name_no_extension}")
+                return str(priv_key_file_path), str(priv_pem_file_path), str(avb_pub_key_path)
             else:
                 raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Key files not found in {module_path}.")
     raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Key files not found in {APEX_DEFAULT_PATHS_DICT}")
@@ -773,6 +776,7 @@ def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_pat
     """
     is_success = False
     apex_filename = os.path.basename(apex_file_path)
+    # TODO add better file matching
     apex_filename_no_ext = os.path.splitext(apex_filename)[0].replace(".google", "").replace("Google", "")
 
     apex_pub_key_obj_path = str(os.path.join(target_out_path, FOLDER_NAME_OBJECTS, "ETC",

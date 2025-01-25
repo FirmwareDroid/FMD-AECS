@@ -180,7 +180,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
 ALLOW_APEX_INJECTION = True
 INJECT_APEX_VENDOR_FILES = False
 REMOVE_APEX_APK_FILE = True
-REPLACE_AVB_KEYS = False
+REPLACE_AVB_KEYS = True
 
 APEX_DEFAULT_PATHS_DICT = {
     "sdkext": "packages/modules/SdkExtensions",
