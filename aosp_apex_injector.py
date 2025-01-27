@@ -589,7 +589,6 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, aosp_path, a
                 manifest_json_file_path = get_apex_manifest_from_aosp(aosp_path, apex_file_name)
                 manifest_dst = os.path.join(output_dir_path, "apex_manifest.pb")
                 convert_apex_manifest_json_to_pb(manifest_json_file_path, manifest_dst)
-                shutil.copyfile(manifest_json_file_path, manifest_dst, follow_symlinks=False)
                 logging.info(f"Copied APEX manifest file: {manifest_json_file_path} to {output_dir_path}.")
                 if os.path.exists(manifest_dst):
                     is_apex_manifest_file_found = True
