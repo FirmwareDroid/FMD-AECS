@@ -73,6 +73,12 @@ SKIPPED_BINARY_LIST = [
                        ".data.img.raw",
                        ".super.img.raw",
                        "libgatekeeper.so",
+                       "apex_pubkey",
+                       "apex_manifest.json",
+                       "apex_payload.img",
+                       "apex_manifest.pb",
+                       "apex_build_info.pb",
+                       "AndroidManifest.xml",
                        ]
 # "libminijail.so",
 # "libavservices_minijail_vendor.so",
@@ -180,7 +186,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
 ALLOW_APEX_INJECTION = True
 INJECT_APEX_VENDOR_FILES = False
 REMOVE_APEX_APK_FILE = True
-REPLACE_AVB_KEYS = True
+REPLACE_AVB_KEYS = False
 
 APEX_DEFAULT_PATHS_DICT = {
     "sdkext": "packages/modules/SdkExtensions",
