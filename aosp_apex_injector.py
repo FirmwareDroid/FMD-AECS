@@ -587,7 +587,8 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, aosp_path, a
                     logging.info(f"Found APEX manifest file: {file_path} to delete")
                     os.remove(file_path)
                 manifest_json_file_path = get_apex_manifest_from_aosp(aosp_path, apex_file_name)
-                shutil.copyfile(manifest_json_file_path, output_dir_path, follow_symlinks=False)
+                manifest_dst = os.path.join(output_dir_path, "apex_manifest.json")
+                shutil.copyfile(manifest_json_file_path, manifest_dst, follow_symlinks=False)
                 logging.info(f"Copied APEX manifest file: {manifest_json_file_path} to {output_dir_path}.")
                 result_file_path = str(os.path.join(output_dir_path, file))
                 if os.path.exists(result_file_path):
@@ -601,8 +602,13 @@ def get_apex_manifest_from_aosp(aosp_path, apex_file_name):
     for key, value in APEX_DEFAULT_PATHS_DICT.items():
         if key in apex_split_name_list:
             manifest_file_path = os.path.join(aosp_path, value, "apex_manifest.json")
+            manifest_file_path2 = os.path.join(aosp_path, value, "manifest.json")
             if os.path.exists(manifest_file_path):
+                logging.info(f"APEX apex_manifest.json file found: {manifest_file_path}")
                 return manifest_file_path
+            elif os.path.exists(manifest_file_path2):
+                logging.info(f"APEX apex_manifest.json file found: {manifest_file_path2}")
+                return manifest_file_path2
             else:
                 raise ValueError(f"Error getting APEX manifest file: {apex_file_name}. Manifest file not found in {manifest_file_path}.")
 
