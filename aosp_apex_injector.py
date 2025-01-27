@@ -63,7 +63,9 @@ def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
                 generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
 
-            is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
+            raise RuntimeError("Need to implement the following functions")
+            is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path,
+                                                                            aosp_path, filename)
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
                 is_success, log_message, avb_pub_key_path, priv_pem_file_path = create_apex_container(apex_manifest_path,
@@ -203,7 +205,8 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name)
 
-        is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path, apex_root_path)
+        is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path, apex_root_path,
+                                                                        aosp_path, filename_input)
         if is_manifest_found and os.path.exists(apex_manifest_path):
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
@@ -560,7 +563,7 @@ def create_apex_manifest_file(apex_extract_dir_path, apex_package_name):
         manifest_file.write(rendered_template)
 
 
-def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
+def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, aosp_path, apex_file_name):
     """
     Searches for the APEX manifest file in the APEX extract directory and moves it to the current directory.
     Moving is necessary because the apexer tool requires the manifest file to be in the same directory as the APEX files and not in
@@ -579,16 +582,30 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
         for file in files:
             if file == "apex_manifest.pb":
                 file_path = str(os.path.join(root, file))
-                shutil.move(file_path, str(os.path.join(output_dir_path, file)))
+                #shutil.move(file_path, str(os.path.join(output_dir_path, file)))
                 if os.path.exists(file_path):
+                    logging.info(f"Found APEX manifest file: {file_path} to delete")
                     os.remove(file_path)
-                logging.info(f"Copied APEX manifest file: {file_path} to {output_dir_path}.")
+                manifest_json_file_path = get_apex_manifest_from_aosp(aosp_path, apex_file_name)
+                shutil.copyfile(manifest_json_file_path, output_dir_path, follow_symlinks=False)
+                logging.info(f"Copied APEX manifest file: {manifest_json_file_path} to {output_dir_path}.")
                 result_file_path = str(os.path.join(output_dir_path, file))
                 if os.path.exists(result_file_path):
                     is_apex_manifest_file_found = True
                     logging.info(f"APEX manifest file found: {result_file_path}")
                 break
     return is_apex_manifest_file_found, result_file_path
+
+def get_apex_manifest_from_aosp(aosp_path, apex_file_name):
+    apex_split_name_list = apex_file_name.split(".")
+    for key, value in APEX_DEFAULT_PATHS_DICT.items():
+        if key in apex_split_name_list:
+            manifest_file_path = os.path.join(aosp_path, value, "apex_manifest.json")
+            if os.path.exists(manifest_file_path):
+                return manifest_file_path
+            else:
+                raise ValueError(f"Error getting APEX manifest file: {apex_file_name}. Manifest file not found in {manifest_file_path}.")
+
 
 def search_string_in_apk(apk_file, search_string):
     is_user_id_found = False
