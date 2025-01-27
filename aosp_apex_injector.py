@@ -590,8 +590,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, aosp_path, a
                 manifest_dst = os.path.join(output_dir_path, "apex_manifest.json")
                 shutil.copyfile(manifest_json_file_path, manifest_dst, follow_symlinks=False)
                 logging.info(f"Copied APEX manifest file: {manifest_json_file_path} to {output_dir_path}.")
-                result_file_path = str(os.path.join(output_dir_path, file))
-                if os.path.exists(result_file_path):
+                if os.path.exists(manifest_dst):
                     is_apex_manifest_file_found = True
                     logging.info(f"APEX manifest file found: {result_file_path}")
                 break
