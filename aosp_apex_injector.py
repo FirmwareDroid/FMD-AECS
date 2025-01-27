@@ -361,7 +361,6 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
               f"--apexer_tool_path={aosp_path}out/host/linux-x86/bin/:{aosp_path}out/soong/host/linux-x86/bin/ " \
               f"--file_contexts={FILE_CONTEXT_TEMPLATE_PATH} " \
               f"--canned_fs_config={canned_fs_config.name} " \
-              f"--manifest_json={apex_manifest_path} " \
               f"{apex_extract_dir_path} " \
               f"{output_file_path}"
     logging.info(f"Apexer Repacking command: {command}")
@@ -588,7 +587,8 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, aosp_path, a
                     logging.info(f"Found APEX manifest file: {file_path} to delete")
                     os.remove(file_path)
                 manifest_json_file_path = get_apex_manifest_from_aosp(aosp_path, apex_file_name)
-                manifest_dst = os.path.join(output_dir_path, "apex_manifest.json")
+                manifest_dst = os.path.join(output_dir_path, "apex_manifest.pb")
+                convert_apex_manifest_json_to_pb(manifest_json_file_path, manifest_dst)
                 shutil.copyfile(manifest_json_file_path, manifest_dst, follow_symlinks=False)
                 logging.info(f"Copied APEX manifest file: {manifest_json_file_path} to {output_dir_path}.")
                 if os.path.exists(manifest_dst):
@@ -596,6 +596,16 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, aosp_path, a
                     logging.info(f"APEX manifest file found: {manifest_dst}")
                 break
     return is_apex_manifest_file_found, str(manifest_dst)
+
+def convert_apex_manifest_json_to_pb(apex_manifest_path, output_file_path):
+    command = f"export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python && python3 ./conv_apex_manifest.py {apex_manifest_path} proto {output_file_path}"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    if result.returncode == 0:
+        logging.info(f"APEX: APEX manifest file converted to pb: {output_file_path}")
+    else:
+        raise ValueError(f"APEX: Error converting APEX manifest file to pb: {result.stderr}")
+
+
 
 def get_apex_manifest_from_aosp(aosp_path, apex_file_name):
     apex_split_name_list = apex_file_name.split(".")
