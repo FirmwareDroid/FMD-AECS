@@ -577,7 +577,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, aosp_path, a
     """
     logging.info(f"Copying APEX manifest file.")
     is_apex_manifest_file_found = False
-    result_file_path = None
+    manifest_dst = None
     for root, dirs, files in os.walk(apex_extract_dir_path):
         for file in files:
             if file == "apex_manifest.pb":
@@ -594,7 +594,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, aosp_path, a
                     is_apex_manifest_file_found = True
                     logging.info(f"APEX manifest file found: {manifest_dst}")
                 break
-    return is_apex_manifest_file_found, result_file_path
+    return is_apex_manifest_file_found, str(manifest_dst)
 
 def get_apex_manifest_from_aosp(aosp_path, apex_file_name):
     apex_split_name_list = apex_file_name.split(".")
