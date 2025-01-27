@@ -598,10 +598,13 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, aosp_path, a
     return is_apex_manifest_file_found, str(manifest_dst)
 
 def convert_apex_manifest_json_to_pb(apex_manifest_path, output_file_path):
-    command = f"export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python && python3 ./conv_apex_manifest.py {apex_manifest_path} proto {output_file_path}"
+    command = f"export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python && python3 ./conv_apex_manifest.py proto {apex_manifest_path} -o {output_file_path}"
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    if os.path.exists(output_file_path):
+    logging.info(f"Converting APEX manifest file to pb: {command}")
+    if result.returncode == 0:
         logging.info(f"APEX: APEX manifest file converted to pb: {output_file_path}")
+    else:
+        raise ValueError(f"APEX: Error converting APEX manifest file to pb: {result.stderr}")
 
 
 
