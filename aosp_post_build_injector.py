@@ -510,7 +510,12 @@ def set_executable_permission(file_path):
     :return: bool - True if the permission was set successfully, False otherwise.
     """
     try:
-        os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
+        file_extension = os.path.splitext(file_path)[1]
+        if os.path.exists(file_path) \
+            and not os.path.islink(file_path) \
+            and os.path.isfile(file_path) \
+            and (file_extension is None or file_extension == ".so"):
+                os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
         return True
     except Exception as e:
         logging.warning(f"{e}")
