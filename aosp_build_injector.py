@@ -571,8 +571,11 @@ def clear_base_files(aosp_path, aosp_version):
                 base_file_content = template.render(package_name_list=[])
                 with open(aosp_base_file_path, 'w') as base_file:
                     base_file.write(base_file_content)
+            else:
+                logging.warning(f"Could not find base file in template folder: {aosp_base_file_path}")
     except Exception as err:
         logging.error(err)
+        traceback.print_exc()
         pass
 
 
