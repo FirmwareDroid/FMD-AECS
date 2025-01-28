@@ -563,6 +563,7 @@ def clear_base_files(aosp_path, aosp_version):
     """
     try:
         for base_filename in BASE_FILENAMES:
+            logging.info(f"Clearing base file: {base_filename} for version {aosp_version}")
             aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
             if os.path.exists(aosp_base_file_path):
                 template_folder_abs_path = get_template_folder_path(aosp_version)
