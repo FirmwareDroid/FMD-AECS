@@ -32,7 +32,9 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     if apex_emulator_folder and os.path.exists(apex_emulator_folder):
         logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
         is_merge_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path)
+        os.remove(file_path)
         shutil.copyfile(apex_out_file, file_path)
+        os.remove(apex_out_file)
         logging.info(f"Merging APEX file complete: {apex_out_file} overwrites {file_path} | {is_merge_success} | {log_message}")
     else:
         log_message = f"Error merging APEX file: {file_path} no emulator folder found in: {target_out_path}"
@@ -357,7 +359,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
 
     # f"--pubkey={avb_pub_key_path} " \
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
-              f"--key={private_key_path} " \
+              f"--key={priv_pem_file_path} " \
               f"--apexer_tool_path={aosp_path}out/host/linux-x86/bin/:{aosp_path}out/soong/host/linux-x86/bin/ " \
               f"--file_contexts={FILE_CONTEXT_TEMPLATE_PATH} " \
               f"--canned_fs_config={canned_fs_config.name} " \
