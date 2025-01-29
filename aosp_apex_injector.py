@@ -509,6 +509,9 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                     except Exception as e:
                         logging.error(f"Error deleting file from canned_fs: {file_path} | {e}")
                     continue
+                elif "apex_pubkey" in file_name:
+                    logging.info(f"APEX: SKIPPED apex_pubkey file. File not included: {file_path}")
+                    os.remove(file_path)
 
                 relative_file_path = os.path.relpath(file_path, apex_extract_dir_path)
                 user_id = 1000  # system
