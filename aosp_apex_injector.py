@@ -324,7 +324,7 @@ def get_apex_default_keys(aosp_path, apex_file_name):
                 apex_file_name_no_extension = f"com.android.media.swcodec"
 
             module_path = str(os.path.join(aosp_path, value))
-            priv_pem_file_path = os.path.join(module_path, apex_file_name_no_extension + "x509.pem")
+            priv_pem_file_path = os.path.join(module_path, apex_file_name_no_extension + ".x509.pem")
             priv_key_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pk8")
             avb_pub_key_path = os.path.join(module_path, apex_file_name_no_extension + ".avbpubkey")
 
@@ -335,7 +335,8 @@ def get_apex_default_keys(aosp_path, apex_file_name):
                              f"| {apex_file_name_no_extension}")
                 return str(priv_key_file_path), str(priv_pem_file_path), str(avb_pub_key_path)
             else:
-                raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Key files not found in {module_path}.")
+                raise ValueError(f"Error getting APEX default keys: {apex_file_name}. "
+                                 f"Key files not found in {module_path} with privat: {priv_pem_file_path}.")
     raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Key files not found in {APEX_DEFAULT_PATHS_DICT}")
 
 
