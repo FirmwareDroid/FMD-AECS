@@ -367,8 +367,6 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
         logging.info(f"Using default AVB keys for APEX: {apex_file_name}")
         private_key_path, priv_pem_file_path, avb_pub_key_path = get_apex_default_keys(aosp_path, apex_file_name)
 
-    #
-    #  f"--do_not_check_keyname " \
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
               f"--key={priv_pem_file_path} " \
               f"--pubkey={avb_pub_key_path} " \
@@ -376,6 +374,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
               f"--file_contexts={FILE_CONTEXT_TEMPLATE_PATH} " \
               f"--canned_fs_config={canned_fs_config.name} " \
               f"--include_build_info " \
+              f"--force " \
               f"{apex_extract_dir_path} " \
               f"{output_file_path}"
     logging.info(f"Apexer Repacking command: {command}")
@@ -413,14 +412,6 @@ def log_files_in_dir(dir_path):
 
 def sign_apex_file(file_path, aosp_path):
     error_message = None
-    temp_dir = tempfile.mkdtemp()
-    #private_key_path = os.path.join(temp_dir, "private_key")
-    #public_key_path = os.path.join(temp_dir, "public_key")
-    #signing_key_path = os.path.join(temp_dir, "key.p12")
-    #is_success, log_message = generate_apex_keys_p12(private_key_path, public_key_path, signing_key_path)
-    #logging.info(f"APEX Keys generated: {private_key_path}, {public_key_path}, {signing_key_path}...start signing APEX file: {file_path}")
-
-    #if is_success:
     signing_key_path = get_signing_key_path(aosp_path, "platform")
     is_success, log_message = sign_apk_file(file_path, signing_key_path)
     if is_success:
