@@ -369,13 +369,13 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
 
     #
     #  f"--do_not_check_keyname " \
-    # f"--pubkey={avb_pub_key_path} " \
-    # f"--include_build_info " \
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
               f"--key={priv_pem_file_path} " \
+              f"--pubkey={avb_pub_key_path} " \
               f"--apexer_tool_path={aosp_path}out/host/linux-x86/bin/:{aosp_path}out/soong/host/linux-x86/bin/ " \
               f"--file_contexts={FILE_CONTEXT_TEMPLATE_PATH} " \
               f"--canned_fs_config={canned_fs_config.name} " \
+              f"--include_build_info " \
               f"{apex_extract_dir_path} " \
               f"{output_file_path}"
     logging.info(f"Apexer Repacking command: {command}")

@@ -69,23 +69,6 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     logging.info(f"Number of files processed: {len(error_list) + len(inj_obj_list) + len(inj_partition_list)}")
 
 
-def make_file_executable(root_dir, filename):
-    """
-    Makes the file executable.
-
-    :param root_dir: str - path to the root directory.
-    :param filename: str - name of the file to make executable.
-
-    """
-    logging.info(f"Making file: {filename} executable.")
-    for dirpath, dirnames, filenames in os.walk(root_dir):
-        for name in filenames:
-            if name == filename:
-                file_path = os.path.join(dirpath, name)
-                os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
-                logging.info(f"Made file: {file_path} executable.")
-
-
 def get_folders(directory_path):
     folders = []
     for entry in os.listdir(directory_path):
@@ -516,6 +499,7 @@ def set_executable_permission(file_path):
             and os.path.isfile(file_path) \
             and (file_extension is None or file_extension == ".so"):
                 os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
+        logging.info(f"Set executable permission for file: {file_path}")
         return True
     except Exception as e:
         logging.warning(f"{e}")
@@ -640,7 +624,8 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type):
         shutil.copyfile(source_file_path, new_file_path)
     else:
         shutil.copyfile(source_file_path, original_file_path)
-        os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
+        set_executable_permission(original_file_path)
+        #os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
 
 
 def parse_arguments():
