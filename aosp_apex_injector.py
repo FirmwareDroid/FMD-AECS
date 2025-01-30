@@ -221,7 +221,16 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                                   lunch_target,
                                                                                   canned_fs_config)
                 if is_success:
-                    logging.info(f"APEX container creation success: {apex_out_file}")
+                    is_success, error_message = sign_apex_file(apex_out_file, aosp_path)
+                    if is_success:
+                        logging.info(f"APEX signing success: {apex_out_file}")
+                        success, log_message = verify_apk_file(apex_out_file)
+                        logging.info(f"APEX file verified: {apex_out_file} | {success} | {log_message}")
+                    else:
+                        logging.error(f"APEX signing failed: {apex_out_file} | {error_message}")
+                        log_message = f"APEX signing failed. {error_message}"
+
+
                     if REPLACE_AVB_KEYS:
                         logging.info(f"Overwriting AVB keys for APEX: {apex_out_file}")
                         is_success, log_message = inject_apex_avb_public_key(input_apex,
@@ -358,13 +367,15 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
         logging.info(f"Using default AVB keys for APEX: {apex_file_name}")
         private_key_path, priv_pem_file_path, avb_pub_key_path = get_apex_default_keys(aosp_path, apex_file_name)
 
-    # f"--pubkey={avb_pub_key_path} " \
+    #
     #  f"--do_not_check_keyname " \
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
               f"--key={priv_pem_file_path} " \
+              f"--pubkey={avb_pub_key_path} " \
               f"--apexer_tool_path={aosp_path}out/host/linux-x86/bin/:{aosp_path}out/soong/host/linux-x86/bin/ " \
               f"--file_contexts={FILE_CONTEXT_TEMPLATE_PATH} " \
               f"--canned_fs_config={canned_fs_config.name} " \
+              f"--include_build_info " \
               f"{apex_extract_dir_path} " \
               f"{output_file_path}"
     logging.info(f"Apexer Repacking command: {command}")
@@ -376,15 +387,15 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
         and os.path.exists(canned_fs_config.name) \
         and os.path.exists(FILE_CONTEXT_TEMPLATE_PATH) \
         and os.path.exists(avb_pub_key_path) \
-        and os.path.exists(private_key_path):
+        and os.path.exists(priv_pem_file_path):
         log_files_in_dir(apex_root_path)
         is_success, log_message = execute_shell_command(command, aosp_path)
         if is_success and os.path.exists(output_file_path):
             logging.info(f"APEX create_apex_container success: {output_file_path}. Command-Log: {log_message}")
             success = True
         else:
-            logging.error(f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info}")
             log_message = f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info}"
+            logging.error(f"{log_message}")
     else:
         log_message = f"APEX create_apex_container failed. Error-Info: Missing files. Debug INFO: {info}"
 
