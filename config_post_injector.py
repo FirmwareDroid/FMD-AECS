@@ -164,8 +164,8 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.cellbroadcast.apex",
                             "com.google.android.mediaprovider.apex",
                             "com.google.android.permission.apex",
-                            "com.google.android.hardwareinfo.xml",
                             "com.google.android.extservices.apex",
+                            "com.google.android.hardwareinfo.xml",
                             "vndservicemanager.rc",
                             ]
 # "com.android.i18n.apex",
@@ -213,6 +213,38 @@ APEX_DEFAULT_PATHS_DICT = {
     "media": "frameworks/av/apex",
 }
 
+LIST_SINGLETON_APPS = [
+    "PackageInstaller.apk",          # com.android.packageinstaller
+    "SystemUI.apk",                  # com.android.systemui
+    "Settings.apk",                  # com.android.settings
+    "Telecom.apk",                   # com.android.server.telecom
+    "ContactsProvider.apk",          # com.android.providers.contacts
+    "MediaProvider.apk",             # com.android.providers.media
+    "PermissionController.apk",      # com.android.permissioncontroller
+    "LatinIME.apk",                  # com.android.inputmethod.latin
+    "Dialer.apk",                    # com.android.dialer
+    "NetworkStack.apk",              # com.android.networkstack -> Removing works
+    "DocumentsUI.apk",               # com.android.documentsui
+    "Provision.apk",                 # com.android.provision
+    #"MediaProvider.apx"
+    #"CellBroadcastApp.apk",          #  com.android.cellbroadcast
+    #"CellBroadcastServiceModule.apk", # com.android.cellbroadcast
+    #"OsuLogin.apk",                  # com.android.hotspot2.osulogin
+    #"ServiceWifiResources.apk",      # com.android.wifi.resources
+    #"Tethering.apk",
+    #"ServiceConnectivityResources.apk"
+    #"Launcher3.apk",                 # com.android.launcher3
+    #"Phone.apk",                     # com.android.phone
+    #"TeleService.apk"                # com.android.phone.IccProvider
+    #"DownloadProvider.apk",          # com.android.providers.downloads
+    #"Messaging.apk",                 # com.android.messaging
+    #"BackupTransport.apk",           # com.android.backuptransport
+    #"Updater.apk",                   # com.android.updater
+    #"DevicePolicyManager.apk",       # com.android.devicepolicy
+    #"PlayServices.apk",              # com.google.android.gms
+    #"WebView.apk"                    # com.android.webview
+]
+
 
 
 ALLOW_APEX_FILE_INJECT = ["derive_classpath.rc",
@@ -235,28 +267,7 @@ COPY_TO_SPECIFIC_PATH = {
 FILES_TO_MODIFY = ["systemserverclasspath.pb", "bootclasspath.pb"]
 
 
-LIST_SINGLETON_APPS = [
-    "PackageInstaller.apk",          # com.android.packageinstaller
-    "SystemUI.apk",                  # com.android.systemui
-    "Settings.apk",                  # com.android.settings
-    "Telecom.apk",                   # com.android.server.telecom
-    "ContactsProvider.apk",          # com.android.providers.contacts
-    "MediaProvider.apk",             # com.android.providers.media
-    "PermissionController.apk",      # com.android.permissioncontroller
-    "LatinIME.apk",                  # com.android.inputmethod.latin
-    "Dialer.apk",                    # com.android.dialer
-    "NetworkStack.apk",              # com.android.networkstack -> Removing works
-    #"Launcher3.apk",                 # com.android.launcher3
-    #"Phone.apk",                     # com.android.phone
-    #"TeleService.apk"                # com.android.phone.IccProvider
-    #"DownloadProvider.apk",          # com.android.providers.downloads
-    #"Messaging.apk",                 # com.android.messaging
-    #"BackupTransport.apk",           # com.android.backuptransport
-    #"Updater.apk",                   # com.android.updater
-    #"DevicePolicyManager.apk",       # com.android.devicepolicy
-    #"PlayServices.apk",              # com.google.android.gms
-    #"WebView.apk"                    # com.android.webview
-]
+
 
 
 

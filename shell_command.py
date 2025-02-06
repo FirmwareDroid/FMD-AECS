@@ -28,6 +28,6 @@ def execute_command(command):
         is_success = True
         log = result.stdout.decode('utf-8', errors='ignore').strip()
     else:
-        log = result.stderr.decode('utf-8', errors='ignore').strip()
+        log = f"Return code: {result.returncode} with message: {result.stderr.decode('utf-8', errors='ignore').strip()}"
 
     return is_success, log
