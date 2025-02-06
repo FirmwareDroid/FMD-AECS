@@ -213,7 +213,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
                 logging.info(f"APEX manifest file found: {apex_manifest_path}...start container creation")
-                is_success, log_message, avb_pub_key_path, priv_pem_file_path = create_apex_container(apex_manifest_path,
+                is_success, log_message, avb_pub_key_path, priv_pem_file_path, priv_key_apex_apk_path = create_apex_container(apex_manifest_path,
                                                                                   merged_apex_extract_dir_path,
                                                                                   apex_root_path,
                                                                                   aosp_path,
@@ -221,7 +221,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                                   lunch_target,
                                                                                   canned_fs_config)
                 if is_success:
-                    is_success, error_message = sign_apex_file(apex_out_file, aosp_path)
+                    is_success, error_message = sign_apex_file(apex_out_file, aosp_path, priv_key_apex_apk_path)
                     if is_success:
                         logging.info(f"APEX signing success: {apex_out_file}")
                         success, log_message = verify_apk_file(apex_out_file)
@@ -335,13 +335,17 @@ def get_apex_default_keys(aosp_path, apex_file_name):
             priv_pem_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pem")
             priv_key_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pk8")
             avb_pub_key_path = os.path.join(module_path, apex_file_name_no_extension + ".avbpubkey")
+            priv_key_apex_apk_path = os.path.join(module_path, apex_file_name_no_extension + ".pk8")
 
-            if os.path.exists(priv_key_file_path) and os.path.exists(priv_pem_file_path) and os.path.exists(avb_pub_key_path):
+            if (os.path.exists(priv_key_file_path)
+                    and os.path.exists(priv_pem_file_path)
+                    and os.path.exists(avb_pub_key_path)
+                    and os.path.exists(priv_key_apex_apk_path)):
                 logging.info(f"APEX: Default keys found: {priv_key_file_path} "
                              f"| {priv_pem_file_path} "
                              f"| {avb_pub_key_path} "
                              f"| {apex_file_name_no_extension}")
-                return str(priv_key_file_path), str(priv_pem_file_path), str(avb_pub_key_path)
+                return str(priv_key_file_path), str(priv_pem_file_path), str(avb_pub_key_path), str(priv_key_apex_apk_path)
             else:
                 raise ValueError(f"Error getting APEX default keys: {apex_file_name}. "
                                  f"Key files not found in {module_path} with privat: {priv_pem_file_path}.")
@@ -364,7 +368,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
         extract_avb_public_key(aosp_path, private_key_path, avb_pub_key_path)
     else:
         logging.info(f"Using default AVB keys for APEX: {apex_file_name}")
-        private_key_path, priv_pem_file_path, avb_pub_key_path = get_apex_default_keys(aosp_path, apex_file_name)
+        private_key_path, priv_pem_file_path, avb_pub_key_path, priv_key_apex_apk_path = get_apex_default_keys(aosp_path, apex_file_name)
 
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
               f"--key={priv_pem_file_path} " \
@@ -397,7 +401,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     else:
         log_message = f"APEX create_apex_container failed. Error-Info: Missing files. Debug INFO: {info}"
 
-    return success, log_message, avb_pub_key_path, priv_pem_file_path
+    return success, log_message, avb_pub_key_path, priv_pem_file_path, priv_key_apex_apk_path
 
 def log_files_in_dir(dir_path):
     files_and_dirs = []
@@ -409,16 +413,16 @@ def log_files_in_dir(dir_path):
     logging.info(f"APEX: Files and directories in {dir_path}: {files_and_dirs}")
 
 
-def sign_apex_file(file_path, aosp_path):
+def sign_apex_file(file_path, aosp_path, priv_key_apex_apk_path):
     error_message = None
-    signing_key_path = get_signing_key_path(aosp_path, "platform")
-    is_success, log_message = sign_apk_file(file_path, signing_key_path)
+    #signing_key_path = get_signing_key_path(aosp_path, "platform")
+    is_success, log_message = sign_apk_file(file_path, priv_key_apex_apk_path)
     if is_success:
-        logging.info(f"APEX file signed: {file_path} with key: {signing_key_path}")
+        logging.info(f"APEX file signed: {file_path} with key: {priv_key_apex_apk_path}")
         success, log_message = verify_apk_file(file_path)
         logging.info(f"APEX file verified: {file_path} | {success} | {log_message}")
     else:
-        error_message = f"Error signing APEX file: {file_path}|{signing_key_path}|{log_message}"
+        error_message = f"Error signing APEX file: {file_path}|{priv_key_apex_apk_path}|{log_message}"
     #else:
     #    logging.error(f"Error generating APEX keys:  {log_message}")
     #    error_message = f"Error generating APEX keys: {log_message}"
