@@ -21,7 +21,10 @@ def handle_apk_signing(file_path, aosp_path):
     if not error_message:
         is_success, log_message = sign_apk_file(file_path, signing_key_path)
         if not is_success:
-            error_message = f"Error signing APK file: {signing_key}|{signing_key_path}|{error_message}"
+            error_message = (f"Error signing APK file with apksigner: "
+                             f"Key:{signing_key}|"
+                             f"Key Path: {signing_key_path}|"
+                             f"Message:{error_message}")
         else:
             logging.info(f"APK file signed: {file_path} with key: {signing_key}")
 
@@ -74,6 +77,7 @@ def sign_apk_file(apk_file_path, signing_key_path, v2_signing_enabled=True, v3_s
                     '--v3-signing-enabled', str(v3_signing_enabled).lower(),
                     '--v4-signing-enabled', str(v4_signing_enabled).lower(),
                     '--ks-pass', 'pass:',
+                    '--verbose',
                     '--in', apk_file_path,
                     '--out', apk_file_path]
     success, log_message = execute_command(sign_command)
