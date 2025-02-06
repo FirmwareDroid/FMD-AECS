@@ -159,12 +159,12 @@ ALLOWED_KEYWORD = ["Overlay",
 # "com.android.apex.cts.shim.apex", ->  Not important
 # ,  # No Injection: Problematic updates many com.android.hardware libraries
 ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
-                            "com.google.android.tethering.apex",
-                            "com.google.android.wifi.apex",
-                            "com.google.android.cellbroadcast.apex",
-                            "com.google.android.mediaprovider.apex",
+                            #"com.google.android.tethering.apex",
+                            #"com.google.android.wifi.apex",
+                            #"com.google.android.cellbroadcast.apex",
+                            #"com.google.android.mediaprovider.apex",
                             "com.google.android.permission.apex",
-                            "com.google.android.extservices.apex",
+                            #"com.google.android.extservices.apex",
                             "com.google.android.hardwareinfo.xml",
                             "vndservicemanager.rc",
                             ]
