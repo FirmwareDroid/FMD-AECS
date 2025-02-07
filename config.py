@@ -247,6 +247,7 @@ VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",  # Singleton App - 
 BLACKLISTED_KEYWORDS = ["Overlay",
                         "keymaster",
                         "keystore",
+                        "__auto_generated_rro",
                         "libadb_protos"]
 
 
