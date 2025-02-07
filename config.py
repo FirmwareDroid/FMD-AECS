@@ -236,15 +236,15 @@ VENDOR_BLACKLISTED_PACKAGES = ["GooglePermissionController",  # Singleton App - 
                                #"SamsungMultiConnectivity",              # Breaks NetworkStack
                                ]
 
+# "Connectivity",
+# "Wifi",
+# "Telephony",
+# "Telecom",
+# "TeleService",
+# "TelephonyProvider",
+# "NetworkStackGoogle",
+# "SystemUI",             # Breaks SystemUI
 BLACKLISTED_KEYWORDS = ["Overlay",
-                        "Connectivity",
-                        "Wifi",
-                        "Telephony",
-                        "Telecom",
-                        "TeleService",
-                        "TelephonyProvider",
-                        "NetworkStackGoogle",
-                        "SystemUI",             # Breaks SystemUI
                         "keymaster",
                         "keystore",
                         "libadb_protos"]
