@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# Removed packages:
+# PackageInstaller \
 
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \
@@ -219,7 +221,6 @@ PRODUCT_PACKAGES += \
     odsign \
     org.apache.http.legacy \
     otacerts \
-    PackageInstaller \
     passwd_system \
     perfetto \
     ping \
