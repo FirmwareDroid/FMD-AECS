@@ -116,7 +116,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 return f"File already processed: {file_path}", None, None
             module_type = get_module_type(file_path)
             if module_type in ["SKIPPED"]:
-                error_message = f"Skipped File inject (Keyword/Extension/Filename): {file_path}"
+                error_message = f"Skipped File post-inject (Keyword/Extension/Filename): {file_path}"
             else:
                 filename = os.path.basename(file_path)
                 if filename and filename != "":
@@ -132,7 +132,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                         logging.info(f"Injecting APEX file: {file_path} with module type: {module_type}")
                         is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
                         if not is_merge_success:
-                            error_message = f"Error repacking APEX file: {file_path}|{log_message}"
+                            error_message = f"Error handling APEX file: {file_path}|{log_message}"
                         else:
                             error_message = None
 
