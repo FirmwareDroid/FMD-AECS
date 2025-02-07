@@ -2471,10 +2471,13 @@ APEX_PRE_INJECT_DISALLOWED_KEYWORDS = ["vndk",
                                        "tethering",
                                        "permission"]
 
+
+
+
 def get_blocked_module_names():
     blocked_module_names = [EXTRACTION_ALL_FILES_DIR_NAME]
     blocked_module_names.extend(AOSP_DEFAULT_PACKAGE_NAMES)
-    blocked_module_names.extend(VENDOR_BLACKLISTED_PACKAGES)
+    #blocked_module_names.extend(VENDOR_BLACKLISTED_PACKAGES)
     blocked_module_names.extend(BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES)
     blocked_module_names.extend(HOST_PACKAGES_LIST)
     blocked_module_names.extend(APEX_AVAILABLE_LIST)
