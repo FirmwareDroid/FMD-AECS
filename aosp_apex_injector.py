@@ -424,8 +424,10 @@ def sign_apex_file(file_path, aosp_path, priv_key_apex_apk_path, apex_apk_certif
     #signing_key_path = get_signing_key_path(aosp_path, "platform")
     use_apksigner = False
     if use_apksigner:
+        logging.info(f"Signing APEX using apksigner")
         is_success, log_message = sign_apex_container_apksigner(file_path, priv_key_apex_apk_path, apex_apk_certificate_path)
     else:
+        logging.info(f"Signing APEX using signapk")
         is_success, log_message = sign_apex_container_signapk(file_path,
                         priv_key_apex_apk_path,
                         apex_apk_certificate_path,
