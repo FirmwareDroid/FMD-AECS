@@ -228,8 +228,8 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                cert_apex_apk_path)
                     if is_success:
                         logging.info(f"APEX signing success: {apex_out_file}")
-                        success, log_message = verify_apk_file(apex_out_file)
-                        logging.info(f"APEX file verified: {apex_out_file} | {success} | {log_message}")
+                        is_success, log_message = verify_apk_file(apex_out_file)
+                        logging.info(f"APEX file verified: {apex_out_file} | {is_success} | {log_message}")
                     else:
                         logging.error(f"APEX signing failed: {apex_out_file} | {error_message}")
                         log_message = f"APEX signing failed. {error_message}"
