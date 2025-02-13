@@ -335,7 +335,7 @@ def get_apex_default_keys(aosp_path, apex_file_name):
             priv_pem_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pem")
             priv_key_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pk8")
             avb_pub_key_path = os.path.join(module_path, apex_file_name_no_extension + ".avbpubkey")
-            priv_key_apex_apk_path = os.path.join(module_path, apex_file_name_no_extension + ".pk8")
+            priv_key_apex_apk_path = os.path.join(module_path, apex_file_name_no_extension + ".x509.pem")
 
             if (os.path.exists(priv_key_file_path)
                     and os.path.exists(priv_pem_file_path)
