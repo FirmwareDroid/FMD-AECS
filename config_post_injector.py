@@ -184,7 +184,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
 # "com.google.android.neuralnetworks.apex",
 # "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service? (emulator) -> Workaround change seccompfilter
 
-ALLOW_APEX_INJECTION = True
+ALLOW_APEX_INJECTION_MERGE = True
 INJECT_APEX_VENDOR_FILES = False
 REMOVE_APEX_APK_FILE = True
 REPLACE_AVB_KEYS = False

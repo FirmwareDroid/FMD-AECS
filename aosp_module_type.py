@@ -77,13 +77,13 @@ def get_module_type(source_file_path, is_apex=False):
             or not is_file_inject_allowed(file_name)):
         module_type = "SKIPPED"
 
-    if ALLOW_APEX_INJECTION and is_apex and not is_apex_file_path_allowed(source_file_path):
+    if ALLOW_APEX_INJECTION_MERGE and is_apex and not is_apex_file_path_allowed(source_file_path):
         module_type = "SKIPPED"
 
     if file_name in ALLOW_FILE_INJECT_ALWAYS or any(keyword in source_file_path for keyword in ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST):
         module_type = tmp_module_type
 
-    if is_apex and ALLOW_APEX_INJECTION:
+    if is_apex and ALLOW_APEX_INJECTION_MERGE:
         if file_name in ALLOW_APEX_FILE_INJECT or any(keyword in source_file_path for keyword in ALLOW_APEX_FILE_INJECT_ALWAYS_KEYWORD_LIST):
             module_type = tmp_module_type
 
