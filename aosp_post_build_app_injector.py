@@ -89,3 +89,37 @@ def verify_apk_file(apk_file_path):
     verify_command = ['apksigner', 'verify', apk_file_path]
     success, log_message = execute_command(verify_command)
     return success, log_message
+
+
+def sign_apex_container(apex_file_path,
+                        signing_key_path,
+                        signing_key_certificate_path,
+                        v2_signing_enabled=True,
+                        v3_signing_enabled=True,
+                        v4_signing_enabled=True):
+    """
+    Signs the APEX file with apksigner.
+
+    :param apex_file_path: str - path to the APK file.
+    :param signing_key_path: str - path to the signing key (.pk8).
+    :param signing_key_certificate_path: str - path to the signing certificate (pem).
+    :param v4_signing_enabled: bool - enable v4 signing.
+    :param v3_signing_enabled: bool - enable v3 signing.
+    :param v2_signing_enabled: bool - enable v2 signing.
+
+    """
+
+    sign_command = ['apksigner', 'sign',
+                    '--key', signing_key_path,
+                    '--cert', signing_key_certificate_path,
+                    '--v2-signing-enabled', str(v2_signing_enabled).lower(),
+                    '--v3-signing-enabled', str(v3_signing_enabled).lower(),
+                    '--v4-signing-enabled', str(v4_signing_enabled).lower(),
+                    '--verbose',
+                    '--in', apex_file_path,
+                    '--out', apex_file_path]
+    success, log_message = execute_command(sign_command)
+    logging.info(f"Signing APEX container file: {apex_file_path} "
+                 f"with key: {signing_key_path} - {success} - {log_message} "
+                 f"- sign_command: {sign_command}")
+    return success, log_message
