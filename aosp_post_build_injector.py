@@ -128,7 +128,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 if module_type == "APPS" and file_extension.lower() == ".apk":
                     error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
                 elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
-                    if ALLOW_APEX_INJECTION:
+                    if ALLOW_APEX_INJECTION_MERGE:
                         logging.info(f"Injecting APEX file: {file_path} with module type: {module_type}")
                         is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
                         if not is_merge_success:
@@ -440,7 +440,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
                 elif ((file_extension_src == ".apex" and file_extension_obj == ".capex")
                       or (file_extension_src == ".capex" and file_extension_obj == ".apex")):
                     # Matching apex to capex files
-                    if ALLOW_APEX_INJECTION:
+                    if ALLOW_APEX_INJECTION_MERGE:
                         result_file_path = os.path.join(root, file)
                         logging.info(f"Found APEX file2: {file_name}, result_file_path: {result_file_path}")
                         break
