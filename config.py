@@ -1619,7 +1619,7 @@ ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
 
 MODULE_BASE_INJECT_DIR = "packages/modules/fmd/"
 ALLOW_APEX_INJECTION = False
-ALLOW_APEX_REPACKING = True
+ALLOW_APEX_REPACKING = False
 
 ANDROID_HARDWARE_MODULE_LIST = [
     "android.hardware.bluetooth@1.0-service.hikey",
