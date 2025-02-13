@@ -66,7 +66,7 @@ def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
                 generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name)
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
 
-            raise RuntimeError("Need to implement the following functions")
+            #raise RuntimeError("Need to implement the following functions")
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path,
                                                                             aosp_path, filename)
             if apex_manifest_path:
@@ -82,7 +82,7 @@ def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
                 is_success, log_message = inject_apex_keys_module(apex_file_path, avb_pub_key_path, apex_out_file, priv_pem_file_path)
                 if is_success:
                     logging.info(f"APEX extraction success: {apex_out_file}")
-                    is_success, error_message = sign_apex_file(apex_out_file, aosp_path)
+                    is_success, error_message = sign_apex_file(file_path, aosp_path, priv_key_apex_apk_path, apex_apk_certificate_path)
                     if is_success:
                         logging.info(f"APEX signing success: {apex_out_file}")
                         success, log_message = verify_apk_file(apex_out_file)
@@ -367,6 +367,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     logging.info(info)
 
     if REPLACE_AVB_KEYS:
+        raise NotImplementedError("Need to implement the following functions")
         logging.info(f"Generating new AVB keys for APEX: {apex_file_name}")
         is_success, log_message, temp_keys_dir, private_key_path, priv_pem_file_path, public_key_path, avb_pub_key_path = (
             generate_apex_keys(apex_root_path, apex_file_name))
