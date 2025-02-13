@@ -165,6 +165,7 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.mediaprovider.apex",
                             "com.google.android.permission.apex",
                             "com.google.android.extservices.apex",
+                            "com.android.test.apex",
                             "com.google.android.hardwareinfo.xml",
                             "vndservicemanager.rc",
                             ]
