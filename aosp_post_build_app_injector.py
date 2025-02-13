@@ -91,7 +91,7 @@ def verify_apk_file(apk_file_path):
     return success, log_message
 
 
-def sign_apex_container(apex_file_path,
+def sign_apex_container_apksigner(apex_file_path,
                         signing_key_path,
                         signing_key_certificate_path,
                         v2_signing_enabled=True,
@@ -118,6 +118,32 @@ def sign_apex_container(apex_file_path,
                     '--verbose',
                     '--in', apex_file_path,
                     '--out', apex_file_path]
+    success, log_message = execute_command(sign_command)
+    logging.info(f"Signing APEX container file: {apex_file_path} "
+                 f"with key: {signing_key_path} - {success} - {log_message} "
+                 f"- sign_command: {sign_command}")
+    return success, log_message
+
+
+def sign_apex_container_signapk(apex_file_path,
+                        signing_key_path,
+                        signing_key_certificate_path,
+                        aosp_path):
+    """
+    java \
+      -Djava.library.path=$(dirname out/host/linux-x86/lib64/libconscrypt_openjdk_jni.so)\
+      -jar out/host/linux-x86/framework/signapk.jar \
+      -a 4096 \
+      <apk_certificate_file> \
+      <apk_private_key_file> \
+      <unsigned_input_file> \
+      <signed_output_file>
+
+    """
+    env_setup_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch arm64-eng' && "
+    sign_command = env_setup_command + "java -Djava.library.path=$(dirname out/host/linux-x86/lib64/libconscrypt_openjdk_jni.so) " \ 
+    "-jar out/host/linux-x86/framework/signapk.jar " \
+    f"-a 4096 {signing_key_certificate_path} {signing_key_path} {apex_file_path} {apex_file_path}"
     success, log_message = execute_command(sign_command)
     logging.info(f"Signing APEX container file: {apex_file_path} "
                  f"with key: {signing_key_path} - {success} - {log_message} "

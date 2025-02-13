@@ -7,7 +7,8 @@ import tempfile
 import zipfile
 from jinja2 import Environment, FileSystemLoader
 from aosp_module_type import get_module_type
-from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, sign_apex_container
+from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
+    sign_apex_container_apksigner, sign_apex_container_signapk
 from shell_command import execute_shell_command
 from config_post_injector import *
 
@@ -420,7 +421,14 @@ def log_files_in_dir(dir_path):
 def sign_apex_file(file_path, aosp_path, priv_key_apex_apk_path, apex_apk_certificate_path):
     error_message = None
     #signing_key_path = get_signing_key_path(aosp_path, "platform")
-    is_success, log_message = sign_apex_container(file_path, priv_key_apex_apk_path, apex_apk_certificate_path)
+    use_apksigner = False
+    if use_apksigner:
+        is_success, log_message = sign_apex_container_apksigner(file_path, priv_key_apex_apk_path, apex_apk_certificate_path)
+    else:
+        is_success, log_message = sign_apex_container_signapk(file_path,
+                        priv_key_apex_apk_path,
+                        apex_apk_certificate_path,
+                        aosp_path)
     if is_success:
         logging.info(f"APEX file signed: {file_path} with key: {priv_key_apex_apk_path}")
         success, log_message = verify_apk_file(file_path)
