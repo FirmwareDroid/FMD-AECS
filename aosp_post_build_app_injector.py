@@ -141,9 +141,9 @@ def sign_apex_container_signapk(apex_file_path,
 
     """
     env_setup_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch arm64-eng' && "
-    sign_command = env_setup_command + "java -Djava.library.path=$(dirname out/host/linux-x86/lib64/libconscrypt_openjdk_jni.so) " \ 
-    "-jar out/host/linux-x86/framework/signapk.jar " \
-    f"-a 4096 {signing_key_certificate_path} {signing_key_path} {apex_file_path} {apex_file_path}"
+    sign_command = env_setup_command +  "java -Djava.library.path=$(dirname out/host/linux-x86/lib64/libconscrypt_openjdk_jni.so) " \
+                                        "-jar out/host/linux-x86/framework/signapk.jar " \
+                                        "-a 4096 {signing_key_certificate_path} {signing_key_path} {apex_file_path} {apex_file_path}"
     success, log_message = execute_command(sign_command)
     logging.info(f"Signing APEX container file: {apex_file_path} "
                  f"with key: {signing_key_path} - {success} - {log_message} "
