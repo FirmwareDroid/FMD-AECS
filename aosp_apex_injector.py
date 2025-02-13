@@ -214,8 +214,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
                 logging.info(f"APEX manifest file found: {apex_manifest_path}...start container creation")
-                success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path\
-                    = create_apex_container(apex_manifest_path,
+                is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path = create_apex_container(apex_manifest_path,
                                                                                   merged_apex_extract_dir_path,
                                                                                   apex_root_path,
                                                                                   aosp_path,
