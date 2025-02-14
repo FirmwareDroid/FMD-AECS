@@ -140,12 +140,23 @@ def sign_apex_container_signapk(apex_file_path,
       <signed_output_file>
 
     """
+    apex_out_file_path = f"{apex_file_path}.signed"
     env_setup_command = f"cd {aosp_path} && bash -c 'source {aosp_path}build/envsetup.sh && lunch sdk_phone_arm64-userdebug' && "
     sign_command = env_setup_command +  f"java -Djava.library.path=$(dirname out/host/linux-x86/lib64/libconscrypt_openjdk_jni.so) " \
                                         f"-jar out/host/linux-x86/framework/signapk.jar " \
-                                        f"-a 4096 {signing_key_certificate_path} {signing_key_path} {apex_file_path} {apex_file_path}"
+                                        f"--min-sdk-version 28 " \
+                                        f"-a 4096 " \
+                                        f"{signing_key_certificate_path} " \
+                                        f"{signing_key_path} " \
+                                        f"{apex_file_path} " \
+                                        f"{apex_file_path}"
     success, log_message = execute_command(sign_command)
     logging.info(f"Signing APEX container file: {apex_file_path} "
                  f"with key: {signing_key_path} - {success} - {log_message} "
                  f"- sign_command: {sign_command}")
+    if success:
+        shutil.move(apex_out_file_path, apex_file_path)
+    else:
+        if os.path.exists(apex_out_file_path):
+            os.remove(apex_out_file_path)
     return success, log_message
