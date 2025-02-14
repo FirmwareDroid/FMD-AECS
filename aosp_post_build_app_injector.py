@@ -140,6 +140,8 @@ def sign_apex_container_signapk(apex_file_path,
       <signed_output_file>
 
     """
+    current_directory = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(aosp_path)
     apex_out_file_path = f"{apex_file_path}.signed"
     env_setup_command = f"cd {aosp_path} && bash -c 'source {aosp_path}build/envsetup.sh && lunch sdk_phone_arm64-userdebug' && "
     sign_command = env_setup_command +  f"java -Djava.library.path=$(dirname out/host/linux-x86/lib64/libconscrypt_openjdk_jni.so) " \
@@ -159,4 +161,6 @@ def sign_apex_container_signapk(apex_file_path,
     else:
         if os.path.exists(apex_out_file_path):
             os.remove(apex_out_file_path)
+
+    os.chdir(current_directory)
     return success, log_message
