@@ -149,7 +149,7 @@ def sign_apex_container_signapk(apex_file_path,
                                         f"{signing_key_certificate_path} " \
                                         f"{signing_key_path} " \
                                         f"{apex_file_path} " \
-                                        f"{apex_file_path}"
+                                        f"{apex_out_file_path}"
     success, log_message = execute_command(sign_command)
     logging.info(f"Signing APEX container file: {apex_file_path} "
                  f"with key: {signing_key_path} - {success} - {log_message} "
