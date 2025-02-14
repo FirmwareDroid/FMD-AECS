@@ -23,11 +23,14 @@ def execute_command(command):
     :return: tuple - (bool, str) - True if the command was successful, False otherwise.
     """
     is_success = False
-    result = subprocess.run(command, capture_output=True, text=False)
-    if result.returncode == 0:
-        is_success = True
-        log = result.stdout.decode('utf-8', errors='ignore').strip()
-    else:
-        log = f"Return code: {result.returncode} with message: {result.stderr.decode('utf-8', errors='ignore').strip()}"
+    try:
+        result = subprocess.run(command, capture_output=True, text=False)
+        if result.returncode == 0:
+            is_success = True
+            log = result.stdout.decode('utf-8', errors='ignore').strip()
+        else:
+            log = f"Return code: {result.returncode} with message: {result.stderr.decode('utf-8', errors='ignore').strip()}"
+    except Exception as e:
+        log = f"Error: {e}"
 
     return is_success, log
