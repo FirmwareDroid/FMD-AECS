@@ -162,14 +162,19 @@ def sign_apex_container_signapk(apex_file_path,
                                             f"{apex_file_path} " \
                                             f"{apex_out_file_path}"
         success, log_message = execute_command(sign_command, cwd=aosp_path)
-        logging.info(f"Signing APEX container file: {apex_file_path} "
+        logging.info(f"Signed APEX container file: {apex_file_path} "
                      f"with key: {signing_key_path} - {success} - {log_message} "
                      f"- sign_command: {sign_command}")
         if success:
+            logging.info(f"Moving signed APEX container file: {apex_out_file_path} to {apex_file_path}")
             shutil.move(apex_out_file_path, apex_file_path)
+            success = True
+            log_message = None
 
         if os.path.exists(apex_out_file_path):
+            logging.info(f"Removing signed APEX container file: {apex_out_file_path}")
             os.remove(apex_out_file_path)
+
     except Exception as e:
         success = False
         traceback.print_exc()
