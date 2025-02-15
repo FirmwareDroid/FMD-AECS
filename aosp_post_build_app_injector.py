@@ -1,6 +1,8 @@
 import logging
 import os
 import shutil
+import traceback
+
 from shell_command import execute_command
 from config_post_injector import *
 
@@ -140,27 +142,38 @@ def sign_apex_container_signapk(apex_file_path,
       <signed_output_file>
 
     """
+    if not os.path.exists(signing_key_path) or not os.path.exists(signing_key_certificate_path):
+        return False, f"Signing key or certificate not found: {signing_key_path} - {signing_key_certificate_path}"
+    elif not os.path.exists(apex_file_path):
+        return False, f"APEX file not found: {apex_file_path}"
+
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_path)
-    apex_out_file_path = f"{apex_file_path}.signed"
-    env_setup_command = f"cd {aosp_path} && bash -c 'source {aosp_path}build/envsetup.sh && lunch sdk_phone_arm64-userdebug' && "
-    sign_command = env_setup_command +  f"java -Djava.library.path=$(dirname out/host/linux-x86/lib64/libconscrypt_openjdk_jni.so) " \
-                                        f"-jar out/host/linux-x86/framework/signapk.jar " \
-                                        f"--min-sdk-version 28 " \
-                                        f"-a 4096 " \
-                                        f"{signing_key_certificate_path} " \
-                                        f"{signing_key_path} " \
-                                        f"{apex_file_path} " \
-                                        f"{apex_out_file_path}"
-    success, log_message = execute_command(sign_command)
-    logging.info(f"Signing APEX container file: {apex_file_path} "
-                 f"with key: {signing_key_path} - {success} - {log_message} "
-                 f"- sign_command: {sign_command}")
-    if success:
-        shutil.move(apex_out_file_path, apex_file_path)
-    else:
+
+    try:
+        apex_out_file_path = f"{apex_file_path}.signed"
+        env_setup_command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch sdk_phone_arm64-userdebug' && "
+        sign_command = env_setup_command +  f"java -Djava.library.path=$(dirname out/host/linux-x86/lib64/libconscrypt_openjdk_jni.so) " \
+                                            f"-jar out/host/linux-x86/framework/signapk.jar " \
+                                            f"--min-sdk-version 28 " \
+                                            f"-a 4096 " \
+                                            f"{signing_key_certificate_path} " \
+                                            f"{signing_key_path} " \
+                                            f"{apex_file_path} " \
+                                            f"{apex_out_file_path}"
+        success, log_message = execute_command(sign_command, cwd=aosp_path)
+        logging.info(f"Signing APEX container file: {apex_file_path} "
+                     f"with key: {signing_key_path} - {success} - {log_message} "
+                     f"- sign_command: {sign_command}")
+        if success:
+            shutil.move(apex_out_file_path, apex_file_path)
+
         if os.path.exists(apex_out_file_path):
             os.remove(apex_out_file_path)
-
-    os.chdir(current_directory)
+    except Exception as e:
+        success = False
+        traceback.print_exc()
+        log_message = f"Error signing APEX container file: {apex_file_path} with key: {signing_key_path} - {e}"
+    finally:
+        os.chdir(current_directory)
     return success, log_message
