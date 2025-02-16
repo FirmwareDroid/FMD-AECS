@@ -143,9 +143,9 @@ def sign_apex_container_signapk(apex_file_path,
 
     """
     if not os.path.exists(signing_key_path) or not os.path.exists(signing_key_certificate_path):
-        return False, f"Signing key or certificate not found: {signing_key_path} - {signing_key_certificate_path}"
+        return False, f"APEX igning key or certificate not found: {signing_key_path} - {signing_key_certificate_path}"
     elif not os.path.exists(apex_file_path):
-        return False, f"APEX file not found: {apex_file_path}"
+        return False, f"APEX file not found for signing: {apex_file_path}"
 
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_path)
@@ -153,7 +153,7 @@ def sign_apex_container_signapk(apex_file_path,
     try:
         apex_out_file_path = f"{apex_file_path}.signed"
         env_setup_command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch sdk_phone_arm64-userdebug' && "
-        sign_command = env_setup_command +  f"java -Djava.library.path=$(dirname out/host/linux-x86/lib64/libconscrypt_openjdk_jni.so) " \
+        sign_command = env_setup_command +  f"java -Djava.library.path={aosp_path}out/host/linux-x86/lib64/" \
                                             f"-jar out/host/linux-x86/framework/signapk.jar " \
                                             f"--min-sdk-version 28 " \
                                             f"-a 4096 " \
@@ -170,6 +170,8 @@ def sign_apex_container_signapk(apex_file_path,
             shutil.move(apex_out_file_path, apex_file_path)
             success = True
             log_message = None
+        else:
+            log_message = f"Error signing APEX container file: {apex_file_path} with key: {signing_key_path} - {log_message}"
 
         if os.path.exists(apex_out_file_path):
             logging.info(f"Removing signed APEX container file: {apex_out_file_path}")
