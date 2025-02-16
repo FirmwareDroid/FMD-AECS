@@ -143,16 +143,18 @@ def sign_apex_container_signapk(apex_file_path,
 
     """
     if not os.path.exists(signing_key_path) or not os.path.exists(signing_key_certificate_path):
-        return False, f"APEX igning key or certificate not found: {signing_key_path} - {signing_key_certificate_path}"
+        return False, f"APEX ignoring key or certificate not found: {signing_key_path} - {signing_key_certificate_path}"
     elif not os.path.exists(apex_file_path):
         return False, f"APEX file not found for signing: {apex_file_path}"
+    elif not os.path.exists(aosp_path):
+        return False, f"AOSP path not found for signing: {aosp_path}"
 
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_path)
 
     try:
         apex_out_file_path = f"{apex_file_path}.signed"
-        env_setup_command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch sdk_phone_arm64-userdebug' && "
+        env_setup_command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch sdk_phone_arm64-userdebug && "
         sign_command = env_setup_command +  f"java -Djava.library.path={aosp_path}out/host/linux-x86/lib64/" \
                                             f"-jar out/host/linux-x86/framework/signapk.jar " \
                                             f"--min-sdk-version 28 " \
@@ -160,7 +162,7 @@ def sign_apex_container_signapk(apex_file_path,
                                             f"{signing_key_certificate_path} " \
                                             f"{signing_key_path} " \
                                             f"{apex_file_path} " \
-                                            f"{apex_out_file_path}"
+                                            f"{apex_out_file_path}'"
         success, log_message = execute_command(sign_command, cwd=aosp_path)
         logging.info(f"Signed APEX container file: {apex_file_path} "
                      f"with key: {signing_key_path} - {success} - {log_message} "
