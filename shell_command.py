@@ -15,7 +15,7 @@ def execute_shell_command(command, aosp_root_path):
     log = f"is_success: {is_success} result.returncode: {result.returncode}, stdout: {log_out} | error: {log_err}"
     return is_success, log
 
-def execute_command(command, cwd=None):
+def execute_command(command, cwd=None, shell=False):
     """
     Execute a command and checks if it has an exit code of 0.
 
@@ -27,7 +27,7 @@ def execute_command(command, cwd=None):
         cwd = os.getcwd()
     is_success = False
     try:
-        result = subprocess.run(command, capture_output=True, text=False, cwd=cwd)
+        result = subprocess.run(command, capture_output=True, text=False, cwd=cwd, shell=shell)
         logging.info(f"Executing command: {command} - {result.returncode}")
         if result.returncode == 0:
             is_success = True
