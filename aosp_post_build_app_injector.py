@@ -156,7 +156,7 @@ def sign_apex_container_signapk(apex_file_path,
         apex_out_file_path = f"{apex_file_path}.signed"
         env_setup_command = f"bash -c 'cd {aosp_path} && source {aosp_path}build/envsetup.sh && lunch sdk_phone_arm64-userdebug && "
         sign_command = env_setup_command +  f"java -Djava.library.path={aosp_path}out/host/linux-x86/lib64/ " \
-                                            f"-jar {aosp_path}out/host/linux-x86/framework/signapk.jar " \
+                                            f"-jar out/host/linux-x86/framework/signapk.jar " \
                                             f"--min-sdk-version 28 " \
                                             f"-a 4096 " \
                                             f"{signing_key_certificate_path} " \
