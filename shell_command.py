@@ -28,7 +28,7 @@ def execute_command(command, cwd=None, shell=False):
     is_success = False
     try:
         result = subprocess.run(command, capture_output=True, text=False, cwd=cwd, shell=shell)
-        logging.info(f"Executing command: {command} - {result.returncode}")
+        logging.info(f"Executed command: {command} - {result.returncode}")
         if result.returncode == 0:
             is_success = True
             log = result.stdout.decode('utf-8', errors='ignore').strip()
