@@ -206,8 +206,11 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         if INJECT_APEX_VENDOR_FILES:
             logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
             inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
+        elif INJECT_APEX_VENDOR_APPS:
+            apk_name_list = inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
+
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
-            generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name)
+            generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name, apk_name_list)
 
         is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path, apex_root_path,
                                                                         aosp_path, filename_input)
@@ -247,6 +250,29 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             log_message = f"APEX manifest file not found. {input_apex} | apex_manifest_path: {apex_manifest_path}"
     logging.info(f"APEX merge_apex_files success: {is_success} | {log_message} | out: {apex_out_file}")
     return is_success, log_message
+
+
+def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder):
+    files_coped_list = []
+    logging.info(f"Injecting APEX vendor apps: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
+    for root, dirs, files in os.walk(apex_vendor_extract_dir_path):
+        for file in files:
+            file_path = os.path.join(root, file)
+            file_extension = os.path.splitext(file)[1]
+            if file_extension == ".apk":
+                if not os.path.islink(file_path) and os.path.exists(file_path) and os.path.isfile(file_path):
+                    dst_file_path = merged_apex_extract_dir_path + root.replace(apex_vendor_extract_dir_path,
+                                                                                "").replace("//", "/")
+                    command = f'sudo cp -a {file_path} {dst_file_path}'
+                    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        logging.error(
+                            f"Error copying file in APEX container: {file_path} with {dst_file_path} | {result.stderr}")
+                    if os.path.exists(dst_file_path):
+                        logging.info(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
+                        files_coped_list.append(file)
+    logging.info(f"APEX: Files copied into container: {files_coped_list};\n")
+    return files_coped_list
 
 
 def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder):
@@ -487,7 +513,7 @@ def get_apex_signing_key_from_filename(file_path):
         return "platform"
 
 
-def generate_canned_fs_config(apex_extract_dir_path, output_file):
+def generate_canned_fs_config(apex_extract_dir_path, output_file, apk_name_list=None):
     """
     Generates a canned_fs_config file for the given directory. The config contains the file paths and their
     permissions. The method gives all the files and directories the default permissions.
@@ -496,6 +522,8 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
     :param output_file: str - path to the output file where the canned_fs_config will be saved.
 
     """
+    if apk_name_list is None:
+        apk_name_list = []
     file_inserted_entries = []
     with open(output_file, 'w') as out_file:
         out_file.write(f"/ 1000 1000 0755\n")
@@ -523,7 +551,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file):
                 # else:
                 #     logging.info(f"APEX: Adding file to canned_fs: {file_path}")
                 is_apk = file_path.endswith(".apk")
-                if is_apk:
+                if is_apk and not any(apk_name in file_path for apk_name in apk_name_list):
                     try:
                         logging.error(f"APEX: SKIPPED module type. File not included into canned_fs: {file_path}")
                         os.remove(file_path)
