@@ -367,10 +367,10 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                     shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
                 elif check_file_extension(package_path, apex_file_extension_list):
                     if ALLOW_APEX_INJECTION:
-                        package_dir_name = os.path.basename(package_path)
+                        package_dir_name = os.path.basename(package_path).lower()
                         apex_file_path = get_apex_file(package_path)
                         apex_filename = os.path.basename(apex_file_path)
-                        if any(keyword in package_dir_name for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
+                        if any(keyword.lower() in package_dir_name for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
                             logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
                             continue
                         modules_path = os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name)
