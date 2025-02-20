@@ -397,9 +397,10 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                 else:
                     if "FMD_APEX" in dir_name:
                         logging.info(f"Skipping APEX APP package in pre-injector: {dir_name}")
-                    logging.info(f"Moving App: {dir_name} from {package_path} to {out_dir}")
-                    app_modules_path = os.path.join(aosp_path, f"{out_dir}apps/", f"{uuid_dir}_{dir_name}")
-                    shutil.copytree(package_path, app_modules_path, dirs_exist_ok=True)
+                    else:
+                        logging.info(f"Moving App: {dir_name} from {package_path} to {out_dir}")
+                        app_modules_path = os.path.join(aosp_path, f"{out_dir}apps/", f"{uuid_dir}_{dir_name}")
+                        shutil.copytree(package_path, app_modules_path, dirs_exist_ok=True)
                 logging.info(f"Included package in build: {dir_name} to {aosp_packages_abs_path}")
                 included_package_name_list.append(dir_name)
 
