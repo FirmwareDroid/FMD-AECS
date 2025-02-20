@@ -263,7 +263,8 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                 if not os.path.islink(file_path) and os.path.exists(file_path) and os.path.isfile(file_path):
                     dst_file_path = merged_apex_extract_dir_path + root.replace(apex_vendor_extract_dir_path,
                                                                                 "").replace("//", "/")
-                    command = f'sudo mkdir -p {dst_file_path} && sudo cp -a {file_path} {dst_file_path}'
+                    current_username = os.getlogin()
+                    command = f'sudo mkdir -p {dst_file_path} && sudo cp {file_path} {dst_file_path} && sudo chown -R {current_username}:{current_username} {dst_file_path}'
                     result = subprocess.run(command, shell=True, capture_output=True, text=True)
                     if result.returncode != 0:
                         logging.error(
