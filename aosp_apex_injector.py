@@ -780,32 +780,48 @@ def generate_apex_keys(aosp_path, apex_file_name):
     is_success = False
     log_message = ""
 
-    # Generate private and public keys in pk8 format
+    # Generate private and public keys in PEM format
+    command_pem = [
+        'openssl', 'genpkey', '-algorithm', 'RSA', '-out', priv_pem_file_path, '-pkeyopt', 'rsa_keygen_bits:4096'
+    ]
+    result_pem = subprocess.run(command_pem, capture_output=True, text=True)
+    if result_pem.returncode != 0 or not os.path.exists(priv_pem_file_path):
+        log_message = f"Error generating PEM keys: {result_pem.stderr}"
+        logging.error(log_message)
+    else:
+        logging.info(f"PEM keys generated successfully: {priv_pem_file_path}")
+        log_message = result_pem.stdout
+
+    # Convert private key from PEM to PK8 format
     command_pk8 = [
-        'openssl', 'genpkey', '-algorithm', 'RSA', '-out', priv_key_path, '-pkeyopt', 'rsa_keygen_bits:2048'
+        'openssl', 'pkcs8', '-topk8', '-inform', 'PEM', '-outform', 'DER', '-in', priv_pem_file_path, '-out', priv_key_path, '-nocrypt'
     ]
     result_pk8 = subprocess.run(command_pk8, capture_output=True, text=True)
     if result_pk8.returncode != 0 or not os.path.exists(priv_key_path):
-        log_message = f"Error generating pk8 keys: {result_pk8.stderr}"
+        log_message += f"\nError converting PEM to PK8: {result_pk8.stderr}"
         logging.error(log_message)
     else:
-        logging.info(f"pk8 keys generated successfully: {priv_key_path}")
-    extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
+        logging.info(f"PK8 key generated successfully: {priv_key_path}")
+        log_message += result_pk8.stdout
 
-    # Generate private and public keys in x509 format
+    # Generate x509 certificate using the private key in PEM format
     command_x509 = [
         'openssl', 'req', '-x509', '-key', priv_pem_file_path,
         '-out', apex_apk_cert, '-days', '365', '-nodes', '-subj', '/CN=example.com'
     ]
     result_x509 = subprocess.run(command_x509, capture_output=True, text=True)
-    if result_x509.returncode != 0 or not os.path.exists(priv_pem_file_path) or not os.path.exists(apex_apk_cert):
-        log_message += f"\nError generating x509 keys: {result_x509.stderr}"
+    if result_x509.returncode != 0 or not os.path.exists(apex_apk_cert):
+        log_message += f"\nError generating x509 certificate: {result_x509.stderr}"
         logging.error(log_message)
     else:
-        logging.info(f"x509 keys generated successfully: {priv_pem_file_path}, {apex_apk_cert}")
+        logging.info(f"x509 certificate generated successfully: {apex_apk_cert}")
+        log_message += result_x509.stdout
         is_success = True
 
+    extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
+
     return is_success, log_message, temp_keys_dir, priv_key_path, priv_pem_file_path, pub_key_path, avb_pub_key_path, apex_apk_cert
+
 
 
 def generate_apex_keys_p12(private_key_path, public_key_path, p12_path):
