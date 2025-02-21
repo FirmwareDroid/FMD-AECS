@@ -125,7 +125,7 @@ def inject_apex_keys_module(input_apex, out_folder_path, key_id):
     logging.info(f"Add Android.bp file for APEX: {input_apex}")
     os.makedirs(out_folder_path, exist_ok=True)
     android_bp_file = os.path.join(out_folder_path, "Android.bp")
-    with open(android_bp_file, 'r+') as android_bp:
+    with open(android_bp_file, 'wr+') as android_bp:
         content = android_bp.read()
         if "apex_key" not in content:
             insert_position = content.find('name:')
@@ -143,6 +143,9 @@ def inject_apex_keys_module(input_apex, out_folder_path, key_id):
         else:
             logging.info(f"AVB public key already injected in APEX module: {android_bp_file}")
             is_success = True
+    if not os.path.exists(android_bp_file):
+        logging.error(f"Error creating Android.pb APEX module: {android_bp_file}")
+        is_success = False
     return is_success, log_message
 
 def copy_keys_to_apex_folder(input_apex, apex_main_folder, avb_pub_key_path):
