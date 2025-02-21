@@ -91,6 +91,8 @@ def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
                             if not os.path.exists(key_path):
                                 logging.error(f"Key file not copied: {key_path} to {module_out_folder_path}")
                                 is_success = False
+                            else:
+                                logging.info(f"APEX Key file copied: {key_path} to {module_out_folder_path}")
                         is_success, error_message = sign_apex_file(apex_out_file,
                                                                    aosp_path,
                                                                    private_key_path,
@@ -99,6 +101,8 @@ def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
                             log_message = f"APEX signing success: {apex_out_file}"
                         else:
                             log_message = f"APEX signing failed: {apex_out_file} | {error_message}"
+                    else:
+                        log_message = f"Error injecting Android.bp file: {module_out_folder_path}"
                 else:
                     log_message = f"APEX repack creation failed. {apex_out_file} | {log_message}"
         else:
@@ -118,28 +122,27 @@ def create_apex_manifest(output_dir, apex_name):
 
 
 def inject_apex_keys_module(input_apex, out_folder_path, key_id):
-    logging.info(f"Injecting AVB public key in APEX module for repacker: {input_apex}")
+    logging.info(f"Add Android.bp file for APEX: {input_apex}")
     os.makedirs(out_folder_path, exist_ok=True)
     android_bp_file = os.path.join(out_folder_path, "Android.bp")
-    if os.path.exists(android_bp_file):
-        with open(android_bp_file, 'r+') as android_bp:
-            content = android_bp.read()
-            if "apex_key" not in content:
-                insert_position = content.find('name:')
-                if insert_position != -1:
-                    content += f'\n\napex_key {{\n    name: \"{key_id}.key\",\n    public_key: \"{key_id}.avbpubkey\",\n    private_key: \"{key_id}.pem\", \n    installable: true\n}}'
-                    content += f"\n\nandroid_app_certificate\n {{name: \"{key_id}.certificate\",\ncertificate: \"{key_id}\",}}"
-                    android_bp.seek(0)
-                    android_bp.write(content)
-                    android_bp.truncate()
-                    is_success = True
-                else:
-                    log_message = f"Error injecting AVB public key in APEX module: {android_bp_file}"
-                    logging.error(log_message)
-                    is_success = False
-            else:
-                logging.info(f"AVB public key already injected in APEX module: {android_bp_file}")
+    with open(android_bp_file, 'r+') as android_bp:
+        content = android_bp.read()
+        if "apex_key" not in content:
+            insert_position = content.find('name:')
+            if insert_position != -1:
+                content += f'\n\napex_key {{\n    name: \"{key_id}.key\",\n    public_key: \"{key_id}.avbpubkey\",\n    private_key: \"{key_id}.pem\", \n    installable: true\n}}'
+                content += f"\n\nandroid_app_certificate\n {{name: \"{key_id}.certificate\",\ncertificate: \"{key_id}\",}}"
+                android_bp.seek(0)
+                android_bp.write(content)
+                android_bp.truncate()
                 is_success = True
+            else:
+                log_message = f"Error injecting AVB public key in APEX module: {android_bp_file}"
+                logging.error(log_message)
+                is_success = False
+        else:
+            logging.info(f"AVB public key already injected in APEX module: {android_bp_file}")
+            is_success = True
     return is_success, log_message
 
 def copy_keys_to_apex_folder(input_apex, apex_main_folder, avb_pub_key_path):
