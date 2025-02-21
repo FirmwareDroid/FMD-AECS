@@ -125,26 +125,16 @@ def inject_apex_keys_module(input_apex, out_folder_path, key_id):
     logging.info(f"Add Android.bp file for APEX: {input_apex}")
     os.makedirs(out_folder_path, exist_ok=True)
     android_bp_file = os.path.join(out_folder_path, "Android.bp")
-    with open(android_bp_file, 'wr+') as android_bp:
-        content = android_bp.read()
-        if "apex_key" not in content:
-            insert_position = content.find('name:')
-            if insert_position != -1:
-                content += f'\n\napex_key {{\n    name: \"{key_id}.key\",\n    public_key: \"{key_id}.avbpubkey\",\n    private_key: \"{key_id}.pem\", \n    installable: true\n}}'
-                content += f"\n\nandroid_app_certificate\n {{name: \"{key_id}.certificate\",\ncertificate: \"{key_id}\",}}"
-                android_bp.seek(0)
-                android_bp.write(content)
-                android_bp.truncate()
-                is_success = True
-            else:
-                log_message = f"Error injecting AVB public key in APEX module: {android_bp_file}"
-                logging.error(log_message)
-                is_success = False
-        else:
-            logging.info(f"AVB public key already injected in APEX module: {android_bp_file}")
-            is_success = True
+    logging.info(f"Creating Android.bp file for APEX: {android_bp_file}")
+    log_message = ""
+    with open(android_bp_file, 'w') as android_bp:
+        content = f'\n\napex_key {{\n    name: \"{key_id}.key\",\n    public_key: \"{key_id}.avbpubkey\",\n    private_key: \"{key_id}.pem\", \n    installable: true\n}}'
+        content += f"\n\nandroid_app_certificate\n {{name: \"{key_id}.certificate\",\ncertificate: \"{key_id}\",}}"
+        android_bp.write(content)
+        is_success = True
     if not os.path.exists(android_bp_file):
-        logging.error(f"Error creating Android.pb APEX module: {android_bp_file}")
+        log_message = f"Error creating Android.bp APEX module: {android_bp_file}"
+        logging.error(log_message)
         is_success = False
     return is_success, log_message
 
