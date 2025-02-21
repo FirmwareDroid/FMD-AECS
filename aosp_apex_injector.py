@@ -766,6 +766,7 @@ def copy_android_prebuilt_jar(aosp_path, apex_root_path):
 
 def create_key_paths(apex_file_name):
     temp_keys_dir = tempfile.mkdtemp(suffix="_apex_keys")
+    apex_file_name = apex_file_name.replace(".apex", "").replace(".capex", "")
     priv_key_path = os.path.join(temp_keys_dir, f"{apex_file_name}.pk8")
     pub_key_path = os.path.join(temp_keys_dir, f"{apex_file_name}.cert")
     priv_pem_file_path = os.path.join(temp_keys_dir, f"{apex_file_name}.pem")
@@ -793,7 +794,7 @@ def generate_apex_keys(aosp_path, apex_file_name):
 
     # Generate private and public keys in x509 format
     command_x509 = [
-        'openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-keyout', priv_pem_file_path,
+        'openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-key', priv_key_path,
         '-out', apex_apk_cert, '-days', '365', '-nodes', '-subj', '/CN=example.com'
     ]
     result_x509 = subprocess.run(command_x509, capture_output=True, text=True)
