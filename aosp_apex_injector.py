@@ -129,7 +129,7 @@ def inject_apex_keys_module(input_apex, out_folder_path, key_id):
     log_message = ""
     with open(android_bp_file, 'w') as android_bp:
         content = f'\n\napex_key {{\n    name: \"{key_id}.key\",\n    public_key: \"{key_id}.avbpubkey\",\n    private_key: \"{key_id}.pem\", \n    installable: true\n}}'
-        content += f"\n\nandroid_app_certificate\n {{name: \"{key_id}.certificate\",\ncertificate: \"{key_id}\",}}"
+        content += f"\n\nandroid_app_certificate {{\n    name: \"{key_id}.certificate\",\n    certificate: \"{key_id}\"\n}}"
         android_bp.write(content)
         is_success = True
     if not os.path.exists(android_bp_file):

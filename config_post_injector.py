@@ -167,6 +167,8 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.extservices.apex",
                             "com.android.test.apex",
                             "com.google.android.hardwareinfo.xml",
+                            "com.google.android.telephony.apex",
+                            "com.google.mainline.primary.libs.apex",
                             "vndservicemanager.rc",
                             ]
 # "com.android.i18n.apex",
