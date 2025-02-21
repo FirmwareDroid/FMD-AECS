@@ -15,6 +15,8 @@
 #
 # Removed packages:
 # PackageInstaller \
+# NetworkStack \
+# SettingsProvider \
 
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \
@@ -217,7 +219,6 @@ PRODUCT_PACKAGES += \
     mtpd \
     ndc \
     netd \
-    NetworkStack \
     odsign \
     org.apache.http.legacy \
     otacerts \
@@ -247,7 +248,6 @@ PRODUCT_PACKAGES += \
     servicemanager \
     services \
     settings \
-    SettingsProvider \
     sgdisk \
     Shell \
     shell_and_utilities_system \
