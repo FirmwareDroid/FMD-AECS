@@ -794,7 +794,7 @@ def generate_apex_keys(aosp_path, apex_file_name):
 
     # Generate private and public keys in x509 format
     command_x509 = [
-        'openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-key', priv_key_path,
+        'openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-key', priv_pem_file_path,
         '-out', apex_apk_cert, '-days', '365', '-nodes', '-subj', '/CN=example.com'
     ]
     result_x509 = subprocess.run(command_x509, capture_output=True, text=True)
