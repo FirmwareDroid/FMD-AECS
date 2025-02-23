@@ -123,8 +123,12 @@ ALLOW_FILE_OVERWRITE = ["framework-res.apk",
                         "passwd",
                         "group",
                         "com.google.android.hardwareinfo.xml",
-                        "services.jar.bprof"
+                        "services.jar.bprof",
+                        "framework.jar"
                         ]
+
+ALLOW_FILE_OVERWRITE_EXTENSIONS = [".jar"]
+
 
 for default_module_name in AOSP_DEFAULT_PACKAGE_NAMES:
     ALLOW_FILE_OVERWRITE.append(f"{default_module_name}.apk")
