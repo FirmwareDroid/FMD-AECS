@@ -119,8 +119,9 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 error_message = f"Skipped File post-inject (Keyword/Extension/Filename): {file_path}"
             else:
                 filename = os.path.basename(file_path)
+                file_extension = os.path.splitext(file_path)[1]
                 if filename and filename != "":
-                    allow_file_overwrite = (filename in ALLOW_FILE_OVERWRITE)
+                    allow_file_overwrite = (filename in ALLOW_FILE_OVERWRITE) or (file_extension in ALLOW_FILE_OVERWRITE_EXTENSIONS)
                 else:
                     allow_file_overwrite = False
 
