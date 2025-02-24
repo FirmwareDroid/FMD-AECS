@@ -193,12 +193,16 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     apex_vendor_extract_dir_path = tempfile.mkdtemp(suffix=f"_{filename_input}_vendor")
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target)
     if extract_success:
-        shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
+        if ALLOW_MIXED_APEX_FILES:
+            shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
+
         apk_name_list = []
         if INJECT_APEX_VENDOR_FILES:
             logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
             inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
-        elif INJECT_APEX_VENDOR_APPS:
+
+        if INJECT_APEX_VENDOR_APPS:
+            logging.info(f"Injecting APEX vendor apps: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
             apk_name_list = inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
 
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
@@ -278,34 +282,39 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
     for root, dirs, files in os.walk(apex_vendor_extract_dir_path):
         for file in files:
             file_path = str(os.path.join(root, file))
-            module_type = get_module_type(file_path, is_apex=True)
+            if file_path.endswith(".apk"):
+                continue
+            #module_type = get_module_type(file_path, is_apex=True)
             #if module_type == "SKIPPED":
             #    logging.error(f"APEX: Skipping file from APEX container {apex_emulator_folder}. Known problematic filename: {file_path}")
             #    continue
             if os.path.islink(file_path):
                 dst_file_path = merged_apex_extract_dir_path + root.replace(apex_vendor_extract_dir_path, "").replace("//", "/")
                 command = f'sudo cp -a {file_path} {dst_file_path}'
+                logging.info(f"Copying symlink in APEX container: {file_path} into {dst_file_path} with command: {command}")
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
                 if result.returncode != 0:
                     logging.error(
-                        f"Error copying file in APEX container: {file_path} with {dst_file_path} | {result.stderr}")
+                        f"Error copying symlink in APEX container: {file_path} with {dst_file_path} | {result.stderr}")
                 if os.path.exists(dst_file_path):
                     logging.info(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
                     files_coped_list.append(dst_file_path)
             else:
-                file_path_no_vendor = str(file_path.replace(".Google", "").replace(".google", ""))
-                file_path_no_vendor = file_path_no_vendor.replace(apex_vendor_extract_dir_path, "")
+                #file_path_no_vendor = str(file_path.replace(".Google", "").replace(".google", ""))
+                file_path_no_vendor = file_path.replace(apex_vendor_extract_dir_path, "")
                 dst_file_path = os.path.join(merged_apex_extract_dir_path, file_path_no_vendor)
-                logging.info(f"APEX: Tst {file_path} | {dst_file_path} | ")
                 try:
                     if not os.path.islink(dst_file_path):
+                        logging.info(f"Creating directory for APEX container: {dst_file_path}")
                         os.makedirs(os.path.dirname(dst_file_path), exist_ok=True)
                 except PermissionError as e:
-                    logging.error(f"Permission denied: {e.filename}")
+                    logging.error(f"Permission denied to create directory: {e}")
+
                 if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path or "fmd-aecs-lock" in file_path:
                     continue
+
                 if file in DISALLOW_APEX_FILE_OVERWRITE:
-                    logging.error(f"APEX: File in DISALLOW_APEX_FILE_OVERWRITE. Thus, not included: {file_path}")
+                    logging.error(f"SKIPPED APEX File: File in DISALLOW_APEX_FILE_OVERWRITE: {file_path}")
                     continue
 
                 try:
