@@ -276,7 +276,9 @@ FILES_TO_MODIFY = ["systemserverclasspath.pb", "bootclasspath.pb"]
 
 
 
-
+INDIRECT_INJECTION_FILE_MAPPING = {
+    "framework.jar": "obj/JAVA_LIBRARIES/framework-minus-apex_intermediates/javalib.jar",
+}
 
 
 

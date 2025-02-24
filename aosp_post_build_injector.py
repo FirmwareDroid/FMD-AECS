@@ -173,11 +173,15 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     inj_obj = None
     file_name = os.path.basename(file_path)
     file_extension = os.path.splitext(file_name)[1]
-    original_file_path = search_original_file_in_obj(partition_name,
-                                                     module_type,
-                                                     file_path,
-                                                     file_name,
-                                                     target_out_path)
+    if file_name in INDIRECT_INJECTION_FILE_MAPPING.keys():
+        original_file_path = INDIRECT_INJECTION_FILE_MAPPING[file_name]
+        original_file_path = os.path.join(target_out_path, original_file_path)
+    else:
+        original_file_path = search_original_file_in_obj(partition_name,
+                                                         module_type,
+                                                         file_path,
+                                                         file_name,
+                                                         target_out_path)
     if original_file_path is None:
         # To match naming of vendors with the emulators file
         file_path_vendor_replaced = file_path.replace(".google", "").replace("Google", "")
@@ -389,7 +393,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
 
     """
     target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
-    search_folder_path = str(os.path.join(target_obj_path,
+    search_folder_path = str(os.path.join(str(target_obj_path),
                                           module_type if module_type not in ["MISC", "STATIC_CONFIG"] else ""))
 
     if partition_name in ["super", "system"]:
