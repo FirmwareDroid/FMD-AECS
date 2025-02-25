@@ -279,6 +279,7 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
 def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder):
     logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
     files_coped_list = []
+    current_username = os.getlogin()
     for root, dirs, files in os.walk(apex_vendor_extract_dir_path):
         for file in files:
             file_path = str(os.path.join(root, file))
@@ -290,7 +291,9 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
             #    continue
             if os.path.islink(file_path):
                 dst_file_path = merged_apex_extract_dir_path + root.replace(apex_vendor_extract_dir_path, "").replace("//", "/")
-                command = f'sudo cp -a {file_path} {dst_file_path}'
+                command = (f'sudo cp -a {file_path} {dst_file_path} '
+                           f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
+                           f'&& sudo chmod -R 0755 {dst_file_path}')
                 logging.info(f"Copying symlink in APEX container: {file_path} into {dst_file_path} with command: {command}")
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
                 if result.returncode != 0:
@@ -304,9 +307,19 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 file_path_no_vendor = file_path.replace(apex_vendor_extract_dir_path, "")
                 dst_file_path = os.path.join(merged_apex_extract_dir_path, file_path_no_vendor)
                 try:
-                    if not os.path.islink(dst_file_path):
+                    if os.path.isfile(dst_file_path):
+                        directory_path = os.path.dirname(dst_file_path)
                         logging.info(f"Creating directory for APEX container: {dst_file_path}")
-                        os.makedirs(os.path.dirname(dst_file_path), exist_ok=True)
+                    else:
+                        directory_path = dst_file_path
+                        logging.info(f"Creating directory for APEX container: {dst_file_path}")
+                    command = (f'&& sudo mkdir -p {directory_path} '
+                               f'&& sudo chown -R {current_username}:{current_username} {directory_path} '
+                               f'&& sudo chmod -R 0755 {directory_path}')
+                    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        logging.error(
+                            f"Error creating directory in APEX container: {directory_path} | {result.stderr}")
                 except PermissionError as e:
                     logging.error(f"Permission denied to create directory: {e}")
 
@@ -318,7 +331,14 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     continue
 
                 try:
-                    shutil.copy2(file_path, dst_file_path)
+                    command = (f'&& sudo cp -R {file_path} {dst_file_path} '
+                               f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
+                               f'&& sudo chmod -R 0755 {dst_file_path}')
+                    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        logging.error(
+                            f"Error copying file in APEX container: {file_path} with {dst_file_path} | {result.stderr}")
+                    #shutil.copy2(file_path, dst_file_path)
                     logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
                     files_coped_list.append(dst_file_path)
                 except FileNotFoundError as e:
