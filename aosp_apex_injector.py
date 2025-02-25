@@ -331,7 +331,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     continue
 
                 try:
-                    command = (f'Fix rtsudo cp -R {file_path} {dst_file_path} '
+                    command = (f'sudo cp -R {file_path} {dst_file_path} '
                                f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
                                f'&& sudo chmod -R 0755 {dst_file_path}')
                     result = subprocess.run(command, shell=True, capture_output=True, text=True)
