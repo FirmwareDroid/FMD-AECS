@@ -313,7 +313,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     else:
                         directory_path = dst_file_path
                         logging.info(f"Creating directory for APEX container: {dst_file_path}")
-                    command = (f'&& sudo mkdir -p {directory_path} '
+                    command = (f'sudo mkdir -p {directory_path} '
                                f'&& sudo chown -R {current_username}:{current_username} {directory_path} '
                                f'&& sudo chmod -R 0755 {directory_path}')
                     result = subprocess.run(command, shell=True, capture_output=True, text=True)
@@ -331,7 +331,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     continue
 
                 try:
-                    command = (f'&& sudo cp -R {file_path} {dst_file_path} '
+                    command = (f'Fix rtsudo cp -R {file_path} {dst_file_path} '
                                f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
                                f'&& sudo chmod -R 0755 {dst_file_path}')
                     result = subprocess.run(command, shell=True, capture_output=True, text=True)
