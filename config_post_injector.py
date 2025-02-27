@@ -150,18 +150,11 @@ ALLOWED_KEYWORD = ["Overlay",
 #, --> No exact file match com.android.tzdata.apex is used
 # "com.google.android.tzdata3.apex", --> Conflict with com.google.android.tzdata.apex
 # "com.google.android.adbd.apex", --> Blocks adb access
-# "init.zygote32.rc",
-# "init.zygote64.rc",
-# "init.zygote64_32.rc",
-# "boot-framework.art",
-
-
-#"com.google.pixel.camera.hal.apex", > Skipped is added via pre-injector
-# "com.google.android.telephony.apex", -> Skipped is added via pre-injector
-# "com.google.mainline.primary.libs.apex", -> Skipped is added via pre-injector
-
-# "com.android.apex.cts.shim.apex", ->  Not important
-# ,  # No Injection: Problematic updates many com.android.hardware libraries
+# APEX Files in this list will be merged in the POST-INJECTOR -> APEX file not in this list will be repackaged
+# in the pre-injector.
+# "com.android.vndk.current.apex",
+# "com.google.android.os.statsd.apex",
+# "com.google.android.resolv.apex",
 ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.tethering.apex",
                             "com.google.android.wifi.apex",
@@ -175,11 +168,8 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "vndservicemanager.rc",
                             "com.android.i18n.apex",
                             "com.google.android.conscrypt.apex",
-                            "com.android.vndk.current.apex",
                             "com.google.android.sdkext.apex",
                             "com.google.android.ipsec.apex",
-                            "com.google.android.resolv.apex",
-                            "com.google.android.os.statsd.apex",
                             "com.android.runtime.apex",  # Problematic -> Without boot-framework error? Root cause of file not found error?
                             "com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
                             "com.google.android.media.swcodec.apex",
