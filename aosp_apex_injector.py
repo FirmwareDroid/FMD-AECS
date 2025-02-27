@@ -328,8 +328,11 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 except PermissionError as e:
                     logging.error(f"Permission denied to create directory: {e}")
 
-                if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path or "fmd-aecs-lock" in file_path:
+                if "fmd-aecs-lock" in file_path:
                     continue
+
+                #if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path or :
+                #    continue
 
                 if file in DISALLOW_APEX_FILE_OVERWRITE:
                     logging.error(f"SKIPPED APEX File: File in DISALLOW_APEX_FILE_OVERWRITE: {file_path}")
