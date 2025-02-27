@@ -345,7 +345,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
                         files_coped_list.append(dst_file_path)
                     else:
-                        logging.error(f"Incorrect copy path for APEX file: {file_path}")
+                        logging.error(f"Incorrect copy path for APEX file: src: {file_path} dst: {dst_file_path}")
                 except FileNotFoundError as e:
                     logging.error(f"APEX: File not found: {e.filename}")
                 except PermissionError as e:
