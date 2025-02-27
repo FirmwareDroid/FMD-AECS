@@ -333,7 +333,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     continue
 
                 try:
-                    logging.info(f"Vendor: {apex_vendor_extract_dir_path} | dst: {dst_file_path}")
+                    logging.info(f"APEX Vendor: {apex_vendor_extract_dir_path} | dst: {dst_file_path}")
                     if dst_file_path.startswith(apex_vendor_extract_dir_path) and dst_file_path.startswith("/tmp"):
                         command = (f'sudo cp -R {file_path} {dst_file_path} '
                                    f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
