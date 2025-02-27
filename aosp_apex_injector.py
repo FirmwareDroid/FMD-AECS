@@ -305,6 +305,8 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
             else:
                 #file_path_no_vendor = str(file_path.replace(".Google", "").replace(".google", ""))
                 file_path_no_vendor = file_path.replace(apex_vendor_extract_dir_path, "")
+                if file_path_no_vendor.startswith("/"):
+                    file_path_no_vendor = file_path_no_vendor[1:]
                 dst_file_path = os.path.join(merged_apex_extract_dir_path, file_path_no_vendor)
                 try:
                     if os.path.isfile(dst_file_path):
@@ -331,16 +333,19 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     continue
 
                 try:
-                    command = (f'sudo cp -R {file_path} {dst_file_path} '
-                               f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
-                               f'&& sudo chmod -R 0755 {dst_file_path}')
-                    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-                    if result.returncode != 0:
-                        logging.error(
-                            f"Error copying file in APEX container: {file_path} with {dst_file_path} | {result.stderr}")
-                    #shutil.copy2(file_path, dst_file_path)
-                    logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
-                    files_coped_list.append(dst_file_path)
+                    if dst_file_path.startswith(apex_vendor_extract_dir_path):
+                        command = (f'sudo cp -R {file_path} {dst_file_path} '
+                                   f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
+                                   f'&& sudo chmod -R 0755 {dst_file_path}')
+                        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                        if result.returncode != 0:
+                            logging.error(
+                                f"Error copying file in APEX container: {file_path} with {dst_file_path} | {result.stderr}")
+                        #shutil.copy2(file_path, dst_file_path)
+                        logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
+                        files_coped_list.append(dst_file_path)
+                    else:
+                        logging.error(f"Incorrect copy path for APEX file: {file_path}")
                 except FileNotFoundError as e:
                     logging.error(f"APEX: File not found: {e.filename}")
                 except PermissionError as e:
