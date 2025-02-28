@@ -272,7 +272,7 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                     result = subprocess.run(command, shell=True, capture_output=True, text=True)
                     if result.returncode != 0:
                         logging.error(
-                            f"Error copying file in APEX container: {file_path} with {dst_file_path} | {result.stderr}")
+                            f"Error copying file in APEX container (when injecting APKs): {file_path} with {dst_file_path} | {result.stderr}")
                     if os.path.exists(dst_file_path):
                         logging.info(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
                         files_coped_list.append(file)
@@ -288,10 +288,6 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
             file_path = str(os.path.join(root, file))
             if file_path.endswith(".apk"):
                 continue
-            #module_type = get_module_type(file_path, is_apex=True)
-            #if module_type == "SKIPPED":
-            #    logging.error(f"APEX: Skipping file from APEX container {apex_emulator_folder}. Known problematic filename: {file_path}")
-            #    continue
             if os.path.islink(file_path):
                 dst_file_path = merged_apex_extract_dir_path + root.replace(apex_vendor_extract_dir_path, "").replace("//", "/")
                 command = (f'sudo cp -a {file_path} {dst_file_path} '
@@ -337,8 +333,13 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
 
                 try:
                     logging.info(f"APEX Vendor: {merged_apex_extract_dir_path} | dst: {dst_file_path}")
-                    if dst_file_path.startswith(merged_apex_extract_dir_path) and dst_file_path.startswith("/tmp"):
-                        command = (f'sudo cp {file_path} {dst_file_path} '
+                    if (os.path.exists(file_path)
+                            and os.path.isfile(file_path)
+                            and dst_file_path.startswith(merged_apex_extract_dir_path)
+                            and dst_file_path.startswith("/tmp")):
+
+                        command = (f'sudo touch {dst_file_path} '
+                                   f'&& sudo cp -f {file_path} {dst_file_path} '
                                    f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
                                    f'&& sudo chmod -R 0755 {dst_file_path}')
                         logging.info(f"Run APEX copy command: {command}")
@@ -346,8 +347,9 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         if result.returncode != 0:
                             logging.error(
                                 f"Error copying file in APEX container: {file_path} with {dst_file_path} | {result.stderr}")
-                        logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
-                        files_coped_list.append(dst_file_path)
+                        else:
+                            logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
+                            files_coped_list.append(dst_file_path)
                     else:
                         logging.error(f"Incorrect copy path for APEX file: src: {file_path} dst: {dst_file_path}")
                 except FileNotFoundError as e:
