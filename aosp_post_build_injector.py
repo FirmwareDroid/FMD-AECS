@@ -54,14 +54,16 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     execution_time = end_time - start_time
     execution_time_minutes = execution_time / 60
     logging.info(f"Objects injected:")
-    for obj in inj_obj_list:
-        logging.info(f"Indirect Inject via obj: {obj}")
-    logging.info(f"Partition files injected:")
-    for obj in inj_partition_list:
-        logging.info(f"Direct Inject: {obj}")
-    logging.info(f"Errors:")
-    for obj in error_list:
-        logging.info(f"Error: {obj}")
+    if PRINT_ALL_LOGS:
+        for obj in inj_obj_list:
+            logging.info(f"Indirect Inject via obj: {obj}")
+        logging.info(f"Partition files injected:")
+        for obj in inj_partition_list:
+            logging.info(f"Direct Inject: {obj}")
+    if PRINT_ERROR_LOGS:
+        logging.info(f"Errors:")
+        for obj in error_list:
+            logging.info(f"Error: {obj}")
     logging.info(f"Execution time: {execution_time_minutes} minutes")
     logging.info(f"Number of errors: {len(error_list)}")
     logging.info(f"Number of objects injected: {len(inj_obj_list)}")

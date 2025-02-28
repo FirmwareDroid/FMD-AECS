@@ -6,7 +6,6 @@ import subprocess
 import tempfile
 import zipfile
 from jinja2 import Environment, FileSystemLoader
-from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
     sign_apex_container_apksigner, sign_apex_container_signapk
 from config import MODULE_BASE_INJECT_DIR
@@ -70,8 +69,7 @@ def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
             with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
                 generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name, allow_filtering=False)
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
-            is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path,
-                                                                            aosp_path, filename)
+            is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
                 is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
@@ -201,22 +199,29 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         else:
             manifest_path = os.path.join(apex_emulator_folder, "apex_manifest.pb")
             logging.info(f"Copy manifest from original APEX: {manifest_path}")
-            shutil.copyfile(manifest_path, merged_apex_extract_dir_path)
+            if os.path.exists(manifest_path):
+                shutil.copyfile(manifest_path, merged_apex_extract_dir_path)
+                if not os.path.exists(merged_apex_extract_dir_path):
+                    logging.error(f"APEX Manifest  was not copied to: {merged_apex_extract_dir_path}")
+                    exit(-1)
+            else:
+                logging.error("APEX Manifest path is invalid")
+                exit(-1)
 
         apk_name_list = []
         if INJECT_APEX_VENDOR_FILES:
-            logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
-            inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
+            logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
+            inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
 
         if INJECT_APEX_VENDOR_APPS:
-            logging.info(f"Injecting APEX vendor apps: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
-            apk_name_list = inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
+            logging.info(f"Injecting APEX vendor apps: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
+            apk_name_list = inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
 
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name, apk_name_list)
 
-        is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path, apex_root_path,
-                                                                        aosp_path, filename_input)
+        is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path,
+                                                                        apex_root_path)
         if is_manifest_found and os.path.exists(apex_manifest_path):
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
@@ -255,9 +260,9 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     return is_success, log_message
 
 
-def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder):
+def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path):
     files_coped_list = []
-    logging.info(f"Injecting APEX vendor apps: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
+    logging.info(f"Injecting APEX vendor apps: {apex_vendor_extract_dir_path}")
     for root, dirs, files in os.walk(apex_vendor_extract_dir_path):
         for file in files:
             file_path = os.path.join(root, file)
@@ -268,7 +273,7 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                                                                                 "").replace("//", "/")
                     current_username = os.getlogin()
                     command = (f'sudo mkdir -p {dst_file_path} '
-                               f'&& sudo cp -R {file_path} {dst_file_path} '
+                               f'&& sudo cp {file_path} {dst_file_path} '
                                f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
                                f'&& sudo chmod -R 0755 {dst_file_path}')
                     logging.info(f"Injecting APEX vendor app: {file_path} into {dst_file_path} with command: {command}")
@@ -283,8 +288,7 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
     return files_coped_list
 
 
-def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder):
-    logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {apex_emulator_folder}")
+def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path):
     files_coped_list = []
     current_username = os.getlogin()
     for root, dirs, files in os.walk(apex_vendor_extract_dir_path):
@@ -345,9 +349,10 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 try:
                     logging.info(f"APEX Vendor: {merged_apex_extract_dir_path} | dst: {dst_file_path}")
                     if dst_file_path.startswith(merged_apex_extract_dir_path) and dst_file_path.startswith("/tmp"):
-                        command = (f'sudo cp -R {file_path} {dst_file_path} '
+                        command = (f'sudo cp {file_path} {dst_file_path} '
                                    f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
                                    f'&& sudo chmod -R 0755 {dst_file_path}')
+                        logging.info(f"Run APEX copy command: {command}")
                         result = subprocess.run(command, shell=True, capture_output=True, text=True)
                         if result.returncode != 0:
                             logging.error(
@@ -427,7 +432,6 @@ def get_apex_default_keys(aosp_path, apex_file_name):
 
 def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config, is_repack=False):
     success = False
-    logging.info(f"APEX manifest file found: {apex_manifest_path}")
     resign_apex_apk_files(aosp_path, apex_extract_dir_path)
     apexer_bin_path = os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer")
     apex_file_name = os.path.basename(output_file_path)
@@ -666,16 +670,16 @@ def create_apex_manifest_file(apex_extract_dir_path, apex_package_name):
         manifest_file.write(rendered_template)
 
 
-def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, aosp_path, apex_file_name):
+def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
     """
     Searches for the APEX manifest file in the APEX extract directory and moves it to the current directory.
     Moving is necessary because the apexer tool requires the manifest file to be in the same directory as the APEX files and not in
     the subdirectory.
 
     :param apex_extract_dir_path: str - path to the APEX extract directory.
-    :param output_dir_path: str - path to the output directory where the APEX manifest file will be copied to.
+    :param output_dir_path: str - path to the output directory where the APEX manifest file will be moved to.
 
-    :return: bool - True if the APEX manifest file was found and copied, False otherwise.
+    :return: bool - True if the APEX manifest file was found and moved, False otherwise.
 
     """
     logging.info(f"Copying APEX manifest file.")
@@ -686,10 +690,12 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, aosp_path, a
             if file == "apex_manifest.pb":
                 file_path = str(os.path.join(root, file))
                 manifest_dst = os.path.join(output_dir_path, "apex_manifest.pb")
-                shutil.move(file_path, manifest_dst)
                 if os.path.exists(file_path):
                     logging.info(f"Found APEX manifest file: {file_path} to delete")
-                    os.remove(file_path)
+                    shutil.move(file_path, manifest_dst)
+                else:
+                    logging.info(f"No APEX manifest found in {apex_extract_dir_path} | {file_path}")
+                    exit(1)
                 #manifest_json_file_path = get_apex_manifest_from_aosp(aosp_path, apex_file_name)
                 #convert_apex_manifest_json_to_pb(manifest_json_file_path, manifest_dst)
                 logging.info(f"Copied APEX manifest file: {file_path} to {manifest_dst}.")
