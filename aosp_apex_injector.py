@@ -41,7 +41,6 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
             shutil.copyfile(org_apex_file, file_path)
         logging.info(f"Merging APEX file complete: {apex_out_file} overwrites {file_path} | {is_merge_success} | {log_message}")
     else:
-
         log_message = f"Error merging APEX file: {file_path} no emulator folder found in: {target_out_path}"
     return is_merge_success, log_message
 
@@ -200,7 +199,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             manifest_path = os.path.join(apex_emulator_folder, "apex_manifest.pb")
             logging.info(f"Copy manifest from original APEX: {manifest_path}")
             if os.path.exists(manifest_path):
-                shutil.copyfile(manifest_path, merged_apex_extract_dir_path)
+                shutil.copy2(manifest_path, merged_apex_extract_dir_path)
                 if not os.path.exists(merged_apex_extract_dir_path):
                     logging.error(f"APEX Manifest  was not copied to: {merged_apex_extract_dir_path}")
                     exit(-1)
@@ -238,14 +237,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                aosp_path,
                                                                private_key_path,
                                                                cert_apex_apk_path)
-                    #if is_success:
-                    #    logging.info(f"APEX signing success: {apex_out_file}")
-                    #    is_success, log_message = verify_apk_file(apex_out_file)
-                    #    logging.info(f"APEX file verified: {apex_out_file} | {is_success} | {log_message}")
-                    #else:
-                    #    logging.error(f"APEX signing failed: {apex_out_file} | {error_message}")
-                    #    log_message = f"APEX signing failed. {error_message}"
-
+                    logging.info(f"Completed APEX merge successfully: {apex_out_file}")
                     if REPLACE_AVB_KEYS:
                         logging.info(f"Overwriting AVB keys for APEX: {apex_out_file}")
                         is_success, log_message = inject_apex_avb_public_key(input_apex,
