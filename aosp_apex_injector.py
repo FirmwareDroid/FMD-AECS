@@ -190,7 +190,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     logging.info(f"Merging APEX files: {apex_emulator_folder} and {input_apex}")
     is_success, log_message = False, None
     apex_root_path = tempfile.mkdtemp(suffix=f"_{filename_input}_merged")
-    merged_apex_extract_dir_path = os.path.join(apex_root_path, "extract")
+    merged_apex_extract_dir_path = tempfile.mkdtemp(suffix=f"extract", dir=apex_root_path)
     apex_vendor_extract_dir_path = tempfile.mkdtemp(suffix=f"_{filename_input}_vendor")
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target)
     if extract_success:
@@ -322,17 +322,14 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 try:
                     if os.path.isfile(dst_file_path):
                         directory_path = os.path.dirname(dst_file_path)
-                        logging.info(f"Creating directory for APEX container: {dst_file_path}")
-                    else:
-                        directory_path = dst_file_path
-                        logging.info(f"Creating directory for APEX container: {dst_file_path}")
-                    command = (f'sudo mkdir -p {directory_path} '
-                               f'&& sudo chown -R {current_username}:{current_username} {directory_path} '
-                               f'&& sudo chmod -R 0755 {directory_path}')
-                    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-                    if result.returncode != 0:
-                        logging.error(
-                            f"Error creating directory in APEX container: {directory_path} | {result.stderr}")
+                        logging.info(f"Creating directory for APEX container: {directory_path}")
+                        command = (f'sudo mkdir -p {directory_path} '
+                                   f'&& sudo chown -R {current_username}:{current_username} {directory_path} '
+                                   f'&& sudo chmod -R 0755 {directory_path}')
+                        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                        if result.returncode != 0:
+                            logging.error(
+                                f"Error creating directory in APEX container: {directory_path} | {result.stderr}")
                 except PermissionError as e:
                     logging.error(f"Permission denied to create directory: {e}")
 
@@ -357,7 +354,6 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         if result.returncode != 0:
                             logging.error(
                                 f"Error copying file in APEX container: {file_path} with {dst_file_path} | {result.stderr}")
-                        #shutil.copy2(file_path, dst_file_path)
                         logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
                         files_coped_list.append(dst_file_path)
                     else:
