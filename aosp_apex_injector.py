@@ -198,6 +198,10 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     if extract_success:
         if ALLOW_MIXED_APEX_FILES:
             shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
+        else:
+            manifest_path = os.path.join(apex_emulator_folder, "apex_manifest.pb")
+            logging.info(f"Copy manifest from original APEX: {manifest_path}")
+            shutil.copyfile(manifest_path, merged_apex_extract_dir_path)
 
         apk_name_list = []
         if INJECT_APEX_VENDOR_FILES:
@@ -331,8 +335,8 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 if "fmd-aecs-lock" in file_path:
                     continue
 
-                #if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path or :
-                #    continue
+                if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path:
+                    continue
 
                 if file in DISALLOW_APEX_FILE_OVERWRITE:
                     logging.error(f"SKIPPED APEX File: File in DISALLOW_APEX_FILE_OVERWRITE: {file_path}")
