@@ -259,23 +259,30 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
         for file in files:
             file_path = os.path.join(root, file)
             file_extension = os.path.splitext(file)[1]
-            if file_extension == ".apk":
-                if not os.path.islink(file_path) and os.path.exists(file_path) and os.path.isfile(file_path):
-                    dst_file_path = merged_apex_extract_dir_path + root.replace(apex_vendor_extract_dir_path,
-                                                                                "").replace("//", "/")
-                    current_username = os.getlogin()
-                    command = (f'sudo mkdir -p {dst_file_path} '
-                               f'&& sudo cp {file_path} {dst_file_path} '
-                               f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
-                               f'&& sudo chmod -R 0755 {dst_file_path}')
-                    logging.info(f"Injecting APEX vendor app: {file_path} into {dst_file_path} with command: {command}")
-                    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-                    if result.returncode != 0:
-                        logging.error(
-                            f"Error copying file in APEX container (when injecting APKs): {file_path} with {dst_file_path} | {result.stderr}")
-                    if os.path.exists(dst_file_path):
-                        logging.info(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
-                        files_coped_list.append(file)
+            if file_extension == ".apk" \
+                    and not os.path.islink(file_path) \
+                    and os.path.exists(file_path) \
+                    and os.path.isfile(file_path):
+                dst_file_path = (merged_apex_extract_dir_path
+                                 + root.replace(apex_vendor_extract_dir_path,"").replace("//", "/"))
+                current_username = os.getlogin()
+                command = (f'sudo mkdir -p "$(dirname {dst_file_path})" 2>/dev/null '
+                           f'&& sudo cp {file_path} {dst_file_path} '
+                           f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
+                           f'&& sudo chmod -R 0755 {dst_file_path}')
+                logging.info(f"Injecting APEX vendor app: {file_path} into {dst_file_path} with command: {command}")
+                result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logging.error(
+                        f"Error copying file in APEX container (when injecting APKs): {file_path} with {dst_file_path} | {result.stderr}")
+
+                if os.path.exists(dst_file_path):
+                    logging.info(f"Copied APK file into APEX: {file_path} with {dst_file_path}")
+                    files_coped_list.append(file)
+                else:
+                    logging.error(f"APK file does not exist after coping in APEX")
+            else:
+                logging.info(f"Did not copy APEX APK file: {file_path}")
     logging.info(f"APEX: Files copied into container: {files_coped_list};\n")
     return files_coped_list
 
@@ -338,7 +345,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                             and dst_file_path.startswith(merged_apex_extract_dir_path)
                             and dst_file_path.startswith("/tmp")):
 
-                        command = (f'sudo mkdir -p "$(dirname {dst_file_path})" '
+                        command = (f'sudo mkdir -p "$(dirname {dst_file_path})" 2>/dev/null '
                                    f'&& sudo cp -f {file_path} {dst_file_path} '
                                    f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
                                    f'&& sudo chmod -R 0755 {dst_file_path}')
