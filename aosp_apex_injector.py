@@ -34,10 +34,17 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
         logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
         is_merge_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path)
         if os.path.exists(apex_out_file):
-            os.remove(file_path)
-            shutil.copyfile(apex_out_file, file_path)
-            os.remove(apex_out_file)
+            try:
+                os.remove(file_path)
+                shutil.copyfile(apex_out_file, file_path)
+                os.remove(apex_out_file)
+                is_merge_success = True
+                logging.info(f"Replaced original APEX with merge APEX file: org: {file_path} merge: {apex_out_file}")
+            except Exception as err:
+                logging.error(err)
         else:
+            logging.info(f"Something wrong: PEX outputfile does not exist. Restore original APEX: {org_apex_file}")
+            is_merge_success = False
             shutil.copyfile(org_apex_file, file_path)
         logging.info(f"Merging APEX file complete: {apex_out_file} overwrites {file_path} | {is_merge_success} | {log_message}")
     else:
