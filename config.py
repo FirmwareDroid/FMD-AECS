@@ -848,7 +848,7 @@ BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "libwebviewchromium_loader",
     "libwebviewchromium_plat_support",
     "libwfds",
-    #"libwifi-system-iface", #Break build: VNDK library libwifi-system-iface has different core and vendor variants!
+    "libwifi-system-iface",
     "libwilhelm",
     "libxml2",
     "libyuv",
@@ -918,7 +918,6 @@ BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "android.hardware.gnss-V1-ndk_platform"
     "android.hardware.power-V2-ndk_platform",
 ]
-
 
 HOST_PACKAGES_LIST = [
     "libadb_pairing_auth",
