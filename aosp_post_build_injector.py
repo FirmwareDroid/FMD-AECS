@@ -203,6 +203,15 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         inj_partition = (file_path, target_path)
     else:
         # Indirect Injection
+        if module_type == "SHARED_LIBRARIES":
+            vendor_library_file_path = search_original_file_in_obj(partition_name,
+                                                                    module_type,
+                                                                    file_path,
+                                                                    file_name,
+                                                                    target_out_path,
+                                                                    is_vendor_intermediate=True)
+            if vendor_library_file_path:
+                inject_file_into_obj(file_path, vendor_library_file_path, module_type)
         inject_file_into_obj(file_path, original_file_path, module_type)
         inj_obj = (file_path, original_file_path)
 
@@ -384,7 +393,7 @@ def is_parent_dir_arm_and_target_arm(file_path, candidate_path):
                  f"result: {is_match}")
     return is_match
 
-def search_original_file_in_obj(partition_name, module_type, file_path, file_name, target_out_path):
+def search_original_file_in_obj(partition_name, module_type, file_path, file_name, target_out_path, is_vendor_intermediate=False):
     """
     Searches for the original file in the AOSP source code.
 
@@ -415,7 +424,10 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
         exact_match_files = [f for f in files if f == file_name]
 
         # Strip the root folder name to match the module name
-        root_folder_name_stripped = os.path.basename(root).replace("_intermediates", "")
+        if is_vendor_intermediate:
+            root_folder_name_stripped = os.path.basename(root).replace("_vendor_intermediates", "")
+        else:
+            root_folder_name_stripped = os.path.basename(root).replace("_intermediates", "")
         root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace(f"_{partition_name}",
                                                                                         "")
         root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace("v1_prebuilt","")
@@ -662,7 +674,7 @@ def parse_arguments():
                         type=str,
                         help='Path to the source folder where the objects to inject reside.')
     parser.add_argument("-t",
-                        "--target-out-path",
+                          "--target-out-path",
                         default=None,
                         required=True,
                         type=str,

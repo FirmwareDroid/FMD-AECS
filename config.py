@@ -2318,7 +2318,7 @@ ANDROID_HARDWARE_MODULE_LIST = [
     "android.hardware.fastboot@1.1-impl.pixel",
     "android.hardware.atrace@1.0-service.pixel",
     "android.hardware.boot@1.2-impl-pixel-legacy",
-  "android.hardware.thermal@2.0-service.pixel",
+    "android.hardware.thermal@2.0-service.pixel",
     "android.hardware.vibrator-defaults.cs40l26",
     "android.hardware.vibrator-impl.cs40l26",
     "android.hardware.vibrator-service.cs40l26",
