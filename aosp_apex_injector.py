@@ -39,14 +39,15 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
                 shutil.copyfile(apex_out_file, file_path)
                 os.remove(apex_out_file)
                 is_merge_success = True
-                logging.info(f"Replaced original APEX with merge APEX file: org: {file_path} merge: {apex_out_file}")
+                logging.info(f"Replaced original APEX with merged APEX file: org: {file_path} merge: {apex_out_file}")
             except Exception as err:
                 logging.error(err)
         else:
             logging.info(f"Something wrong: PEX outputfile does not exist. Restore original APEX: {org_apex_file}")
             is_merge_success = False
             shutil.copyfile(org_apex_file, file_path)
-        logging.info(f"Merging APEX file complete: {apex_out_file} overwrites {file_path} | {is_merge_success} | {log_message}")
+        logging.info(
+            f"Merging APEX file complete: {apex_out_file} overwrites {file_path} | merge success: {is_merge_success} | {log_message}")
     else:
         log_message = f"Error merging APEX file: {file_path} no emulator folder found in: {target_out_path}"
     return is_merge_success, log_message
@@ -360,7 +361,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         result = subprocess.run(command, shell=True, capture_output=True, text=True)
                         if result.returncode != 0:
                             logging.error(
-                                f"Error copying file in APEX container: {file_path} with {dst_file_path} | {result.stderr}")
+                                f"Error copying file in APEX container {result.returncode}: {file_path} with {dst_file_path} | {result.stderr}")
                         else:
                             logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
                             files_coped_list.append(dst_file_path)

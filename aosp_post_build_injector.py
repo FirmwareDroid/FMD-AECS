@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import shutil
 import logging
+import subprocess
 import time
 import os
 import stat
@@ -195,11 +196,13 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                          target_out_path)
     #if file_name in FILES_TO_MODIFY:
     #    handle_file_modification(file_path, target_out_path)
-
-    if original_file_path is None or module_type == "SHARED_LIBRARIES":
+    # or module_type == "SHARED_LIBRARIES"
+    if original_file_path is None:
+        # Direct Injection
         target_path = inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
         inj_partition = (file_path, target_path)
     else:
+        # Indirect Injection
         inject_file_into_obj(file_path, original_file_path, module_type)
         inj_obj = (file_path, original_file_path)
 
@@ -565,9 +568,16 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
         else:
             os.makedirs(os.path.dirname(target_file_injection_path), exist_ok=True)
             try:
-                shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
+                if os.path.islink(source_file_path) and not os.path.islink(source_file_path):
+                    shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
+                elif os.path.islink(source_file_path):
+                    command = f'sudo cp -a {source_file_path} {target_file_injection_path} '
+                    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        logging.error(
+                            f"Inject File Error copying symlink: {source_file_path} with {target_file_injection_path} | {result.stderr}")
             except Exception as e:
-                logging.error(f"Error copying file: {source_file_path} -> {target_file_injection_path} | {e}")
+                logging.error(f"Inject File Error copying file: {source_file_path} -> {target_file_injection_path} | {e}")
 
         #if not set_executable_permission(target_file_injection_path):
         #    raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
@@ -622,7 +632,7 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type):
     """
     Injects a file into the AOSP source code directly without matching to existing files.
     """
-    logging.debug(f"Overwriting Obj file: {source_file_path} into {original_file_path}")
+    logging.info(f"Overwriting Obj file: {source_file_path} into {original_file_path}")
     file_name = os.path.basename(original_file_path)
     if "/apex/" in original_file_path:
         if module_type == "JAVA_LIBRARIES":
