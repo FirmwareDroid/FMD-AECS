@@ -848,7 +848,7 @@ BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "libwebviewchromium_loader",
     "libwebviewchromium_plat_support",
     "libwfds",
-    "libwifi-system-iface",
+    #"libwifi-system-iface", #Break build: VNDK library libwifi-system-iface has different core and vendor variants!
     "libwilhelm",
     "libxml2",
     "libyuv",
@@ -1374,7 +1374,7 @@ ANDROID_12_EMULATOR_SHARED_LIBRARIES = [
     "libiprouteutil.so",
     "libitoa.dylib.so",
     "libjnigraphics.so",
-    "libjpeg.so",
+    #"libjpeg.so", # Break build: VNDK library libjpeg has different core and vendor variants!
     "libjsoncpp.so",
     "libkeymaster4_1support.so",
     "libkeymaster4support.so",
