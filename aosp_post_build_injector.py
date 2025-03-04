@@ -443,8 +443,8 @@ def search_original_file_in_obj(partition_name,
     result_file_path = None
     for root, dirs, files in os.walk(search_folder_path):
         # Filter directories if partition_name is specified. For example, if partition_name is "vendor".
-        if partition_name and not any(partition_name in d for d in dirs):
-            continue
+        #if partition_name and not any(partition_name in d for d in dirs):
+        #   continue
 
         module_name = os.path.splitext(file_name)[0]
         # Check if file is in the current directory is the same as the file we are looking for
