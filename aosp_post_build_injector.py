@@ -213,20 +213,24 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                                     file_path,
                                                                     file_name,
                                                                     target_out_path,
-                                                                    replace_intermediate="_vendor_intermediates")
+                                                                    replace_intermediate=".vendor_intermediates",
+                                                                    exact_match_files=False)
             if vendor_library_file_path:
                 logging.info(f"Injecting Vendor intermediate: {file_path}")
                 inject_file_into_obj(file_path, vendor_library_file_path, module_type)
 
-            vnd_library_file_path = search_original_file_in_obj("vendor",
+            # Rule to match vndk naming
+
+            vndk_library_file_path = search_original_file_in_obj("vendor",
                                                                     module_type,
                                                                     file_path,
                                                                     file_name,
                                                                     target_out_path,
-                                                                    replace_intermediate=".vendor.com.android.vndk.current_intermediates")
-            if vnd_library_file_path:
+                                                                    replace_intermediate=".vendor.com.android.vndk.current_intermediates",
+                                                                    exact_match_files=False)
+            if vndk_library_file_path:
                 logging.info(f"Injecting VNK-Vendor-Library file: {file_path}")
-                inject_file_into_obj(file_path, vnd_library_file_path, module_type)
+                inject_file_into_obj(file_path, vndk_library_file_path, module_type)
 
         inject_file_into_obj(file_path, original_file_path, module_type)
         inj_obj = (file_path, original_file_path)
@@ -409,8 +413,13 @@ def is_parent_dir_arm_and_target_arm(file_path, candidate_path):
                  f"result: {is_match}")
     return is_match
 
-def search_original_file_in_obj(partition_name, module_type, file_path, file_name, target_out_path,
-                                replace_intermediate="_intermediates"):
+def search_original_file_in_obj(partition_name,
+                                module_type,
+                                file_path,
+                                file_name,
+                                target_out_path,
+                                replace_intermediate="_intermediates",
+                                exact_match_files=True):
     """
     Searches for the original file in the AOSP source code.
 
@@ -421,6 +430,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
     :param file_name: str - name of the file to search for.
 
     :return: str - path to the original file.
+
 
     """
     target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
@@ -438,7 +448,9 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
 
         module_name = os.path.splitext(file_name)[0]
         # Check if file is in the current directory is the same as the file we are looking for
-        exact_match_files = [f for f in files if f == file_name]
+        if exact_match_files:
+            exact_match_files = [f for f in files if f == file_name]
+
 
         # Strip the root folder name to match the module name
         root_folder_name_stripped = os.path.basename(root).replace(replace_intermediate, "")
