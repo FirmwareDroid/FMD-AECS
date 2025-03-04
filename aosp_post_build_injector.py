@@ -171,6 +171,10 @@ def handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite):
     return error_message
 
 
+
+
+
+
 def search_and_inject(partition_name, module_type, file_path, target_out_path, allow_file_overwrite):
     inj_partition = None
     inj_obj = None
@@ -209,9 +213,21 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                                     file_path,
                                                                     file_name,
                                                                     target_out_path,
-                                                                    is_vendor_intermediate=True)
+                                                                    replace_intermediate="_vendor_intermediates")
             if vendor_library_file_path:
+                logging.info(f"Injecting Vendor intermediate: {file_path}")
                 inject_file_into_obj(file_path, vendor_library_file_path, module_type)
+
+            vnd_library_file_path = search_original_file_in_obj(partition_name,
+                                                                    module_type,
+                                                                    file_path,
+                                                                    file_name,
+                                                                    target_out_path,
+                                                                    replace_intermediate=".vendor.com.android.vndk.current_intermediates")
+            if vnd_library_file_path:
+                logging.info(f"Injecting VNK-Vendor-Library file: {file_path}")
+                inject_file_into_obj(file_path, vnd_library_file_path, module_type)
+
         inject_file_into_obj(file_path, original_file_path, module_type)
         inj_obj = (file_path, original_file_path)
 
@@ -393,7 +409,7 @@ def is_parent_dir_arm_and_target_arm(file_path, candidate_path):
                  f"result: {is_match}")
     return is_match
 
-def search_original_file_in_obj(partition_name, module_type, file_path, file_name, target_out_path, is_vendor_intermediate=False):
+def search_original_file_in_obj(partition_name, module_type, file_path, file_name, target_out_path, replace_intermediate="_intermediates"):
     """
     Searches for the original file in the AOSP source code.
 
@@ -424,10 +440,7 @@ def search_original_file_in_obj(partition_name, module_type, file_path, file_nam
         exact_match_files = [f for f in files if f == file_name]
 
         # Strip the root folder name to match the module name
-        if is_vendor_intermediate:
-            root_folder_name_stripped = os.path.basename(root).replace("_vendor_intermediates", "")
-        else:
-            root_folder_name_stripped = os.path.basename(root).replace("_intermediates", "")
+        root_folder_name_stripped = os.path.basename(root).replace(replace_intermediate, "")
         root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace(f"_{partition_name}",
                                                                                         "")
         root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace("v1_prebuilt","")
