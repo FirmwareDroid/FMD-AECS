@@ -360,7 +360,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         result = subprocess.run(command, shell=True, capture_output=True, text=True)
                         if result.returncode != 0:
                             logging.error(
-                                f"Error copying file in APEX container: statuscode: {result.returncode}: {file_path} with {dst_file_path} | error: {result.stderr}")
+                                f"Error copying file in APEX container: statuscode: {result.returncode}: {file_path} with {dst_file_path} | stderr: {result.stderr} | stdout: {result.stdout}")
                         else:
                             logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
                             files_coped_list.append(dst_file_path)
