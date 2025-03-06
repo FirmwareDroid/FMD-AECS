@@ -354,8 +354,6 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                             and dst_file_path.startswith(merged_apex_extract_dir_path)
                             and dst_file_path.startswith("/tmp")):
                         dir_path = os.path.dirname(dst_file_path)
-                        if not dst_file_path.endswith("/"):
-                            dst_file_path += "/"
                         command = (f'sudo mkdir -p {dir_path} '
                                    f'&& sudo cp -f {file_path} {dst_file_path} '
                                    f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
