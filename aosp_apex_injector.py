@@ -262,7 +262,6 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
 
 def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path):
     files_coped_list = []
-    logging.info(f"Injecting APEX vendor apps: {apex_vendor_extract_dir_path}")
     for root, dirs, files in os.walk(apex_vendor_extract_dir_path):
         for file in files:
             file_path = os.path.join(root, file)
@@ -290,7 +289,7 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                 else:
                     logging.error(f"APK file does not exist after coping in APEX")
             else:
-                logging.info(f"Did not copy APEX APK file: {file_path}")
+                logging.info(f"Skipped to add file in APEX APK injection: {file_path}")
     logging.info(f"APEX: Files copied into container: {files_coped_list};\n")
     return files_coped_list
 
@@ -352,8 +351,8 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                             and os.path.isfile(file_path)
                             and dst_file_path.startswith(merged_apex_extract_dir_path)
                             and dst_file_path.startswith("/tmp")):
-
-                        command = (f'sudo mkdir -p "$(dirname {dst_file_path})" 2>/dev/null '
+                        dir_path = os.path.dirname(dst_file_path)
+                        command = (f'sudo mkdir -p "{dir_path}" '
                                    f'&& sudo cp -f {file_path} {dst_file_path} '
                                    f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
                                    f'&& sudo chmod -R 0755 {dst_file_path}')
@@ -361,7 +360,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         result = subprocess.run(command, shell=True, capture_output=True, text=True)
                         if result.returncode != 0:
                             logging.error(
-                                f"Error copying file in APEX container {result.returncode}: {file_path} with {dst_file_path} | {result.stderr}")
+                                f"Error copying file in APEX container: statuscode: {result.returncode}: {file_path} with {dst_file_path} | error: {result.stderr}")
                         else:
                             logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
                             files_coped_list.append(dst_file_path)
