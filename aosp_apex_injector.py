@@ -174,7 +174,11 @@ def get_apex_build_intermediate_folder(target_out_path):
 
 def find_emulator_apex_folder(target_out_path, file_path):
     filename = str(os.path.basename(file_path))
+    # TODO make matching better
     filename_no_vendor = filename.replace(".google", "").replace(".apex", "").replace(".capex", "")
+    if "tzdata3" in filename_no_vendor:
+        filename_no_vendor = filename_no_vendor.replace("tzdata3", "tzdata")
+
     apex_emulator_folder_root = get_apex_build_intermediate_folder(target_out_path)
     logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
     apex_module_folder = os.path.join(apex_emulator_folder_root, filename_no_vendor)
