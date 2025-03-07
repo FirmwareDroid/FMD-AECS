@@ -21,8 +21,9 @@ for blacklisted_module_name in VENDOR_BLACKLISTED_PACKAGES:
 
 #".bprof",
 #".policy"
-#".rc",
+
 SKIPPED_FILE_EXTENSION_LIST = [
+                               ".rc",
                                ".ko",
                                ".prop",
                                ".apex",
