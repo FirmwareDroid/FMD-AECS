@@ -149,14 +149,13 @@ ALLOWED_KEYWORD = ["Overlay",
 #    ALLOWED_KEYWORD.append(blacklisted_keyword)
 
 #, --> No exact file match com.android.tzdata.apex is used
-# "com.google.android.tzdata3.apex", --> Conflict with com.google.android.tzdata.apex
 # "com.google.android.adbd.apex", --> Blocks adb access
 # APEX Files in this list will be merged in the POST-INJECTOR -> APEX file not in this list will be repackaged
 # in the pre-injector.
-# "com.android.vndk.current.apex",
-# "com.google.android.os.statsd.apex",
-# "com.google.android.resolv.apex",
 ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
+                            "com.android.vndk.current.apex",
+                            "com.google.android.os.statsd.apex",
+                            "com.google.android.resolv.apex",
                             "com.google.android.tethering.apex",
                             "com.google.android.wifi.apex",
                             "com.google.android.cellbroadcast.apex",
@@ -177,22 +176,37 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.scheduling.apex",
                             "com.google.android.appsearch.apex",
                             "com.google.android.neuralnetworks.apex",
-                            "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service? (emulator) -> Workaround change seccompfilter
+                            "com.google.android.media.apex",
+                            "com.google.android.tzdata3.apex" # Special matching tzdata3 -> tzdata
                             ]
-# "com.android.i18n.apex",
-# "com.google.android.conscrypt.apex",
-# "com.android.vndk.current.apex",
-# "com.google.android.sdkext.apex",
-# "com.google.android.ipsec.apex",
-# "com.google.android.resolv.apex",
-# "com.google.android.os.statsd.apex",
-# "com.android.runtime.apex",  # Problematic -> Without boot-framework error? Root cause of file not found error?
-# "com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
-# "com.google.android.media.swcodec.apex",
-# "com.google.android.scheduling.apex",
-# "com.google.android.appsearch.apex",
-# "com.google.android.neuralnetworks.apex",
-# "com.google.android.media.apex",   # Seccomp filter breaks goldfish media service? (emulator) -> Workaround change seccompfilter
+# "com.google.android.adbd.apex"
+# ALLOWED INJECTION FILES:
+# "com.android.apex.cts.shim.apex"
+# "com.google.android.appsearch.apex"
+# "com.google.android.ipsec.apex"
+# "com.google.android.os.statsd.apex"
+# "com.google.android.telephony.apex"
+# "com.android.i18n.apex"
+# "com.google.android.art.apex"
+# "com.google.android.media.apex"
+# "com.google.android.permission.apex"
+# "com.google.android.tethering.apex"
+# "com.android.runtime.apex"
+# "com.google.android.cellbroadcast.apex"
+# "com.google.android.media.swcodec.apex"
+# "com.google.android.resolv.apex"
+# "com.google.android.tzdata3.apex"
+# "com.android.vndk.current.apex"
+# "com.google.android.conscrypt.apex"
+# "com.google.android.mediaprovider.apex"
+# "com.google.android.scheduling.apex"
+# "com.google.android.wifi.apex"
+# "com.google.android.extservices.apex"
+# "com.google.android.neuralnetworks.apex"
+# "com.google.android.sdkext.apex"
+# "com.google.mainline.primary.libs.apex"
+
+
 
 ALLOW_APEX_INJECTION_MERGE = True
 INJECT_APEX_VENDOR_FILES = True
