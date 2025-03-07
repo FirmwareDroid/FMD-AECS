@@ -20,9 +20,9 @@ for blacklisted_module_name in VENDOR_BLACKLISTED_PACKAGES:
     SKIPPED_APP_LIST.append(f"{blacklisted_module_name}.apk")
 
 #".bprof",
-#".policy",
+#".policy"
+#".rc",
 SKIPPED_FILE_EXTENSION_LIST = [
-                               ".rc",
                                ".ko",
                                ".prop",
                                ".apex",

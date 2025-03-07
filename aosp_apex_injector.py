@@ -288,8 +288,6 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                     files_coped_list.append(file)
                 else:
                     logging.error(f"APK file does not exist after coping in APEX")
-            else:
-                logging.info(f"Skipped to add file in APEX APK injection: {file_path}")
     logging.info(f"APEX: Files copied into container: {files_coped_list};\n")
     return files_coped_list
 
