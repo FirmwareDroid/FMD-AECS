@@ -240,6 +240,7 @@ APEX_DEFAULT_PATHS_DICT = {
     "swcodec":"frameworks/av/apex",
     "media": "frameworks/av/apex",
     "tzdata": "system/timezone/apex/",
+    "tzdata3": "system/timezone/apex/",
 }
 
 LIST_SINGLETON_APPS = [
