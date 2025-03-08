@@ -23,11 +23,11 @@ for blacklisted_module_name in VENDOR_BLACKLISTED_PACKAGES:
 #".policy"
 
 SKIPPED_FILE_EXTENSION_LIST = [
-                               ".rc",
-                               ".ko",
-                               ".prop",
-                               ".apex",
-                               ".capex",
+                               ".rc", # Init files might break the emulator
+                               ".ko", # Kernel modules break the emulator
+                               ".prop", # Build properties should not be overwritten
+                               ".apex", # Manual inject
+                               ".capex", # Manual inject
                                ".prof",
                                ".original_apex", # Leftover from apex repacking
                                ".idsig", # Leftover from signing
@@ -239,6 +239,7 @@ APEX_DEFAULT_PATHS_DICT = {
     "appsearch":"frameworks/base/apex/appsearch/",
     "swcodec":"frameworks/av/apex",
     "media": "frameworks/av/apex",
+    "tzdata": "system/timezone/apex/",
 }
 
 LIST_SINGLETON_APPS = [
