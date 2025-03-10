@@ -154,7 +154,7 @@ ALLOWED_KEYWORD = ["Overlay",
 # APEX Files in this list will be merged in the POST-INJECTOR -> APEX file not in this list will be repackaged
 # in the pre-injector.
 ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
-                            "com.android.vndk.current.apex",
+                            #"com.android.vndk.current.apex",
                             "com.google.android.os.statsd.apex",
                             "com.google.android.resolv.apex",
                             "com.google.android.tethering.apex",
@@ -171,8 +171,8 @@ ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
                             "com.google.android.conscrypt.apex",
                             "com.google.android.sdkext.apex",
                             "com.google.android.ipsec.apex",
-                            "com.android.runtime.apex",  # Problematic -> Without boot-framework error? Root cause of file not found error?
-                            "com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
+                            #"com.android.runtime.apex",  # Problematic -> Without boot-framework error? Root cause of file not found error?
+                            #"com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
                             "com.google.android.media.swcodec.apex",
                             "com.google.android.scheduling.apex",
                             "com.google.android.appsearch.apex",
