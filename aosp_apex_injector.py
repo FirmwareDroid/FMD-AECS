@@ -416,6 +416,8 @@ def get_apex_default_keys(aosp_path, apex_file_name):
                 apex_file_name_no_extension = f"com.android.os.statsd"
             elif key == "swcodec":
                 apex_file_name_no_extension = f"com.android.media.swcodec"
+            elif key == "tzdata3":
+                apex_file_name_no_extension = f"com.android.tzdata"
 
             module_path = str(os.path.join(aosp_path, value))
             priv_pem_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pem")
