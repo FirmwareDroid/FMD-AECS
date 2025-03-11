@@ -411,7 +411,7 @@ def is_parent_dir_arm_and_target_arm(file_path, candidate_path):
         if not "arm64" in parent_dir_candidate and "arm" in parent_dir_candidate:
             is_match = True
 
-    logging.info(f"Checking parent dir: {parent_dir_file_path}|{parent_dir_candidate} for {file_path}|{candidate_path}: "
+    logging.debug(f"Checking parent dir: {parent_dir_file_path}|{parent_dir_candidate} for {file_path}|{candidate_path}: "
                  f"result: {is_match}")
     return is_match
 
