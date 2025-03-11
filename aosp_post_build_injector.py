@@ -482,7 +482,7 @@ def search_original_file_in_obj(partition_name,
                 if not check_file_compatibility(file_path, candidate_path, module_type):
                     logging.info(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
                     continue
-                logging.debug(f"File Matcher: File found via direct match: {file_path}|{candidate_path}")
+                logging.info(f"File Matcher: File found via direct match: {file_path}|{candidate_path}")
                 result_file_path = candidate_path
                 break
         # Check if the folder has the same name but the file within the folder is named differently
