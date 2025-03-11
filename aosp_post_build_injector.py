@@ -463,64 +463,57 @@ def search_original_file_in_obj(partition_name,
 
     for file in file_path_list:
         root = os.path.dirname(file)
-        # Filter directories if partition_name is specified. For example, if partition_name is "vendor".
-        #if partition_name and not any(partition_name in d for d in dirs):
-        #   continue
-
+        candidate_path = file
         module_name = os.path.splitext(file_name)[0]
-
         # Strip the root folder name to match the module name
         base_name = os.path.basename(root)
         root_folder_name_stripped = base_name.replace(replace_intermediate, "")
         root_folder_name_stripped = root_folder_name_stripped.replace(f"_{partition_name}",
                                                                                         "")
         root_folder_name_stripped = root_folder_name_stripped.replace("v1_prebuilt","")
-        logging.info(f"File Matcher: Root Folder Name stripped: {root_folder_name_stripped}")
+        logging.debug(f"File Matcher: Root Folder Name stripped: {root_folder_name_stripped}")
 
         # Check if there is an exact match for the file name
         if exact_match_files:
-            candidate_path = os.path.join(root, file_name)
-            logging.info(f"File Matcher exact match: Found {candidate_path} in {root}")
+            logging.debug(f"File Matcher exact match: Found {candidate_path} in {root}")
             # Verify if it matches the partition criteria
             if not partition_name or partition_name in root:
-                logging.info(f"File Matcher: Found file that matches partition: {file_name}, candidate_path: {candidate_path}")
+                logging.debug(f"File Matcher: Found file that matches partition: {file_name}, candidate_path: {candidate_path}")
                 if not check_file_compatibility(file_path, candidate_path, module_type):
-                    logging.info(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
+                    logging.debug(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
                     continue
-                logging.info(f"File Matcher: File found via direct match: {file_path}|{candidate_path}")
+                logging.debug(f"File Matcher: File found via direct match: {file_path}|{candidate_path}")
                 result_file_path = candidate_path
                 break  # Terminate search early
             else:
                 logging.info(f"File Matcher: Found file that matches partition but not root: {file_name}, candidate_path: {candidate_path}")
         # Check if the folder has the same name but the file within the folder is named differently
         elif module_name == root_folder_name_stripped and partition_name in root:
-            logging.info(f"File Matcher: Found module name: {module_name} in {root} with partition {partition_name}")
-            for file in files:
-                file_extension_src = os.path.splitext(file_name)[1]
-                file_extension_obj = os.path.splitext(file)[1]
+            logging.debug(f"File Matcher: Found module name: {module_name} in {root} with partition {partition_name}")
+            file_extension_src = os.path.splitext(file_name)[1]
+            file_extension_obj = os.path.splitext(file)[1]
 
-                if file_extension_src.lower().strip() == file_extension_obj.lower().strip():
-                    candidate_path = os.path.join(root, file)
-                    logging.info(f"File Matcher: Found file: {file_name}, candidate_path: {candidate_path}")
-                    if not check_file_compatibility(file_path, candidate_path, module_type):
-                        logging.info(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
-                        continue
-                    logging.info(f"File Matcher: File found via module name: {file_path}|{candidate_path}")
+            if file_extension_src.lower().strip() == file_extension_obj.lower().strip():
+                logging.debug(f"File Matcher: Found file: {file_name}, candidate_path: {candidate_path}")
+                if not check_file_compatibility(file_path, candidate_path, module_type):
+                    logging.debug(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
+                    continue
+                logging.debug(f"File Matcher: File found via module name: {file_path}|{candidate_path}")
+                result_file_path = candidate_path
+                break
+            elif ((file_extension_src == ".apex" and file_extension_obj == ".capex")
+                  or (file_extension_src == ".capex" and file_extension_obj == ".apex")):
+                # Matching apex to capex files
+                if ALLOW_APEX_INJECTION_MERGE:
                     result_file_path = candidate_path
+                    logging.debug(f"File Matcher: Found APEX file2: {file_name}, result_file_path: {result_file_path}")
                     break
-                elif ((file_extension_src == ".apex" and file_extension_obj == ".capex")
-                      or (file_extension_src == ".capex" and file_extension_obj == ".apex")):
-                    # Matching apex to capex files
-                    if ALLOW_APEX_INJECTION_MERGE:
-                        result_file_path = os.path.join(root, file)
-                        logging.info(f"File Matcher: Found APEX file2: {file_name}, result_file_path: {result_file_path}")
-                        break
 
     if result_file_path:
-        logging.info(f"File Matcher: Found file for {file_name} in {search_folder_path} with partition {partition_name}")
+        logging.debug(f"File Matcher: Found file for {file_name} in {search_folder_path} with partition {partition_name}")
         return result_file_path
     else:
-        logging.info(f"File Matcher: No file found for {file_name} in {search_folder_path} with partition {partition_name}")
+        logging.debug(f"File Matcher: No file found for {file_name} in {search_folder_path} with partition {partition_name}")
         return None
 
 
