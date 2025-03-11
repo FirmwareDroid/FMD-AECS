@@ -180,6 +180,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     inj_obj = None
     file_name = os.path.basename(file_path)
     file_extension = os.path.splitext(file_name)[1]
+
     if file_name in INDIRECT_INJECTION_FILE_MAPPING.keys():
         original_file_path = INDIRECT_INJECTION_FILE_MAPPING[file_name]
         original_file_path = os.path.join(target_out_path, original_file_path)
@@ -190,7 +191,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                          file_name,
                                                          target_out_path)
     if original_file_path is None:
-        # To match naming of vendors with the emulators file
+        # TODO: To match naming of vendors with the emulators files
         file_path_vendor_replaced = file_path.replace(".google", "").replace("Google", "")
         file_name_vendor_replaced = os.path.basename(file_path_vendor_replaced)
         original_file_path = search_original_file_in_obj(partition_name,
@@ -200,11 +201,12 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                          target_out_path)
     #if file_name in FILES_TO_MODIFY:
     #    handle_file_modification(file_path, target_out_path)
+
     # or module_type == "SHARED_LIBRARIES"
     if original_file_path is None:
         # Direct Injection
         target_path = inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
-        inj_partition = (file_path, target_path)
+        inj_partition = (file_path, target_path, module_type)
     else:
         # Indirect Injection
         if module_type == "SHARED_LIBRARIES":
@@ -233,7 +235,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                 inject_file_into_obj(file_path, vndk_library_file_path, module_type)
 
         inject_file_into_obj(file_path, original_file_path, module_type)
-        inj_obj = (file_path, original_file_path)
+        inj_obj = (file_path, original_file_path, module_type)
 
     if file_name in COPY_TO_SPECIFIC_PATH.keys():
         inject_path = COPY_TO_SPECIFIC_PATH[file_name]
@@ -443,8 +445,8 @@ def search_original_file_in_obj(partition_name,
     result_file_path = None
     for root, dirs, files in os.walk(search_folder_path):
         # Filter directories if partition_name is specified. For example, if partition_name is "vendor".
-        #if partition_name and not any(partition_name in d for d in dirs):
-        #   continue
+        if partition_name and not any(partition_name in d for d in dirs):
+           continue
 
         module_name = os.path.splitext(file_name)[0]
         # Check if file is in the current directory is the same as the file we are looking for
@@ -557,7 +559,7 @@ def set_executable_permission(file_path):
         logging.warning(f"{e}")
         return False
 
-
+# Direct Injection
 def inject_file_into_partition(source_file_path, partition_name, target_out_path, overwrite=False):
     if partition_name == "super":
         partition_name = "system"
@@ -584,15 +586,23 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
     if os.path.exists(target_file_injection_path):
         file_extension = os.path.splitext(target_file_injection_path)[1]
         if os.path.islink(target_file_injection_path) or file_extension in ALLOWED_FILE_OVERWRITE_EXTENSION_LIST:
-            shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
+            try:
+                shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
+                logging.info(f"File link overwrite: {source_file_path} into {target_file_injection_path}")
+            except Exception as e:
+                logging.error(f"Error copying file link: {source_file_path} -> {target_file_injection_path} | {e}")
         else:
             if ALLOW_ALL_FILE_OVERWRITE:
                 overwrite = True
             if overwrite:
-                logging.info(f"Overwriting file: {source_file_path} into {target_file_injection_path}")
-                shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
-                if not set_executable_permission(target_file_injection_path):
-                    raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
+                try:
+                    if os.path.isfile(source_file_path):
+                        shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
+                        logging.info(f"File overwrite: {source_file_path} into {target_file_injection_path}")
+                        if not set_executable_permission(target_file_injection_path):
+                            raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
+                except Exception as e:
+                    logging.error(f"Error copying file: {source_file_path} -> {target_file_injection_path} | {e}")
             else:
                 if os.path.isfile(target_file_injection_path):
                     file_extension = os.path.splitext(target_file_injection_path)[1]
@@ -608,7 +618,7 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
         else:
             os.makedirs(os.path.dirname(target_file_injection_path), exist_ok=True)
             try:
-                if os.path.islink(source_file_path) and not os.path.islink(source_file_path):
+                if os.path.isfile(source_file_path) and not os.path.islink(source_file_path):
                     shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
                 elif os.path.islink(source_file_path):
                     command = f'sudo cp -a {source_file_path} {target_file_injection_path} '
