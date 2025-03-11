@@ -456,10 +456,12 @@ def search_original_file_in_obj(partition_name,
 
 
         # Strip the root folder name to match the module name
-        root_folder_name_stripped = os.path.basename(root).replace(replace_intermediate, "")
-        root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace(f"_{partition_name}",
+        base_name = os.path.basename(root)
+        root_folder_name_stripped = base_name.replace(replace_intermediate, "")
+        root_folder_name_stripped = root_folder_name_stripped.replace(f"_{partition_name}",
                                                                                         "")
-        root_folder_name_stripped = os.path.basename(root_folder_name_stripped).replace("v1_prebuilt","")
+        root_folder_name_stripped = root_folder_name_stripped.replace("v1_prebuilt","")
+        logging.info(f"File Matcher: Root Folder Name stripped: {root_folder_name_stripped}")
 
         # Check if there is an exact match for the file name
         if exact_match_files:
@@ -478,6 +480,7 @@ def search_original_file_in_obj(partition_name,
                 logging.info(f"File Matcher: Found file that matches partition but not root: {file_name}, candidate_path: {candidate_path}")
         # Check if the folder has the same name but the file within the folder is named differently
         elif module_name == root_folder_name_stripped and partition_name in root:
+            logging.info(f"File Matcher: Found module name: {module_name} in {root} with partition {partition_name}")
             for file in files:
                 file_extension_src = os.path.splitext(file_name)[1]
                 file_extension_obj = os.path.splitext(file)[1]
