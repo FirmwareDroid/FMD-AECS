@@ -586,7 +586,8 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
         if os.path.islink(target_file_injection_path) or file_extension in ALLOWED_FILE_OVERWRITE_EXTENSION_LIST:
             shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
         else:
-            overwrite = True
+            if ALLOW_ALL_FILE_OVERWRITE:
+                overwrite = True
             if overwrite:
                 logging.info(f"Overwriting file: {source_file_path} into {target_file_injection_path}")
                 shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
