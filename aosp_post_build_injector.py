@@ -445,13 +445,14 @@ def search_original_file_in_obj(partition_name,
     result_file_path = None
     for root, dirs, files in os.walk(search_folder_path):
         # Filter directories if partition_name is specified. For example, if partition_name is "vendor".
-        if partition_name and not any(partition_name in d for d in dirs):
-           continue
+        #if partition_name and not any(partition_name in d for d in dirs):
+        #   continue
 
         module_name = os.path.splitext(file_name)[0]
         # Check if file is in the current directory is the same as the file we are looking for
         if exact_match_files:
             exact_match_files = [f for f in files if f == file_name]
+            logging.info(f"ile Matcher: Found {len(exact_match_files)} exact matches for {module_name}")
 
 
         # Strip the root folder name to match the module name
@@ -465,15 +466,15 @@ def search_original_file_in_obj(partition_name,
             candidate_path = os.path.join(root, file_name)
             # Verify if it matches the partition criteria
             if not partition_name or partition_name in root:
-                if is_elf_binary(file_path):
-                    if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
-                                                                                           file_path):
-                        continue
-                if "arm" in file_path:
-                    if not is_parent_dir_arm_and_target_arm(file_path, candidate_path):
-                        continue
+                logging.info(f"File Matcher: Found file that matches partition: {file_name}, candidate_path: {candidate_path}")
+                if not check_file_compatibility(file_path, candidate_path, module_type):
+                    logging.info(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
+                    continue
+                logging.info(f"File Matcher: File found via direct match: {file_path}|{candidate_path}")
                 result_file_path = candidate_path
                 break  # Terminate search early
+            else:
+                logging.info(f"File Matcher: Found file that matches partition but not root: {file_name}, candidate_path: {candidate_path}")
         # Check if the folder has the same name but the file within the folder is named differently
         elif module_name == root_folder_name_stripped and partition_name in root:
             for file in files:
@@ -482,13 +483,11 @@ def search_original_file_in_obj(partition_name,
 
                 if file_extension_src.lower().strip() == file_extension_obj.lower().strip():
                     candidate_path = os.path.join(root, file)
-                    if is_elf_binary(file_path):
-                        if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
-                                                                                               file_path):
-                            continue
-                    if "arm" in file_path:
-                        if not is_parent_dir_arm_and_target_arm(file_path, candidate_path):
-                            continue
+                    logging.info(f"File Matcher: Found file: {file_name}, candidate_path: {candidate_path}")
+                    if not check_file_compatibility(file_path, candidate_path, module_type):
+                        logging.info(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
+                        continue
+                    logging.info(f"File Matcher: File found via module name: {file_path}|{candidate_path}")
                     result_file_path = candidate_path
                     break
                 elif ((file_extension_src == ".apex" and file_extension_obj == ".capex")
@@ -500,10 +499,26 @@ def search_original_file_in_obj(partition_name,
                         break
 
     if result_file_path:
+        logging.info(f"File Matcher: Found file for {file_name} in {search_folder_path} with partition {partition_name}")
         return result_file_path
     else:
-        logging.debug(f"No file found for {file_name} in {search_folder_path} with partition {partition_name}")
+        logging.info(f"File Matcher: No file found for {file_name} in {search_folder_path} with partition {partition_name}")
         return None
+
+
+def check_file_compatibility(file_path, candidate_path, module_type):
+    is_match = True
+    if is_elf_binary(file_path):
+        if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
+                                                                               file_path):
+            logging.info(f"File Matcher: ABI not compatible: {file_path}|{candidate_path}")
+            is_match = False
+
+    if "arm" in file_path:
+        if not is_parent_dir_arm_and_target_arm(file_path, candidate_path):
+            logging.info(f"File Matcher: Parent dir not arm: {file_path}|{candidate_path}")
+            is_match = False
+    return is_match
 
 
 def is_top_folder(library_path, folder_name):
