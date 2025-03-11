@@ -440,7 +440,7 @@ def search_original_file_in_obj(partition_name,
                                           module_type if module_type not in ["MISC", "STATIC_CONFIG"] else ""))
 
     if partition_name in ["super", "system"]:
-        partition_name = ""
+        partition_name = None
 
     result_file_path = None
     for root, dirs, files in os.walk(search_folder_path):
@@ -452,7 +452,7 @@ def search_original_file_in_obj(partition_name,
         # Check if file is in the current directory is the same as the file we are looking for
         if exact_match_files:
             exact_match_files = [f for f in files if f == file_name]
-            logging.info(f"ile Matcher: Found {len(exact_match_files)} exact matches for {module_name}")
+            logging.info(f"File Matcher: Found {len(exact_match_files)} exact matches for {module_name} in {root}")
 
 
         # Strip the root folder name to match the module name
@@ -464,6 +464,7 @@ def search_original_file_in_obj(partition_name,
         # Check if there is an exact match for the file name
         if exact_match_files:
             candidate_path = os.path.join(root, file_name)
+            logging.info(f"File Matcher exact match: Found {candidate_path} in {root}")
             # Verify if it matches the partition criteria
             if not partition_name or partition_name in root:
                 logging.info(f"File Matcher: Found file that matches partition: {file_name}, candidate_path: {candidate_path}")
