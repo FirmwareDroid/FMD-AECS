@@ -459,7 +459,7 @@ def search_original_file_in_obj(partition_name,
             exact_match_files = True
             match = file_name_list.index(file_name)
             logging.info(
-                f"File Matcher: Found exact matches for {file_name} in {match}.")
+                f"File Matcher: Found exact matches for {file_name} in index {match}: {file_path_list[match]}")
 
     module_name = os.path.splitext(file_name)[0]
 
@@ -467,8 +467,7 @@ def search_original_file_in_obj(partition_name,
         root = os.path.dirname(file)
         candidate_path = file
         # Strip the root folder name to match the module name
-        base_name = os.path.basename(root)
-        root_folder_name_stripped = base_name.replace(replace_intermediate, "")
+        root_folder_name_stripped = root.replace(replace_intermediate, "")
         root_folder_name_stripped = root_folder_name_stripped.replace(f"_{partition_name}",
                                                                                         "")
         root_folder_name_stripped = root_folder_name_stripped.replace("v1_prebuilt","")
@@ -481,13 +480,11 @@ def search_original_file_in_obj(partition_name,
             if not partition_name or partition_name in root:
                 logging.debug(f"File Matcher: Found file that matches partition: {file_name}, candidate_path: {candidate_path}")
                 if not check_file_compatibility(file_path, candidate_path, module_type):
-                    logging.debug(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
+                    logging.info(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
                     continue
                 logging.debug(f"File Matcher: File found via direct match: {file_path}|{candidate_path}")
                 result_file_path = candidate_path
                 break
-            else:
-                logging.info(f"File Matcher: Found file that matches partition but not root: {file_name}, candidate_path: {candidate_path}")
         # Check if the folder has the same name but the file within the folder is named differently
         elif module_name == root_folder_name_stripped and partition_name in root:
             logging.info(f"File Matcher: Found module name: {module_name} in {root} with partition {partition_name}")
