@@ -111,6 +111,8 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         "_apex"         # Skipped all files from extracted apex folder
                         ]
 
+
+# When sets allows all files to be overwritten
 ALLOW_ALL_FILE_OVERWRITE = True
 
 # "dex2oat"
