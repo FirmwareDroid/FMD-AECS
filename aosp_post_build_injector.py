@@ -452,7 +452,7 @@ def search_original_file_in_obj(partition_name,
         # Check if file is in the current directory is the same as the file we are looking for
         if exact_match_files:
             exact_match_files = [f for f in files if f == file_name]
-            logging.info(f"File Matcher: Found {len(exact_match_files)} exact matches for {module_name} in {root}")
+            logging.info(f"File Matcher: Found {len(exact_match_files)} exact matches for {module_name} in {root} with filename: {file_name}")
 
 
         # Strip the root folder name to match the module name
