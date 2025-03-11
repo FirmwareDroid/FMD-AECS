@@ -415,6 +415,15 @@ def is_parent_dir_arm_and_target_arm(file_path, candidate_path):
                  f"result: {is_match}")
     return is_match
 
+
+def get_all_files(directory):
+    all_files = []
+    for root, _, files in os.walk(directory):
+        for file in files:
+            all_files.append(os.path.join(root, file))
+    return all_files
+
+
 def search_original_file_in_obj(partition_name,
                                 module_type,
                                 file_path,
@@ -443,17 +452,22 @@ def search_original_file_in_obj(partition_name,
         partition_name = None
 
     result_file_path = None
-    for root, dirs, files in os.walk(search_folder_path):
+    file_path_list = get_all_files(search_folder_path)
+    file_name_list = [os.path.basename(file) for file in file_path_list]
+    if exact_match_files:
+        if file_name in file_name_list:
+            exact_match_files = True
+            match = file_name_list.index(file_name)
+            logging.info(
+                f"File Matcher: Found exact matches for {file_name} in {match}.")
+
+    for file in file_path_list:
+        root = os.path.dirname(file)
         # Filter directories if partition_name is specified. For example, if partition_name is "vendor".
         #if partition_name and not any(partition_name in d for d in dirs):
         #   continue
 
         module_name = os.path.splitext(file_name)[0]
-        # Check if file is in the current directory is the same as the file we are looking for
-        if exact_match_files:
-            exact_match_files = [f for f in files if f == file_name]
-            logging.info(f"File Matcher: Found {len(exact_match_files)} exact matches for {module_name} in {root} with filename: {file_name}")
-
 
         # Strip the root folder name to match the module name
         base_name = os.path.basename(root)
@@ -499,7 +513,7 @@ def search_original_file_in_obj(partition_name,
                     # Matching apex to capex files
                     if ALLOW_APEX_INJECTION_MERGE:
                         result_file_path = os.path.join(root, file)
-                        logging.info(f"Found APEX file2: {file_name}, result_file_path: {result_file_path}")
+                        logging.info(f"File Matcher: Found APEX file2: {file_name}, result_file_path: {result_file_path}")
                         break
 
     if result_file_path:
