@@ -209,30 +209,29 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         inj_partition = (file_path, target_path, module_type)
     else:
         # Indirect Injection
-        if module_type == "SHARED_LIBRARIES":
-            vendor_library_file_path = search_original_file_in_obj("vendor",
-                                                                    module_type,
-                                                                    file_path,
-                                                                    file_name,
-                                                                    target_out_path,
-                                                                    replace_intermediate=".vendor_intermediates",
-                                                                    exact_match_files=False)
-            if vendor_library_file_path:
-                logging.info(f"Injecting Vendor intermediate: {file_path}")
-                inject_file_into_obj(file_path, vendor_library_file_path, module_type)
-
-            # Rule to match vndk naming
-
-            vndk_library_file_path = search_original_file_in_obj("vendor",
-                                                                    module_type,
-                                                                    file_path,
-                                                                    file_name,
-                                                                    target_out_path,
-                                                                    replace_intermediate=".vendor.com.android.vndk.current_intermediates",
-                                                                    exact_match_files=False)
-            if vndk_library_file_path:
-                logging.info(f"Injecting VNK-Vendor-Library file: {file_path}")
-                inject_file_into_obj(file_path, vndk_library_file_path, module_type)
+        # if module_type == "SHARED_LIBRARIES":
+        #     vendor_library_file_path = search_original_file_in_obj("vendor",
+        #                                                             module_type,
+        #                                                             file_path,
+        #                                                             file_name,
+        #                                                             target_out_path,
+        #                                                             replace_intermediate=".vendor_intermediates",
+        #                                                             exact_match_files=False)
+        #     if vendor_library_file_path:
+        #         logging.info(f"Injecting Vendor intermediate: {file_path}")
+        #         inject_file_into_obj(file_path, vendor_library_file_path, module_type)
+        #
+        #     # Rule to match vndk naming
+        #     vndk_library_file_path = search_original_file_in_obj("vendor",
+        #                                                             module_type,
+        #                                                             file_path,
+        #                                                             file_name,
+        #                                                             target_out_path,
+        #                                                             replace_intermediate=".vendor.com.android.vndk.current_intermediates",
+        #                                                             exact_match_files=False)
+        #     if vndk_library_file_path:
+        #         logging.info(f"Injecting VNK-Vendor-Library file: {file_path}")
+        #         inject_file_into_obj(file_path, vndk_library_file_path, module_type)
 
         inject_file_into_obj(file_path, original_file_path, module_type)
         inj_obj = (file_path, original_file_path, module_type)
