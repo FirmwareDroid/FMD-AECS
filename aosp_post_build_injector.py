@@ -8,6 +8,7 @@ import hashlib
 import shutil
 import logging
 import subprocess
+import threading
 import time
 import os
 import stat
@@ -26,6 +27,8 @@ if os.environ.get("FMD_DEBUG") == "True":
 else:
     setup_logger()
 
+processed_files = set()
+processed_files_lock = threading.Lock()
 
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target):
     """
@@ -118,6 +121,12 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
             if os.path.exists(processed_marker):
                 return f"File already processed: {file_path}", None, None
             module_type = get_module_type(file_path)
+
+            with processed_files_lock:
+                if file_path in processed_files:
+                    return f"File already processed: {file_path}", None, None
+                processed_files.add(file_path)
+
             if module_type in ["SKIPPED"]:
                 error_message = f"Skipped File post-inject (Keyword/Extension/Filename): {file_path}"
             else:
@@ -149,11 +158,11 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                                                                allow_file_overwrite)
                 else:
                     logging.info(f"File not further processed: {file_path} | {error_message}")
-
-                with open(processed_marker, 'w') as marker:
-                    marker.write("")
     except Exception as e:
         error_message = f"{e}:{traceback.format_exc()}"
+    finally:
+        with open(processed_marker, 'w') as marker:
+            marker.write("")
 
     result = error_message, inj_obj, inj_partition
     return result
@@ -465,6 +474,7 @@ def search_original_file_in_obj(partition_name,
     for file in file_path_list:
         root = os.path.dirname(file)
         candidate_path = file
+        candidate_file_name = os.path.basename(candidate_path)
         # Strip the root folder name to match the module name
         root_folder_name_stripped = root.replace(replace_intermediate, "")
         root_folder_name_stripped = root_folder_name_stripped.replace(f"_{partition_name}",
@@ -476,14 +486,15 @@ def search_original_file_in_obj(partition_name,
         if exact_match_files:
             logging.info(f"File Matcher exact match: Found {candidate_path} in {root}")
             # Verify if it matches the partition criteria
-            if not partition_name or partition_name in root:
-                logging.debug(f"File Matcher: Found file that matches partition: {file_name}, candidate_path: {candidate_path}")
-                if not check_file_compatibility(file_path, candidate_path, module_type):
-                    logging.info(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
-                    continue
-                logging.info(f"File Matcher: File found via direct match: {file_path}|{candidate_path}")
-                result_file_path = candidate_path
-                break
+            if candidate_file_name == file_name:
+                if not partition_name or partition_name in root:
+                    logging.debug(f"File Matcher: Found file that matches partition: {file_name}, candidate_path: {candidate_path}")
+                    if not check_file_compatibility(file_path, candidate_path, module_type):
+                        logging.info(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
+                        continue
+                    logging.info(f"File Matcher: File found via direct match: {file_path}|{candidate_path}")
+                    result_file_path = candidate_path
+                    break
         # Check if the folder has the same name but the file within the folder is named differently
         elif module_name == root_folder_name_stripped and partition_name in root:
             logging.info(f"File Matcher: Found module name: {module_name} in {root} with partition {partition_name}")
