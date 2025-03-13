@@ -130,6 +130,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
             if module_type in ["SKIPPED"]:
                 error_message = f"Skipped File post-inject (Keyword/Extension/Filename): {file_path}"
             else:
+                logging.info(f"Processing file {file_path}")
                 filename = os.path.basename(file_path)
                 file_extension = os.path.splitext(file_path)[1]
                 if filename and filename != "":
