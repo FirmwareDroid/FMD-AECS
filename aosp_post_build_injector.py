@@ -489,20 +489,20 @@ def search_original_file_in_obj(partition_name,
 
         # Check if there is an exact match for the file name
         if exact_match_files:
-            logging.info(f"File Matcher exact match: Found {candidate_path} in {root}")
+            logging.debug(f"File Matcher exact match: Found {candidate_path} in {root}")
             # Verify if it matches the partition criteria
             if candidate_file_name == file_name:
                 if not partition_name or partition_name in root:
                     logging.debug(f"File Matcher: Found file that matches partition: {file_name}, candidate_path: {candidate_path}")
                     if not check_file_compatibility(file_path, candidate_path, module_type):
-                        logging.info(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
+                        logging.debug(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
                         continue
-                    logging.info(f"File Matcher: File found via direct match: {file_path}|{candidate_path}")
+                    logging.debug(f"File Matcher: File found via direct match: {file_path}|{candidate_path}")
                     result_file_path = candidate_path
                     break
         # Check if the folder has the same name but the file within the folder is named differently
         elif module_name == root_folder_name_stripped and partition_name in root:
-            logging.info(f"File Matcher: Found module name: {module_name} in {root} with partition {partition_name}")
+            logging.debug(f"File Matcher: Found module name: {module_name} in {root} with partition {partition_name}")
             file_extension_src = os.path.splitext(file_name)[1]
             file_extension_obj = os.path.splitext(file)[1]
 
