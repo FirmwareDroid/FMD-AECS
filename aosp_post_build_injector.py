@@ -242,9 +242,14 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         #     if vndk_library_file_path:
         #         logging.info(f"Injecting VNK-Vendor-Library file: {file_path}")
         #         inject_file_into_obj(file_path, vndk_library_file_path, module_type)
-
-        inject_file_into_obj(file_path, original_file_path, module_type)
-        inj_obj = (file_path, original_file_path, module_type)
+        if isinstance(original_file_path, list):
+            original_file_path_list = original_file_path
+            for original_file_path in original_file_path_list:
+                inject_file_into_obj(file_path, original_file_path, module_type)
+                inj_obj = (file_path, original_file_path, module_type)
+        else:
+            inject_file_into_obj(file_path, original_file_path, module_type)
+            inj_obj = (file_path, original_file_path, module_type)
 
     if file_name in COPY_TO_SPECIFIC_PATH.keys():
         inject_path = COPY_TO_SPECIFIC_PATH[file_name]
@@ -464,15 +469,14 @@ def search_original_file_in_obj(partition_name,
     if partition_name in ["super", "system"]:
         partition_name = ""
 
-    result_file_path = None
+    result_file_path_list = []
     file_path_list = get_all_files(search_folder_path)
     file_name_list = [os.path.basename(file) for file in file_path_list]
     if exact_match_files:
-        if file_name in file_name_list:
-            exact_match_files = True
-            match = file_name_list.index(file_name)
-            logging.info(
-                f"File Matcher: Found exact matches for {file_name} in index {match}: {file_path_list[match]}")
+        matches = [file_path_list[i] for i, name in enumerate(file_name_list) if name == file_name]
+        if matches:
+            logging.info(f"File Matcher: Found exact matches for {file_name}: {matches}")
+        file_path_list = matches
 
     module_name = os.path.splitext(file_name)[0]
 
@@ -499,7 +503,7 @@ def search_original_file_in_obj(partition_name,
                         continue
                     logging.debug(f"File Matcher: File found via direct match: {file_path}|{candidate_path}")
                     result_file_path = candidate_path
-                    break
+                    result_file_path_list.append(result_file_path)
         # Check if the folder has the same name but the file within the folder is named differently
         elif module_name == root_folder_name_stripped and partition_name in root:
             logging.debug(f"File Matcher: Found module name: {module_name} in {root} with partition {partition_name}")
@@ -513,18 +517,18 @@ def search_original_file_in_obj(partition_name,
                     continue
                 logging.debug(f"File Matcher: File found via module name: {file_path}|{candidate_path}")
                 result_file_path = candidate_path
-                break
+                result_file_path_list.append(result_file_path)
             elif ((file_extension_src == ".apex" and file_extension_obj == ".capex")
                   or (file_extension_src == ".capex" and file_extension_obj == ".apex")):
                 # Matching apex to capex files
                 if ALLOW_APEX_INJECTION_MERGE:
                     result_file_path = candidate_path
                     logging.debug(f"File Matcher: Found APEX file2: {file_name}, result_file_path: {result_file_path}")
-                    break
+                    result_file_path_list.append(result_file_path)
 
-    if result_file_path:
+    if len(result_file_path_list) > 0:
         logging.debug(f"File Matcher: Found file for {file_name} in {search_folder_path} with partition {partition_name}")
-        return result_file_path
+        return result_file_path_list
     else:
         logging.debug(f"File Matcher: No file found for {file_name} in {search_folder_path} with partition {partition_name}")
         return None
