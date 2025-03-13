@@ -298,6 +298,10 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
 
     future_dict = {}
     for file_path in file_paths:
+        with processed_files_lock:
+            if file_path in processed_files:
+                continue
+            processed_files.add(file_path)
         future = executor.submit(process_file_concurrently, aosp_path, file_path, partition_name, target_out_path, lunch_target)
         future_dict[future] = file_path
 
