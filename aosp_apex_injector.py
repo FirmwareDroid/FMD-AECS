@@ -182,6 +182,10 @@ def find_emulator_apex_folder(target_out_path, file_path):
     apex_emulator_folder_root = get_apex_build_intermediate_folder(target_out_path)
     logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
     apex_module_folder = os.path.join(apex_emulator_folder_root, filename_no_vendor)
+
+    if "vndk" in filename_no_vendor:
+        apex_module_folder = os.path.join(apex_emulator_folder_root, "com.android.vndk.v32")
+
     if os.path.exists(apex_module_folder):
         logging.info(f"APEX module folder found: {apex_module_folder} for apex {file_path}")
     else:
