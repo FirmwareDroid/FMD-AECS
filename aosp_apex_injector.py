@@ -461,6 +461,8 @@ def get_aosp_file_context_file_name(key):
         file_context_name = f"com.android.media.{key}-file_contexts"
     elif key == "statsd":
         file_context_name = f"com.android.os.{key}-file_contexts"
+    elif key == "tzdata3" or key == "tzdata":
+        file_context_name = f"com.android.tzdata-file_contexts"
     return file_context_name
 
 
