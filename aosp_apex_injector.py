@@ -408,21 +408,26 @@ def get_aosp_default_keys(aosp_path):
     pub_key_path = os.path.join(aosp_path, "build/target/product/security/testkey.avbpubkey")
     return priv_key_path, pub_key_path
 
+
+def get_apex_file_mapping(key):
+    apex_file_name_no_extension = f"com.android.{key}"
+    if key == "vndk":
+        apex_file_name_no_extension = f"com.android.vndk.current"
+    elif key == "statsd":
+        apex_file_name_no_extension = f"com.android.os.statsd"
+    elif key == "swcodec":
+        apex_file_name_no_extension = f"com.android.media.swcodec"
+    elif key == "tzdata3":
+        apex_file_name_no_extension = f"com.android.tzdata"
+    return apex_file_name_no_extension
+
+
 def get_apex_default_keys(aosp_path, apex_file_name):
     apex_split_name_list = apex_file_name.split(".")
     logging.info(f"APEX: Getting default keys for: {apex_split_name_list}")
     for key, value in APEX_DEFAULT_PATHS_DICT.items():
         if key in apex_split_name_list:
-            apex_file_name_no_extension = f"com.android.{key}"
-            if key == "vndk":
-                apex_file_name_no_extension = f"com.android.vndk.current"
-            elif key == "statsd":
-                apex_file_name_no_extension = f"com.android.os.statsd"
-            elif key == "swcodec":
-                apex_file_name_no_extension = f"com.android.media.swcodec"
-            elif key == "tzdata3":
-                apex_file_name_no_extension = f"com.android.tzdata"
-
+            apex_file_name_no_extension = get_apex_file_mapping(key)
             module_path = str(os.path.join(aosp_path, value))
             priv_pem_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pem")
             priv_key_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pk8")
@@ -446,6 +451,34 @@ def get_apex_default_keys(aosp_path, apex_file_name):
     raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Key files not found in {APEX_DEFAULT_PATHS_DICT}")
 
 
+def get_aosp_file_context_file_name(key):
+    file_context_name = f"com.android.{key}-file_contexts"
+    #if key == "art" and :
+    #    file_context_name = f"com.android.{key}-file_contexts"
+    if key == "bluetooth":
+        file_context_name = f"com.android.{key}.updatable-file_contexts"
+    elif key == "swcodec":
+        file_context_name = f"com.android.media.{key}-file_contexts"
+    elif key == "statsd":
+        file_context_name = f"com.android.os.{key}-file_contexts"
+    return file_context_name
+
+
+def get_existing_file_context(apex_file_name, aosp_path):
+    file_contexts_path = None
+    apex_split_name_list = apex_file_name.split(".")
+    for key, value in APEX_DEFAULT_PATHS_DICT.items():
+        if key in apex_split_name_list:
+            file_context_name = get_aosp_file_context_file_name(key)
+            file_contexts_path = os.path.join(aosp_path, "system/sepolicy/apex", file_context_name)
+            if os.path.exists(file_contexts_path):
+                logging.info(f"APEX: File contexts found: {file_contexts_path}")
+                return file_contexts_path
+            else:
+                raise ValueError(f"Error getting APEX file context file from AOSP: {apex_file_name}. file_context_name: {file_context_name}")
+    return file_contexts_path
+
+
 def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config, is_repack=False):
     success = False
     resign_apex_apk_files(aosp_path, apex_extract_dir_path)
@@ -461,18 +494,20 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
         logging.info(f"Key material created for APEX: {temp_keys_dir}, "
                      f"{private_key_path},"
                      f"{priv_pem_file_path}, {pub_key_path}, {avb_pub_key_path}, {cert_apex_apk_path}")
+        file_contexts_path = FILE_CONTEXT_TEMPLATE_PATH
         if not is_success:
             logging.error(f"Error generating APEX keys: {log_message}")
             return False, f"Error generating APEX keys: {log_message}", None, None, None, None, None
     else:
         logging.info(f"Using default AVB keys for APEX: {apex_file_name}")
         private_key_path, priv_pem_file_path, avb_pub_key_path, cert_apex_apk_path = get_apex_default_keys(aosp_path, apex_file_name)
+        file_contexts_path = get_existing_file_context(apex_file_name, aosp_path)
 
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
               f"--key={priv_pem_file_path} " \
               f"--pubkey={avb_pub_key_path} " \
               f"--apexer_tool_path={aosp_path}out/host/linux-x86/bin/:{aosp_path}out/soong/host/linux-x86/bin/ " \
-              f"--file_contexts={FILE_CONTEXT_TEMPLATE_PATH} " \
+              f"--file_contexts={file_contexts_path} " \
               f"--canned_fs_config={canned_fs_config.name} " \
               f"--include_build_info " \
               f"--force " \
@@ -485,7 +520,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
         and os.path.exists(apex_manifest_path) \
         and os.path.exists(apex_extract_dir_path) \
         and os.path.exists(canned_fs_config.name) \
-        and os.path.exists(FILE_CONTEXT_TEMPLATE_PATH) \
+        and os.path.exists(file_contexts_path) \
         and os.path.exists(avb_pub_key_path) \
         and os.path.exists(priv_pem_file_path):
         log_files_in_dir(apex_root_path)
