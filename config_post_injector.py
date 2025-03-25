@@ -28,7 +28,7 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".prop", # Build properties should not be overwritten
                                ".apex", # Manual inject
                                ".capex", # Manual inject
-                               ".prof",
+                               #".prof",
                                ".original_apex", # Leftover from apex repacking
                                ".idsig", # Leftover from signing
                                ".art",
