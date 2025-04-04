@@ -229,7 +229,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
 
         if INJECT_APEX_VENDOR_APPS:
-            logging.info(f"Injecting APEX vendor apps: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
+            logging.info(f"Injecting APEX vendor app: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
             apk_name_list = inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
 
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
@@ -278,14 +278,19 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                     and not os.path.islink(file_path) \
                     and os.path.exists(file_path) \
                     and os.path.isfile(file_path):
+                extract_dir = root.replace(apex_vendor_extract_dir_path,"").replace("//", "/")
+                if not extract_dir.endswith("/"):
+                    extract_dir += "/"
+
                 dst_file_path = (merged_apex_extract_dir_path
-                                 + root.replace(apex_vendor_extract_dir_path,"").replace("//", "/"))
+                                 + extract_dir
+                                 + file)
                 current_username = os.getlogin()
                 command = (f'sudo mkdir -p "$(dirname {dst_file_path})" 2>/dev/null '
                            f'&& sudo cp {file_path} {dst_file_path} '
                            f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
                            f'&& sudo chmod -R 0755 {dst_file_path}')
-                logging.info(f"Injecting APEX vendor app: {file_path} into {dst_file_path} with command: {command}")
+                logging.info(f"Copy APEX vendor app: {file_path} into {dst_file_path} with command: {command}")
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
                 if result.returncode != 0:
                     logging.error(
