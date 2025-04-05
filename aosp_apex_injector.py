@@ -288,8 +288,8 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                 current_username = os.getlogin()
                 command = (f'sudo mkdir -p "$(dirname {dst_file_path})" 2>/dev/null '
                            f'&& sudo cp {file_path} {dst_file_path} '
-                           f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
-                           f'&& sudo chmod -R 0755 {dst_file_path}')
+                           f'&& sudo chown {current_username}:{current_username} {dst_file_path} '
+                           f'&& sudo chmod 0755 {dst_file_path}')
                 logging.info(f"Copy APEX vendor app: {file_path} into {dst_file_path} with command: {command}")
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
                 if result.returncode != 0:
