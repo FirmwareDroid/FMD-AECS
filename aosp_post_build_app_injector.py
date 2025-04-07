@@ -111,7 +111,7 @@ def sign_apex_container_apksigner(apex_file_path,
 
     """
 
-    sign_command = ['apksigner', 'sign',
+    sign_command = ['sudo', 'apksigner', 'sign',
                     '--key', signing_key_path,
                     '--cert', signing_key_certificate_path,
                     '--v2-signing-enabled', str(v2_signing_enabled).lower(),
