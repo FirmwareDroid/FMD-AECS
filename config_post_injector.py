@@ -34,7 +34,7 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".art",
                                ".oat",
                                ".odex",
-                               ".vdex",
+                               #".vdex",
                                ]
 
 # "vndservicemanager", # problematic
