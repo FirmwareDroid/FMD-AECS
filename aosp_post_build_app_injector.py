@@ -26,7 +26,7 @@ def handle_apk_signing(file_path, aosp_path):
             error_message = (f"Error signing APK file with apksigner: "
                              f"Key:{signing_key}|"
                              f"Key Path: {signing_key_path}|"
-                             f"Message:{error_message}")
+                             f"Message:{log_message}")
         else:
             logging.info(f"APK file signed: {file_path} with key: {signing_key}")
 
@@ -73,11 +73,9 @@ def sign_apk_file(apk_file_path, signing_key_path, v2_signing_enabled=True, v3_s
 
     """
     if not os.path.exists(apk_file_path):
-        return False, f"APK file not found for signing: {apk_file_path}"
+        return False, f"Error: APK file not found for signing: {apk_file_path}"
     elif not os.path.exists(signing_key_path):
-        return False, f"Signing key not found for signing: {signing_key_path}"
-    elif not os.access(apk_file_path, os.R_OK | os.W_OK | os.X_OK):
-        return False, f"Access denied for APK file: {apk_file_path}"
+        return False, f"Error: Signing key not found for signing: {signing_key_path}"
 
     sign_command = ['sudo', 'apksigner', 'sign',
                     '--ks', signing_key_path,
@@ -89,7 +87,7 @@ def sign_apk_file(apk_file_path, signing_key_path, v2_signing_enabled=True, v3_s
                     '--in', apk_file_path,
                     '--out', apk_file_path]
     success, log_message = execute_command(sign_command)
-    logging.info(f"Signing APK file: {apk_file_path} with key: {signing_key_path} - {success} - {log_message} - sign_command: {sign_command}")
+    logging.info(f"Signing APK file: {apk_file_path} with key: {signing_key_path} - success: {success} - {log_message} - sign_command: {sign_command}")
     return success, log_message
 
 def verify_apk_file(apk_file_path):
@@ -117,7 +115,7 @@ def sign_apex_container_apksigner(apex_file_path,
 
     """
 
-    sign_command = ['apksigner', 'sign',
+    sign_command = ['sudo', 'apksigner', 'sign',
                     '--key', signing_key_path,
                     '--cert', signing_key_certificate_path,
                     '--v2-signing-enabled', str(v2_signing_enabled).lower(),
