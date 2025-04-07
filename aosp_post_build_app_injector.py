@@ -72,8 +72,14 @@ def sign_apk_file(apk_file_path, signing_key_path, v2_signing_enabled=True, v3_s
     :param signing_key_path: str - path to the signing key.
 
     """
+    if not os.path.exists(apk_file_path):
+        return False, f"APK file not found for signing: {apk_file_path}"
+    elif not os.path.exists(signing_key_path):
+        return False, f"Signing key not found for signing: {signing_key_path}"
+    elif not os.access(apk_file_path, os.R_OK | os.W_OK | os.X_OK):
+        return False, f"Access denied for APK file: {apk_file_path}"
 
-    sign_command = ['apksigner', 'sign',
+    sign_command = ['sudo', 'apksigner', 'sign',
                     '--ks', signing_key_path,
                     '--v2-signing-enabled', str(v2_signing_enabled).lower(),
                     '--v3-signing-enabled', str(v3_signing_enabled).lower(),
@@ -111,7 +117,7 @@ def sign_apex_container_apksigner(apex_file_path,
 
     """
 
-    sign_command = ['sudo', 'apksigner', 'sign',
+    sign_command = ['apksigner', 'sign',
                     '--key', signing_key_path,
                     '--cert', signing_key_certificate_path,
                     '--v2-signing-enabled', str(v2_signing_enabled).lower(),
