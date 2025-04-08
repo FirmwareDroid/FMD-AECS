@@ -15,7 +15,10 @@ PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "da
 MODULE_TYPE_ABI_COMPATIBLE = ["SHARED_LIBRARIES", "EXECUTABLES", "ETC"]
 
 # Singleton Apps: StorageManagerGoogle.apk
-SKIPPED_APP_LIST = ["GooglePermissionController.apk", "GooglePackageInstaller.apk"]
+SKIPPED_APP_LIST = [
+                    #"GooglePermissionController.apk",
+                    #"GooglePackageInstaller.apk"
+                    ]
 for blacklisted_module_name in VENDOR_BLACKLISTED_PACKAGES:
     SKIPPED_APP_LIST.append(f"{blacklisted_module_name}.apk")
 
@@ -307,12 +310,7 @@ INDIRECT_INJECTION_FILE_MAPPING = {
     "com.google.android.tzdata3.apex": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
     "framework-res.apk": "obj/APPS/framework-res_intermediates/package.apk",
 }
-#,"framework-ext-res.apk": "obj/APPS/framework-ext-res_intermediates",
-#"passwd",
-#"group",
-#"com.google.android.hardwareinfo.xml",
-#"services.jar.bprof",
-#"framework.jar"
+
 
 
 
