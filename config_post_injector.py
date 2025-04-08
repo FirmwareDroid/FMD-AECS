@@ -124,13 +124,13 @@ ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
                                          ".ttf"
                                          ]
 
-ALLOW_FILE_OVERWRITE = ["framework-res.apk",
-                        "framework-ext-res.apk",
-                        "passwd",
-                        "group",
-                        "com.google.android.hardwareinfo.xml",
-                        "services.jar.bprof",
-                        "framework.jar"
+ALLOW_FILE_OVERWRITE = [#"framework-res.apk",
+                        #"framework-ext-res.apk",
+                        #"passwd",
+                        #"group",
+                        #"com.google.android.hardwareinfo.xml",
+                        #"services.jar.bprof",
+                        #"framework.jar"
                         ]
 
 ALLOW_FILE_OVERWRITE_EXTENSIONS = [".jar"]
@@ -304,10 +304,15 @@ FILES_TO_MODIFY = ["systemserverclasspath.pb", "bootclasspath.pb"]
 
 INDIRECT_INJECTION_FILE_MAPPING = {
     "framework.jar": "obj/JAVA_LIBRARIES/framework-minus-apex_intermediates/javalib.jar",
-    "com.google.android.tzdata3.apex": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex"
+    "com.google.android.tzdata3.apex": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
+    "framework-res.apk": "obj/APPS/framework-res_intermediates",
 }
-
-
+#,"framework-ext-res.apk": "obj/APPS/framework-ext-res_intermediates",
+#"passwd",
+#"group",
+#"com.google.android.hardwareinfo.xml",
+#"services.jar.bprof",
+#"framework.jar"
 
 
 
