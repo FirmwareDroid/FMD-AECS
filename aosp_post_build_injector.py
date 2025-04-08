@@ -21,6 +21,7 @@ from aosp_post_build_app_injector import handle_apk_signing
 from config_post_injector import *
 from setup_logger import setup_logger
 from tqdm import tqdm
+import hashlib
 
 if os.environ.get("FMD_DEBUG") == "True":
     setup_logger(logging.DEBUG)
@@ -181,10 +182,6 @@ def handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite):
     return error_message
 
 
-
-
-
-
 def search_and_inject(partition_name, module_type, file_path, target_out_path, allow_file_overwrite):
     inj_partition = None
     inj_obj = None
@@ -209,39 +206,11 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                          file_path_vendor_replaced,
                                                          file_name_vendor_replaced,
                                                          target_out_path)
-    #if file_name in FILES_TO_MODIFY:
-    #    handle_file_modification(file_path, target_out_path)
-
-    # or module_type == "SHARED_LIBRARIES"
     if original_file_path is None:
         # Direct Injection
         target_path = inject_file_into_partition(file_path, partition_name, target_out_path, allow_file_overwrite)
         inj_partition = (file_path, target_path, module_type)
     else:
-        # Indirect Injection
-        # if module_type == "SHARED_LIBRARIES":
-        #     vendor_library_file_path = search_original_file_in_obj("vendor",
-        #                                                             module_type,
-        #                                                             file_path,
-        #                                                             file_name,
-        #                                                             target_out_path,
-        #                                                             replace_intermediate=".vendor_intermediates",
-        #                                                             exact_match_files=False)
-        #     if vendor_library_file_path:
-        #         logging.info(f"Injecting Vendor intermediate: {file_path}")
-        #         inject_file_into_obj(file_path, vendor_library_file_path, module_type)
-        #
-        #     # Rule to match vndk naming
-        #     vndk_library_file_path = search_original_file_in_obj("vendor",
-        #                                                             module_type,
-        #                                                             file_path,
-        #                                                             file_name,
-        #                                                             target_out_path,
-        #                                                             replace_intermediate=".vendor.com.android.vndk.current_intermediates",
-        #                                                             exact_match_files=False)
-        #     if vndk_library_file_path:
-        #         logging.info(f"Injecting VNK-Vendor-Library file: {file_path}")
-        #         inject_file_into_obj(file_path, vndk_library_file_path, module_type)
         if isinstance(original_file_path, list):
             original_file_path_list = original_file_path
             for original_file_path in original_file_path_list:
@@ -645,8 +614,10 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
             if overwrite:
                 try:
                     if os.path.isfile(source_file_path):
+                        inj_md5 = compute_file_hash(source_file_path)
+                        org_md5 = compute_file_hash(target_file_injection_path)
                         shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
-                        logging.info(f"File overwrite: {source_file_path} into {target_file_injection_path}")
+                        logging.info(f"File overwrite: {source_file_path}:{inj_md5} into {target_file_injection_path}:{org_md5}")
                         if not set_executable_permission(target_file_injection_path):
                             raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
                 except Exception as e:
@@ -730,7 +701,9 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type):
     """
     Injects a file into the AOSP source code directly without matching to existing files.
     """
-    logging.info(f"Overwriting Obj file: {source_file_path} into {original_file_path}")
+    inj_md5= compute_file_hash(source_file_path)
+    org_md5 = compute_file_hash(original_file_path)
+    logging.info(f"Overwriting Obj file: {source_file_path}:{inj_md5} into {original_file_path}:{org_md5}")
     file_name = os.path.basename(original_file_path)
     if "/apex/" in original_file_path:
         if module_type == "JAVA_LIBRARIES":
