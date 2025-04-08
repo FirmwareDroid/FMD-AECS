@@ -127,7 +127,7 @@ ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
                                          ".ttf"
                                          ]
 
-ALLOW_FILE_OVERWRITE = ["framework-res.apk",
+ALLOW_FILE_OVERWRITE = [#"framework-res.apk",
                         #"framework-ext-res.apk",
                         #"passwd",
                         #"group",
