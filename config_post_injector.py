@@ -127,13 +127,13 @@ ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
                                          ".ttf"
                                          ]
 
-ALLOW_FILE_OVERWRITE = [#"framework-res.apk",
+ALLOW_FILE_OVERWRITE = ["framework-res.apk",
                         #"framework-ext-res.apk",
                         #"passwd",
                         #"group",
                         #"com.google.android.hardwareinfo.xml",
-                        #"services.jar.bprof",
-                        #"framework.jar"
+                        "services.jar.bprof",
+                        "framework.jar"
                         ]
 
 ALLOW_FILE_OVERWRITE_EXTENSIONS = [".jar"]
