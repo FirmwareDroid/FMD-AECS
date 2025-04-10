@@ -449,7 +449,7 @@ def search_original_file_in_obj(partition_name,
             logging.debug(f"File Matcher: No exact matches found for {file_name}")
 
     module_name = os.path.splitext(file_name)[0]
-    logging.info(f"File Matcher: Searching in {search_folder_path} for {module_name} in {file_path_list}")
+    logging.info(f"File Matcher:{module_type} Searching in {search_folder_path} for {module_name} in {file_path_list}")
     for file in file_path_list:
         root = os.path.dirname(file)
         candidate_path = file
