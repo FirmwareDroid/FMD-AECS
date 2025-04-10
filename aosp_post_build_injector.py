@@ -494,6 +494,8 @@ def search_original_file_in_obj(partition_name,
                     result_file_path = candidate_path
                     logging.debug(f"File Matcher: Found APEX file2: {file_name}, result_file_path: {result_file_path}")
                     result_file_path_list.append(result_file_path)
+        else:
+            logging.info(f"File Matcher: File not found: {file_name}")
 
     if len(result_file_path_list) > 0:
         logging.debug(f"File Matcher: Found file for {file_name} in {search_folder_path} with partition {partition_name}")
