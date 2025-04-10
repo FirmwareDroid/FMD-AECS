@@ -455,11 +455,11 @@ def search_original_file_in_obj(partition_name,
             file_extension = os.path.splitext(file_name)[1]
             file_path_list = [file for file in file_path_list if os.path.splitext(file)[1] == file_extension]
             logging.debug(f"File Matcher: No exact matches found for {file_name}. "
-                          f"Filtered by extension ({file_extension}): {file_path_list}")
+                          f"Filtered by extension ({file_extension})")
 
 
     module_name = os.path.splitext(file_name)[0]
-    logging.info(f"File Matcher:{module_type} Searching in {search_folder_path} for {module_name} in {file_path_list}")
+    logging.info(f"File Matcher:{module_type} Searching in {search_folder_path} for {module_name}")
     for file in file_path_list:
         root = os.path.dirname(file)
         candidate_path = file
