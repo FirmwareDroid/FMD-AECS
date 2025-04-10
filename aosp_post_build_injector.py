@@ -432,7 +432,13 @@ def search_original_file_in_obj(partition_name,
 
     """
     target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
-    search_folder_path = str(os.path.join(str(target_obj_path), module_type if module_type not in ["MISC", "STATIC_CONFIG"] else ""))
+    if not target_obj_path.endswith("/"):
+        target_obj_path += "/"
+
+    if module_type not in ["MISC", "STATIC_CONFIG"]:
+        search_folder_path = str(target_obj_path) + module_type
+    else:
+        search_folder_path = str(target_obj_path)
 
     if partition_name in ["super", "system"]:
         partition_name = ""
@@ -446,7 +452,11 @@ def search_original_file_in_obj(partition_name,
             logging.debug(f"File Matcher: Found exact matches for {file_name}: {matches}")
             file_path_list = matches
         else:
-            logging.debug(f"File Matcher: No exact matches found for {file_name}")
+            file_extension = os.path.splitext(file_name)[1]
+            file_path_list = [file for file in file_path_list if os.path.splitext(file)[1] == file_extension]
+            logging.debug(f"File Matcher: No exact matches found for {file_name}. "
+                          f"Filtered by extension ({file_extension}): {file_path_list}")
+
 
     module_name = os.path.splitext(file_name)[0]
     logging.info(f"File Matcher:{module_type} Searching in {search_folder_path} for {module_name} in {file_path_list}")
