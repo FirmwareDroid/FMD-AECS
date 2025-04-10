@@ -480,11 +480,11 @@ def search_original_file_in_obj(partition_name,
             file_extension_obj = os.path.splitext(file)[1]
 
             if file_extension_src.lower().strip() == file_extension_obj.lower().strip():
-                logging.debug(f"File Matcher: Found file: {file_name}, candidate_path: {candidate_path}")
+                logging.info(f"File Matcher: Found file: {file_name}, candidate_path: {candidate_path}")
                 if not check_file_compatibility(file_path, candidate_path, module_type):
-                    logging.debug(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
+                    logging.info(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
                     continue
-                logging.debug(f"File Matcher: File found via module name: {file_path}|{candidate_path}")
+                logging.info(f"File Matcher: File found via module name: {file_path}|{candidate_path}")
                 result_file_path = candidate_path
                 result_file_path_list.append(result_file_path)
             elif ((file_extension_src == ".apex" and file_extension_obj == ".capex")
