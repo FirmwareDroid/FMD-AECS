@@ -469,11 +469,10 @@ def search_original_file_in_obj(partition_name,
         root_folder_name_stripped = root_folder_name_stripped.replace(f"_{partition_name}",
                                                                                         "")
         root_folder_name_stripped = root_folder_name_stripped.replace("v1_prebuilt","")
-        root_folder_name_stripped = os.path.dirname(root_folder_name_stripped)
+        root_folder_name_stripped = os.path.basename(root_folder_name_stripped)
         logging.info(f"File Matcher: {module_name}:{file_name} - Root Folder Name stripped: {root_folder_name_stripped}")
 
         # Check if there is an exact match for the file name
-        #if exact_match_files:
         if candidate_file_name == file_name:
             logging.info(f"File Matcher test exact match:{file_name} Found {candidate_path} in {root}")
             # Verify if it matches the partition criteria
