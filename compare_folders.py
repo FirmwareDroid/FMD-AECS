@@ -51,6 +51,13 @@ def compare_folders(folder1, folder2):
         for f in sorted(grouped_by_ext[ext]):
             print(f"    {f}")
 
+    print("\n📊 Statistics:")
+    print(f"  Total files in folder1: {len(folder1_files)}")
+    print(f"  Total files in folder2: {len(folder2_files)}")
+    print(f"  Files only in folder1 : {len(only_in_folder1)}")
+    print(f"  Files in both folders : {len(in_both)}")
+    print(f"  Differing files       : {len(differing_files)}")
+
 def main():
     parser = argparse.ArgumentParser(
         description="Compare two folders: check which files are missing or differ."
