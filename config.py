@@ -230,7 +230,7 @@ VENDOR_BLACKLISTED_PACKAGES = [#"GooglePermissionController",  # Singleton App -
                                #"ServiceConnectivityResourcesGoogle",  # Breaks NetworkStack - Resources not found
                                #"GmsCore",  # Breaks NetworkStack / Telephony
                                #"NetworkPermissionConfigGoogle",
-                               "__auto_generated_rro_",
+                               #"__auto_generated_rro_",
                                "libminijail",
                                "libavservices_minijail_vendor",
                                #"SamsungMultiConnectivity",              # Breaks NetworkStack
