@@ -54,10 +54,10 @@ def get_module_type(source_file_path, is_apex=False):
     source_file_path = source_file_path.strip()
     file_extension = os.path.splitext(source_file_path)[1]
     file_name = os.path.basename(source_file_path)
+    logging.info(f"File Extension: {file_extension} for {source_file_path}")
     if file_extension in ["", None] and "/bin/" in source_file_path:
         module_type = "EXECUTABLES"
     elif file_extension in [".jar"]:
-        logging.info(f"File Extension: {file_extension} for {source_file_path}")
         module_type = "JAVA_LIBRARIES"
     elif file_extension in [".so"]:
         module_type = "SHARED_LIBRARIES"
