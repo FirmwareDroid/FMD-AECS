@@ -459,7 +459,7 @@ def search_original_file_in_obj(partition_name,
 
 
     module_name = os.path.splitext(file_name)[0]
-    logging.info(f"File Matcher:{module_type} Searching in {search_folder_path} for {module_name}")
+    logging.info(f"File Matcher:{module_type} Searching in {search_folder_path} for module_name: {module_name} and file_name: {file_name}")
     for file in file_path_list:
         root = os.path.dirname(file)
         candidate_path = file
