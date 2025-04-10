@@ -244,11 +244,11 @@ VENDOR_BLACKLISTED_PACKAGES = [#"GooglePermissionController",  # Singleton App -
 # "TelephonyProvider",
 # "NetworkStackGoogle",
 # "SystemUI",             # Breaks SystemUI
-BLACKLISTED_KEYWORDS = ["Overlay",
+BLACKLISTED_KEYWORDS = [#"Overlay",
                         "keymaster",
                         "keystore",
                         "stagefright",
-                        "__auto_generated_rro",
+                        #"__auto_generated_rro",
                         "libadb_protos"]
 
 
