@@ -309,6 +309,7 @@ INDIRECT_INJECTION_FILE_MAPPING = {
     "framework.jar": "obj/JAVA_LIBRARIES/framework-minus-apex_intermediates/javalib.jar",
     "com.google.android.tzdata3.apex": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
     "framework-res.apk": "obj/APPS/framework-res_intermediates/package.apk",
+    #"services.jar": "obj/JAVA_LIBRARIES/services_intermediates/services_intermediates",
 }
 
 
