@@ -3,6 +3,7 @@
 import os
 import argparse
 import hashlib
+from collections import defaultdict
 
 def compute_hash(file_path):
     """Compute SHA-256 hash of a file."""
@@ -39,9 +40,16 @@ def compare_folders(folder1, folder2):
     for f in sorted(only_in_folder1):
         print(f"  {f}")
 
-    print("\n⚠️ Files in both folders but differ:")
-    for f in sorted(differing_files):
-        print(f"  {f}")
+    print("\n⚠️ Files in both folders but differ (grouped by extension):")
+    grouped_by_ext = defaultdict(list)
+    for f in differing_files:
+        ext = os.path.splitext(f)[1] or "<no extension>"
+        grouped_by_ext[ext].append(f)
+
+    for ext in sorted(grouped_by_ext.keys()):
+        print(f"\n  🔹 Extension: {ext}")
+        for f in sorted(grouped_by_ext[ext]):
+            print(f"    {f}")
 
 def main():
     parser = argparse.ArgumentParser(
