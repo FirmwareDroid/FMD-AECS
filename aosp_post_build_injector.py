@@ -505,8 +505,9 @@ def search_original_file_in_obj(partition_name,
 
 def check_file_compatibility(file_path, candidate_path, module_type):
     is_match = True
-    if is_elf_binary(file_path):
-        if module_type in MODULE_TYPE_ABI_COMPATIBLE and not is_abi_compatible(candidate_path,
+
+    if is_elf_binary(file_path) and module_type in MODULE_TYPE_ABI_COMPATIBLE:
+        if not is_abi_compatible(candidate_path,
                                                                                file_path):
             logging.debug(f"File Matcher: ABI not compatible: {file_path}|{candidate_path}")
             is_match = False
@@ -515,6 +516,10 @@ def check_file_compatibility(file_path, candidate_path, module_type):
         if not is_parent_dir_arm_and_target_arm(file_path, candidate_path):
             logging.debug(f"File Matcher: Parent dir not arm: {file_path}|{candidate_path}")
             is_match = False
+
+    if module_type == "JAVA_LIBRARIES":
+        is_match = True
+
     return is_match
 
 
