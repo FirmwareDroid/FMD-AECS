@@ -486,7 +486,7 @@ def search_original_file_in_obj(partition_name,
                 result_file_path = candidate_path
                 result_file_path_list.append(result_file_path)
         # Check if the folder has the same name but the file within the folder is named differently
-        elif module_name in root_folder_name_stripped and partition_name in root:
+        elif module_name == root_folder_name_stripped and partition_name in root:
             logging.info(f"File Matcher: Found module name: {module_name}:{file_name}:{root} with partition {partition_name}")
             file_extension_src = os.path.splitext(file_name)[1]
             file_extension_obj = os.path.splitext(file)[1]
