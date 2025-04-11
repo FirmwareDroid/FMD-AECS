@@ -230,7 +230,7 @@ VENDOR_BLACKLISTED_PACKAGES = [#"GooglePermissionController",  # Singleton App -
                                #"ServiceConnectivityResourcesGoogle",  # Breaks NetworkStack - Resources not found
                                #"GmsCore",  # Breaks NetworkStack / Telephony
                                #"NetworkPermissionConfigGoogle",
-                               #"__auto_generated_rro_",
+                               "__auto_generated_rro_",
                                "libminijail",
                                "libavservices_minijail_vendor",
                                #"SamsungMultiConnectivity",              # Breaks NetworkStack
@@ -244,11 +244,11 @@ VENDOR_BLACKLISTED_PACKAGES = [#"GooglePermissionController",  # Singleton App -
 # "TelephonyProvider",
 # "NetworkStackGoogle",
 # "SystemUI",             # Breaks SystemUI
-BLACKLISTED_KEYWORDS = [#"Overlay",
+BLACKLISTED_KEYWORDS = ["Overlay",
                         "keymaster",
                         "keystore",
                         "stagefright",
-                        #"__auto_generated_rro",
+                        "__auto_generated_rro",
                         "libadb_protos"]
 
 
