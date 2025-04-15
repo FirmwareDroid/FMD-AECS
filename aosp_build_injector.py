@@ -755,6 +755,22 @@ def upload_build_artefact(repo_url, username, password, artefact_path, filename)
             logging.error(f"Failed to upload image {filename} to repo. Retrying...{max_attempts}")
     return is_upload_success
 
+def setup_firmware_logger(firmware_id):
+    """
+    Sets up a new log file for the given firmware_id and redirects logging output to it.
+
+    :param firmware_id: str - The ID of the firmware being processed.
+    :return: FileHandler - The created FileHandler for cleanup later.
+    """
+    log_file = os.path.join(BUILD_OUT_PATH, f"{firmware_id}_process.log")
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    logging.getLogger().addHandler(file_handler)
+    logging.info(f"Logging redirected to file: {log_file}")
+    return file_handler
+
 
 def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
@@ -773,7 +789,9 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     succeed_firmware_ids = []
     clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
     for firmware_id in tqdm(firmware_id_list):
+        file_handler = None
         try:
+            file_handler = setup_firmware_logger(firmware_id)
             logging.debug(f"Start fetching for build files for firmware-id: {firmware_id}")
             fetch_build_files(firmware_id, cookies, args.fmd_url, BUILD_OUT_PATH)
             logging.debug(f"Start emulator image build process for firmware-id: {firmware_id}")
@@ -809,6 +827,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
         finally:
             if not args.skip_clean:
                 clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
+            if file_handler:
+                logging.getLogger().removeHandler(file_handler)
 
     if len(failed_firmware_ids) > 0:
         logging.error(f"Failed to build the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
