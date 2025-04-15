@@ -615,7 +615,8 @@ def inject_file_into_partition(source_file_path, partition_name, target_out_path
     target_file_injection_path = os.path.join(target_dir_injection_path, os.path.basename(source_file_path))
     target_file_injection_path = os.path.normpath(target_file_injection_path)
 
-    #source_file_path = handle_special_matching(source_file_path)
+    if OVERWRITE_APP_PROCESS_32:
+        source_file_path = handle_special_matching(source_file_path)
 
     if os.path.exists(target_file_injection_path):
         file_extension = os.path.splitext(target_file_injection_path)[1]

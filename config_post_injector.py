@@ -13,6 +13,7 @@ FOLDER_NAME_JAVA_LIBRARIES = "JAVA_LIBRARIES"
 FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 MODULE_TYPE_ABI_COMPATIBLE = ["SHARED_LIBRARIES", "EXECUTABLES", "ETC"]
+OVERWRITE_APP_PROCESS_32 = True
 
 # Singleton Apps: StorageManagerGoogle.apk
 SKIPPED_APP_LIST = [
