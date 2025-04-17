@@ -224,7 +224,7 @@ def check_if_base_images_exists():
             logging.info(f"Base image {image.id} exists.")
         except Exception as err:
             base_images_exist = False
-            logging.error(f"Base image fmd-emulator_{arch} not found.: {err}")
+            logging.warning(f"Base image fmd-emulator_{arch} not found.: {err}")
             break
     return base_images_exist
 
@@ -238,6 +238,20 @@ def create_base_images():
     for arch in SUPPORTED_ARCHITECTURES:
         logging.info(f"Building base image for {arch}")
         build_container_image(f"fmd-emulator_{arch}", f"linux/{arch}", f"{EMULATOR_DOCKERFILE_BASE_ABS_PATH}{arch}")
+
+
+def delete_emulator_images(local_repo_path):
+    """
+    Deletes the emulator images from the local repository path.
+    :param local_repo_path: Path to the local repository where the emulator images are stored.
+    """
+    if not local_repo_path:
+        local_repo_path = EMULATOR_IMG_ABS_PATH
+    if os.path.exists(local_repo_path):
+        logging.info(f"Deleting emulator images from {local_repo_path}")
+        shutil.rmtree(local_repo_path)
+    else:
+        logging.warning(f"Local repository path does not exist: {local_repo_path}")
 
 
 def process_images(local_repo_path, docker_repo_url, repository_username, build_local):
@@ -263,6 +277,7 @@ def process_images(local_repo_path, docker_repo_url, repository_username, build_
             logging.info("Skipping pushing the image to the docker repository.")
         clear_image_artefacts()
         clear_docker_builder()
+        delete_emulator_images(local_repo_path)
     logging.info("Finished processing images.")
 
 
