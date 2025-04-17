@@ -6,8 +6,6 @@ import shlex
 import shutil
 import subprocess
 from getpass import getpass
-from tkinter.scrolledtext import example
-
 import docker
 from werkzeug.utils import secure_filename
 
