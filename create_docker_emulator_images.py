@@ -20,34 +20,63 @@ from setup_logger import setup_logger
 setup_logger()
 
 
-def download_emulator_images(image_list):
+def download_emulator_images(image_list, destination):
     """
-    Downloads the emulator image from the repository.
+    Downloads the emulator images from the repository to the specified destination.
 
     :param image_list: List of emulator images to download.
+    :param destination: Path where the downloaded files will be stored.
 
     :returns: List of downloaded emulator images.
-
     """
     destination_file_list = []
-    destination = str(os.path.join(ROOT_PATH, EMULATOR_IMG_ABS_PATH))
+    if not os.path.exists(destination):
+        os.makedirs(destination, exist_ok=True)
+
     for asset_dict in image_list:
         filename = asset_dict['path']
         download_url = asset_dict['downloadUrl']
         logging.info(f"Downloading emulator image: {filename}")
-        if not os.path.exists(destination):
-            os.makedirs(destination)
         destination_file = os.path.join(destination, filename)
-        logging.info(f"Downloading emulator image from {download_url} to {destination}")
+        logging.info(f"Downloading emulator image from {download_url} to {destination_file}")
         download_file(download_url, destination_file)
         destination_file_list.append(destination_file)
+
     return destination_file_list
 
 
-def get_image_file_list_form_disk():
-    if not os.path.exists(EMULATOR_IMG_ABS_PATH):
-        os.makedirs(EMULATOR_IMG_ABS_PATH, exist_ok=True)
-    emulator_images = [os.path.join(EMULATOR_IMG_ABS_PATH, img) for img in os.listdir(EMULATOR_IMG_ABS_PATH)]
+def get_filtered_emulator_image_list(repository_url, file_list):
+    """
+    Fetches and filters the emulator image list based on the provided file list.
+
+    :param repository_url: URL to the repository where the emulator images are stored.
+    :param file_list: List of filenames to download.
+
+    :returns: Filtered list of emulator images.
+    """
+    logging.info(f"Fetching emulator images from {repository_url}")
+    asset_list = fetch_emulator_image_list(repository_url)
+    if not asset_list or len(asset_list) == 0:
+        raise Exception("Failed to fetch emulator image list")
+    if file_list and len(file_list) > 0:
+        filtered_list = [asset for asset in asset_list if asset['path'] in file_list]
+        logging.info(f"Filtered emulator images: {len(filtered_list)}")
+    else:
+        filtered_list = asset_list
+    return filtered_list
+
+
+def get_image_file_list_form_disk(local_repo_path):
+    if not local_repo_path:
+        if not os.path.exists(EMULATOR_IMG_ABS_PATH):
+            os.makedirs(EMULATOR_IMG_ABS_PATH, exist_ok=True)
+        emulator_images = [os.path.join(EMULATOR_IMG_ABS_PATH, img) for img in os.listdir(EMULATOR_IMG_ABS_PATH)]
+    else:
+        if not os.path.exists(local_repo_path):
+            raise ValueError(f"Local repository path does not exist: {local_repo_path}")
+        if not os.path.isdir(local_repo_path):
+            raise ValueError(f"Local repository path is not a directory: {local_repo_path}")
+        emulator_images = [os.path.join(local_repo_path, img) for img in os.listdir(local_repo_path)]
     logging.info(f"Emulator images in {EMULATOR_IMG_ABS_PATH}: {len(emulator_images)}: {emulator_images}")
     return emulator_images
 
@@ -201,12 +230,10 @@ def create_base_images():
         build_container_image(f"fmd-emulator_{arch}", f"linux/{arch}", f"{EMULATOR_DOCKERFILE_BASE_ABS_PATH}{arch}")
 
 
-def process_images(repository_url, docker_repo_url, repository_username, build_local):
+def process_images(local_repo_path, docker_repo_url, repository_username, build_local):
     if not check_if_base_images_exists():
         create_base_images()
-
-    #emulator_image_list = get_emulator_image_list(repository_url)
-    emulator_zip_file_list = get_image_file_list_form_disk()
+    emulator_zip_file_list = get_image_file_list_form_disk(local_repo_path)
     logging.info(f"Processing images: {len(emulator_zip_file_list)}")
     for emulator_zip_path in emulator_zip_file_list:
         logging.info(f"Processing emulator image: {emulator_zip_path}")
@@ -256,6 +283,14 @@ def parse_arguments():
                         default=None,
                         required=False,
                         help="Username for the authentication to the docker registry.")
+    parser.add_argument("--download-destination",
+                        type=str,
+                        required=True,
+                        help="Path where the downloaded files will be stored.")
+    parser.add_argument("--file-list",
+                        type=str,
+                        required=False,
+                        help="Comma-separated list of filenames to download from the repository.")
     return parser.parse_args()
 
 
@@ -266,11 +301,16 @@ def main():
     if not args.create_local:
         if not args.repository_url or not args.docker_repo_url or not args.repository_username:
             raise ValueError("Repository URL, Docker repository URL and repository username must be provided.")
-        emulator_image_list = get_emulator_image_list(args.repository_url)
-        download_emulator_images(emulator_image_list)
+        if not args.download_destination:
+            raise ValueError("Download destination must be provided.")
+        if not args.file_list:
+            file_list = []
+        file_list = args.file_list.split(",")
+        filtered_image_list = get_filtered_emulator_image_list(args.repository_url, file_list)
+        download_emulator_images(filtered_image_list, args.download_destination)
     else:
         logging.info("Skipping download of emulator images.")
-    process_images(args.repository_url, args.docker_repo_url, args.repository_username, args.create_local)
+    process_images(args.download_destination, args.docker_repo_url, args.repository_username, args.create_local)
 
 
 if __name__ == "__main__":
