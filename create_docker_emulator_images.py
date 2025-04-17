@@ -244,8 +244,7 @@ def parse_arguments():
                         "--repository-url",
                         type=str,
                         required=False,
-                        example="https://fmd-repo.cloudlab.zhaw.ch:8443/service/rest/v1/assets?repository=emulator-images",
-                        help="URL to the nexus repository REST service where the meta-data and images will be downloaded from.")
+                        help="URL to the nexus repository REST service where the meta-data and images will be downloaded from. Example: https://fmd-repo.cloudlab.zhaw.ch:8443/service/rest/v1/assets?repository=emulator-images")
     parser.add_argument("-d",
                         "--docker-repo-url",
                         type=str,
