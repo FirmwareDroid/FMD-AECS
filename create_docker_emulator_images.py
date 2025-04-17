@@ -6,6 +6,7 @@ import shlex
 import shutil
 import subprocess
 from getpass import getpass
+from tkinter.scrolledtext import example
 
 import docker
 from werkzeug.utils import secure_filename
@@ -60,6 +61,8 @@ def get_emulator_image_list(repository_url):
     """
     logging.info(f"Downloading emulator images from {repository_url}")
     asset_list = fetch_emulator_image_list(repository_url)
+    if not asset_list or len(asset_list) == 0:
+        raise Exception("Failed to fetch emulator image list")
     logging.info(f"Found emulator images: {len(asset_list)}")
     return asset_list
 
@@ -243,7 +246,8 @@ def parse_arguments():
                         "--repository-url",
                         type=str,
                         required=False,
-                        help="URL to the repository where images will be downloaded.")
+                        example="https://fmd-repo.cloudlab.zhaw.ch:8443/service/rest/v1/assets?repository=emulator-images",
+                        help="URL to the nexus repository REST service where the meta-data and images will be downloaded from.")
     parser.add_argument("-d",
                         "--docker-repo-url",
                         type=str,
