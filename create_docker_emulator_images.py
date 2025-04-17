@@ -21,32 +21,28 @@ from setup_logger import setup_logger
 setup_logger()
 
 
-def download_emulator_images(repository_url, image_list):
+def download_emulator_images(image_list):
     """
     Downloads the emulator image from the repository.
 
-    :param repository_url: URL to the repository where the emulator image is stored.
     :param image_list: List of emulator images to download.
 
     :returns: List of downloaded emulator images.
 
     """
-    destination_files = []
+    destination_file_list = []
     destination = str(os.path.join(ROOT_PATH, EMULATOR_IMG_ABS_PATH))
-    for image in image_list:
-        filename = image["id"]
-        filename = secure_filename(filename)
-        if filename is None:
-            raise Exception("Image ID is missing.")
+    for asset_dict in image_list:
+        filename = asset_dict['path']
+        download_url = asset_dict['downloadUrl']
         logging.info(f"Downloading emulator image: {filename}")
-        download_url = f"{repository_url}{NEXUS_EMULATOR_REPOSITORY}{filename}"
-        logging.info(f"Downloading emulator image from {download_url} to {destination}")
         if not os.path.exists(destination):
             os.makedirs(destination)
         destination_file = os.path.join(destination, filename)
+        logging.info(f"Downloading emulator image from {download_url} to {destination}")
         download_file(download_url, destination_file)
-        destination_files.append(destination_file)
-    return destination_files
+        destination_file_list.append(destination_file)
+    return destination_file_list
 
 
 def get_image_file_list_form_disk():
@@ -63,15 +59,9 @@ def get_emulator_image_list(repository_url):
     :param repository_url: URL to the repository where the emulator image is stored.
     """
     logging.info(f"Downloading emulator images from {repository_url}")
-    response_json = fetch_emulator_image_list(repository_url)
-    result = response_json["result"]
-    logging.debug(f"Result: {result}")
-    if result["success"] and result["data"] is not None:
-        for image_meta in result["data"]:
-            logging.debug(f"Emulator image: {image_meta}")
-    else:
-        raise Exception(f"Failed to fetch emulator image list from {repository_url}")
-    return result["data"]
+    asset_list = fetch_emulator_image_list(repository_url)
+    logging.info(f"Found emulator images: {len(asset_list)}")
+    return asset_list
 
 
 def clear_image_artefacts():
@@ -276,7 +266,7 @@ def main():
         if not args.repository_url or not args.docker_repo_url or not args.repository_username:
             raise ValueError("Repository URL, Docker repository URL and repository username must be provided.")
         emulator_image_list = get_emulator_image_list(args.repository_url)
-        download_emulator_images(args.repository_url, emulator_image_list)
+        download_emulator_images(emulator_image_list)
     else:
         logging.info("Skipping download of emulator images.")
     process_images(args.repository_url, args.docker_repo_url, args.repository_username, args.create_local)

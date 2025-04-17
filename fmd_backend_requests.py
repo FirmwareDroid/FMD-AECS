@@ -236,25 +236,40 @@ def download_file(url, destination):
         raise RuntimeError(f"Failed to download file. Status code: {response.status_code}")
 
 
-def fetch_emulator_image_list(repository_url):
+def fetch_emulator_image_list(repository_url, repository_name="emulator-images"):
     """
-    Get all available emulator images from the repository.
+    Get all available emulator images from the remote Nexus repository.
 
-    Returns: str - json response of the available emulator images.
+    Args:
+        repository_url (str): Base URL of the Nexus assets API.
+        repository_name (str): Name of the repository (e.g., 'emulator-images').
+
+    Returns:
+        list: A list of asset dictionaries from the Nexus repository.
     """
-    if not repository_url.endswith('/'):
-        repository_url = f'{repository_url}/'
-    url = f"{repository_url}{NEXUS_SERVICE_ENDPOINT}"
-    logging.info(f"Fetching emulator images from {url}")
-    headers = {
-        "accept": "*/*",
-        "content-type": "application/json",
-    }
-    data = ("{\"action\":\"coreui_Browse\",\"method\":\"read\",\"data\":"
-            "[{\"repositoryName\":\"emulator-images\",\"node\":\"/\"}],\"type\":\"rpc\",\"tid\":5}")
-    response = requests.post(url, headers=headers, data=data, verify=VERIFY_SSL)
-    logging.info(f"Response: {response.text}")
-    if response.status_code != 200:
-        raise RuntimeError(f"Could not fetch emulator images. Status code: {response.status_code}")
-    return response.json()
+    assets = []
+    continuation_token = None
+
+    while True:
+        params = {'repository': repository_name}
+        if continuation_token:
+            params['continuationToken'] = continuation_token
+
+        print(f"Fetching page with token: {continuation_token}")
+        response = requests.get(repository_url, params=params, timeout=10)
+
+        if response.status_code != 200:
+            print(f"Failed to fetch data: {response.status_code}")
+            print(response.text)
+            break
+
+        data = response.json()
+        assets.extend(data.get('items', []))
+        continuation_token = data.get('continuationToken')
+
+        if not continuation_token:
+            break
+
+    return assets
+
 
