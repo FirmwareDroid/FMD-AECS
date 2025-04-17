@@ -128,15 +128,25 @@ def extract_emulator_images_to_image_artefacts(emulator_image_path):
 def authenticate_docker_registry(repo_url, docker_user, docker_password):
     """
     Authenticates to the docker registry via the docker login command.
-    Note: For Sonatype Nexus repositories the "Docker Bearer Token" realm must be enabled in the security settings.
+    Note:
+        For Sonatype Nexus repositories the "Docker Bearer Token" realm must be enabled in the security settings.
+        The docker repository has as well it's own port (e.g. 8081).
     """
     docker_password = shlex.quote(docker_password)
     docker_user = shlex.quote(docker_user)
     repo_url = shlex.quote(repo_url)
     repo_url = f"{repo_url}"
     command = f"echo {docker_password} | docker login --password-stdin -u {docker_user} {repo_url}"
-    subprocess.run(command, capture_output=True, shell=True, check=True)
-    logging.debug(f"Authenticated to the docker registry: {repo_url}")
+
+    try:
+        result = subprocess.run(command, capture_output=True, shell=True, check=True, text=True)
+        logging.debug(f"Authenticated to the docker registry: {repo_url}")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to authenticate to the docker registry: {repo_url}")
+        logging.error(f"Command: {e.cmd}")
+        logging.error(f"Return Code: {e.returncode}")
+        logging.error(f"Error Output: {e.stderr.strip()}")
+        raise RuntimeError(f"Authentication to the docker registry failed. See logs for details.")
 
 
 def build_container_image(tag, build_arch, dockerfile_path=None):
@@ -243,6 +253,7 @@ def process_images(local_repo_path, docker_repo_url, repository_username, build_
             docker_build_arch = "linux/arm64"
         else:
             docker_build_arch = "linux/amd64"
+
         build_container_image(filename.replace(".zip", ""), docker_build_arch)
         if not build_local:
             repository_password = get_repo_password(repository_username)
