@@ -176,11 +176,11 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version):
         package_name_list = []
         for line in meta_build_file:
             stripped_line = line.replace("\\","").strip().replace("_FMD_APEX","")
-            logging.info(f"Checking line: {stripped_line}")
+            logging.debug(f"Checking line: {stripped_line}")
             if any(stripped_line.strip() == blacklisted_module for blacklisted_module in BLOCKED_MODULE_NAMES):
-                logging.info(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
+                logging.debug(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
             else:
-                logging.info(f"Allowing module meta in build: {line}")
+                logging.debug(f"Allowing module meta in build: {line}")
                 package_name_list.append(line)
         template_folder_abs_path = get_template_folder_path(aosp_version)
         logging.debug(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
@@ -355,15 +355,15 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
             logging.debug(f"Moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
             uuid_dir = str(uuid.uuid4())
             if dir_name.strip() in BLOCKED_MODULE_NAMES:
-                logging.info(f"Skipping package: {dir_name} as it is a default module.")
+                logging.debug(f"Skipping package: {dir_name} as it is a default module.")
             elif any(keyword in dir_name.strip() for keyword in BLACKLISTED_KEYWORDS):
-                logging.info(f"Skipping package by keyword: {dir_name} as it is likely a problematic module.")
+                logging.debug(f"Skipping package by keyword: {dir_name} as it is likely a problematic module.")
             else:
                 so_file_extension_list = [".so"]
                 apex_file_extension_list = [".apex", ".capex"]
                 if check_file_extension(package_path, so_file_extension_list):
                     framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", f"{uuid_dir}_{dir_name}")
-                    logging.info(f"Copying library package: {package_path} to {framework_lib_path}")
+                    logging.debug(f"Copying library package: {package_path} to {framework_lib_path}")
                     shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
                 elif check_file_extension(package_path, apex_file_extension_list):
                     if ALLOW_APEX_INJECTION:
@@ -371,10 +371,10 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                         apex_file_path = get_apex_file(package_path)
                         apex_filename = os.path.basename(apex_file_path)
                         if any(keyword.lower() in package_dir_name for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
-                            logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
+                            logging.debug(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
                             continue
                         modules_path = os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name)
-                        logging.info(f"Copying APEX package: {package_path} to {modules_path}")
+                        logging.debug(f"Copying APEX package: {package_path} to {modules_path}")
 
                         shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
                         if apex_file_path:
@@ -386,22 +386,22 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                             if ALLOW_APEX_REPACKING:
                                 is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target)
                             if is_success:
-                                logging.info(f"Repackaged APEX package: {apex_file_path} successfully.")
+                                logging.debug(f"Repackaged APEX package: {apex_file_path} successfully.")
                             else:
                                 logging.error(f"APEX repacking error: {log_message}")
                                 exit(1)
                         else:
                             logging.error(f"Could not find apex file in: {modules_path}")
                     else:
-                        logging.info(f"APEX injection disabled in pre-injector: {dir_name}")
+                        logging.debug(f"APEX injection disabled in pre-injector: {dir_name}")
                 else:
                     if "FMD_APEX" in dir_name:
-                        logging.info(f"Skipping APEX APP package in pre-injector: {dir_name}")
+                        logging.debug(f"Skipping APEX APP package in pre-injector: {dir_name}")
                     else:
-                        logging.info(f"Moving App: {dir_name} from {package_path} to {out_dir}")
+                        logging.debug(f"Moving App: {dir_name} from {package_path} to {out_dir}")
                         app_modules_path = os.path.join(aosp_path, f"{out_dir}apps/", f"{uuid_dir}_{dir_name}")
                         shutil.copytree(package_path, app_modules_path, dirs_exist_ok=True)
-                logging.info(f"Included package in build: {dir_name} to {aosp_packages_abs_path}")
+                logging.debug(f"Included package in build: {dir_name} to {aosp_packages_abs_path}")
                 included_package_name_list.append(dir_name)
 
     return included_package_name_list
@@ -565,7 +565,7 @@ def clear_base_files(aosp_path, aosp_version):
     """
     try:
         for base_filename in BASE_FILENAMES:
-            logging.info(f"Clearing base file: {base_filename} for version {aosp_version}")
+            logging.debug(f"Clearing base file: {base_filename} for version {aosp_version}")
             aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
             if os.path.exists(aosp_base_file_path):
                 template_folder_abs_path = get_template_folder_path(aosp_version)
@@ -586,7 +586,7 @@ def clear_intermediate_files(aosp_path):
     out_dir = os.path.join(aosp_path, MODULE_BASE_INJECT_DIR)
     if os.path.exists(out_dir):
         shutil.rmtree(out_dir)
-        logging.info(f"Removed {out_dir} from aosp source code.")
+        logging.debug(f"Removed {out_dir} from aosp source code.")
     else:
         RuntimeError(f"Could not find directory: {out_dir} in aosp source code.")
 
@@ -612,7 +612,7 @@ def clear_environment(aosp_path, aosp_packages_apps_path, aosp_version):
     Returns:
 
     """
-    logging.info("Clearing injection environment...")
+    logging.debug("Clearing injection environment...")
     clear_packages(aosp_packages_apps_path)
     clear_intermediate_files(aosp_path)
     clear_extracted_packages()
