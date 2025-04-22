@@ -52,6 +52,7 @@ def write_json_output(data, output_file):
         json.dump(existing_data, file, indent=4)
         file.write("\n")
 
+
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target):
     """
     Start the post build injector. Replaces the original objects in the AOSP source code with the vendor flavoured
@@ -102,7 +103,7 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
         "errors": len(error_list),
         "objects_injected": len(inj_obj_list),
         "partition_files_injected": len(inj_partition_list),
-        "files_processed": len(error_list) + len(inj_obj_list) + len(inj_partition_list),
+        "files_injected": len(inj_obj_list) + len(inj_partition_list),
     }
     write_json_output(result, PATH_EXECUTION_TIME_LOG)
 
