@@ -38,6 +38,9 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".art",
                                ".oat",
                                ".odex",
+                               ".imgxtract", # Leftover from the file extraction process
+                               ".extfextract" # Leftover from the file extraction process
+                               ".raw",  # Leftover from the file extraction process
                                #".vdex",
                                ]
 
@@ -71,13 +74,20 @@ SKIPPED_BINARY_LIST = [
                        "build.prop",
                        "otacerts.zip",  # Allow to overwrite with own certificates
                        "raw.image",  # Leftover from the file extraction process
-                       ".product.img.raw",
-                       ".system.img.raw",
-                       ".vendor.img.raw",
-                       ".odm.img.raw",
-                       ".oem.img.raw",
-                       ".data.img.raw",
-                       ".super.img.raw",
+                       ".product.img.raw", # Leftover from the file extraction process
+                       ".system.img.raw",  # Leftover from the file extraction process
+                       ".vendor.img.raw", # Leftover from the file extraction process
+                       ".odm.img.raw", # Leftover from the file extraction process
+                       ".oem.img.raw", # Leftover from the file extraction process
+                       ".data.img.raw", # Leftover from the file extraction process
+                       ".super.img.raw", # Leftover from the file extraction process
+                       "product.img.raw", # Leftover from the file extraction process
+                        "system.img.raw", # Leftover from the file extraction process
+                        "vendor.img.raw", # Leftover from the file extraction process
+                        "odm.img.raw", # Leftover from the file extraction process
+                        "oem.img.raw", # Leftover from the file extraction process
+                        "data.img.raw", # Leftover from the file extraction process
+                        "super.img.raw", # Leftover from the file extraction process
                        "libgatekeeper.so",
                        "apex_pubkey",
                        "apex_manifest.json",
