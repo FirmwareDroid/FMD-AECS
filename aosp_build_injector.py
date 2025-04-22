@@ -3,6 +3,7 @@ A command-line tool that downloads files related to the build process of an Andr
 on disk. Directly extract the downloaded zip content.
 """
 import argparse
+import json
 import re
 import traceback
 import uuid
@@ -13,7 +14,7 @@ import glob
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
-
+import time
 from aosp_apex_injector import repackage_apex_file
 from aosp_post_build_injector import start_post_build_injector
 from common import extract_zip
@@ -774,6 +775,28 @@ def setup_firmware_logger(firmware_id):
     return file_handler
 
 
+def write_json_output(result, output_file):
+    """
+    Writes the build result to a JSON file.
+
+    :param result: dict - The result to write to the JSON file.
+    :param output_file: str - Path to the JSON output file.
+    """
+
+    # Append the result to the JSON file
+    try:
+        with open(output_file, "r") as file:
+            data = json.load(file)
+    except FileNotFoundError:
+        data = []
+
+    data.append(result)
+
+    with open(output_file, "w") as file:
+        json.dump(data, file, indent=4)
+        file.write("\n")  # Add a newline
+
+
 def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
     aosp_version = args.version
@@ -800,12 +823,25 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             file_handler = setup_firmware_logger(firmware_id)
             try:
                 logging.getLogger().addHandler(file_handler)
+                start_time = time.time()  # Record the start time
                 is_build_success = start_aosp_build(args.aosp_path,
                                                     AOSP_PACKAGES_APPS_PATH,
                                                     firmware_id=firmware_id,
                                                     lunch_target=lunch_target,
                                                     aosp_version=args.version,
                                                     skip_filtering=args.skip_filtering)
+                end_time = time.time()
+                duration = end_time - start_time
+
+                status = "success" if is_build_success else "failure"
+                result = {
+                    "firmware_id": firmware_id,
+                    "duration": round(duration, 2),
+                    "status": status
+                }
+                write_json_output(result, PATH_BUILD_FILE_LOG)
+
+                logging.info(f"Build process for firmware-id: {firmware_id} took {duration:.2f} seconds.")
             finally:
                 logging.getLogger().removeHandler(file_handler)
                 file_handler.close()

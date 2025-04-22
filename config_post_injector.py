@@ -1,10 +1,9 @@
+import os
+
 from config import (AOSP_DEFAULT_PACKAGE_NAMES,
                     VENDOR_BLACKLISTED_PACKAGES,
-                    SHARED_USER_ID_MAPPING_DICT,
-                    ROOT_PATH,
-                    TEMPLATE_FOLDER,
-                    EXTRACTED_PACKAGES_PATH,
-                    FILE_CONTEXT_TEMPLATE_PATH)
+                    BUILD_OUT_PATH
+                    )
 PRINT_ALL_LOGS = True
 PRINT_ERROR_LOGS = True
 FOLDER_NAME_OBJECTS = "obj"
@@ -14,6 +13,8 @@ FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 MODULE_TYPE_ABI_COMPATIBLE = ["SHARED_LIBRARIES", "EXECUTABLES", "ETC"]
 OVERWRITE_APP_PROCESS_32 = True
+NAME_EXECUTION_TIME_LOG = "post_build_injector_metrics.json"
+PATH_EXECUTION_TIME_LOG = os.path.join(BUILD_OUT_PATH, NAME_EXECUTION_TIME_LOG)
 
 # Singleton Apps: StorageManagerGoogle.apk
 SKIPPED_APP_LIST = [
