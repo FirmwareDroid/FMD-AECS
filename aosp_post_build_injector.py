@@ -5,6 +5,7 @@ the replacement of the original blobs (from AOSP) with the vendor flavoured blob
 """
 import argparse
 import hashlib
+import re
 import shutil
 import logging
 import subprocess
@@ -14,6 +15,7 @@ import json
 import os
 import stat
 import traceback
+from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 from filelock import FileLock
 from aosp_apex_injector import handle_apex_modules
@@ -68,6 +70,42 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lu
     with Executor() as executor:
         inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target)
 
+def group_errors_by_prefix(error_list):
+    """
+    Groups errors by their prefix and counts occurrences.
+
+    :param error_list: list - List of error messages.
+    :return: dict - Grouped errors with counts.
+    """
+    error_groups = defaultdict(int)
+    for error in error_list:
+        # Extract the prefix before the file path
+        match = re.match(r"(Error: .*?:)", error)
+        if match:
+            prefix = match.group(1)
+            error_groups[prefix] += 1
+        else:
+            # If no match, group under "Unknown Errors"
+            error_groups["Unknown Errors"] += 1
+    return error_groups
+
+def extract_file_type_frequencies(error_list):
+    """
+    Extracts and counts file types from error messages that end with a file path.
+
+    :param error_list: list - List of error messages.
+    :return: dict - Frequency of file types.
+    """
+    file_type_counts = defaultdict(int)
+    for error in error_list:
+        # Match file paths at the end of the error message and extract the file extension
+        match = re.search(r".*\.(\w+)$", error)
+        if match:
+            file_extension = match.group(1).lower()  # Extract and normalize the file extension
+            file_type_counts[file_extension] += 1
+    return file_type_counts
+
+
 def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target):
     start_time = time.time()
     error_list, inj_obj_list, inj_partition_list = process_partitions(aosp_path,
@@ -94,6 +132,19 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     logging.info(f"Number of objects injected: {len(inj_obj_list)}")
     logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
     logging.info(f"Number of files processed: {len(error_list) + len(inj_obj_list) + len(inj_partition_list)}")
+
+    grouped_errors = group_errors_by_prefix(error_list)
+
+    logging.info(f"Grouped Errors:")
+    for prefix, count in grouped_errors.items():
+        logging.info(f"{prefix} {count} occurrences")
+
+    file_type_frequencies = extract_file_type_frequencies(error_list)
+
+    logging.info(f"File Type Frequencies:")
+    for file_type, count in file_type_frequencies.items():
+        logging.info(f".{file_type}: {count} occurrences")
+
     result = {
         "method": "start_post_build_injector",
         "start_time": start_time,
@@ -104,6 +155,8 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
         "objects_injected": len(inj_obj_list),
         "partition_files_injected": len(inj_partition_list),
         "files_injected": len(inj_obj_list) + len(inj_partition_list),
+        "errors_file_type_frequencies": file_type_frequencies,
+        "errors_grouped": grouped_errors,
     }
     write_json_output(result, PATH_EXECUTION_TIME_LOG)
 
