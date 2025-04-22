@@ -35,10 +35,11 @@ DOCKER_PLATFORM_X86_64 = "linux/amd64"
 DOCKER_PLATFORM_ARM64 = "linux/arm64"
 FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE = "${url}/download/android_app/build_files"
 SUPPORTED_ARCHITECTURES = ["arm64"] #"x86_64"
-SUPPORTED_LUNCH_TARGETS = ["sdk_phone_x86_64-userdebug",  # Android 12 / 13 "sdk_x86_64-userdebug"
-                           "sdk_phone_arm64-userdebug",  # Android 12 -> Works
+SUPPORTED_LUNCH_TARGETS = ["sdk_phone_arm64-userdebug",  # Android 12 -> Works
                            "sdk_phone_arm64-userdebug",  # Android 13 "sdk_arm64-userdebug"
                            ]
+# Android 12 / 13 "sdk_x86_64-userdebug""sdk_phone_x86_64-userdebug",
+
 FILE_CONTEXT_TEMPLATE_PATH = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "file_contexts")
 APEX_PRIVATE_KEY_PATH = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "apex.key")
 APEX_PUBKEY_PATH = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "apex.x509.pem")
