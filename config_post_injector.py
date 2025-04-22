@@ -2,7 +2,11 @@ import os
 
 from config import (AOSP_DEFAULT_PACKAGE_NAMES,
                     VENDOR_BLACKLISTED_PACKAGES,
-                    BUILD_OUT_PATH
+                    BUILD_OUT_PATH,
+                    FILE_CONTEXT_TEMPLATE_PATH,
+                    ROOT_PATH,
+                    TEMPLATE_FOLDER,
+                    SHARED_USER_ID_MAPPING_DICT
                     )
 PRINT_ALL_LOGS = True
 PRINT_ERROR_LOGS = True
