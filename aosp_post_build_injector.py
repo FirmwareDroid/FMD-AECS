@@ -10,6 +10,7 @@ import logging
 import subprocess
 import threading
 import time
+import json
 import os
 import stat
 import traceback
@@ -21,7 +22,7 @@ from aosp_post_build_app_injector import handle_apk_signing
 from config_post_injector import *
 from setup_logger import setup_logger
 from tqdm import tqdm
-import hashlib
+
 
 if os.environ.get("FMD_DEBUG") == "True":
     setup_logger(logging.DEBUG)
@@ -30,6 +31,25 @@ else:
 
 processed_files = set()
 processed_files_lock = threading.Lock()
+
+
+def write_json_output(data, output_file):
+    """
+    Writes the measurement data to a JSON file.
+
+    :param data: dict - The measurement data to write.
+    :param output_file: str - Path to the JSON output file.
+    """
+    try:
+        with open(output_file, "r") as file:
+            existing_data = json.load(file)
+    except FileNotFoundError:
+        existing_data = []
+
+    existing_data.append(data)
+
+    with open(output_file, "w") as file:
+        json.dump(existing_data, file, indent=4)
 
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target):
     """
@@ -40,13 +60,11 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lu
     :param source_folder_path: str - path to the source folder where the objects to inject reside.
     :param target_out_path: str - path to the AOSP target out folder.
     :param lunch_target: str - lunch target for the AOSP build.
-
     """
     if not aosp_path.endswith("/"):
         aosp_path = f"{aosp_path}/"
     with Executor() as executor:
         inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target)
-
 
 def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target):
     start_time = time.time()
@@ -74,6 +92,18 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     logging.info(f"Number of objects injected: {len(inj_obj_list)}")
     logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
     logging.info(f"Number of files processed: {len(error_list) + len(inj_obj_list) + len(inj_partition_list)}")
+    result = {
+        "method": "start_post_build_injector",
+        "start_time": start_time,
+        "end_time": end_time,
+        "duration_minutes": execution_time_minutes,
+        "duration_seconds": execution_time,
+        "errors": len(error_list),
+        "objects_injected": len(inj_obj_list),
+        "partition_files_injected": len(inj_partition_list),
+        "files_processed": len(error_list) + len(inj_obj_list) + len(inj_partition_list),
+    }
+    write_json_output(result, PATH_EXECUTION_TIME_LOG)
 
 
 def get_folders(directory_path):
