@@ -760,17 +760,17 @@ def setup_firmware_logger(firmware_id):
     Sets up a new log file for the given firmware_id and redirects logging output to it.
     Prevents logs from showing in stdout.
     """
+    log_file = os.path.join(BUILD_OUT_PATH, f"{firmware_id}_process.log")
+    logging.info(f"Logging redirected for id: {firmware_id} to file: {log_file}")
     logger = logging.getLogger()
     logger.handlers.clear()  # Remove all existing handlers, including stdout
 
-    log_file = os.path.join(BUILD_OUT_PATH, f"{firmware_id}_process.log")
     file_handler = logging.FileHandler(log_file)
     file_handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
-    logging.info(f"Logging redirected for id: {firmware_id} to file: {log_file}")
     return file_handler
 
 
@@ -791,7 +791,6 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     succeed_firmware_ids = []
     clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
     for firmware_id in tqdm(firmware_id_list):
-        file_handler = None
         try:
 
             logging.debug(f"Start fetching for build files for firmware-id: {firmware_id}")
@@ -810,7 +809,10 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             finally:
                 logging.getLogger().removeHandler(file_handler)
                 file_handler.close()
-                setup_logger()
+                if os.environ.get("FMD_DEBUG") == "True":
+                    setup_logger(logging.DEBUG)
+                else:
+                    setup_logger()
 
             if is_build_success:
                 logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
