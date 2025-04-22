@@ -48,8 +48,9 @@ def write_json_output(data, output_file):
 
     existing_data.append(data)
 
-    with open(output_file, "w") as file:
+    with open(output_file, "a") as file:
         json.dump(existing_data, file, indent=4)
+        file.write("\n")
 
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target):
     """
