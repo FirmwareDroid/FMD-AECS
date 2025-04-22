@@ -6,7 +6,8 @@ from config import (AOSP_DEFAULT_PACKAGE_NAMES,
                     FILE_CONTEXT_TEMPLATE_PATH,
                     ROOT_PATH,
                     TEMPLATE_FOLDER,
-                    SHARED_USER_ID_MAPPING_DICT
+                    SHARED_USER_ID_MAPPING_DICT,
+                    EXTRACTED_PACKAGES_PATH
                     )
 PRINT_ALL_LOGS = True
 PRINT_ERROR_LOGS = True
