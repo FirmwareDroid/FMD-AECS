@@ -43,16 +43,25 @@ def write_json_output(data, output_file):
     :param output_file: str - Path to the JSON output file.
     """
     try:
-        with open(output_file, "r") as file:
-            existing_data = json.load(file)
-    except FileNotFoundError:
-        existing_data = []
+        # Read existing data if the file exists
+        try:
+            with open(output_file, "r") as file:
+                existing_data = json.load(file)
+        except (FileNotFoundError, json.JSONDecodeError):
+            existing_data = []
 
-    existing_data.append(data)
+        # Ensure the existing data is a list
+        if not isinstance(existing_data, list):
+            existing_data = []
 
-    with open(output_file, "a") as file:
-        json.dump(existing_data, file, indent=4)
-        file.write("\n")
+        # Append the new data
+        existing_data.append(data)
+
+        # Write the updated data back to the file
+        with open(output_file, "w") as file:
+            json.dump(existing_data, file, indent=4)
+    except Exception as e:
+        print(f"Error writing JSON output: {e}")
 
 
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target):
