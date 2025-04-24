@@ -761,7 +761,8 @@ def setup_firmware_logger(firmware_id):
     Sets up a new log file for the given firmware_id and redirects logging output to it.
     Prevents logs from showing in stdout.
     """
-    log_file = os.path.join(BUILD_OUT_PATH, f"{firmware_id}_process.log")
+    uuid_filename = str(uuid.uuid4())
+    log_file = os.path.join(BUILD_OUT_PATH, f"{uuid_filename}_{firmware_id}_process.log")
     logging.info(f"Logging redirected for id: {firmware_id} to file: {log_file}")
     logger = logging.getLogger()
     logger.handlers.clear()  # Remove all existing handlers, including stdout
