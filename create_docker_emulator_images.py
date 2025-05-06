@@ -5,6 +5,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import time
 from getpass import getpass
 import docker
 from werkzeug.utils import secure_filename
@@ -353,7 +354,15 @@ def main():
             try:
                 image_list = [image]
                 download_emulator_images(image_list, args.download_destination)
-                process_images(args.download_destination, args.docker_repo_url, args.repository_username, args.create_local)
+                start_time = time.time()
+                process_images(args.download_destination, args.docker_repo_url, args.repository_username,
+                               args.create_local)
+                end_time = time.time()
+                elapsed_time_seconds = end_time - start_time
+                elapsed_time_minutes = elapsed_time_seconds / 60
+                with open("results.logh", "a") as log_file:
+                    log_file.write(
+                        f"Processing images took {elapsed_time_seconds:.2f} seconds ({elapsed_time_minutes:.2f} minutes).\n")
                 successful_images.append(image)
                 logging.info(f"Successfully processed image: {image}")
             except Exception as e:
