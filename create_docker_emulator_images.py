@@ -355,9 +355,11 @@ def main():
                 download_emulator_images(image_list, args.download_destination)
                 process_images(args.download_destination, args.docker_repo_url, args.repository_username, args.create_local)
                 successful_images.append(image)
+                logging.info(f"Successfully processed image: {image}")
             except Exception as e:
                 logging.error(f"Error processing image {image['path']}: {e}")
                 failed_images.append(image['path'])
+            logging.info(f"Number of images done: {len(successful_images) + len(failed_images)}")
         logging.info(
             f"Finished processing images. Successful images: {successful_images}. Failed images: {failed_images}.")
     else:
