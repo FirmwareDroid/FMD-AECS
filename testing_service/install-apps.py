@@ -46,7 +46,7 @@ def install_apk(apk_path, results):
             print(f"Successfully installed {apk_path}")
             results["success"] += 1
         else:
-            error_message = result.stderr.strip() or "Unknown error"
+            error_message = result.stderr.strip() or result.stdout.strip() or "Unknown error"
             print(f"Failed to install {apk_path}: {error_message}")
             results["failures"]["count"] += 1
             results["failures"]["details"][error_message] += 1

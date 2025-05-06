@@ -117,7 +117,9 @@ def clear_docker_builder():
     """
     Clears the docker builder.
     """
+    os.system("docker container prune -f")
     os.system("docker builder prune -f")
+    os.system("docker image prune -f")
 
 
 def extract_emulator_images_to_image_artefacts(emulator_image_path):
@@ -274,7 +276,7 @@ def process_images(local_repo_path, docker_repo_url, repository_username, build_
             authenticate_docker_registry(docker_repo_url, repository_username, repository_password)
             push_container_image(docker_repo_url, filename.replace(".zip", ""))
         else:
-            logging.info("Skipping pushing the image to the docker repository.")
+            logging.info("Skipped pushing the image to the docker repository. Only local build.")
         clear_image_artefacts()
         clear_docker_builder()
         delete_emulator_images(local_repo_path)
