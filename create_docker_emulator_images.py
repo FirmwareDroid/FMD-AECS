@@ -283,6 +283,12 @@ def process_images(local_repo_path, docker_repo_url, repository_username, build_
     logging.info("Finished processing images.")
 
 
+def clear_environment(local_repo_path):
+    clear_image_artefacts()
+    clear_docker_builder()
+    delete_emulator_images(local_repo_path)
+
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -324,7 +330,7 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
-    clear_image_artefacts()
+    clear_environment(args.download_destination)
 
     if not args.create_local:
         if not args.repository_url or not args.docker_repo_url or not args.repository_username:
