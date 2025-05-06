@@ -335,10 +335,14 @@ def main():
             file_list = []
         file_list = args.file_list.split(",")
         filtered_image_list = get_filtered_emulator_image_list(args.repository_url, file_list)
-        download_emulator_images(filtered_image_list, args.download_destination)
+        for image in filtered_image_list:
+            image_list = [image]
+            download_emulator_images(image_list, args.download_destination)
+            process_images(args.download_destination, args.docker_repo_url, args.repository_username, args.create_local)
     else:
         logging.info("Skipping download of emulator images.")
-    process_images(args.download_destination, args.docker_repo_url, args.repository_username, args.create_local)
+        process_images(args.download_destination, args.docker_repo_url, args.repository_username, args.create_local)
+
 
 
 if __name__ == "__main__":
