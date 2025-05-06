@@ -8,7 +8,7 @@ import subprocess
 from getpass import getpass
 import docker
 from werkzeug.utils import secure_filename
-
+import platform
 from common import extract_zip
 from config import ROOT_PATH, IMAGE_ARTEFACTS_X86_64_ABS_PATH, IMAGE_ARTEFACTS_ARM64_PATH, IMAGE_ARTEFACTS_ABS_PATH, \
     NEXUS_EMULATOR_REPOSITORY, EMULATOR_IMG_ABS_PATH, SUPPORTED_ARCHITECTURES, EMULATOR_DOCKERFILE_X8664_ABS_PATH, \
@@ -231,6 +231,11 @@ def check_if_base_images_exists():
     return base_images_exist
 
 
+def get_host_architecture():
+    architecture = platform.machine()
+    return architecture
+
+
 def create_base_images():
     """
     Creates the base images for the emulator.
@@ -238,8 +243,9 @@ def create_base_images():
 
     """
     for arch in SUPPORTED_ARCHITECTURES:
-        logging.info(f"Building base image for {arch}")
-        build_container_image(f"fmd-emulator_{arch}", f"linux/{arch}", f"{EMULATOR_DOCKERFILE_BASE_ABS_PATH}{arch}")
+        if arch in get_host_architecture():
+            logging.info(f"Building base image for {arch}")
+            build_container_image(f"fmd-emulator_{arch}", f"linux/{arch}", f"{EMULATOR_DOCKERFILE_BASE_ABS_PATH}{arch}")
 
 
 def delete_emulator_images(local_repo_path):
