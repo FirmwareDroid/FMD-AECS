@@ -359,7 +359,7 @@ def main():
             except Exception as e:
                 logging.error(f"Error processing image {image['path']}: {e}")
                 failed_images.append(image['path'])
-            logging.info(f"Number of images done: {len(successful_images) + len(failed_images)}")
+            logging.info(f"Number of images done: {len(successful_images) + len(failed_images)} out of {len(filtered_image_list)}")
         logging.info(
             f"Finished processing images. Successful images: {successful_images}. Failed images: {failed_images}.")
     else:
