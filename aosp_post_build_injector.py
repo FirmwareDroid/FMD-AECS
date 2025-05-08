@@ -76,6 +76,9 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lu
     """
     if not aosp_path.endswith("/"):
         aosp_path = f"{aosp_path}/"
+
+    logging.info(
+        f"Starting post build injector: {aosp_path} | {source_folder_path} | {target_out_path} | {lunch_target}")
     with Executor() as executor:
         inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target)
 
