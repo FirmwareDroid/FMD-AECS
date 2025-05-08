@@ -66,7 +66,7 @@ def write_json_output(data, output_file):
         print(f"Error writing JSON output: {e}")
 
 
-def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target):
+def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target, firmware_id=None):
     """
     Start the post build injector. Replaces the original objects in the AOSP source code with the vendor flavoured
     objects.
@@ -84,7 +84,7 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lu
     logging.info(
         f"Starting post build injector: {aosp_path} | {source_folder_path} | {target_out_path} | {lunch_target}")
     with Executor() as executor:
-        inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target)
+        inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id)
 
 def group_errors_by_prefix(error_list):
     """
@@ -122,7 +122,7 @@ def extract_file_type_frequencies(error_list):
     return file_type_counts
 
 
-def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target):
+def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id):
     start_time = time.time()
     error_list, inj_obj_list, inj_partition_list = process_partitions(aosp_path,
                                                                       source_folder_path,
@@ -162,6 +162,7 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
         logging.info(f".{file_type}: {count} occurrences")
 
     result = {
+        "firmware_id": firmware_id,
         "method": "start_post_build_injector",
         "start_time": start_time,
         "end_time": end_time,
