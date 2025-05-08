@@ -101,6 +101,7 @@ SKIPPED_BINARY_LIST = [
                        "apex_manifest.pb",
                        "apex_build_info.pb",
                        "AndroidManifest.xml",
+                       "libgui.so",
                        ]
 # "libminijail.so",
 # "libavservices_minijail_vendor.so",
