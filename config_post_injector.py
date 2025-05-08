@@ -113,6 +113,7 @@ SKIPPED_BINARY_LIST = [
 SKIPPED_KEYWORD_LIST = ["keystore",
                         "keymaster",
                         "selinux",
+                        "android.system.suspend",
                         "android.hardware",
                         "hardware",
                         "android.hidl",
