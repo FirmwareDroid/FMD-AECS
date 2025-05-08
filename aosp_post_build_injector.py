@@ -78,6 +78,8 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lu
     """
     if not aosp_path.endswith("/"):
         aosp_path = f"{aosp_path}/"
+        if not os.path.exists(aosp_path):
+            raise FileNotFoundError(f"AOSP path does not exist: {aosp_path}")
 
     logging.info(
         f"Starting post build injector: {aosp_path} | {source_folder_path} | {target_out_path} | {lunch_target}")
