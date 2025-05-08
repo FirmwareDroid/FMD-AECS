@@ -88,15 +88,15 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lu
 
 def group_errors_by_prefix(error_list):
     """
-    Groups errors by their prefix and counts occurrences.
+    Groups errors by the first three words and counts occurrences.
 
     :param error_list: list - List of error messages.
     :return: dict - Grouped errors with counts.
     """
     error_groups = defaultdict(int)
     for error in error_list:
-        # Extract the prefix before the file path
-        match = re.match(r"(Error: .*?:)", error)
+        # Extract the first three words
+        match = re.match(r"(\S+\s+\S+\s+\S+)", error)
         if match:
             prefix = match.group(1)
             error_groups[prefix] += 1
