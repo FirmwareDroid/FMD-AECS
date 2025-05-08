@@ -2490,3 +2490,11 @@ def get_blocked_module_names():
     blocked_module_names.extend(ANDROID_HARDWARE_MODULE_LIST)
     return blocked_module_names
 
+
+VENDOR_NAMES = [
+    "Google", "Samsung", "Apple", "Huawei", "Xiaomi", "Oppo", "Vivo", "OnePlus",
+    "Realme", "Sony", "LG", "Nokia", "Motorola", "Asus", "Lenovo", "ZTE", "HTC",
+    "Honor", "Meizu", "BlackBerry", "Alcatel", "Micromax", "Infinix", "Tecno",
+    "Lava", "Coolpad", "Panasonic", "Sharp", "LeEco", "Gionee", "Itel", "Karbonn",
+    "Blu", "Wiko", "Fairphone", "Essential", "Pixel", "Miui"
+]

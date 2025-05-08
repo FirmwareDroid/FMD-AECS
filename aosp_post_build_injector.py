@@ -21,6 +21,8 @@ from filelock import FileLock
 from aosp_apex_injector import handle_apex_modules
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
+from common import extract_vendor_name, remove_vendor_name_from_path
+from config import VENDOR_NAMES
 from config_post_injector import *
 from setup_logger import setup_logger
 from tqdm import tqdm
@@ -279,6 +281,10 @@ def handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite):
     return error_message
 
 
+
+
+
+
 def search_and_inject(partition_name, module_type, file_path, target_out_path, allow_file_overwrite):
     inj_partition = None
     inj_obj = None
@@ -295,8 +301,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                                                          file_name,
                                                          target_out_path)
     if original_file_path is None:
-        # TODO: To match naming of vendors with the emulators files
-        file_path_vendor_replaced = file_path.replace(".google", "").replace("Google", "")
+        file_path_vendor_replaced = remove_vendor_name_from_path(file_path)
         file_name_vendor_replaced = os.path.basename(file_path_vendor_replaced)
         original_file_path = search_original_file_in_obj(partition_name,
                                                          module_type,

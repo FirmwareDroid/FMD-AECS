@@ -8,7 +8,8 @@ import zipfile
 from jinja2 import Environment, FileSystemLoader
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
     sign_apex_container_apksigner, sign_apex_container_signapk
-from config import MODULE_BASE_INJECT_DIR
+from common import extract_vendor_name, remove_vendor_name_from_filename
+from config import MODULE_BASE_INJECT_DIR, VENDOR_NAMES
 from shell_command import execute_shell_command
 from config_post_injector import *
 
@@ -174,8 +175,8 @@ def get_apex_build_intermediate_folder(target_out_path):
 
 def find_emulator_apex_folder(target_out_path, file_path):
     filename = str(os.path.basename(file_path))
-    # TODO make matching better
-    filename_no_vendor = filename.replace(".google", "").replace(".apex", "").replace(".capex", "")
+    filename_no_vendor = remove_vendor_name_from_filename(filename)
+    filename_no_vendor = filename_no_vendor.replace(".apex", "").replace(".capex", "")
     if "tzdata3" in filename_no_vendor:
         filename_no_vendor = filename_no_vendor.replace("tzdata3", "tzdata")
 
@@ -1002,8 +1003,10 @@ def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_pat
     """
     is_success = False
     apex_filename = os.path.basename(apex_file_path)
-    # TODO add better file matching
-    apex_filename_no_ext = os.path.splitext(apex_filename)[0].replace(".google", "").replace("Google", "")
+
+    # .replace(".google", "").replace("Google", "")
+    apex_filename_no_ext = os.path.splitext(apex_filename)[0]
+    remove_vendor_name_from_filename(apex_filename_no_ext)
 
     apex_pub_key_obj_path = str(os.path.join(target_out_path, FOLDER_NAME_OBJECTS, "ETC",
                                              f"apex_pubkey.{apex_filename_no_ext}_intermediates"))
