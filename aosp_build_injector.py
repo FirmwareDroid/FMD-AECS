@@ -69,7 +69,12 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     logging.info(f"Environment setup for {lunch_target} completed. Moving packages to aosp source code next.")
 
     move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
-    move_packages_to_aosp(aosp_path, aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
+    included_package_name_list = move_packages_to_aosp(aosp_path, aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
+    result = {
+        "firmware_id": firmware_id,
+        "number_of_packages_injected": len(included_package_name_list)
+    }
+    write_json_output(result, PATH_BUILD_INJECTOR_LOG)
     inject_meta_files(aosp_path, aosp_version)
 
     retry_attempts = BUILD_RETRY_COUNT
