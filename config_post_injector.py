@@ -68,7 +68,7 @@ SKIPPED_BINARY_LIST = [
                        "apexd-bootstrap",
                        "bootstrap",
                        "fsverity_init",
-                       "init",
+                       #"init",
                        "apexd",
                        "atrace",
                        "setprop",
