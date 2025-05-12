@@ -45,7 +45,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
             except Exception as err:
                 logging.error(err)
         else:
-            logging.info(f"Something wrong: PEX outputfile does not exist. Restore original APEX: {org_apex_file}")
+            logging.info(f"Something wrong: APEX outputfile does not exist. Restore original APEX: {org_apex_file}")
             is_merge_success = False
             shutil.copyfile(org_apex_file, file_path)
         logging.info(
