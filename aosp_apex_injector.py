@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -9,7 +10,7 @@ from jinja2 import Environment, FileSystemLoader
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
     sign_apex_container_apksigner, sign_apex_container_signapk
 from common import extract_vendor_name, remove_vendor_name_from_filename
-from config import MODULE_BASE_INJECT_DIR, VENDOR_NAMES
+from config import MODULE_BASE_INJECT_DIR, VENDOR_NAMES, EMULATOR_VNDK_VERSION
 from shell_command import execute_shell_command
 from config_post_injector import *
 
@@ -194,6 +195,47 @@ def find_emulator_apex_folder(target_out_path, file_path):
         logging.warning(f"APEX module folder not found: {filename_no_vendor} for apex {file_path}")
     return apex_module_folder
 
+
+def get_last_two_as_int(input_string):
+    try:
+        # Slice the last two characters and convert to int
+        return int(input_string[-2:])
+    except (ValueError, IndexError):
+        # Handle cases where conversion fails or string is too short
+        return None
+
+def get_vndk_version(file_path='/path/to/your/file'):
+    """
+    Extracts the VNDK version from a binary file by identifying readable strings and searching for 'vndk'.
+    :param file_path: str - Path to the binary file.
+    :return: str - The VNDK version if found, otherwise None.
+    """
+    try:
+        with open(file_path, 'rb') as file:
+            data = file.read()
+            # Extract readable strings (similar to the `strings` command)
+            strings = re.findall(rb'[ -~]{4,}', data)
+            # Search for the VNDK version
+            for string in strings:
+                if b'com.android.vndk.v' in string.lower():
+                    version_string = string.decode('utf-8')
+                    logging.info(f"Found VNDK string: {version_string}")
+                    version = get_last_two_as_int(version_string)
+                    if version is not None:
+                        logging.info(f"Extracted VNDK version: {version}")
+                        return version
+    except Exception as e:
+        logging.error(f"Error reading file {file_path}: {e}")
+    return 0
+
+def allow_merge(apex_path, apex_filename):
+    if "vndk" in apex_filename:
+        vendor_vndk_version = get_vndk_version()
+        if EMULATOR_VNDK_VERSION > vendor_vndk_version:
+            logging.info(f"APEX: Emulator VNDK version {EMULATOR_VNDK_VERSION} is higher than vendor VNDK version {vendor_vndk_version}.")
+            return False
+    return True
+
 # Keep the structure of the original apex
 # Inject additional files into the apex
 def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_target, aosp_path, target_out_path):
@@ -203,6 +245,9 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     Writes the merged apex to the apex_out_file
     """
     filename_input = str(os.path.basename(input_apex))
+    if not allow_merge(apex_emulator_folder, filename_input):
+        return False, "APEX: Emulator VNDK version is higher than vendor VNDK version. Merging not allowed."
+
     logging.info(f"Merging APEX files: {apex_emulator_folder} and {input_apex}")
     is_success, log_message = False, None
     apex_root_path = tempfile.mkdtemp(suffix=f"_{filename_input}_merged")
@@ -218,7 +263,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             if os.path.exists(manifest_path):
                 shutil.copy2(manifest_path, merged_apex_extract_dir_path)
                 if not os.path.exists(merged_apex_extract_dir_path):
-                    logging.error(f"APEX Manifest  was not copied to: {merged_apex_extract_dir_path}")
+                    logging.error(f"ERROR: APEX Manifest was not copied to: {merged_apex_extract_dir_path}")
                     exit(-1)
             else:
                 logging.error("APEX Manifest path is invalid")
@@ -374,7 +419,8 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         result = subprocess.run(command, shell=True, capture_output=True, text=True)
                         if result.returncode != 0:
                             logging.error(
-                                f"Error copying file in APEX container: statuscode: {result.returncode}: {file_path} with {dst_file_path} | stderr: {result.stderr} | stdout: {result.stdout}")
+                                f"Error copying file in APEX container: statuscode: {result.returncode}: "
+                                f"{file_path} with {dst_file_path} | stderr: {result.stderr} | stdout: {result.stdout}")
                         else:
                             logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
                             files_coped_list.append(dst_file_path)
