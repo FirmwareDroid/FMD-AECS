@@ -204,7 +204,7 @@ def get_last_two_as_int(input_string):
         # Handle cases where conversion fails or string is too short
         return None
 
-def get_vndk_version(file_path='/path/to/your/file'):
+def get_vndk_version(file_path):
     """
     Extracts the VNDK version from a binary file by identifying readable strings and searching for 'vndk'.
     :param file_path: str - Path to the binary file.
@@ -230,7 +230,7 @@ def get_vndk_version(file_path='/path/to/your/file'):
 
 def allow_merge(apex_path, apex_filename):
     if "vndk" in apex_filename:
-        vendor_vndk_version = get_vndk_version()
+        vendor_vndk_version = get_vndk_version(apex_path)
         if EMULATOR_VNDK_VERSION > vendor_vndk_version:
             logging.info(f"APEX: Emulator VNDK version {EMULATOR_VNDK_VERSION} is higher than vendor VNDK version {vendor_vndk_version}.")
             return False
