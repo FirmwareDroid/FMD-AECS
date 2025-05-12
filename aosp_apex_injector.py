@@ -198,11 +198,9 @@ def find_emulator_apex_folder(target_out_path, file_path):
 
 def get_last_two_as_int(input_string):
     try:
-        # Slice the last two characters and convert to int
         return int(input_string[-2:])
     except (ValueError, IndexError):
-        # Handle cases where conversion fails or string is too short
-        return None
+        return 0
 
 def get_vndk_version(file_path):
     """
@@ -210,23 +208,23 @@ def get_vndk_version(file_path):
     :param file_path: str - Path to the binary file.
     :return: str - The VNDK version if found, otherwise None.
     """
+    version = 0
     try:
         with open(file_path, 'rb') as file:
             data = file.read()
-            # Extract readable strings (similar to the `strings` command)
             strings = re.findall(rb'[ -~]{4,}', data)
-            # Search for the VNDK version
+            logging.info(f"Found VNDK strings: {strings}")
             for string in strings:
                 if b'com.android.vndk.v' in string.lower():
                     version_string = string.decode('utf-8')
                     logging.info(f"Found VNDK string: {version_string}")
                     version = get_last_two_as_int(version_string)
-                    if version is not None:
+                    if version != 0:
                         logging.info(f"Extracted VNDK version: {version}")
                         return version
     except Exception as e:
         logging.error(f"Error reading file {file_path}: {e}")
-    return 0
+    return version
 
 def allow_merge(apex_path, apex_filename):
     if "vndk" in apex_filename:
