@@ -68,7 +68,7 @@ SKIPPED_BINARY_LIST = [
                        "apexd-bootstrap",
                        "bootstrap",
                        "fsverity_init",
-                       #"init",
+                       "init",
                        "apexd",
                        "atrace",
                        "setprop",
@@ -101,7 +101,7 @@ SKIPPED_BINARY_LIST = [
                        "apex_manifest.pb",
                        "apex_build_info.pb",
                        "AndroidManifest.xml",
-                       "libgui.so",
+                       "libgui.so", # Breaks sometimes the build process in case the binary is not compatible with Stagefright
                        ]
 # "libminijail.so",
 # "libavservices_minijail_vendor.so",
