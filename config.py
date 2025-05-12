@@ -67,7 +67,7 @@ FMD_AECS_FIRMWARE_QUERY_TEMPLATE = ('{"query": "query GetFirmwareIdList '
                                     '}'
                                     '}}",'
                                     '"operationName": "GetFirmwareIdList"}')
-EMULATOR_VNDK_VERSION = "32"
+EMULATOR_VNDK_VERSION = 32
 FMD_CSRF_URL_TEMPLATE = "${url}/csrf/"
 PACKAGE_EXTRACTION_DIR_NAME = "extracted_packages"
 EXTRACTION_ALL_FILES_DIR_NAME = "ALL_FILES"
