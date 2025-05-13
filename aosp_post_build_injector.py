@@ -571,18 +571,18 @@ def search_original_file_in_obj(partition_name,
         candidate_file_name = os.path.basename(candidate_path)
         # Strip the root folder name to match the module name
         root_folder_name_stripped = root.replace(replace_intermediate, "")
-        root_folder_name_stripped = root_folder_name_stripped.replace(f"_{partition_name}",
-                                                                                        "")
+        root_folder_name_stripped = root_folder_name_stripped.replace(f"_{partition_name}","")
         root_folder_name_stripped = root_folder_name_stripped.replace("v1_prebuilt","")
         root_folder_name_stripped = os.path.basename(root_folder_name_stripped)
         logging.debug(f"File Matcher: {module_name}:{file_name} - Root Folder Name stripped: {root_folder_name_stripped}")
 
+        if "vndk" in candidate_path and "vndk" not in file_path:
+            logging.info(f"File Matcher: VNDK file found in {candidate_path} but not in {root}")
+            continue
+
         # Check if there is an exact match for the file name
         if candidate_file_name == file_name:
             logging.debug(f"File Matcher test exact match:{file_name} Found {candidate_path} in {root}")
-            if "vndk" in candidate_path and "vndk" not in root_folder_name_stripped:
-                logging.debug(f"File Matcher: VNDK file found in {candidate_path} but not in {root}")
-                continue
 
             # Verify if it matches the partition criteria
             if not partition_name or partition_name in root:
