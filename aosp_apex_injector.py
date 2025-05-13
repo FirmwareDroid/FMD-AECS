@@ -243,8 +243,9 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     Writes the merged apex to the apex_out_file
     """
     filename_input = str(os.path.basename(input_apex))
-    if not allow_vndk_merge(input_apex, filename_input):
-        return False, "APEX: Emulator VNDK version is higher than vendor VNDK version. Merging not allowed."
+    if CHECK_VNDK_VERSION_MISMATCH:
+        if not allow_vndk_merge(input_apex, filename_input):
+            return False, "APEX: Emulator VNDK version is higher than vendor VNDK version. Merging not allowed."
 
     logging.info(f"Merging APEX files: {apex_emulator_folder} and {input_apex}")
     is_success, log_message = False, None
