@@ -217,7 +217,7 @@ def get_vndk_version(file_path):
             for string in strings:
                 if b'com.android.vndk.v' in string.lower():
                     version_string = string.decode('utf-8')
-                    logging.info(f"Found VNDK string: {version_string}")
+                    logging.debug(f"Found VNDK string: {version_string}")
                     version = get_last_two_as_int(version_string)
                     if version != 0:
                         logging.info(f"Extracted VNDK version: {version}")
