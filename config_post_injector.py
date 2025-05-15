@@ -36,8 +36,8 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".rc", # Init files might break the emulator
                                ".ko", # Kernel modules break the emulator
                                ".prop", # Build properties should not be overwritten
-                               ".apex", # Manual inject
-                               ".capex", # Manual inject
+                               #".apex", # Manual inject
+                               #".capex", # Manual inject
                                #".prof",
                                ".original_apex", # Leftover from apex repacking
                                ".idsig", # Leftover from signing
@@ -181,33 +181,63 @@ ALLOWED_KEYWORD = ["Overlay",
 # "com.google.android.adbd.apex", --> Blocks adb access
 # APEX Files in this list will be merged in the POST-INJECTOR -> APEX file not in this list will be repackaged
 # in the pre-injector.
-ALLOW_FILE_INJECT_ALWAYS = ["installd.rc",
-                            "com.android.vndk.current.apex",
-                            "com.google.android.os.statsd.apex",
-                            "com.google.android.resolv.apex",
-                            "com.google.android.tethering.apex",
-                            "com.google.android.wifi.apex",
-                            "com.google.android.cellbroadcast.apex",
-                            "com.google.android.mediaprovider.apex",
-                            "com.google.android.permission.apex",
-                            "com.google.android.extservices.apex",
-                            "com.google.android.hardwareinfo.xml",
-                            "com.google.android.telephony.apex",
-                            "com.google.mainline.primary.libs.apex",
-                            "vndservicemanager.rc",
-                            "com.android.i18n.apex",
-                            "com.google.android.conscrypt.apex",
-                            "com.google.android.sdkext.apex",
-                            "com.google.android.ipsec.apex",
-                            "com.android.runtime.apex",  # Problematic -> Without boot-framework error? Root cause of file not found error?
-                            "com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
-                            "com.google.android.media.swcodec.apex",
-                            "com.google.android.scheduling.apex",
-                            "com.google.android.appsearch.apex",
-                            "com.google.android.neuralnetworks.apex",
-                            "com.google.android.media.apex",
-                            "com.google.android.tzdata3.apex" # Special matching tzdata3 -> tzdata
+ALLOW_FILE_INJECT_ALWAYS = [#"installd.rc",
+                            # "com.android.vndk.current.apex",
+                            # "com.google.android.os.statsd.apex",
+                            # "com.google.android.resolv.apex",
+                            # "com.google.android.tethering.apex",
+                            # "com.google.android.wifi.apex",
+                            # "com.google.android.cellbroadcast.apex",
+                            # "com.google.android.mediaprovider.apex",
+                            # "com.google.android.permission.apex",
+                            # "com.google.android.extservices.apex",
+                            # "com.google.android.hardwareinfo.xml",
+                            # "com.google.android.telephony.apex",
+                            # "com.google.mainline.primary.libs.apex",
+                            #"vndservicemanager.rc",
+                            # "com.android.i18n.apex",
+                            # "com.google.android.conscrypt.apex",
+                            # "com.google.android.sdkext.apex",
+                            # "com.google.android.ipsec.apex",
+                            # "com.android.runtime.apex",  # Problematic -> Without boot-framework error? Root cause of file not found error?
+                            # "com.google.android.art.apex",  # Problematic, contains boot.art, boot.oat, and boot.vdex
+                            # "com.google.android.media.swcodec.apex",
+                            # "com.google.android.scheduling.apex",
+                            # "com.google.android.appsearch.apex",
+                            # "com.google.android.neuralnetworks.apex",
+                            # "com.google.android.media.apex",
+                            # "com.google.android.tzdata3.apex" # Special matching tzdata3 -> tzdata
                             ]
+
+ALLOW_APEX_MERGE_KEYWORD_LIST = [
+                            "sdkext",
+                            "extservices",
+                            "wifi",
+                            "tethering",
+                            "i18n",
+                            "vndk",
+                            "ipsec",
+                            "scheduling",
+                            "adbd",
+                            "statsd",
+                            "resolv",
+                            "neuralnetworks",
+                            "cellbroadcast",
+                            "mediaprovider",
+                            "telephony",
+                            "permission",
+                            "runtime",
+                            "art",
+                            "conscrypt",
+                            "appsearch",
+                            "swcodec",
+                            "media",
+                            "tzdata",
+                            "tzdata3",
+                        ]
+
+
+
 # "com.google.android.adbd.apex"
 # ALLOWED INJECTION FILES:
 # "com.android.apex.cts.shim.apex"
