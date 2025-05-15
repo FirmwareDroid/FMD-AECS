@@ -14,46 +14,107 @@ from config import MODULE_BASE_INJECT_DIR, VENDOR_NAMES, EMULATOR_VNDK_VERSION
 from shell_command import execute_shell_command
 from config_post_injector import *
 
+
 def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     """
-    Merges two apex file into one. Overwrite the apex of the vendor for later injection.
+    Merges two APEX files into one. Overwrites the vendor's APEX for later injection.
     """
     logging.info(f"Handling APEX modules: {file_path} | {aosp_path} | {lunch_target} | {target_out_path}")
     is_merge_success = False
-    org_apex_file = f"{file_path}.original_apex"
-    if os.path.exists(org_apex_file):
-        logging.info(f"Original APEX file found - restoring: {org_apex_file}")
-        restore_original_apex(file_path, org_apex_file)
-    else:
-        shutil.copyfile(file_path, org_apex_file)
-        logging.info(f"Original APEX file not found creating new one: {org_apex_file}")
+    log_message = ""
 
-    apex_out_file = prepare_apex_out_file(file_path)
-    if os.path.exists(apex_out_file):
-        os.remove(apex_out_file)
+    try:
+        if file_path.endswith(".capex"):
+            logging.info(f"APEX file is capex: {file_path}")
+            input_folder_path = os.path.dirname(file_path)
+            capex_filename = os.path.basename(file_path)
+            extracted_apex_file_path = prepare_capex(file_path, input_folder_path, capex_filename.replace(".capex", ".apex"))
+            if extracted_apex_file_path:
+                logging.info(f"APEX file extracted from CAPEX: {extracted_apex_file_path}")
+                new_filename = f"{capex_filename}.original_capex"
+                rename_file(file_path, new_filename)
 
-    apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path)
-    if apex_emulator_folder and os.path.exists(apex_emulator_folder):
-        logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
-        is_merge_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path)
-        if os.path.exists(apex_out_file):
-            try:
-                os.remove(file_path)
-                shutil.copyfile(apex_out_file, file_path)
-                os.remove(apex_out_file)
-                is_merge_success = True
-                logging.info(f"Replaced original APEX with merged APEX file: org: {file_path} merge: {apex_out_file}")
-            except Exception as err:
-                logging.error(err)
+        org_apex_file = f"{file_path}.original_apex"
+        if os.path.exists(org_apex_file):
+            logging.info(f"Original APEX file found - restoring: {org_apex_file}")
+            restore_original_apex(file_path, org_apex_file)
         else:
-            logging.info(f"Something wrong: APEX outputfile does not exist. Restore original APEX: {org_apex_file}")
-            is_merge_success = False
-            shutil.copyfile(org_apex_file, file_path)
-        logging.info(
-            f"Merging APEX file complete: {apex_out_file} overwrites {file_path} | merge success: {is_merge_success} | {log_message}")
-    else:
-        log_message = f"Error merging APEX file: {file_path} no emulator folder found in: {target_out_path}"
+            shutil.copyfile(file_path, org_apex_file)
+            logging.info(f"Original APEX file not found, creating new one: {org_apex_file}")
+
+        apex_out_file = prepare_apex_out_file(file_path)
+        if os.path.exists(apex_out_file):
+            os.remove(apex_out_file)
+
+        apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path)
+        if apex_emulator_folder and os.path.exists(apex_emulator_folder):
+            logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
+            is_merge_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path)
+            if os.path.exists(apex_out_file):
+                try:
+                    os.remove(file_path)
+                    shutil.copyfile(apex_out_file, file_path)
+                    os.remove(apex_out_file)
+                    is_merge_success = True
+                    logging.info(f"Replaced original APEX with merged APEX file: org: {file_path} merge: {apex_out_file}")
+                except Exception as err:
+                    logging.error(f"Error replacing APEX file: {err}")
+            else:
+                logging.warning(f"APEX output file does not exist. Restoring original APEX: {org_apex_file}")
+                is_merge_success = False
+                shutil.copyfile(org_apex_file, file_path)
+            logging.info(
+                f"Merging APEX file complete: {apex_out_file} overwrites {file_path} | merge success: {is_merge_success} | {log_message}")
+        else:
+            log_message = f"Error merging APEX file: {file_path}. No emulator folder found in: {target_out_path}"
+            logging.error(log_message)
+    except Exception as e:
+        log_message = f"Unexpected error while handling APEX modules: {e}"
+        logging.error(log_message)
+
     return is_merge_success, log_message
+
+
+def rename_file(file_path, new_name):
+    """
+    Renames a file based on its file path.
+
+    :param file_path: str - The full path to the file.
+    :param new_name: str - The new name for the file (without the directory path).
+    """
+    try:
+        directory = os.path.dirname(file_path)
+        new_file_path = os.path.join(directory, new_name)
+        os.rename(file_path, new_file_path)
+        return new_file_path
+    except Exception as e:
+        logging.error(f"Error renaming file {file_path} to {new_name}: {e}")
+        raise
+
+
+def prepare_capex(file_path, output_dir, output_filename):
+    """
+    Unzips the capex file into a temporary directory, then copies the apex file to the output directory.
+    """
+    logging.info(f"Unzipping capex file: {file_path}")
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
+            apex_file = os.path.join(temp_dir, "original_apex")
+            if os.path.exists(apex_file):
+                logging.info(f"APEX file extracted: {apex_file}")
+                out_file = os.path.join(output_dir, output_filename)
+                shutil.copy(apex_file, out_file)
+                return out_file
+            else:
+                logging.error(f"APEX file not found in capex: {file_path}")
+    except zipfile.BadZipFile as e:
+        logging.error(f"Error unzipping capex file {file_path}: {e}")
+    except Exception as e:
+        logging.error(f"Unexpected error while preparing capex: {e}")
+    return None
+
 
 def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
     """
