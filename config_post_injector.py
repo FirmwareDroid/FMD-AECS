@@ -224,7 +224,7 @@ ALLOW_APEX_MERGE_KEYWORD_LIST = [
                             "neuralnetworks",
                             "cellbroadcast",
                             "mediaprovider",
-                            "telephony",
+                            #"telephony",
                             "permission",
                             "runtime",
                             "art",

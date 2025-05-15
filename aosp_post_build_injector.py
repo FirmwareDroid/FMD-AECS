@@ -247,7 +247,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                     error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
                 elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
 
-                    if ALLOW_APEX_INJECTION_MERGE and not any(keyword in filename for keyword in APEX_NO_MERGE_POSSIBLE_KEYWORDS):
+                    if ALLOW_APEX_INJECTION_MERGE and any(keyword in filename for keyword in ALLOW_APEX_MERGE_KEYWORD_LIST):
                         logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
                         is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
                         if not is_merge_success:
