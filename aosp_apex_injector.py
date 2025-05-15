@@ -213,7 +213,7 @@ def get_vndk_version(file_path):
         with open(file_path, 'rb') as file:
             data = file.read()
             strings = re.findall(rb'[ -~]{4,}', data)
-            logging.info(f"Found VNDK strings: {strings}")
+            logging.debug(f"Found VNDK strings: {strings}")
             for string in strings:
                 if b'com.android.vndk.v' in string.lower():
                     version_string = string.decode('utf-8')
