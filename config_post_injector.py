@@ -44,6 +44,8 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".art",
                                ".oat",
                                #".odex",
+                               ".apex_original", # Leftover from the file extraction process
+                               ".capex_original", # Leftover from the file extraction process
                                ".imgxtract", # Leftover from the file extraction process
                                ".extfextract" # Leftover from the file extraction process
                                ".raw",  # Leftover from the file extraction process

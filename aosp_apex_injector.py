@@ -24,16 +24,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     log_message = ""
 
     try:
-        if file_path.endswith(".capex"):
-            logging.info(f"APEX file is capex: {file_path}")
-            input_folder_path = os.path.dirname(file_path)
-            capex_filename = os.path.basename(file_path)
-            extracted_apex_file_path = prepare_capex(file_path, input_folder_path, capex_filename.replace(".capex", ".apex"))
-            if extracted_apex_file_path:
-                logging.info(f"APEX file extracted from CAPEX: {extracted_apex_file_path}")
-                new_filename = f"{capex_filename}.original_capex"
-                rename_file(file_path, new_filename)
-                file_path = extracted_apex_file_path
+
 
         org_apex_file = f"{file_path}.original_apex"
         if os.path.exists(org_apex_file):
