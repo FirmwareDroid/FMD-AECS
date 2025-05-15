@@ -43,7 +43,7 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".idsig", # Leftover from signing
                                ".art",
                                ".oat",
-                               ".odex",
+                               #".odex",
                                ".imgxtract", # Leftover from the file extraction process
                                ".extfextract" # Leftover from the file extraction process
                                ".raw",  # Leftover from the file extraction process
