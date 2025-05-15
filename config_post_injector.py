@@ -131,7 +131,8 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         "vendor.qti.hardware",
                         "qti",
                         "secureboot",
-                        "_apex"         # Skipped all files from extracted apex folder
+                        "_apex",         # Skipped all files from extracted apex folder
+                        "_capex",         # Skipped all files from extracted capex folder
                         ]
 
 
@@ -302,7 +303,10 @@ LIST_SINGLETON_APPS = [
     #"WebView.apk"                    # com.android.webview
 ]
 
-
+APEX_NO_MERGE_POSSIBLE_KEYWORDS = [
+    "telephone",    #"com.google.android.telephony.apex",
+    "mainline"      #"com.google.mainline.primary.libs.apex"
+]
 
 ALLOW_APEX_FILE_INJECT = ["derive_classpath.rc",
                           "derive_sdk.rc",
