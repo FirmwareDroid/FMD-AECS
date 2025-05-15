@@ -18,6 +18,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     """
     Merges two apex file into one. Overwrite the apex of the vendor for later injection.
     """
+    logging.info(f"Handling APEX modules: {file_path} | {aosp_path} | {lunch_target} | {target_out_path}")
     is_merge_success = False
     org_apex_file = f"{file_path}.original_apex"
     if os.path.exists(org_apex_file):

@@ -231,7 +231,8 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 processed_files.add(file_path)
 
             if module_type in ["SKIPPED"]:
-                error_message = f"Skipped File post-inject (Keyword/Extension/Filename): {file_path}"
+                error_message = f"Skipped File post-inject (Keyword/Extension/Filename): {file_path} | module_type: {module_type}"
+                logging.info(error_message)
             else:
                 logging.info(f"Processing file {file_path}")
                 filename = os.path.basename(file_path)
@@ -245,6 +246,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 if module_type == "APPS" and file_extension.lower() == ".apk":
                     error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
                 elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
+
                     if ALLOW_APEX_INJECTION_MERGE and not any(keyword in filename for keyword in APEX_NO_MERGE_POSSIBLE_KEYWORDS):
                         logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
                         is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
