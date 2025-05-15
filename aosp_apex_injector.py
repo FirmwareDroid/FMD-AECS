@@ -33,6 +33,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
                 logging.info(f"APEX file extracted from CAPEX: {extracted_apex_file_path}")
                 new_filename = f"{capex_filename}.original_capex"
                 rename_file(file_path, new_filename)
+                file_path = extracted_apex_file_path
 
         org_apex_file = f"{file_path}.original_apex"
         if os.path.exists(org_apex_file):
