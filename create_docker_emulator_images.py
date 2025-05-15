@@ -360,7 +360,7 @@ def main():
                 end_time = time.time()
                 elapsed_time_seconds = end_time - start_time
                 elapsed_time_minutes = elapsed_time_seconds / 60
-                with open("results.logh", "a") as log_file:
+                with open("results.log", "a") as log_file:
                     log_file.write(
                         f"Processing images took {elapsed_time_seconds:.2f} seconds ({elapsed_time_minutes:.2f} minutes).\n")
                 successful_images.append(image)
