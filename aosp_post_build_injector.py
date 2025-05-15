@@ -18,7 +18,7 @@ import traceback
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 from filelock import FileLock
-from aosp_apex_injector import handle_apex_modules
+from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
 from common import extract_vendor_name, remove_vendor_name_from_path
@@ -249,6 +249,8 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 
                     if ALLOW_APEX_INJECTION_MERGE and any(keyword in filename for keyword in ALLOW_APEX_MERGE_KEYWORD_LIST):
                         logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
+                        if file_path.endswith(".capex"):
+                            file_path = replace_capex_with_apex(file_path)
                         is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
                         if not is_merge_success:
                             error_message = f"Error handling APEX file: {file_path}|{log_message}"
@@ -285,8 +287,18 @@ def handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite):
     return error_message
 
 
-
-
+def replace_capex_with_apex(file_path):
+    logging.info(f"APEX file is capex: {file_path}")
+    input_folder_path = os.path.dirname(file_path)
+    capex_filename = os.path.basename(file_path)
+    extracted_apex_file_path = prepare_capex(file_path, input_folder_path,
+                                             capex_filename.replace(".capex", ".apex"))
+    if extracted_apex_file_path:
+        logging.info(f"APEX file extracted from CAPEX: {extracted_apex_file_path}")
+        new_filename = f"{capex_filename}.original_capex"
+        rename_file(file_path, new_filename)
+        file_path = extracted_apex_file_path
+    return file_path
 
 
 def search_and_inject(partition_name, module_type, file_path, target_out_path, allow_file_overwrite):
