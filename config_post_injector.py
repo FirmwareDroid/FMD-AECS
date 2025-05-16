@@ -220,7 +220,7 @@ ALLOW_APEX_MERGE_KEYWORD_LIST = [
                             "vndk",
                             "ipsec",
                             "scheduling",
-                            "adbd",
+                            #"adbd",
                             "statsd",
                             "resolv",
                             "neuralnetworks",
