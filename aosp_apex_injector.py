@@ -24,8 +24,6 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     log_message = ""
 
     try:
-
-
         org_apex_file = f"{file_path}.original_apex"
         if os.path.exists(org_apex_file):
             logging.info(f"Original APEX file found - restoring: {org_apex_file}")
