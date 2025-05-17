@@ -131,7 +131,7 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         "qseecom",
                         "exfat",
                         #"vendor.qti.hardware",
-                        "qti",
+                        #"qti",
                         "secureboot",
                         "_apex",         # Skipped all files from extracted apex folder
                         "_capex",         # Skipped all files from extracted capex folder
