@@ -18,7 +18,7 @@ FOLDER_NAME_ETC = "ETC"
 PARTITION_NAME_LIST = ["super", "system", "vendor", "product", "odm", "oem", "data"]
 MODULE_TYPE_ABI_COMPATIBLE = ["SHARED_LIBRARIES", "EXECUTABLES", "ETC"]
 OVERWRITE_APP_PROCESS_32 = True
-NAME_EXECUTION_TIME_LOG = "post_build_injector_metrics.json"
+NAME_EXECUTION_TIME_LOG = "results_post_build_injector_metrics.json"
 PATH_EXECUTION_TIME_LOG = os.path.join(BUILD_OUT_PATH, NAME_EXECUTION_TIME_LOG)
 CHECK_VNDK_VERSION_MISMATCH = True
 # Singleton Apps: StorageManagerGoogle.apk
