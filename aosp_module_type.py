@@ -13,6 +13,9 @@ def is_file_inject_allowed(file_name):
     """
     if file_name in SKIPPED_BINARY_LIST:
         return False
+    for file_ending in SKIPPED_FILE_ENDING_LIST:
+        if file_name.endswith(file_ending):
+            return False
     return True
 
 
