@@ -52,6 +52,13 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                #".vdex",
                                ]
 
+
+SKIPPED_FILE_ENDING_LIST = [
+        "adbd_compressed.apex",
+        "adbd.apex",
+    ]
+
+
 # "vndservicemanager", # problematic
 SKIPPED_BINARY_LIST = [
                        "hwservicemanager", # problematic
@@ -90,12 +97,12 @@ SKIPPED_BINARY_LIST = [
                        ".data.img.raw", # Leftover from the file extraction process
                        ".super.img.raw", # Leftover from the file extraction process
                        "product.img.raw", # Leftover from the file extraction process
-                        "system.img.raw", # Leftover from the file extraction process
-                        "vendor.img.raw", # Leftover from the file extraction process
-                        "odm.img.raw", # Leftover from the file extraction process
-                        "oem.img.raw", # Leftover from the file extraction process
-                        "data.img.raw", # Leftover from the file extraction process
-                        "super.img.raw", # Leftover from the file extraction process
+                       "system.img.raw", # Leftover from the file extraction process
+                       "vendor.img.raw", # Leftover from the file extraction process
+                       "odm.img.raw", # Leftover from the file extraction process
+                       "oem.img.raw", # Leftover from the file extraction process
+                       "data.img.raw", # Leftover from the file extraction process
+                       "super.img.raw", # Leftover from the file extraction process
                        "libgatekeeper.so",
                        "apex_pubkey",
                        "apex_manifest.json",
@@ -143,7 +150,6 @@ ALLOW_ALL_FILE_OVERWRITE = True
 
 # "dex2oat"
 SKIPPED_APEX_KEYWORD_LIST = []
-
 
 ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
                                          ".otf",
@@ -335,11 +341,6 @@ LIST_SINGLETON_APPS = [
     #"WebView.apk"                    # com.android.webview
 ]
 
-APEX_NO_MERGE_POSSIBLE_KEYWORDS = [
-    "telephone",    #"com.google.android.telephony.apex",
-    "mainline"      #"com.google.mainline.primary.libs.apex"
-]
-
 ALLOW_APEX_FILE_INJECT = ["derive_classpath.rc",
                           "derive_sdk.rc",
                           "libminijail.so",
@@ -351,6 +352,10 @@ ALLOW_APEX_FILE_INJECT = ["derive_classpath.rc",
 ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST = []
 ALLOW_APEX_FILE_INJECT_ALWAYS_KEYWORD_LIST = [".txt", ".art"]
 DISALLOW_APEX_FILE_OVERWRITE = []
+
+
+
+
 
 COPY_TO_SPECIFIC_PATH = {
     "boot-framework.art": "./system/framework/"
