@@ -67,17 +67,21 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     blueprint_build_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static'"
     execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path)
     logging.info(f"Environment setup for {lunch_target} completed. Moving packages to aosp source code next.")
-
-    move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
-    included_package_name_list = move_packages_to_aosp(aosp_path, aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
-    result = {
-        "firmware_id": firmware_id,
-        "number_of_packages_injected": len(included_package_name_list)
-    }
-    logging.info(f"Included packages in build: {included_package_name_list}")
-    logging.info(json.dumps(result, indent=4))
-    write_json_output(result, PATH_BUILD_INJECTOR_LOG)
-    inject_meta_files(aosp_path, aosp_version)
+    try:
+        move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
+        included_package_name_list = move_packages_to_aosp(aosp_path, aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
+        logging.info(f"Completed moving packages to aosp source code.")
+        result = {
+            "firmware_id": firmware_id,
+            "number_of_packages_injected": len(included_package_name_list)
+        }
+        logging.info(f"Included packages in build: {included_package_name_list}")
+        logging.info(json.dumps(result, indent=4))
+        write_json_output(result, PATH_BUILD_INJECTOR_LOG)
+        inject_meta_files(aosp_path, aosp_version)
+    except Exception as e:
+        logging.error(f"Error moving packages to aosp source code: {e}")
+        raise e
 
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
@@ -413,7 +417,7 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                         shutil.copytree(package_path, app_modules_path, dirs_exist_ok=True)
                 logging.debug(f"Included package in build: {dir_name} to {aosp_packages_abs_path}")
                 included_package_name_list.append(dir_name)
-
+    logging.info(f"# Included packages in build: {len(included_package_name_list)}")
     return included_package_name_list
 
 
