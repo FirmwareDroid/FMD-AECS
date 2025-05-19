@@ -74,6 +74,8 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         "firmware_id": firmware_id,
         "number_of_packages_injected": len(included_package_name_list)
     }
+    logging.info(f"Included packages in build: {included_package_name_list}")
+    logging.info(json.dumps(result, indent=4))
     write_json_output(result, PATH_BUILD_INJECTOR_LOG)
     inject_meta_files(aosp_path, aosp_version)
 
@@ -82,6 +84,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         try:
             main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
             execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
+            logging.info(f"AOSP main build completed successfully. Continuing with post-build injection.")
             target_out_path = get_target_out_path(aosp_path, lunch_target)
             all_extracted_firmware_files_path = os.path.join(EXTRACTED_PACKAGES_PATH, EXTRACTION_ALL_FILES_DIR_NAME)
             start_post_build_injector(aosp_path, all_extracted_firmware_files_path, target_out_path, lunch_target, firmware_id)
@@ -110,6 +113,7 @@ def get_target_out_path(aosp_path, lunch_target):
     elif lunch_target == SUPPORTED_LUNCH_TARGETS[1] or lunch_target == SUPPORTED_LUNCH_TARGETS[2]:
         return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH)
     else:
+        logging.error(f"Unknown lunch target: {lunch_target}")
         raise RuntimeError(f"Unsupported build architecture: {lunch_target}")
 
 
@@ -517,6 +521,7 @@ def execute_build_command(firmware_id, lunch_target, command, aosp_root_path):
         unique_id = uuid.uuid4()
         log_name = str(unique_id) + "_" + firmware_id + "_" + lunch_target + ".log"
         log_path = os.path.join(BUILD_OUT_PATH, log_name)
+        logging.info(f"Executing command: {command}")
         logging.info(f"Build logs will be written to: {log_path}")
         with open(log_path, "w") as outfile:
             subprocess.run(command, shell=True, check=True, stdout=outfile, stderr=outfile)
