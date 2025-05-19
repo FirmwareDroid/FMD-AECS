@@ -163,6 +163,7 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
         logging.info(f".{file_type}: {count} occurrences")
 
     result = {
+        "hostname": os.uname()[1],
         "firmware_id": firmware_id,
         "method": "start_post_build_injector",
         "start_time": start_time,

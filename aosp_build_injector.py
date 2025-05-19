@@ -72,6 +72,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         included_package_name_list = move_packages_to_aosp(aosp_path, aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
         logging.info(f"Completed moving packages to aosp source code.")
         result = {
+            "hostname": os.uname()[1],
             "firmware_id": firmware_id,
             "number_of_packages_injected": len(included_package_name_list)
         }
@@ -850,6 +851,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
 
                 status = "success" if is_build_success else "failure"
                 result = {
+                    "hostname": os.uname()[1],
                     "firmware_id": firmware_id,
                     "duration": round(duration, 2),
                     "status": status
