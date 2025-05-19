@@ -56,6 +56,7 @@ SKIPPED_FILE_EXTENSION_LIST = [
 SKIPPED_FILE_ENDING_LIST = [
         "adbd_compressed.apex",
         "adbd.apex",
+        "adbd_trimmed_compressed.apex",
     ]
 
 
