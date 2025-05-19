@@ -39,8 +39,8 @@ SUPPORTED_LUNCH_TARGETS = ["sdk_phone_x86_64-userdebug",  # Android 12 / 13 "sdk
                            "sdk_phone_arm64-userdebug",  # Android 12 -> Works
                            "sdk_phone_arm64-userdebug",  # Android 13 "sdk_arm64-userdebug"
                            ]
-NAME_BUILD_FILE_LOG = "build_times.log"
-NAME_BUILD_INJECTOR_LOG = "build_injector.log"
+NAME_BUILD_FILE_LOG = "results_build_times.json"
+NAME_BUILD_INJECTOR_LOG = "results_build_injector.json"
 PATH_BUILD_FILE_LOG = os.path.join(BUILD_OUT_PATH, NAME_BUILD_FILE_LOG)
 PATH_BUILD_INJECTOR_LOG = os.path.join(BUILD_OUT_PATH, NAME_BUILD_INJECTOR_LOG)
 FILE_CONTEXT_TEMPLATE_PATH = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "file_contexts")
