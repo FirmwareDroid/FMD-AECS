@@ -65,8 +65,8 @@ SKIPPED_BINARY_LIST = [
                        "hwservicemanager", # problematic
                        "servicemanager", # problematic
                        "vold",
-                       "libhardware",
-                       "libhardware_legacy",
+                       "libhardware.so",
+                       "libhardware_legacy.so",
                        "keystore2",
                        "vdc",
                        "console",
