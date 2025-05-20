@@ -113,7 +113,7 @@ SKIPPED_BINARY_LIST = [
                        "apex_manifest.pb",
                        "apex_build_info.pb",
                        "AndroidManifest.xml",
-                       #"libgui.so", # Breaks sometimes the build process in case the binary is not compatible with Stagefright
+                       #"libgui.so", # Breaks the build process in case the binary is not compatible with Stagefright after post-injection
                        #"libfs_mgr.so", # Breaks INIT process
                        ]
 # "libminijail.so",
