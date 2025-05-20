@@ -267,6 +267,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                                                                allow_file_overwrite)
                 else:
                     logging.info(f"File not further processed: {file_path} | {error_message}")
+                    check_file_already_injected(file_path, aosp_path)
     except Exception as e:
         error_message = f"{e}:{traceback.format_exc()}"
     finally:
@@ -275,6 +276,28 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 
     result = error_message, inj_obj, inj_partition
     return result
+
+
+def check_file_already_injected(file_path, aosp_path):
+    """
+    Check if the file is already injected into the AOSP source code.
+
+    :param file_path: str - path to the file.
+    :param aosp_path: str - path to the AOSP source code.
+    :return: bool - True if the file is already injected, False otherwise.
+    """
+    partition_folders = ["system", "vendor", "product", "system_ext"]
+    for partition in partition_folders:
+        search_path = os.path.join(aosp_path, partition)
+        if os.path.exists(search_path):
+            for root, file, dirs in os.walk(search_path):
+                for file_name in file:
+                    if file_name == os.path.basename(file_path):
+                        return True
+    logging.warning(f"Maybe file was not correctly injected. File not found in AOSP out: {file_path}")
+    return False
+
+
 
 def handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite):
     error_message = None
