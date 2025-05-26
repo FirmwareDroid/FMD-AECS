@@ -24,14 +24,17 @@ def extract_vendor_name(filename, directory=None):
     vendor_pattern = re.compile(r"com\.([a-z0-9]+)\.android\..*", re.IGNORECASE)
     match = vendor_pattern.match(filename)
 
-    if match:
+    if match and match is not None or match == ".":
         return match.group(1)  # Return the vendor name from the filename
 
     # Fallback: Infer vendor name from directory structure
     if directory:
         for part in directory.split(os.sep):
             if part.lower() in VENDOR_NAMES:
-                return part.lower()
+                if part is not None and part != ".":
+                    logging.info(f"Vendor name inferred from directory: {part}")
+                else:
+                    return part.lower()
 
     # Fallback: Use a default vendor name
     return ""
@@ -75,8 +78,9 @@ def get_vendor_words(file_path=None, filename=None):
     vendor_name_list.append(vendor_name)
     words_to_replace = []
     for name in vendor_name_list:
-        words_to_replace.append(f".{name.lower()}")
-        words_to_replace.append(name)
+        if name:
+            words_to_replace.append(f".{name.lower()}")
+            words_to_replace.append(name)
     logging.info(f"Vendor words to replace: {' '.join(words_to_replace)}")
     return words_to_replace
 
