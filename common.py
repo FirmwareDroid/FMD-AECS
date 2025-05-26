@@ -87,6 +87,7 @@ def get_vendor_words(file_path=None, filename=None):
     words_to_replace = []
     for name in vendor_name_list:
         if name and name != "." or name != "..":
+            name.replace("..", ".")
             words_to_replace.append(f".{name.lower()}")
             words_to_replace.append(f".{name}")
     logging.info(f"Vendor words to replace: {'|'.join(words_to_replace)}")
