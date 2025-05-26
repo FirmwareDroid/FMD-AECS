@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import zipfile
@@ -76,22 +77,28 @@ def get_vendor_words(file_path=None, filename=None):
     for name in vendor_name_list:
         words_to_replace.append(f".{name.lower()}")
         words_to_replace.append(name)
-
+    logging.info(f"Vendor words to replace: {' '.join(words_to_replace)}")
     return words_to_replace
 
 
 def remove_vendor_name_from_path(file_path):
+    logging.info(f"Filepath before removing vendor specific words: {file_path}")
     words_to_replace = get_vendor_words(file_path)
     file_path_vendor_replaced = file_path
+    base_path = os.path.dirname(file_path)
+    filename = os.path.basename(file_path)
     for word in words_to_replace:
-        file_path_vendor_replaced = file_path_vendor_replaced.replace(word, "")
-
+        filename = filename.replace(word, "")
+    file_path_vendor_replaced = os.path.join(base_path, filename)
+    logging.info(f"Filename after path cleared from vendor words: {file_path_vendor_replaced}")
     return file_path_vendor_replaced
 
 
 def remove_vendor_name_from_filename(filename):
+    logging.info(f"Filename before removing vendor specific words {filename}")
     words_to_replace = get_vendor_words(filename=filename)
     filename_no_ext = filename
     for word in words_to_replace:
         filename_no_ext = filename.replace(word, "")
+    logging.info(f"Removed vendor name: {filename_no_ext}")
     return filename_no_ext

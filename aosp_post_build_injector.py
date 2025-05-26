@@ -339,6 +339,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         target_path = inject_file_into_partition(file_path, target_file_injection_path, allow_file_overwrite)
         inj_partition = (file_path, target_path, module_type)
     else:
+        logging.info(f"File exists in target path: {target_file_injection_path} - skipping direct injection. Continue with indirect injection.")
         # Indirect Injection
         if file_name in INDIRECT_INJECTION_FILE_MAPPING.keys():
             original_file_path = INDIRECT_INJECTION_FILE_MAPPING[file_name]
