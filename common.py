@@ -75,7 +75,11 @@ def get_vendor_words(file_path=None, filename=None):
         vendor_name = extract_vendor_name_from_filename(filename)
     else:
         raise Exception("No file path provided")
-    vendor_name_list.append(vendor_name)
+    if vendor_name.startswith("."):
+        vendor_name_list.append(f"{vendor_name}")
+    else:
+        vendor_name_list.append(f".{vendor_name}")
+
     words_to_replace = []
     for name in vendor_name_list:
         if name:
