@@ -50,7 +50,7 @@ def extract_vendor_name_from_filename(filename):
     vendor_pattern = re.compile(r"com\.([a-z0-9]+)\.android\..*", re.IGNORECASE)
     match = vendor_pattern.match(filename)
 
-    if match:
+    if match and match is not None or match == ".":
         return match.group(1)  # Return the vendor name from the filename
 
     # Fallback: Use a default vendor name
@@ -75,14 +75,18 @@ def get_vendor_words(file_path=None, filename=None):
         vendor_name = extract_vendor_name_from_filename(filename)
     else:
         raise Exception("No file path provided")
+
     if vendor_name.startswith("."):
         vendor_name_list.append(f"{vendor_name}")
     else:
         vendor_name_list.append(f".{vendor_name}")
 
+    vendor_name_list = list(set(vendor_name_list))
+
+
     words_to_replace = []
     for name in vendor_name_list:
-        if name:
+        if name and name != "." or name != "..":
             words_to_replace.append(f".{name.lower()}")
             words_to_replace.append(name)
     logging.info(f"Vendor words to replace: {'|'.join(words_to_replace)}")
