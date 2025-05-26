@@ -81,7 +81,7 @@ def get_vendor_words(file_path=None, filename=None):
         if name:
             words_to_replace.append(f".{name.lower()}")
             words_to_replace.append(name)
-    logging.info(f"Vendor words to replace: {' '.join(words_to_replace)}")
+    logging.info(f"Vendor words to replace: {'|'.join(words_to_replace)}")
     return words_to_replace
 
 
