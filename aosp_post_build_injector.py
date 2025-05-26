@@ -334,7 +334,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     file_extension = os.path.splitext(file_name)[1]
 
     target_file_injection_path = get_target_injection_path(file_path, partition_name, target_out_path)
-    if not os.path.exists(target_file_injection_path):
+    if not os.path.exists(target_file_injection_path) and not any(keyword in target_file_injection_path for keyword in ALLOW_APEX_MERGE_KEYWORD_LIST):
         # Direct Injection
         target_path = inject_file_into_partition(file_path, target_file_injection_path, allow_file_overwrite)
         inj_partition = (file_path, target_path, module_type)
