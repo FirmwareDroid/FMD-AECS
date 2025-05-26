@@ -112,6 +112,6 @@ def remove_vendor_name_from_filename(filename):
     words_to_replace = get_vendor_words(filename=filename)
     filename_no_ext = filename
     for word in words_to_replace:
-        filename_no_ext = filename.replace(word, "")
+        filename_no_ext = filename_no_ext.replace(word, "")
     logging.info(f"Removed vendor name: {filename_no_ext}")
     return filename_no_ext
