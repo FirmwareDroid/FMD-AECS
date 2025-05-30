@@ -107,7 +107,7 @@ def sign_apex_container_apksigner(apex_file_path,
     Signs the APEX file with apksigner.
 
     :param apex_file_path: str - path to the APK file.
-    :param signing_key_path: str - path to the signing key (.pk8).
+    :param signing_key_path: str - path to the signing key.
     :param signing_key_certificate_path: str - path to the signing certificate (pem).
     :param v4_signing_enabled: bool - enable v4 signing.
     :param v3_signing_enabled: bool - enable v3 signing.

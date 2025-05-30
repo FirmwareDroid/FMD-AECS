@@ -233,7 +233,7 @@ ALLOW_APEX_MERGE_KEYWORD_LIST = [
                             "statsd",
                             "resolv",
                             "neuralnetworks",
-                            "cellbroadcast",
+                            #"cellbroadcast",
                             "mediaprovider",
                             #"telephony",
                             "permission",
