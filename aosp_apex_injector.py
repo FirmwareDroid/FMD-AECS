@@ -398,7 +398,7 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                     files_coped_list.append(file)
                 else:
                     logging.error(f"APK file does not exist after coping in APEX")
-    logging.info(f"APEX: Files copied into container: {files_coped_list};\n")
+    logging.info(f"APEX: APK Files copied into container: {files_coped_list};\n")
     return files_coped_list
 
 
@@ -656,10 +656,10 @@ def sign_apex_file(file_path, aosp_path, priv_key_apex_apk_path, apex_apk_certif
     #signing_key_path = get_signing_key_path(aosp_path, "platform")
     use_apksigner = False
     if use_apksigner:
-        logging.info(f"Signing APEX using apksigner")
+        logging.info(f"Signing APEX using apksigner: {file_path}")
         is_success, log_message = sign_apex_container_apksigner(file_path, priv_key_apex_apk_path, apex_apk_certificate_path)
     else:
-        logging.info(f"Signing APEX using signapk")
+        logging.info(f"Signing APEX using signapk: {file_path}")
         is_success, log_message = sign_apex_container_signapk(file_path,
                         priv_key_apex_apk_path,
                         apex_apk_certificate_path,
