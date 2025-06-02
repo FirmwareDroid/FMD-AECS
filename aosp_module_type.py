@@ -83,7 +83,7 @@ def get_module_type(source_file_path, is_apex=False, pre_injector_package_list=N
             or not is_file_inject_allowed(file_name)):
         module_type = "SKIPPED"
 
-    if file_name_no_ext in pre_injector_package_list:
+    if pre_injector_package_list and file_name_no_ext in pre_injector_package_list:
         module_type = "SKIPPED"
 
     #if ALLOW_APEX_INJECTION_MERGE and is_apex and not is_apex_file_path_allowed(source_file_path):
