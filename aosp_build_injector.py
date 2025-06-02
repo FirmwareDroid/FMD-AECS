@@ -73,7 +73,8 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         logging.info(f"Completed moving packages to aosp source code: {EXTRACTED_PACKAGES_PATH} | {aosp_packages_abs_path}")
     except Exception as e:
         logging.error(f"Error moving packages to aosp source code: {e}")
-        raise e
+        traceback.print_exc()
+        exit(-1)
 
     result = {
         "hostname": os.uname()[1],
