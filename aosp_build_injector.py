@@ -61,16 +61,12 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     is_successful = False
     logging.info(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path, aosp_packages_path)
-
-    aosp_packages_apps_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
-
     blueprint_build_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static'"
     execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path)
     logging.info(f"Environment setup for {lunch_target} completed. Moving packages to aosp source code next.")
     try:
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
-        included_package_statistics = move_packages_to_aosp(aosp_path, aosp_packages_apps_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
-        logging.info(f"Completed moving packages to aosp source code: {EXTRACTED_PACKAGES_PATH} | {aosp_packages_apps_abs_path}")
+        included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target)
     except Exception as e:
         logging.error(f"Error moving packages to aosp source code: {e}")
         traceback.print_exc()
@@ -360,11 +356,10 @@ def get_apex_file(directory_path):
 
 
 
-def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_path, lunch_target):
+def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
     """
     Moves the prebuilt packages to the aosp source code.
 
-    :param aosp_packages_abs_path: str - path to the prebuilt package folder of aosp.
     :param extracted_packages_path: str - path to the extracted packages.
     :param aosp_path: str - path to aosp root folder.
     :param lunch_target: str - aosp build argument to select the build arch.
@@ -381,7 +376,6 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
         if os.path.isdir(package_path):
-            logging.info(f"Start moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
             uuid_dir = str(uuid.uuid4())
             if dir_name.strip() in BLOCKED_MODULE_NAMES:
                 logging.info(f"Skipping package: {dir_name} as it is a default module.")
@@ -434,7 +428,6 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                         shutil.copytree(package_path, app_modules_path, dirs_exist_ok=True)
                         included_package_statistics["apps"].append(dir_name)
                 package_count += 1
-                logging.info(f"Included package in build: {dir_name} to {aosp_packages_abs_path}")
     included_package_statistics["count"] = package_count
     return included_package_statistics
 
