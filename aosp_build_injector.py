@@ -62,15 +62,15 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     logging.info(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path, aosp_packages_path)
 
-    aosp_packages_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
+    aosp_packages_apps_abs_path = str(os.path.join(aosp_path, aosp_packages_path))
 
     blueprint_build_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static'"
     execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path)
     logging.info(f"Environment setup for {lunch_target} completed. Moving packages to aosp source code next.")
     try:
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
-        included_package_name_list = move_packages_to_aosp(aosp_path, aosp_packages_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
-        logging.info(f"Completed moving packages to aosp source code: {EXTRACTED_PACKAGES_PATH} | {aosp_packages_abs_path}")
+        included_package_statistics = move_packages_to_aosp(aosp_path, aosp_packages_apps_abs_path, EXTRACTED_PACKAGES_PATH, lunch_target)
+        logging.info(f"Completed moving packages to aosp source code: {EXTRACTED_PACKAGES_PATH} | {aosp_packages_apps_abs_path}")
     except Exception as e:
         logging.error(f"Error moving packages to aosp source code: {e}")
         traceback.print_exc()
@@ -80,9 +80,8 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         result = {
             "hostname": os.uname()[1],
             "firmware_id": firmware_id,
-            "number_of_packages_injected": len(included_package_name_list)
+            "included_package_statistics": included_package_statistics,
         }
-        logging.info(f"Included packages in build: {included_package_name_list}")
         logging.info(json.dumps(result, indent=4))
         write_json_output(result, PATH_BUILD_INJECTOR_LOG)
     except Exception as err:
@@ -377,33 +376,35 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
     os.makedirs(out_dir, exist_ok=True)
     if not aosp_path.endswith("/"):
         aosp_path = aosp_path + "/"
-    included_package_name_list = []
+    included_package_statistics = {"apps": [], "libs": [], "apex": [], "count": 0}
+    package_count = 0
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
         if os.path.isdir(package_path):
-            logging.debug(f"Moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
+            logging.info(f"Start moving {dir_name} from {extracted_packages_path} to {aosp_packages_abs_path}")
             uuid_dir = str(uuid.uuid4())
             if dir_name.strip() in BLOCKED_MODULE_NAMES:
-                logging.debug(f"Skipping package: {dir_name} as it is a default module.")
+                logging.info(f"Skipping package: {dir_name} as it is a default module.")
             elif any(keyword in dir_name.strip() for keyword in BLACKLISTED_KEYWORDS):
-                logging.debug(f"Skipping package by keyword: {dir_name} as it is likely a problematic module.")
+                logging.info(f"Skipping package by keyword: {dir_name} as it is likely a problematic module.")
             else:
                 so_file_extension_list = [".so"]
                 apex_file_extension_list = [".apex", ".capex"]
                 if check_file_extension(package_path, so_file_extension_list):
                     framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", f"{uuid_dir}_{dir_name}")
-                    logging.debug(f"Copying library package: {package_path} to {framework_lib_path}")
+                    logging.info(f"Copying library package: {package_path} to {framework_lib_path}")
                     shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
+                    included_package_statistics["libs"].append(dir_name)
                 elif check_file_extension(package_path, apex_file_extension_list):
                     if ALLOW_APEX_INJECTION:
                         package_dir_name = os.path.basename(package_path).lower()
                         apex_file_path = get_apex_file(package_path)
                         apex_filename = os.path.basename(apex_file_path)
                         if any(keyword.lower() in package_dir_name for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
-                            logging.debug(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
+                            logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
                             continue
                         modules_path = os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name)
-                        logging.debug(f"Copying APEX package: {package_path} to {modules_path}")
+                        logging.info(f"Copying APEX package: {package_path} to {modules_path}")
 
                         shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
                         if apex_file_path:
@@ -415,7 +416,8 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                             if ALLOW_APEX_REPACKING:
                                 is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target)
                             if is_success:
-                                logging.debug(f"Repackaged APEX package: {apex_file_path} successfully.")
+                                logging.info(f"Repackaged APEX package: {apex_file_path} successfully.")
+                                included_package_statistics["apex"].append(dir_name)
                             else:
                                 logging.error(f"APEX repacking error: {log_message}")
                                 exit(1)
@@ -425,15 +427,16 @@ def move_packages_to_aosp(aosp_path, aosp_packages_abs_path, extracted_packages_
                         logging.debug(f"APEX injection disabled in pre-injector: {dir_name}")
                 else:
                     if "FMD_APEX" in dir_name:
-                        logging.debug(f"Skipping APEX APP package in pre-injector: {dir_name}")
+                        logging.info(f"Skipping APEX APP package in pre-injector: {dir_name}")
                     else:
-                        logging.debug(f"Moving App: {dir_name} from {package_path} to {out_dir}")
+                        logging.info(f"Moving App: {dir_name} from {package_path} to {out_dir}")
                         app_modules_path = os.path.join(aosp_path, f"{out_dir}apps/", f"{uuid_dir}_{dir_name}")
                         shutil.copytree(package_path, app_modules_path, dirs_exist_ok=True)
-                logging.debug(f"Included package in build: {dir_name} to {aosp_packages_abs_path}")
-                included_package_name_list.append(dir_name)
-    logging.info(f"# Included packages in build: {len(included_package_name_list)}")
-    return included_package_name_list
+                        included_package_statistics["apps"].append(dir_name)
+                package_count += 1
+                logging.info(f"Included package in build: {dir_name} to {aosp_packages_abs_path}")
+    included_package_statistics["count"] = package_count
+    return included_package_statistics
 
 
 def inject_meta_files(aosp_path, aosp_version):
