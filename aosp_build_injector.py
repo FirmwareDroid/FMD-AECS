@@ -72,6 +72,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         traceback.print_exc()
         exit(-1)
 
+
     try:
         result = {
             "hostname": os.uname()[1],
@@ -101,7 +102,12 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             logging.info(f"AOSP main build completed successfully. Continuing with post-build injection.")
             target_out_path = get_target_out_path(aosp_path, lunch_target)
             all_extracted_firmware_files_path = os.path.join(EXTRACTED_PACKAGES_PATH, EXTRACTION_ALL_FILES_DIR_NAME)
-            start_post_build_injector(aosp_path, all_extracted_firmware_files_path, target_out_path, lunch_target, firmware_id)
+            start_post_build_injector(aosp_path,
+                                      all_extracted_firmware_files_path,
+                                      target_out_path,
+                                      lunch_target,
+                                      firmware_id,
+                                      included_package_statistics["apps"])
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target)
             execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path)
             is_successful = True

@@ -1,5 +1,6 @@
 import logging
 import os
+
 from config_post_injector import *
 
 
@@ -50,13 +51,14 @@ def is_apex_file_path_allowed(file_path):
     return True
 
 
-def get_module_type(source_file_path, is_apex=False):
+def get_module_type(source_file_path, is_apex=False, pre_injector_package_list=None):
     """
     Determines the module type of the source file.
     """
     source_file_path = source_file_path.strip()
     file_extension = os.path.splitext(source_file_path)[1]
     file_name = os.path.basename(source_file_path)
+    file_name_no_ext = os.path.splitext(file_name)[0]
     if file_extension in ["", None] and "/bin/" in source_file_path:
         module_type = "EXECUTABLES"
     elif file_extension in [".jar"]:
@@ -79,6 +81,9 @@ def get_module_type(source_file_path, is_apex=False):
     if (not is_file_path_allowed(source_file_path)
             or not is_file_extension_allowed(file_extension)
             or not is_file_inject_allowed(file_name)):
+        module_type = "SKIPPED"
+
+    if file_name_no_ext in pre_injector_package_list:
         module_type = "SKIPPED"
 
     #if ALLOW_APEX_INJECTION_MERGE and is_apex and not is_apex_file_path_allowed(source_file_path):
