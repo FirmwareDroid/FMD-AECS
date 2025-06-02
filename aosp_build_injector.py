@@ -76,16 +76,27 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         traceback.print_exc()
         exit(-1)
 
-    result = {
-        "hostname": os.uname()[1],
-        "firmware_id": firmware_id,
-        "number_of_packages_injected": len(included_package_name_list)
-    }
-    logging.info(f"Included packages in build: {included_package_name_list}")
-    logging.info(json.dumps(result, indent=4))
-    write_json_output(result, PATH_BUILD_INJECTOR_LOG)
+    try:
+        result = {
+            "hostname": os.uname()[1],
+            "firmware_id": firmware_id,
+            "number_of_packages_injected": len(included_package_name_list)
+        }
+        logging.info(f"Included packages in build: {included_package_name_list}")
+        logging.info(json.dumps(result, indent=4))
+        write_json_output(result, PATH_BUILD_INJECTOR_LOG)
+    except Exception as err:
+        logging.error(f"Error writing build injector log: {err}")
+        traceback.print_exc()
+        exit(-1)
 
-    inject_meta_files(aosp_path, aosp_version)
+    try:
+        inject_meta_files(aosp_path, aosp_version)
+        logging.info(f"Injected meta files into aosp source code: {aosp_path}")
+    except Exception as err:
+        logging.error(f"Error injecting meta files: {err}")
+        traceback.print_exc()
+        exit(-1)
 
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
