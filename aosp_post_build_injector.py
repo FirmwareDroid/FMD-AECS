@@ -66,7 +66,8 @@ def write_json_output(data, output_file):
         print(f"Error writing JSON output: {e}")
 
 
-def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target, firmware_id=None):
+def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target, firmware_id=None,
+                              pre_injector_package_list=None):
     """
     Start the post build injector. Replaces the original objects in the AOSP source code with the vendor flavoured
     objects.
@@ -85,7 +86,7 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lu
     logging.info(
         f"Starting post build injector: {aosp_path} | {source_folder_path} | {target_out_path} | {lunch_target}")
     with Executor() as executor:
-        inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id)
+        inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list)
 
 def group_errors_by_prefix(error_list):
     """
@@ -123,13 +124,14 @@ def extract_file_type_frequencies(error_list):
     return file_type_counts
 
 
-def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id):
+def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list):
     start_time = time.time()
     error_list, inj_obj_list, inj_partition_list = process_partitions(aosp_path,
                                                                       source_folder_path,
                                                                       target_out_path,
                                                                       executor,
-                                                                      lunch_target)
+                                                                      lunch_target,
+                                                                      pre_injector_package_list)
     end_time = time.time()
     execution_time = end_time - start_time
     execution_time_minutes = execution_time / 60
@@ -189,7 +191,7 @@ def get_folders(directory_path):
     return folders
 
 
-def process_partitions(aosp_path, source_folder_path, target_out_path, executor, lunch_target):
+def process_partitions(aosp_path, source_folder_path, target_out_path, executor, lunch_target, pre_injector_package_list):
     folder_path_list = get_folders(source_folder_path)
     logging.debug(f"Folder path list: {folder_path_list}")
 
@@ -202,7 +204,8 @@ def process_partitions(aosp_path, source_folder_path, target_out_path, executor,
                                                                                folder_path,
                                                                                target_out_path,
                                                                                executor,
-                                                                               lunch_target)
+                                                                               lunch_target,
+                                                                               pre_injector_package_list)
         combined_error_list.extend(error_list)
         combined_inj_obj_list.extend(inj_obj_list)
         combined_inj_partition_list.extend(inj_partition_list)
@@ -210,7 +213,7 @@ def process_partitions(aosp_path, source_folder_path, target_out_path, executor,
     return combined_error_list, combined_inj_obj_list, combined_inj_partition_list
 
 
-def process_file_concurrently(aosp_path, file_path, partition_name, target_out_path, lunch_target):
+def process_file_concurrently(aosp_path, file_path, partition_name, target_out_path, lunch_target, pre_injector_package_list):
     inj_obj = None
     inj_partition = None
     error_message = None
@@ -408,7 +411,7 @@ def cleanup_files(directory):
                     logging.error(f"Error removing file {file_path}: {e}")
 
 
-def process_partition_files(aosp_path, folder_path, target_out_path, executor, lunch_target):
+def process_partition_files(aosp_path, folder_path, target_out_path, executor, lunch_target, pre_injector_package_list):
     error_list = []
     inj_obj_list = []
     inj_partition_list = []
@@ -425,7 +428,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
             if file_path in processed_files:
                 continue
             processed_files.add(file_path)
-        future = executor.submit(process_file_concurrently, aosp_path, file_path, partition_name, target_out_path, lunch_target)
+        future = executor.submit(process_file_concurrently, aosp_path, file_path, partition_name, target_out_path, lunch_target, pre_injector_package_list)
         future_dict[future] = file_path
 
     for future in as_completed(future_dict):
