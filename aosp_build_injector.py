@@ -385,7 +385,7 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
                 so_file_extension_list = [".so"]
                 apex_file_extension_list = [".apex", ".capex"]
                 if check_file_extension(package_path, so_file_extension_list):
-                    framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", f"{uuid_dir}_{dir_name}")
+                    framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", f"{dir_name}_{uuid_dir}")
                     logging.info(f"Copying library package: {package_path} to {framework_lib_path}")
                     shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
                     included_package_statistics["libs"].append(dir_name)
@@ -424,7 +424,7 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
                         logging.info(f"Skipping APEX APP package in pre-injector: {dir_name}")
                     else:
                         logging.info(f"Moving App: {dir_name} from {package_path} to {out_dir}")
-                        app_modules_path = os.path.join(aosp_path, f"{out_dir}apps/", f"{uuid_dir}_{dir_name}")
+                        app_modules_path = os.path.join(aosp_path, f"{out_dir}apps/", f"{dir_name}_{uuid_dir}")
                         shutil.copytree(package_path, app_modules_path, dirs_exist_ok=True)
                         included_package_statistics["apps"].append(dir_name)
                 package_count += 1
