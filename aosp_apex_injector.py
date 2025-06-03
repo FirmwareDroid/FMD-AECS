@@ -161,6 +161,15 @@ def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
                                                                    cert_apex_apk_path)
                         if is_success:
                             log_message = f"APEX signing success: {apex_out_file}"
+                            if os.path.exists(apex_out_file):
+                                try:
+                                    os.remove(apex_file_path)
+                                    shutil.copyfile(apex_out_file, apex_file_path)
+                                    os.remove(apex_out_file)
+                                    logging.info(f"Replaced original APEX with repackaged "
+                                                 f"APEX file: org: {apex_file_path} merge: {apex_out_file}")
+                                except Exception as err:
+                                    logging.error(f"Error replacing APEX file: {err}")
                         else:
                             log_message = f"APEX signing failed: {apex_out_file} | {error_message}"
                     else:
