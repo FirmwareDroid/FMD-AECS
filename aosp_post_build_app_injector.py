@@ -53,7 +53,7 @@ def get_signing_key_from_module(android_apk_file_path):
     else:
         logging.warning(f"Android.mk/Android.bp Module not found: {module_name} path {android_mk_file_path}."
                         f"File {android_apk_file_path} - using platform key.")
-        return "platform"
+    return "platform"
 
 
 def get_signing_key_path(aosp_path, signing_key_name):
