@@ -36,7 +36,7 @@ def get_signing_key_from_module(android_apk_file_path):
     file_name = os.path.basename(android_apk_file_path)
     module_name = file_name.split(".")[0]
     android_mk_file_path = os.path.join(EXTRACTED_PACKAGES_PATH, module_name, "Android.mk")
-    if not os.path.exists(android_apk_file_path):
+    if not os.path.exists(android_mk_file_path):
         android_mk_file_path = os.path.join(EXTRACTED_PACKAGES_PATH, module_name, "Android.bp")
 
     logging.info(f"Android.mk/Android.bp file path: {android_mk_file_path}")
@@ -51,7 +51,7 @@ def get_signing_key_from_module(android_apk_file_path):
                 if signing_key:
                     return signing_key.lower()
     else:
-        logging.warning(f"Android.mk Module not found: {module_name} path {android_mk_file_path}."
+        logging.warning(f"Android.mk/Android.bp Module not found: {module_name} path {android_mk_file_path}."
                         f"File {android_apk_file_path} - using platform key.")
         return "platform"
 
