@@ -9,7 +9,6 @@ import zipfile
 from jinja2 import Environment, FileSystemLoader
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
     sign_apex_container_apksigner, sign_apex_container_signapk
-from aosp_post_build_injector import compute_file_hash
 from common import extract_vendor_name, remove_vendor_name_from_filename
 from config import MODULE_BASE_INJECT_DIR, VENDOR_NAMES, EMULATOR_VNDK_VERSION
 from shell_command import execute_shell_command
@@ -65,12 +64,10 @@ def backup_original_apex_file(file_path):
     return apex_out_file, org_apex_file
 
 def replace_org_apex_file(file_path, apex_out_file):
-    md5_org = compute_file_hash(file_path)
-    md5_new = compute_file_hash(apex_out_file)
     os.remove(file_path)
     shutil.copyfile(apex_out_file, file_path)
     os.remove(apex_out_file)
-    logging.info(f"Replaced original APEX with new APEX file: org: {file_path}:{md5_org} overwrite by: {apex_out_file}:{md5_new}")
+    logging.info(f"Replaced original APEX with new APEX file: org: {file_path} overwrite by: {apex_out_file}")
 
 
 def rename_file(file_path, new_name):
@@ -945,10 +942,9 @@ def resign_apex_apk_files(aosp_path, apex_extract_dir_path):
                 signing_key_path = get_signing_key_path(aosp_path, signing_key)
                 success, log_message = sign_apk_file(apk_file_path, signing_key_path, v4_signing_enabled=False)
                 if success:
-                    md5sum = compute_file_hash(apk_file_path)
-                    logging.info(f"APEX: Success resigning APK file: {file}|{apk_file_path} with key {signing_key_path} | md5:{md5sum}")
+                    logging.info(f"APEX: Success resigning APK file: {file}|{apk_file_path} with key {signing_key_path} ")
                     is_signature_verified, log_message = verify_apk_file(apk_file_path)
-                    logging.info(f"APEX: APK file verified: {apk_file_path} | {is_signature_verified} | {log_message} | md5:{md5sum}")
+                    logging.info(f"APEX: APK file verified: {apk_file_path} | {is_signature_verified} | {log_message}")
                 else:
                     logging.error(f"APEX: Error resigning APK file: {file}|{apk_file_path} with key {signing_key_path} | {log_message}")
     logging.info(f"Resigning APK files in APEX complete.")
