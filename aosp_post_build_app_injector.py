@@ -48,7 +48,7 @@ def get_signing_key_from_module(android_apk_file_path):
                 if "LOCAL_CERTIFICATE" in line:
                     signing_key = line.split("=")[1].strip()
                 elif "certificate:" in line:
-                    signing_key = line.split(":")[1].strip().replace('"', '').replace("'", "")
+                    signing_key = line.split(":")[1].strip().replace('"', '').replace("'", "").replace(",", "")
                 if signing_key is not None:
                     return signing_key.lower()
     else:

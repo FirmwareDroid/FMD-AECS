@@ -884,22 +884,6 @@ def convert_apex_manifest_json_to_pb(apex_manifest_path, output_file_path):
     else:
         raise ValueError(f"APEX: Error converting APEX manifest file to pb: {result.stderr}")
 
-def get_apex_manifest_from_aosp(aosp_path, apex_file_name):
-    apex_split_name_list = apex_file_name.split(".")
-    for key, value in APEX_DEFAULT_PATHS_DICT.items():
-        if key in apex_split_name_list:
-            manifest_file_path = os.path.join(aosp_path, value, "apex_manifest.json")
-            manifest_file_path2 = os.path.join(aosp_path, value, "manifest.json")
-            if os.path.exists(manifest_file_path):
-                logging.info(f"APEX apex_manifest.json file found: {manifest_file_path}")
-                return manifest_file_path
-            elif os.path.exists(manifest_file_path2):
-                logging.info(f"APEX apex_manifest.json file found: {manifest_file_path2}")
-                return manifest_file_path2
-            else:
-                raise ValueError(f"Error getting APEX manifest file: {apex_file_name}. Manifest file not found in {manifest_file_path}.")
-
-
 def search_string_in_apk(apk_file, search_string):
     is_user_id_found = False
     with zipfile.ZipFile(apk_file, 'r') as apk:
@@ -916,7 +900,6 @@ def search_string_in_apk(apk_file, search_string):
                         pass
                 break
     return is_user_id_found
-
 
 def get_signing_key_from_manifest(apk_file):
     signing_key = None
