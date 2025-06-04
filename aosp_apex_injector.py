@@ -65,11 +65,12 @@ def backup_original_apex_file(file_path):
     return apex_out_file, org_apex_file
 
 def replace_org_apex_file(file_path, apex_out_file):
+    md5_org = compute_file_hash(file_path)
+    md5_new = compute_file_hash(apex_out_file)
     os.remove(file_path)
     shutil.copyfile(apex_out_file, file_path)
     os.remove(apex_out_file)
-    logging.info(
-        f"Replaced original APEX with new APEX file: org: {file_path} merge: {apex_out_file}")
+    logging.info(f"Replaced original APEX with new APEX file: org: {file_path}:{md5_org} overwrite by: {apex_out_file}:{md5_new}")
 
 
 def rename_file(file_path, new_name):
