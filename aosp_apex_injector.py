@@ -22,31 +22,16 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     logging.info(f"Handling APEX modules: {file_path} | {aosp_path} | {lunch_target} | {target_out_path}")
     is_merge_success = False
     log_message = ""
-
+    apex_out_file, org_apex_file = backup_original_apex_file(file_path)
     try:
-        org_apex_file = f"{file_path}.original_apex"
-        if os.path.exists(org_apex_file):
-            logging.info(f"Original APEX file found - restoring: {org_apex_file}")
-            restore_original_apex(file_path, org_apex_file)
-        else:
-            shutil.copyfile(file_path, org_apex_file)
-            logging.info(f"Original APEX file not found, creating new one: {org_apex_file}")
-
-        apex_out_file = prepare_apex_out_file(file_path)
-        if os.path.exists(apex_out_file):
-            os.remove(apex_out_file)
-
         apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path)
         if apex_emulator_folder and os.path.exists(apex_emulator_folder):
             logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
             is_merge_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path)
             if os.path.exists(apex_out_file):
                 try:
-                    os.remove(file_path)
-                    shutil.copyfile(apex_out_file, file_path)
-                    os.remove(apex_out_file)
+                    replace_org_apex_file(file_path, apex_out_file)
                     is_merge_success = True
-                    logging.info(f"Replaced original APEX with merged APEX file: org: {file_path} merge: {apex_out_file}")
                 except Exception as err:
                     logging.error(f"Error replacing APEX file: {err}")
             else:
@@ -63,6 +48,27 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
         logging.error(log_message)
 
     return is_merge_success, log_message
+
+def backup_original_apex_file(file_path):
+    org_apex_file = f"{file_path}.original_apex"
+    if os.path.exists(org_apex_file):
+        logging.info(f"Original APEX file found - restoring: {org_apex_file}")
+        restore_original_apex(file_path, org_apex_file)
+    else:
+        shutil.copyfile(file_path, org_apex_file)
+        logging.info(f"Original APEX file not found, creating new one: {org_apex_file}")
+
+    apex_out_file = prepare_apex_out_file(file_path)
+    if os.path.exists(apex_out_file):
+        os.remove(apex_out_file)
+    return apex_out_file, org_apex_file
+
+def replace_org_apex_file(file_path, apex_out_file):
+    os.remove(file_path)
+    shutil.copyfile(apex_out_file, file_path)
+    os.remove(apex_out_file)
+    logging.info(
+        f"Replaced original APEX with new APEX file: org: {file_path} merge: {apex_out_file}")
 
 
 def rename_file(file_path, new_name):
@@ -94,7 +100,7 @@ def prepare_capex(file_path, output_dir, output_filename):
             apex_file = os.path.join(temp_dir, "original_apex")
             if os.path.exists(apex_file):
                 logging.info(f"APEX file extracted: {apex_file}")
-                out_file = os.path.join(output_dir, output_filename)
+                out_file = str(os.path.join(output_dir, output_filename))
                 shutil.copy(apex_file, out_file)
                 return out_file
             else:
@@ -106,21 +112,22 @@ def prepare_capex(file_path, output_dir, output_filename):
     return None
 
 
-def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
+def repackage_apex_file(aosp_path, apex_file_path, lunch_target):
     """
     Extracts the APEX file using deapexer, repackages it using apexer, and signs all the APK files in the APEX using apksigner.
 
     :param aosp_path: str - path to the AOSP source code.
     :param apex_file_path: str - path to the APEX file.
-    :param apex_out_file: str - path to the output file where the repackage APEX file will be saved.
     :param lunch_target: str - lunch target for the AOSP build.
 
     :return: tuple - (bool, str) - True if the repackage was successful, False otherwise. String containing the log.
 
     """
-    filename = str(os.path.basename(apex_file_path)).replace(".apex", "")
+    filename = str(os.path.basename(apex_file_path)).replace(".apex", "").replace(".capex", "")
     logging.info(f"Repackaging APEX file: {apex_file_path}")
     is_success = False
+
+    apex_out_file, org_apex_file = backup_original_apex_file(apex_file_path)
     try:
         apex_root_path = tempfile.mkdtemp(suffix=f"_{filename}_apex_repack")
         apex_extract_dir_path = tempfile.mkdtemp(dir=apex_root_path, suffix=f"_{filename}_extract")
@@ -143,44 +150,42 @@ def repackage_apex_file(aosp_path, apex_file_path, apex_out_file, lunch_target):
                                               canned_fs_config,
                                               is_repack=True)
                 if is_success:
-                    key_id = str(os.path.basename(priv_pem_file_path).replace(".pem", ""))
-                    module_out_folder_path = str(os.path.join(aosp_path, MODULE_BASE_INJECT_DIR, key_id.replace(".", "_")))
-                    is_success, log_message = inject_apex_keys_module(apex_file_path, module_out_folder_path, key_id)
+                    is_success, error_message = sign_apex_file(apex_out_file,
+                                                               aosp_path,
+                                                               private_key_path,
+                                                               cert_apex_apk_path)
                     if is_success:
-                        key_path_list = [avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path]
-                        for key_path in key_path_list:
-                            shutil.copy(key_path, module_out_folder_path)
-                            if not os.path.exists(key_path):
-                                logging.error(f"Key file not copied: {key_path} to {module_out_folder_path}")
-                                is_success = False
-                            else:
-                                logging.info(f"APEX Key file copied: {key_path} to {module_out_folder_path}")
-                        is_success, error_message = sign_apex_file(apex_out_file,
-                                                                   aosp_path,
-                                                                   private_key_path,
-                                                                   cert_apex_apk_path)
-                        if is_success:
-                            log_message = f"APEX signing success: {apex_out_file}"
-                            if os.path.exists(apex_out_file):
-                                try:
-                                    os.remove(apex_file_path)
-                                    shutil.copyfile(apex_out_file, apex_file_path)
-                                    os.remove(apex_out_file)
-                                    logging.info(f"Replaced original APEX with repackaged "
-                                                 f"APEX file: org: {apex_file_path} merge: {apex_out_file}")
-                                except Exception as err:
-                                    logging.error(f"Error replacing APEX file: {err}")
-                        else:
-                            log_message = f"APEX signing failed: {apex_out_file} | {error_message}"
+                        log_message = f"APEX signing success: {apex_out_file}"
+                        replace_org_apex_file(apex_file_path, apex_out_file)
                     else:
-                        log_message = f"Error injecting Android.bp file: {module_out_folder_path}"
+                        log_message = f"APEX signing failed: {apex_out_file} | {error_message}"
                 else:
                     log_message = f"APEX repack creation failed. {apex_out_file} | {log_message}"
+            else:
+                log_message = f"APEX manifest file not found after extraction: {apex_extract_dir_path} | apex_manifest_path: {apex_manifest_path}"
         else:
             log_message = f"APEX extraction failed. {apex_file_path} | {log_message}"
     except Exception as e:
         log_message = f"Error repackaging APEX file: {apex_file_path} | {str(e)}"
     return is_success, log_message
+
+
+def create_apex_build_module(aosp_path, apex_file_path, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path):
+    key_id = str(os.path.basename(priv_pem_file_path).replace(".pem", ""))
+    module_out_folder_path = str(os.path.join(aosp_path, MODULE_BASE_INJECT_DIR, key_id.replace(".", "_")))
+    is_success, log_message = inject_apex_keys_module(apex_file_path, module_out_folder_path, key_id)
+    if is_success:
+        key_path_list = [avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path]
+        for key_path in key_path_list:
+            shutil.copy(key_path, module_out_folder_path)
+            if not os.path.exists(key_path):
+                logging.error(f"Key file not copied: {key_path} to {module_out_folder_path}")
+                is_success = False
+            else:
+                logging.info(f"APEX Key file copied: {key_path} to {module_out_folder_path}")
+    else:
+        log_message = f"Error injecting Android.bp file: {module_out_folder_path}"
+
 
 def create_apex_manifest(output_dir, apex_name):
     """
