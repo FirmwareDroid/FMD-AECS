@@ -9,6 +9,7 @@ import zipfile
 from jinja2 import Environment, FileSystemLoader
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
     sign_apex_container_apksigner, sign_apex_container_signapk
+from aosp_post_build_injector import compute_file_hash
 from common import extract_vendor_name, remove_vendor_name_from_filename
 from config import MODULE_BASE_INJECT_DIR, VENDOR_NAMES, EMULATOR_VNDK_VERSION
 from shell_command import execute_shell_command
@@ -943,9 +944,10 @@ def resign_apex_apk_files(aosp_path, apex_extract_dir_path):
                 signing_key_path = get_signing_key_path(aosp_path, signing_key)
                 success, log_message = sign_apk_file(apk_file_path, signing_key_path, v4_signing_enabled=False)
                 if success:
-                    logging.info(f"APEX: Success resigning APK file: {file}|{apk_file_path} with key {signing_key_path}")
+                    md5sum = compute_file_hash(apk_file_path)
+                    logging.info(f"APEX: Success resigning APK file: {file}|{apk_file_path} with key {signing_key_path} | md5:{md5sum}")
                     is_signature_verified, log_message = verify_apk_file(apk_file_path)
-                    logging.info(f"APEX: APK file verified: {apk_file_path} | {is_signature_verified} | {log_message}")
+                    logging.info(f"APEX: APK file verified: {apk_file_path} | {is_signature_verified} | {log_message} | md5:{md5sum}")
                 else:
                     logging.error(f"APEX: Error resigning APK file: {file}|{apk_file_path} with key {signing_key_path} | {log_message}")
     logging.info(f"Resigning APK files in APEX complete.")
