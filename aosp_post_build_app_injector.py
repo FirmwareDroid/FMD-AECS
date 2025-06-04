@@ -41,6 +41,7 @@ def get_signing_key_from_module(android_apk_file_path):
 
     logging.info(f"Android.mk/Android.bp file path: {android_mk_file_path}")
 
+    signing_key = None
     if os.path.exists(android_mk_file_path):
         with open(android_mk_file_path, "r") as file:
             for line in file:
@@ -48,7 +49,7 @@ def get_signing_key_from_module(android_apk_file_path):
                     signing_key = line.split("=")[1].strip()
                 elif "certificate:" in line:
                     signing_key = line.split(":")[1].strip().replace('"', '').replace("'", "")
-                if signing_key:
+                if signing_key is not None:
                     return signing_key.lower()
     else:
         logging.warning(f"Android.mk/Android.bp Module not found: {module_name} path {android_mk_file_path}."
