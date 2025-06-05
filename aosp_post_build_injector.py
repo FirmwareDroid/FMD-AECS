@@ -18,7 +18,7 @@ import traceback
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 from filelock import FileLock
-from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file
+from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
 from common import extract_vendor_name, remove_vendor_name_from_path
@@ -262,8 +262,11 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                         else:
                             error_message = None
                     else:
-                        logging.info(f"Skipped APEX file merge (keyword): {file_path}")
-                        error_message = None
+                        is_repack_success, log_message = repackage_apex_file(aosp_path, file_path, lunch_target)
+                        if not is_repack_success:
+                            error_message = f"Error handling APEX file: {file_path}|{log_message}"
+                        else:
+                            error_message = None
 
                 if not error_message:
                     inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path,
