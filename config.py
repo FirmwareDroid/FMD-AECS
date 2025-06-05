@@ -254,6 +254,7 @@ BLACKLISTED_KEYWORDS = ["Overlay",
                         "keystore",
                         "stagefright",
                         "__auto_generated_rro",
+                        "android.hardware.atrace",  # Breaks Keystore Service or Keymaster?
                         "libadb_protos"]
 
 
