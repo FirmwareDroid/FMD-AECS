@@ -61,11 +61,12 @@ SKIPPED_FILE_ENDING_LIST = [
     ]
 
 
-# "vndservicemanager", # problematic
+# "vndservicemanager", # problematic?
 SKIPPED_BINARY_LIST = [
+                    "vndservicemanager", # problematic
                        "hwservicemanager", # problematic
                        "servicemanager", # problematic
-                       "vold",
+                       "vold", # problematic
                        #"libhardware.so",
                        #"libhardware_legacy.so",
                        "keystore2",
@@ -125,13 +126,15 @@ SKIPPED_BINARY_LIST = [
 
 # "app_process", # Basically zygote64
 # "seccomp", # BPF filters might break the emulator
+# "hardware",
+# "android.hidl",
+# "vendor.qti.hardware",
+# "qti",
 SKIPPED_KEYWORD_LIST = ["keystore",
                         "keymaster",
                         "selinux",
                         "android.system.suspend",
                         "android.hardware",
-                        #"hardware",
-                        #"android.hidl",
                         "hwservicemanager",
                         "vintf",
                         "vndk",
@@ -141,8 +144,6 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         "atrace",
                         "qseecom",
                         "exfat",
-                        #"vendor.qti.hardware",
-                        #"qti",
                         "secureboot",
                         "_apex",         # Skipped all files from extracted apex folder
                         "_capex",         # Skipped all files from extracted capex folder
