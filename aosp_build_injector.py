@@ -908,8 +908,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                 clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
 
     if len(failed_firmware_ids) > 0:
-        logging.error(f"Failed to build the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
-    logging.info(f"Successfully built the following firmware ids: {succeed_firmware_ids} for arch: {args.arch}")
+        logging.error(f"Failed to build {len(failed_firmware_ids)} of the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
+    logging.info(f"Successfully built {len(succeed_firmware_ids)} of the following firmware ids: {succeed_firmware_ids} for arch: {args.arch}")
 
 
 def main():
