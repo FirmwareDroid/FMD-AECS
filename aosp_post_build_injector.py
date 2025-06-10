@@ -330,6 +330,49 @@ def replace_capex_with_apex(file_path):
         file_path = extracted_apex_file_path
     return file_path
 
+def indirect_injection(target_file_injection_path, file_name, target_out_path, partition_name, module_type, file_path, inj_partition):
+    logging.info(f"File exists in target path: {target_file_injection_path} "
+                 f"- skipping direct injection. Continue with indirect injection.")
+    inj_obj = None
+    # Indirect Injection
+    if file_name in INDIRECT_INJECTION_FILE_MAPPING.keys():
+        original_file_path = INDIRECT_INJECTION_FILE_MAPPING[file_name]
+        original_file_path = os.path.join(target_out_path, original_file_path)
+    else:
+        original_file_path = search_original_file_in_obj(partition_name,
+                                                         module_type,
+                                                         file_path,
+                                                         file_name,
+                                                         target_out_path)
+    if original_file_path is None:
+        file_path_vendor_replaced = remove_vendor_name_from_path(file_path)
+        file_name_vendor_replaced = os.path.basename(file_path_vendor_replaced)
+        original_file_path = search_original_file_in_obj(partition_name,
+                                                         module_type,
+                                                         file_path_vendor_replaced,
+                                                         file_name_vendor_replaced,
+                                                         target_out_path)
+    if original_file_path is not None:
+        if isinstance(original_file_path, list):
+            original_file_path_list = original_file_path
+            for original_file_path in original_file_path_list:
+                inject_file_into_obj(file_path, original_file_path, module_type)
+                inj_obj = (file_path, original_file_path, module_type)
+        else:
+            inject_file_into_obj(file_path, original_file_path, module_type)
+            inj_obj = (file_path, original_file_path, module_type)
+
+    if file_name in COPY_TO_SPECIFIC_PATH.keys():
+        inject_path = COPY_TO_SPECIFIC_PATH[file_name]
+        inject_path = str(os.path.join(target_out_path, inject_path))
+        logging.info(f"Copy file to specific path: {file_path} -> {inject_path}")
+        try:
+            os.makedirs(os.path.dirname(inject_path), exist_ok=True)
+            shutil.copy2(file_path, inject_path, follow_symlinks=False)
+        except Exception as e:
+            logging.error(f"Error copying file to specific path: {file_path} -> {inject_path} | {e}")
+    return inj_obj, inj_partition
+
 
 def search_and_inject(partition_name, module_type, file_path, target_out_path, allow_file_overwrite):
     inj_partition = None
@@ -338,50 +381,22 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     file_extension = os.path.splitext(file_name)[1]
 
     target_file_injection_path = get_target_injection_path(file_path, partition_name, target_out_path)
-    if not os.path.exists(target_file_injection_path) and not any(keyword in target_file_injection_path for keyword in ALLOW_APEX_MERGE_KEYWORD_LIST):
+
+    if "apex" in target_file_injection_path or "capex" in target_file_injection_path:
+        if not os.path.exists(target_file_injection_path) and not any(keyword in target_file_injection_path for keyword in ALLOW_APEX_MERGE_KEYWORD_LIST):
+            # Direct Injection
+            target_path = inject_file_into_partition(file_path, target_file_injection_path, allow_file_overwrite)
+            inj_partition = (file_path, target_path, module_type)
+        else:
+            inj_obj, inj_partition = indirect_injection(target_file_injection_path, file_name, target_out_path,
+                                                        partition_name, module_type, file_path, inj_partition)
+    elif not os.path.exists(target_file_injection_path):
         # Direct Injection
         target_path = inject_file_into_partition(file_path, target_file_injection_path, allow_file_overwrite)
         inj_partition = (file_path, target_path, module_type)
     else:
-        logging.info(f"File exists in target path: {target_file_injection_path} - skipping direct injection. Continue with indirect injection.")
-        # Indirect Injection
-        if file_name in INDIRECT_INJECTION_FILE_MAPPING.keys():
-            original_file_path = INDIRECT_INJECTION_FILE_MAPPING[file_name]
-            original_file_path = os.path.join(target_out_path, original_file_path)
-        else:
-            original_file_path = search_original_file_in_obj(partition_name,
-                                                             module_type,
-                                                             file_path,
-                                                             file_name,
-                                                             target_out_path)
-        if original_file_path is None:
-            file_path_vendor_replaced = remove_vendor_name_from_path(file_path)
-            file_name_vendor_replaced = os.path.basename(file_path_vendor_replaced)
-            original_file_path = search_original_file_in_obj(partition_name,
-                                                             module_type,
-                                                             file_path_vendor_replaced,
-                                                             file_name_vendor_replaced,
-                                                             target_out_path)
-        if original_file_path is not None:
-            if isinstance(original_file_path, list):
-                original_file_path_list = original_file_path
-                for original_file_path in original_file_path_list:
-                    inject_file_into_obj(file_path, original_file_path, module_type)
-                    inj_obj = (file_path, original_file_path, module_type)
-            else:
-                inject_file_into_obj(file_path, original_file_path, module_type)
-                inj_obj = (file_path, original_file_path, module_type)
-
-        if file_name in COPY_TO_SPECIFIC_PATH.keys():
-            inject_path = COPY_TO_SPECIFIC_PATH[file_name]
-            inject_path = str(os.path.join(target_out_path, inject_path))
-            logging.info(f"Copy file to specific path: {file_path} -> {inject_path}")
-            try:
-                os.makedirs(os.path.dirname(inject_path), exist_ok=True)
-                shutil.copy2(file_path, inject_path, follow_symlinks=False)
-            except Exception as e:
-                logging.error(f"Error copying file to specific path: {file_path} -> {inject_path} | {e}")
-
+        inj_obj, inj_partition = indirect_injection(target_file_injection_path, file_name, target_out_path,
+                                                    partition_name, module_type, file_path, inj_partition)
     return inj_obj, inj_partition
 
 def handle_file_modification(file_path, target_out_path):
