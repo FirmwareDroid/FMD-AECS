@@ -239,19 +239,27 @@ def get_apex_build_intermediate_folder(target_out_path):
     return apex_folder
 
 
+
+def get_match_existing_emulator_folders(filename_no_vendor):
+    if "tzdata3" in filename_no_vendor:
+        filename_no_vendor = filename_no_vendor.replace("tzdata3", "tzdata")
+
+    for key in APEX_DEFAULT_EMULATOR_PATHS_DICT:
+        if key in filename_no_vendor:
+            logging.info(f"Found APEX default path for {filename_no_vendor}: {APEX_DEFAULT_PATHS_DICT[key]}")
+            return APEX_DEFAULT_PATHS_DICT[key]
+    return None
+
+
 def find_emulator_apex_folder(target_out_path, file_path):
     filename = str(os.path.basename(file_path))
     filename_no_vendor = remove_vendor_name_from_filename(filename)
     filename_no_vendor = filename_no_vendor.replace(".apex", "").replace(".capex", "")
-    if "tzdata3" in filename_no_vendor:
-        filename_no_vendor = filename_no_vendor.replace("tzdata3", "tzdata")
 
     apex_emulator_folder_root = get_apex_build_intermediate_folder(target_out_path)
     logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
-    apex_module_folder = os.path.join(apex_emulator_folder_root, filename_no_vendor)
-
-    if "vndk" in filename_no_vendor:
-        apex_module_folder = os.path.join(apex_emulator_folder_root, "com.android.vndk.v32")
+    apex_emulator_folder_name = get_match_existing_emulator_folders(filename_no_vendor)
+    apex_module_folder = os.path.join(apex_emulator_folder_root, apex_emulator_folder_name)
 
     if os.path.exists(apex_module_folder):
         logging.info(f"APEX module folder found: {apex_module_folder} for apex {file_path}")

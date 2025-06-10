@@ -314,6 +314,35 @@ APEX_DEFAULT_PATHS_DICT = {
     "tzdata3": "system/timezone/apex/",
 }
 
+
+
+APEX_DEFAULT_EMULATOR_PATHS_DICT = {
+    "appsearch": "com.android.appsearch",
+    "conscrypt": "com.android.conscrypt",
+    "i18n": "com.android.i18n",
+    "media": "com.android.media",
+    "mediaprovider": "com.android.mediaprovider",
+    "statsd": "com.android.os.statsd",
+    "resolv": "com.android.resolv",
+    "scheduling": "com.android.scheduling",
+    "tethering": "com.android.tethering",
+    "vndk": "com.android.vndk.v32",
+    "adbd": "com.android.adbd",
+    "art": "com.android.art",
+    "extservices": "com.android.extservices",
+    "ipsec": "com.android.ipsec",
+    "swcodec": "com.android.media.swcodec",
+    "neuralnetworks": "com.android.neuralnetworks",
+    "permission": "com.android.permission",
+    "runtime": "com.android.runtime",
+    "sdkext": "com.android.sdkext",
+    "tzdata": "com.android.tzdata",
+    "wifi": "com.android.wifi",
+}
+
+
+
+
 LIST_SINGLETON_APPS = [
     "PackageInstaller.apk",          # com.android.packageinstaller
     "SystemUI.apk",                  # com.android.systemui
