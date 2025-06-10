@@ -382,7 +382,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
 
     target_file_injection_path = get_target_injection_path(file_path, partition_name, target_out_path)
 
-    if "apex" in target_file_injection_path or "capex" in target_file_injection_path:
+    if file_extension == "apex" or file_extension == "capex":
         if not os.path.exists(target_file_injection_path) and not any(keyword in target_file_injection_path for keyword in ALLOW_APEX_MERGE_KEYWORD_LIST):
             # Direct Injection
             target_path = inject_file_into_partition(file_path, target_file_injection_path, allow_file_overwrite)
@@ -687,10 +687,10 @@ def search_original_file_in_obj(partition_name,
             logging.debug(f"File Matcher: File not found: {file_name}")
 
     if len(result_file_path_list) > 0:
-        logging.debug(f"File Matcher: Found file for {file_name} in {search_folder_path} with partition {partition_name}")
+        logging.info(f"File Matcher: Found file for {file_name} in {search_folder_path} with partition {partition_name}")
         return result_file_path_list
     else:
-        logging.debug(f"File Matcher: No file found for {file_name} in {search_folder_path} with partition {partition_name}")
+        logging.info(f"File Matcher: No file found for {file_name} in {search_folder_path} with partition {partition_name}")
         return None
 
 
