@@ -63,13 +63,13 @@ SKIPPED_FILE_ENDING_LIST = [
 
 SKIPPED_BINARY_LIST = [
                        #"vndservicemanager", # problematic
-                       #"hwservicemanager", # problematic
-                       #"servicemanager", # problematic
-                       #"vold", # problematic
+                       "hwservicemanager", # problematic
+                       "servicemanager", # problematic
+                       "vold", # problematic
+                       "vdc",
                        #"libhardware.so",
                        #"libhardware_legacy.so",
                        "keystore2",
-                       "vdc",
                        "console",
                        "zygote",
                        "tee",
