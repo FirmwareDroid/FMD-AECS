@@ -207,11 +207,11 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version):
         for line in meta_build_file:
             stripped_line = line.replace("\\","").strip().replace("_FMD_APEX","")
             stripped_line = stripped_line.replace("_fmd", "")
-            logging.debug(f"Checking line: {stripped_line}")
+            logging.info(f"Checking Module for inclusion in pre-injector: {stripped_line}")
             if any(stripped_line.strip() == blacklisted_module for blacklisted_module in BLOCKED_MODULE_NAMES):
-                logging.debug(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
+                logging.info(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
             else:
-                logging.debug(f"Allowing module meta in build: {line}")
+                logging.info(f"Allowing module meta in build: {line}")
                 package_name_list.append(line)
         template_folder_abs_path = get_template_folder_path(aosp_version)
         logging.debug(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
