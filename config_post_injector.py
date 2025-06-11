@@ -130,6 +130,7 @@ SKIPPED_BINARY_LIST = [
 # "vendor.qti.hardware",
 # "qti",
 SKIPPED_KEYWORD_LIST = ["keystore",
+                        "binder",
                         "keymaster",
                         "selinux",
                         "android.system.suspend",
