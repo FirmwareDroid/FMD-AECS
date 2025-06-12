@@ -62,58 +62,98 @@ SKIPPED_FILE_ENDING_LIST = [
 
 
 SKIPPED_BINARY_LIST = [
-                       #"vndservicemanager", # problematic
-                       "hwservicemanager", # problematic
-                       "servicemanager", # problematic
-                       "vold", # problematic
-                       "vdc",
-                       #"libhardware.so",
-                       #"libhardware_legacy.so",
-                       "keystore2",
-                       "console",
-                       "zygote",
-                       "tee",
-                       "qemu-props",
-                       "ueventd",
-                       "wait_for_keymaster",
-                       "bootstat",
-                       "wpa_supplicant",
-                       "apexd-bootstrap",
-                       "bootstrap",
-                       "fsverity_init",
-                       "init",
-                       "apexd",
-                       "atrace",
-                       "setprop",
-                       "getprop",
-                       "std.build.prop",
-                       "pro.build.prop",
-                       "default.prop",
-                       "lmkd",
-                       "build.prop",
-                       "otacerts.zip",  # Allow to overwrite with own certificates
-                       "raw.image",  # Leftover from the file extraction process
-                       ".product.img.raw", # Leftover from the file extraction process
-                       ".system.img.raw",  # Leftover from the file extraction process
-                       ".vendor.img.raw", # Leftover from the file extraction process
-                       ".odm.img.raw", # Leftover from the file extraction process
-                       ".oem.img.raw", # Leftover from the file extraction process
-                       ".data.img.raw", # Leftover from the file extraction process
-                       ".super.img.raw", # Leftover from the file extraction process
-                       "product.img.raw", # Leftover from the file extraction process
-                       "system.img.raw", # Leftover from the file extraction process
-                       "vendor.img.raw", # Leftover from the file extraction process
-                       "odm.img.raw", # Leftover from the file extraction process
-                       "oem.img.raw", # Leftover from the file extraction process
-                       "data.img.raw", # Leftover from the file extraction process
-                       "super.img.raw", # Leftover from the file extraction process
-                       "libgatekeeper.so",
-                       "apex_pubkey",
-                       "apex_manifest.json",
-                       "apex_payload.img",
-                       "apex_manifest.pb",
-                       "apex_build_info.pb",
-                       "AndroidManifest.xml",
+                        #"vndservicemanager", # problematic
+                        "hwservicemanager", # problematic
+                        "servicemanager", # problematic
+                        "vold", # problematic
+                        "vdc",
+                        #"libhardware.so",
+                        #"libhardware_legacy.so",
+                        "keystore2",
+                        "console",
+                        "zygote",
+                        "tee",
+                        "qemu-props",
+                        "ueventd",
+                        "wait_for_keymaster",
+                        "bootstat",
+                        "wpa_supplicant",
+                        "apexd-bootstrap",
+                        "bootstrap",
+                        "fsverity_init",
+                        "init",
+                        "apexd",
+                        "atrace",
+                        "setprop",
+                        "getprop",
+                        "std.build.prop",
+                        "pro.build.prop",
+                        "default.prop",
+                        "lmkd",
+                        "build.prop",
+                        "otacerts.zip",  # Allow to overwrite with own certificates
+                        "raw.image",  # Leftover from the file extraction process
+                        ".product.img.raw", # Leftover from the file extraction process
+                        ".system.img.raw",  # Leftover from the file extraction process
+                        ".vendor.img.raw", # Leftover from the file extraction process
+                        ".odm.img.raw", # Leftover from the file extraction process
+                        ".oem.img.raw", # Leftover from the file extraction process
+                        ".data.img.raw", # Leftover from the file extraction process
+                        ".super.img.raw", # Leftover from the file extraction process
+                        "product.img.raw", # Leftover from the file extraction process
+                        "system.img.raw", # Leftover from the file extraction process
+                        "vendor.img.raw", # Leftover from the file extraction process
+                        "odm.img.raw", # Leftover from the file extraction process
+                        "oem.img.raw", # Leftover from the file extraction process
+                        "data.img.raw", # Leftover from the file extraction process
+                        "super.img.raw", # Leftover from the file extraction process
+                        "libgatekeeper.so",
+                        "apex_pubkey",
+                        "apex_manifest.json",
+                        "apex_payload.img",
+                        "apex_manifest.pb",
+                        "apex_build_info.pb",
+                        "AndroidManifest.xml",
+                        "libbinder.so",
+                        "libc.so",
+                        "libbase.so",
+                        "libcutils.so",
+                        "liblogwrap.so",
+                        "libselinux.so",
+                        "libutils.so",
+                        "libc++.so",
+                        "libm.so",
+                        "libdl.so",
+                        "libbinder.so",
+                        "liblog.so",
+                        "libselinux.so",
+                        "libbinder_ndk.so",
+                        "libc.so",
+                        "libm.so",
+                        "android.hardware.boot@1.0.so",
+                        "libbase.so",
+                        "libcrypto.so",
+                        "libcrypto_utils.so",
+                        "libcutils.so",
+                        "libdiskconfig.so",
+                        "libext4_utils.so",
+                        "libf2fs_sparseblock.so",
+                        "libgsi.so",
+                        "libhardware.so",
+                        "libhardware_legacy.so",
+                        "libincfs.so",
+                        "libhidlbase.so",
+                        "libkeyutils.so",
+                        "liblogwrap.so",
+                        "libsysutils.so",
+                        "libutils.so",
+                        "android.hardware.health.storage@1.0.so",
+                        "android.hardware.health.storage-V1-ndk_platform.so",
+                        "android.system.keystore2-V1-ndk_platform.so",
+                        "android.security.maintenance-ndk_platform.so",
+                        "libkeymint_support.so",
+                        "libc++.so",
+                        "libdl.so",
                        #"libgui.so", # Breaks the build process in case the binary is not compatible with Stagefright after post-injection
                        #"libfs_mgr.so", # Breaks INIT process
                        ]
