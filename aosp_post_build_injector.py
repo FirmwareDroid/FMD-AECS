@@ -258,6 +258,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                         is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
                         if not is_merge_success:
                             error_message = f"Error handling APEX file: {file_path}|{log_message}"
+                            raise Exception(error_message)
                         else:
                             error_message = None
                     else:

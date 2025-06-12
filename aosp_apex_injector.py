@@ -231,6 +231,7 @@ def copy_keys_to_apex_folder(input_apex, apex_main_folder, avb_pub_key_path):
 
 def get_apex_build_intermediate_folder(target_out_path):
     apex_folder_path = os.path.join(target_out_path, "apex")
+    logging.info(f"APEX build intermediate folder to look for: {apex_folder_path}")
     if os.path.exists(apex_folder_path):
         apex_folder = apex_folder_path
     else:
@@ -246,8 +247,8 @@ def get_match_existing_emulator_folders(filename_no_vendor):
 
     for key in APEX_DEFAULT_EMULATOR_PATHS_DICT:
         if key in filename_no_vendor:
-            logging.info(f"Found APEX default path for {filename_no_vendor}: {APEX_DEFAULT_PATHS_DICT[key]}")
-            return APEX_DEFAULT_PATHS_DICT[key]
+            logging.info(f"Found APEX default path for {filename_no_vendor}: {APEX_DEFAULT_EMULATOR_PATHS_DICT[key]}")
+            return APEX_DEFAULT_EMULATOR_PATHS_DICT[key]
     return None
 
 
@@ -260,7 +261,7 @@ def find_emulator_apex_folder(target_out_path, file_path):
     logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
     apex_emulator_folder_name = get_match_existing_emulator_folders(filename_no_vendor)
     apex_module_folder = os.path.join(apex_emulator_folder_root, apex_emulator_folder_name)
-
+    logging.info(f"Test if APEX module folder exists: {apex_module_folder}")
     if os.path.exists(apex_module_folder):
         logging.info(f"APEX module folder found: {apex_module_folder} for apex {file_path}")
     else:
