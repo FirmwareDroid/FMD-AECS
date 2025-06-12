@@ -361,8 +361,6 @@ def get_apex_file(directory_path):
     return None
 
 
-
-
 def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
     """
     Moves the prebuilt packages to the aosp source code.

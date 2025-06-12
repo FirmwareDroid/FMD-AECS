@@ -23,6 +23,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     is_merge_success = False
     log_message = ""
     apex_out_file, org_apex_file = backup_original_apex_file(file_path)
+
     try:
         apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path)
         if apex_emulator_folder and os.path.exists(apex_emulator_folder):

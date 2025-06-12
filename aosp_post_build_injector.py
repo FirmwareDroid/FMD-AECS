@@ -253,6 +253,9 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
                     if file_path.endswith(".capex"):
                         file_path = replace_capex_with_apex(file_path)
+                    if "tzdata3" in file_path:
+                        new_name = filename.replace("tzdata3", "tzdata")
+                        rename_file(file_path, new_name)
 
                     if ALLOW_APEX_INJECTION_MERGE and any(keyword in filename for keyword in ALLOW_APEX_MERGE_KEYWORD_LIST):
                         logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
@@ -284,6 +287,22 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     result = error_message, inj_obj, inj_partition
     return result
 
+def rename_file(file_path, new_name):
+    """
+    Renames a file based on its file path.
+
+    :param file_path: str - The full path to the file.
+    :param new_name: str - The new name for the file (without the directory path).
+    """
+    try:
+        directory = os.path.dirname(file_path)
+        new_file_path = os.path.join(directory, new_name)
+        os.rename(file_path, new_file_path)
+        print(f"File renamed to: {new_file_path}")
+        return new_file_path
+    except Exception as e:
+        print(f"Error renaming file {file_path} to {new_name}: {e}")
+        raise
 
 def check_file_is_really_injected(file_path, aosp_path):
     """
