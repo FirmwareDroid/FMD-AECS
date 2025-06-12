@@ -384,7 +384,8 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
         package_path = os.path.join(extracted_packages_path, dir_name)
         if os.path.isdir(package_path):
             uuid_dir = str(uuid.uuid4())
-            if dir_name.strip() in BLOCKED_MODULE_NAMES:
+
+            if dir_name.strip().replace("_fmd", "") in BLOCKED_MODULE_NAMES:
                 logging.info(f"Skipping package: {dir_name} as it is a default module.")
             elif any(keyword in dir_name.strip() for keyword in BLACKLISTED_KEYWORDS):
                 logging.info(f"Skipping package by keyword: {dir_name} as it is likely a problematic module.")
