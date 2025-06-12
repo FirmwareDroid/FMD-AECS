@@ -156,7 +156,7 @@ SKIPPED_BINARY_LIST = [
                         "libc++.so",
                         "libdl.so",
                         "libhwbinder.so",
-                        "libfs_mgr_binder.so",
+                        "libfs_mgr_binder.so", #
                         "libbinderdebug.so",
                         "libbinderwrapper.so",
                         "libbrillo-binder.so",
