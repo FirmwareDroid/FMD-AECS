@@ -246,9 +246,10 @@ def get_match_existing_emulator_folders(filename_no_vendor):
         filename_no_vendor = filename_no_vendor.replace("tzdata3", "tzdata")
 
     for key in APEX_DEFAULT_EMULATOR_PATHS_DICT:
-        if key in filename_no_vendor:
-            logging.info(f"Found APEX default path for {filename_no_vendor}: {APEX_DEFAULT_EMULATOR_PATHS_DICT[key]}")
-            return APEX_DEFAULT_EMULATOR_PATHS_DICT[key]
+        if key == "media" and not "mediaprovider" in filename_no_vendor:
+            if key in filename_no_vendor:
+                logging.info(f"Found APEX default path for {filename_no_vendor}: {APEX_DEFAULT_EMULATOR_PATHS_DICT[key]}")
+                return APEX_DEFAULT_EMULATOR_PATHS_DICT[key]
     return None
 
 
