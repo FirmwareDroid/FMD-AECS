@@ -251,10 +251,11 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 if module_type == "APPS" and file_extension.lower() == ".apk":
                     error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
                 elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
+                    if file_path.endswith(".capex"):
+                        file_path = replace_capex_with_apex(file_path)
+
                     if ALLOW_APEX_INJECTION_MERGE and any(keyword in filename for keyword in ALLOW_APEX_MERGE_KEYWORD_LIST):
                         logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
-                        if file_path.endswith(".capex"):
-                            file_path = replace_capex_with_apex(file_path)
                         is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
                         if not is_merge_success:
                             error_message = f"Error handling APEX file: {file_path}|{log_message}"
