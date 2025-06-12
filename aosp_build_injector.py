@@ -412,7 +412,7 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
                         if apex_file_path:
                             is_success = False
                             log_message = ""
-                            if ALLOW_APEX_REPACKING:
+                            if ALLOW_APEX_REPACKING_IN_PRE_INJECTOR:
                                 is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, lunch_target)
                             if is_success:
                                 logging.info(f"Repackaged APEX package: {apex_file_path} successfully.")
