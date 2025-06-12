@@ -298,10 +298,10 @@ def rename_file(file_path, new_name):
         directory = os.path.dirname(file_path)
         new_file_path = os.path.join(directory, new_name)
         os.rename(file_path, new_file_path)
-        print(f"File renamed to: {new_file_path}")
+        logging.info(f"File renamed to: {new_file_path}")
         return new_file_path
     except Exception as e:
-        print(f"Error renaming file {file_path} to {new_name}: {e}")
+        logging.error(f"Error renaming file {file_path} to {new_name}: {e}")
         raise
 
 def check_file_is_really_injected(file_path, aosp_path):
