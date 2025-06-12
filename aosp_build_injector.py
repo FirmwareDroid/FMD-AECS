@@ -418,7 +418,7 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
                                     logging.info(f"Repackaged APEX package: {apex_file_path} successfully.")
                                     included_package_statistics["apex"].append(dir_name)
                                 else:
-                                    logging.error(f"APEX repacking error: {log_message}")
+                                    logging.error(f"APEX repacking error: {log_message}. EXIT PROGRAM NOW.")
                                     exit(1)
                         else:
                             logging.error(f"Could not find apex file in: {modules_path}")
