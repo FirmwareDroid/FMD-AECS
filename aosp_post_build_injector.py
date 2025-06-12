@@ -255,7 +255,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                         file_path = replace_capex_with_apex(file_path)
                     if "tzdata3" in file_path:
                         new_name = filename.replace("tzdata3", "tzdata")
-                        rename_file(file_path, new_name)
+                        file_path = rename_file(file_path, new_name)
 
                     if ALLOW_APEX_INJECTION_MERGE and any(keyword in filename for keyword in ALLOW_APEX_MERGE_KEYWORD_LIST):
                         logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
