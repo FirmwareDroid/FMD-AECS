@@ -356,7 +356,7 @@ def get_apex_file(directory_path):
     Finds the apex or capex file in the folder
     """
     for filename in os.listdir(directory_path):
-        if filename.endswith(".apex") or filename.endswith(".capex"):
+        if filename.lower().strip().endswith(".apex") or filename.lower().strip().endswith(".capex"):
             return os.path.join(directory_path, filename)
     return None
 
@@ -401,13 +401,15 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
                     if ALLOW_APEX_INJECTION:
                         package_dir_name = os.path.basename(package_path).lower()
                         apex_file_path = get_apex_file(package_path)
+                        if not os.path.exists(apex_file_path):
+                            logging.error(f"Could not find apex file in pre-injector: {apex_file_path}")
+                            continue
                         apex_filename = os.path.basename(apex_file_path)
                         if any(keyword.lower() in package_dir_name for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
                             logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
                             continue
                         modules_path = os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name)
                         logging.info(f"Copying APEX package: {package_path} to {modules_path}")
-
                         shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
                         if apex_file_path:
                             is_success = False
