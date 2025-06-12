@@ -154,6 +154,11 @@ SKIPPED_BINARY_LIST = [
                         "libkeymint_support.so",
                         "libc++.so",
                         "libdl.so",
+                        "libhwbinder.so",
+                        "libfs_mgr_binder.so",
+                        "libbinderdebug.so",
+                        "libbinderwrapper.so",
+                        "libbrillo-binder.so",
                        #"libgui.so", # Breaks the build process in case the binary is not compatible with Stagefright after post-injection
                        #"libfs_mgr.so", # Breaks INIT process
                        ]
@@ -169,16 +174,16 @@ SKIPPED_BINARY_LIST = [
 # "android.hidl",
 # "vendor.qti.hardware",
 # "qti",
+# All files that contain these keywords will be skipped and not injected in the post-injector.
+# Try to avoid using keywords that are too generic, as they might skip files that should be injected.
 SKIPPED_KEYWORD_LIST = ["keystore",
                         #"binder",
+                        #"vndk",
                         "keymaster",
                         "selinux",
                         "android.system.suspend",
                         "android.hardware",
-                        "hwservicemanager",
                         "vintf",
-                        #"vndk",
-                        #"vold",
                         "recovery-refresh",
                         "vendor.sensors",
                         "atrace",
@@ -189,9 +194,11 @@ SKIPPED_KEYWORD_LIST = ["keystore",
                         "_capex",         # Skipped all files from extracted capex folder
                         ]
 
-
-# When sets allows all files to be overwritten
+# When sets allows all files to be overwritten, ignoring the ALLOW_FILE_OVERWRITE
 ALLOW_ALL_FILE_OVERWRITE = True
+# "services.jar.bprof",
+# "framework.jar"
+ALLOW_FILE_OVERWRITE = []
 
 # "dex2oat"
 SKIPPED_APEX_KEYWORD_LIST = []
@@ -201,20 +208,13 @@ ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
                                          ".ttf"
                                          ]
 
-ALLOW_FILE_OVERWRITE = [#"framework-res.apk",
-                        #"framework-ext-res.apk",
-                        #"passwd",
-                        #"group",
-                        #"com.google.android.hardwareinfo.xml",
-                        "services.jar.bprof",
-                        "framework.jar"
-                        ]
 
 ALLOW_FILE_OVERWRITE_EXTENSIONS = [".jar"]
 
 
-for default_module_name in AOSP_DEFAULT_PACKAGE_NAMES:
-    ALLOW_FILE_OVERWRITE.append(f"{default_module_name}.apk")
+#for default_module_name in AOSP_DEFAULT_PACKAGE_NAMES:
+#    ALLOW_FILE_OVERWRITE.append(f"{default_module_name}.apk")
+
 
 ALLOWED_KEYWORD = ["Overlay",
                    "Connectivity",
@@ -247,13 +247,10 @@ ALLOW_APEX_MERGE_KEYWORD_LIST = [
                             "vndk",
                             "ipsec",
                             "scheduling",
-                            #"adbd",
                             "statsd",
                             "resolv",
                             "neuralnetworks",
-                            #"cellbroadcast",
                             "mediaprovider",
-                            #"telephony",
                             "permission",
                             "runtime",
                             "art",
@@ -264,36 +261,6 @@ ALLOW_APEX_MERGE_KEYWORD_LIST = [
                             "tzdata",
                             "tzdata3",
                         ]
-
-
-
-# "com.google.android.adbd.apex"
-# ALLOWED INJECTION FILES:
-# "com.android.apex.cts.shim.apex"
-# "com.google.android.appsearch.apex"
-# "com.google.android.ipsec.apex"
-# "com.google.android.os.statsd.apex"
-# "com.google.android.telephony.apex"
-# "com.android.i18n.apex"
-# "com.google.android.art.apex"
-# "com.google.android.media.apex"
-# "com.google.android.permission.apex"
-# "com.google.android.tethering.apex"
-# "com.android.runtime.apex"
-# "com.google.android.cellbroadcast.apex"
-# "com.google.android.media.swcodec.apex"
-# "com.google.android.resolv.apex"
-# "com.google.android.tzdata3.apex"
-# "com.android.vndk.current.apex"
-# "com.google.android.conscrypt.apex"
-# "com.google.android.mediaprovider.apex"
-# "com.google.android.scheduling.apex"
-# "com.google.android.wifi.apex"
-# "com.google.android.extservices.apex"
-# "com.google.android.neuralnetworks.apex"
-# "com.google.android.sdkext.apex"
-# "com.google.mainline.primary.libs.apex"
-
 
 
 ALLOW_APEX_INJECTION_MERGE = True
