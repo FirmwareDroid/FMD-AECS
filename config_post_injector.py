@@ -69,6 +69,7 @@ SKIPPED_BINARY_LIST = [
                         "vold_prepare_subdirs",
                         "vdc",
                         "flags_health_check",
+                        "bpfloader",
                         #"libhardware.so",
                         #"libhardware_legacy.so",
                         "keystore2",
