@@ -68,6 +68,7 @@ SKIPPED_BINARY_LIST = [
                         "vold", # problematic
                         "vold_prepare_subdirs",
                         "vdc",
+                        "flags_health_check",
                         #"libhardware.so",
                         #"libhardware_legacy.so",
                         "keystore2",
