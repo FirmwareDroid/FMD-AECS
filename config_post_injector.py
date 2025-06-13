@@ -32,7 +32,7 @@ for blacklisted_module_name in VENDOR_BLACKLISTED_PACKAGES:
 #".bprof",
 #".policy"
 
-SKIPPED_FILE_EXTENSION_LIST = [
+SKIPPED_FILE_EXTENSION_LIST_GENERAL = [
                                #".rc", # Init files might break the emulator
                                ".ko", # Kernel modules break the emulator
                                ".prop", # Build properties should not be overwritten
@@ -51,6 +51,9 @@ SKIPPED_FILE_EXTENSION_LIST = [
                                ".raw",  # Leftover from the file extraction process
                                #".vdex",
                                ]
+
+SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION = [".rc"]
+
 
 
 SKIPPED_FILE_ENDING_LIST = [

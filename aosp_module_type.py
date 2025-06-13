@@ -21,7 +21,7 @@ def is_file_inject_allowed(file_name):
 
 
 def is_file_extension_allowed(file_extension):
-    if file_extension in SKIPPED_FILE_EXTENSION_LIST:
+    if file_extension in SKIPPED_FILE_EXTENSION_LIST_GENERAL:
         return False
     return True
 
