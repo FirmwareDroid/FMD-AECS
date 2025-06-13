@@ -2480,6 +2480,78 @@ APEX_PRE_INJECT_DISALLOWED_KEYWORDS = ["vndk",
 
 ALLOW_APEX_APP_INJECT = False
 
+SKIPPED_LIBARIES = [
+    "libgatekeeper.so",
+    "libbinder.so",
+    "libc.so",
+    "libbase.so",
+    "libcutils.so",
+    "liblogwrap.so",
+    "libselinux.so",
+    "libutils.so",
+    "libc++.so",
+    "libm.so",
+    "libdl.so",
+    "libbinder.so",
+    "liblog.so",
+    "libselinux.so",
+    "libbinder_ndk.so",
+    "libc.so",
+    "libm.so",
+    "android.hardware.boot@1.0.so",
+    "libbase.so",
+    "libcrypto.so",
+    "libcrypto_utils.so",
+    "libcutils.so",
+    "libdiskconfig.so",
+    "libext4_utils.so",
+    "libf2fs_sparseblock.so",
+    "libgsi.so",
+    "libhardware.so",
+    "libhardware_legacy.so",
+    "libincfs.so",
+    "libhidlbase.so",
+    "libkeyutils.so",
+    "liblogwrap.so",
+    "libsysutils.so",
+    "libutils.so",
+    "android.hardware.health.storage@1.0.so",
+    "android.hardware.health.storage-V1-ndk_platform.so",
+    "android.system.keystore2-V1-ndk_platform.so",
+    "android.security.maintenance-ndk_platform.so",
+    "libkeymint_support.so",
+    "libc++.so",
+    "libdl.so",
+    "libhwbinder.so",
+    "libfs_mgr_binder.so",
+    "libbinderdebug.so",
+    "libbinderwrapper.so",
+    "libbrillo-binder.so",
+    "libbinder_ndk.so",
+    "liblog.so",
+    "libc.so",
+    "libm.so",
+    "libdl.so",
+    "libselinux.so",
+    "libcutils.so",
+    "libkeystore2_aaid.so",
+    "libkeystore2_apc_compat.so",
+    "libkeystore2_crypto.so",
+    "libcrypto.so",
+    "libkm_compat_service.so",
+    "libkeystore2_vintf_cpp.so",
+    "libsqlite.so",
+    "android.security.apc-ndk_platform.so",
+    "android.system.keystore2-V1-ndk_platform.so",
+    "libchrome.so",
+    "libcrypto.so",
+    "libprotobuf-cpp-lite.so",
+    "libgui.so"
+    "libfs_mgr.so"
+]
+
+
+
 
 def get_blocked_module_names():
     blocked_module_names = [EXTRACTION_ALL_FILES_DIR_NAME]
@@ -2491,6 +2563,8 @@ def get_blocked_module_names():
     blocked_module_names.extend(HOST_PACKAGES_LIST)
     blocked_module_names.extend(APEX_AVAILABLE_LIST)
     blocked_module_names.extend(ANDROID_HARDWARE_MODULE_LIST)
+    for libray in SKIPPED_LIBARIES:
+        blocked_module_names.append(libray.replace(".so", ""))
     return blocked_module_names
 
 

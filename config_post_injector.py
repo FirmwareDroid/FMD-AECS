@@ -160,8 +160,27 @@ SKIPPED_BINARY_LIST = [
                         "libbinderdebug.so",
                         "libbinderwrapper.so",
                         "libbrillo-binder.so",
-                       #"libgui.so", # Breaks the build process in case the binary is not compatible with Stagefright after post-injection
-                       #"libfs_mgr.so", # Breaks INIT process
+                        "libbinder_ndk.so",
+                        "liblog.so",
+                        "libc.so",
+                        "libm.so",
+                        "libdl.so",
+                        "libselinux.so",
+                        "libcutils.so",
+                        "libkeystore2_aaid.so",
+                        "libkeystore2_apc_compat.so",
+                        "libkeystore2_crypto.so",
+                        "libcrypto.so",
+                        "libkm_compat_service.so",
+                        "libkeystore2_vintf_cpp.so",
+                        "libsqlite.so",
+                        "android.security.apc-ndk_platform.so",
+                        "android.system.keystore2-V1-ndk_platform.so",
+                        "libchrome.so",
+                        "libcrypto.so",
+                        "libprotobuf-cpp-lite.so",
+                        "libgui.so", # Breaks the build process in case the binary is not compatible with Stagefright after post-injection
+                        "libfs_mgr.so", # Breaks INIT process
                        ]
 # "libminijail.so",
 # "libavservices_minijail_vendor.so",
