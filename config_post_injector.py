@@ -202,7 +202,7 @@ ALLOW_ALL_FILE_OVERWRITE = True
 ALLOW_FILE_OVERWRITE = []
 
 # "dex2oat"
-SKIPPED_APEX_KEYWORD_LIST = []
+SKIPPED_APEX_KEYWORD_LIST = ["adb"]
 
 ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
                                          ".otf",
@@ -281,7 +281,7 @@ APEX_DEFAULT_PATHS_DICT = {
     "vndk": "packages/modules/vndk/apex",
     "ipsec": "packages/modules/IPsec/apex",
     "scheduling": "packages/modules/Scheduling/apex",
-    "adbd": "packages/modules/adb/apex",
+    "adb": "packages/modules/adb/apex",
     "statsd": "packages/modules/StatsD/apex", #
     "resolv": "packages/modules/DnsResolver/apex", #
     "neuralnetworks": "packages/modules/NeuralNetworks/apex",
@@ -312,7 +312,7 @@ APEX_DEFAULT_EMULATOR_PATHS_DICT = {
     "scheduling": "com.android.scheduling",
     "tethering": "com.android.tethering",
     "vndk": "com.android.vndk.v32",
-    "adbd": "com.android.adbd",
+    "adb": "com.android.adbd",
     "art": "com.android.art",
     "extservices": "com.android.extservices",
     "ipsec": "com.android.ipsec",
