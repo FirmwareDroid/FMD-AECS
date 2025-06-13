@@ -51,7 +51,7 @@ def is_apex_file_path_allowed(file_path):
     return True
 
 
-def get_module_type(source_file_path, is_apex=False, pre_injector_package_list=None):
+def get_module_type(source_file_path, pre_injector_package_list=None):
     """
     Determines the module type of the source file.
     """
@@ -59,6 +59,9 @@ def get_module_type(source_file_path, is_apex=False, pre_injector_package_list=N
     file_extension = os.path.splitext(source_file_path)[1]
     file_name = os.path.basename(source_file_path)
     file_name_no_ext = os.path.splitext(file_name)[0]
+
+    is_apex = file_extension in [".apex", ".capex"]
+
     if file_extension in ["", None] and "/bin/" in source_file_path:
         module_type = "EXECUTABLES"
     elif file_extension in [".jar"]:
@@ -86,19 +89,12 @@ def get_module_type(source_file_path, is_apex=False, pre_injector_package_list=N
     if pre_injector_package_list and file_name_no_ext in pre_injector_package_list:
         module_type = "SKIPPED"
 
-    #if ALLOW_APEX_INJECTION_MERGE and is_apex and not is_apex_file_path_allowed(source_file_path):
-    #    module_type = "SKIPPED"
+    if is_apex and any(keyword in file_name for keyword in SKIPPED_APEX_KEYWORD_LIST):
+        module_type = "SKIPPED"
 
     # Override the module type if the file name or path contains specific keywords
     if file_name in ALLOW_FILE_INJECT_ALWAYS or any(keyword in source_file_path for keyword in ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST):
         module_type = tmp_module_type
-
-    #if is_apex and ALLOW_APEX_INJECTION_MERGE:
-    #    if file_name in ALLOW_APEX_FILE_INJECT or any(keyword in source_file_path for keyword in ALLOW_APEX_FILE_INJECT_ALWAYS_KEYWORD_LIST):
-    #        module_type = tmp_module_type
-
-    #if REMOVE_APEX_APK_FILE and is_apex and file_extension == ".apk":
-    #    module_type = "SKIPPED"
 
     logging.info(f"File Extension: {file_extension} for {source_file_path} is module type {module_type}")
 
