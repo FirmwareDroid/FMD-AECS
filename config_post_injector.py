@@ -74,7 +74,7 @@ SKIPPED_BINARY_LIST = [
                         #"libhardware_legacy.so",
                         "keystore2",
                         "console",
-                        "zygote",
+                        #"zygote",
                         "tee",
                         "qemu-props",
                         "ueventd",
