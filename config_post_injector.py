@@ -242,6 +242,7 @@ ALLOW_FILE_INJECT_ALWAYS = [
 ALLOW_APEX_MERGE_KEYWORD_LIST = [
                             "sdkext",
                             "extservices",
+                            "extservice",
                             "wifi",
                             "tethering",
                             "i18n",
