@@ -68,7 +68,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
         included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target)
     except Exception as e:
-        logging.error(f"Error moving packages to aosp source code: {e}")
+        logging.error(f"Error moving packages to aosp source code: {e}. EXIT PROGRAM!")
         traceback.print_exc()
         exit(-1)
 

@@ -248,7 +248,7 @@ def get_match_existing_emulator_folders(filename_no_vendor):
 
     for key in APEX_DEFAULT_EMULATOR_PATHS_DICT:
         if key in filename_no_vendor:
-            if key == "media" and "mediaprovider" in filename_no_vendor:
+            if key == "media" and ("mediaprovider" in filename_no_vendor or "swcodec" in filename_no_vendor):
                 continue
             logging.info(f"Found APEX default path for {filename_no_vendor}: {APEX_DEFAULT_EMULATOR_PATHS_DICT[key]}")
             return APEX_DEFAULT_EMULATOR_PATHS_DICT[key]
@@ -339,10 +339,10 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             if os.path.exists(manifest_path):
                 shutil.copy2(manifest_path, merged_apex_extract_dir_path)
                 if not os.path.exists(merged_apex_extract_dir_path):
-                    logging.error(f"ERROR: APEX Manifest was not copied to: {merged_apex_extract_dir_path}")
+                    logging.error(f"ERROR: APEX Manifest was not copied to: {merged_apex_extract_dir_path}. EXIT PROGRAM!")
                     exit(-1)
             else:
-                logging.error("APEX Manifest path is invalid")
+                logging.error("APEX Manifest path is invalid. EXIT PROGRAM!")
                 exit(-1)
 
         apk_name_list = []
