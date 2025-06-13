@@ -352,6 +352,11 @@ def replace_capex_with_apex(file_path):
     return file_path
 
 def indirect_injection(target_file_injection_path, file_name, target_out_path, partition_name, module_type, file_path, inj_partition):
+    file_ext = os.path.splitext(file_name)[1]
+    if file_ext in SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION:
+        logging.info(f"Skipped indirect injection for file: {file_path} with extension: {file_ext}")
+        return None, inj_partition
+
     logging.info(f"File exists in target path: {target_file_injection_path} "
                  f"- skipping direct injection. Continue with indirect injection.")
     inj_obj = None
