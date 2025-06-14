@@ -187,6 +187,7 @@ SKIPPED_BINARY_LIST = [
                         "rfsd",
                         "cbd",
                         "gpuservice",
+                        "libgpuservice.so",
                        ]
 
 
