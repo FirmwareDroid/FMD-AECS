@@ -188,6 +188,9 @@ SKIPPED_BINARY_LIST = [
                         "cbd",
                         "gpuservice",
                         "libgpuservice.so",
+                        "gpuservice.rc,"
+                        "rild_exynos",
+                        "netd",
                        ]
 
 
