@@ -131,17 +131,14 @@ SKIPPED_BINARY_LIST = [
                         "libc++.so",
                         "libm.so",
                         "libdl.so",
-                        "libbinder.so",
                         "liblog.so",
                         "libselinux.so",
                         "libbinder_ndk.so",
                         "libc.so",
-                        "libm.so",
                         "android.hardware.boot@1.0.so",
                         "libbase.so",
                         "libcrypto.so",
                         "libcrypto_utils.so",
-                        "libcutils.so",
                         "libdiskconfig.so",
                         "libext4_utils.so",
                         "libf2fs_sparseblock.so",
@@ -153,14 +150,12 @@ SKIPPED_BINARY_LIST = [
                         "libkeyutils.so",
                         "liblogwrap.so",
                         "libsysutils.so",
-                        "libutils.so",
                         "android.hardware.health.storage@1.0.so",
                         "android.hardware.health.storage-V1-ndk_platform.so",
                         "android.system.keystore2-V1-ndk_platform.so",
                         "android.security.maintenance-ndk_platform.so",
                         "libkeymint_support.so",
                         "libc++.so",
-                        "libdl.so",
                         "libhwbinder.so",
                         "libfs_mgr_binder.so", #
                         "libbinderdebug.so",
@@ -169,10 +164,7 @@ SKIPPED_BINARY_LIST = [
                         "libbinder_ndk.so",
                         "liblog.so",
                         "libc.so",
-                        "libm.so",
-                        "libdl.so",
                         "libselinux.so",
-                        "libcutils.so",
                         "libkeystore2_aaid.so",
                         "libkeystore2_apc_compat.so",
                         "libkeystore2_crypto.so",
@@ -187,7 +179,24 @@ SKIPPED_BINARY_LIST = [
                         "libprotobuf-cpp-lite.so",
                         "libgui.so", # Breaks the build process in case the binary is not compatible with Stagefright after post-injection
                         "libfs_mgr.so", # Breaks INIT process
+                        "libandroid_runtime.so",
+                        "libnativeloader.so",
+                        "libsigchain.so",
+                        "libwilhelm.so",
+                        "libsurfaceflinger.so"
+                        "app_process64",
                        ]
+
+
+
+
+
+
+
+
+
+
+
 # "libminijail.so",
 # "libavservices_minijail_vendor.so",
 # "boot-framework.art",
