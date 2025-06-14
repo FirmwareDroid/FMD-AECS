@@ -183,8 +183,9 @@ SKIPPED_BINARY_LIST = [
                         "libnativeloader.so",
                         "libsigchain.so",
                         "libwilhelm.so",
-                        "libsurfaceflinger.so"
-                        #"app_process64",
+                        "libsurfaceflinger.so",
+                        "rfsd",
+                        "app_process64"
                        ]
 
 
