@@ -191,7 +191,7 @@ SKIPPED_BINARY_LIST = [
                         "gpuservice.rc,"
                         "rild_exynos",
                         "netd",
-                        "app_process64",
+                        #"app_process64",
                        ]
 
 
