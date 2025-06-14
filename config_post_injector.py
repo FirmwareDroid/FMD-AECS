@@ -184,7 +184,7 @@ SKIPPED_BINARY_LIST = [
                         "libsigchain.so",
                         "libwilhelm.so",
                         "libsurfaceflinger.so"
-                        "app_process64",
+                        #"app_process64",
                        ]
 
 
