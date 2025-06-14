@@ -185,7 +185,8 @@ SKIPPED_BINARY_LIST = [
                         "libwilhelm.so",
                         "libsurfaceflinger.so",
                         "rfsd",
-                        "app_process64"
+                        "cbd",
+                        "",
                        ]
 
 
