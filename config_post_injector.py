@@ -275,6 +275,8 @@ ALLOW_FILE_INJECT_ALWAYS = [
                             "vndservicemanager.rc",
                             "init.zygote64_32",
                             "init.zygote32.rc"
+                            "audioserver.rc",
+                            "cameraserver.rc"
                             ]
 
 ALLOW_APEX_MERGE_KEYWORD_LIST = [
