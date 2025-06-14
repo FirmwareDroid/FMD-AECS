@@ -186,7 +186,7 @@ SKIPPED_BINARY_LIST = [
                         "libsurfaceflinger.so",
                         "rfsd",
                         "cbd",
-                        "",
+                        "gpuservice",
                        ]
 
 
