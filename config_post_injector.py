@@ -309,6 +309,7 @@ ALLOW_APEX_MERGE_KEYWORD_LIST = [
                             "media",
                             "tzdata",
                             "tzdata3",
+                            "tzdata4"
                         ]
 
 
@@ -344,6 +345,7 @@ APEX_DEFAULT_PATHS_DICT = {
     "media": "frameworks/av/apex",
     "tzdata": "system/timezone/apex/",
     "tzdata3": "system/timezone/apex/",
+    "tzdata4": "system/timezone/apex/",
 }
 
 
@@ -435,6 +437,7 @@ FILES_TO_MODIFY = ["systemserverclasspath.pb", "bootclasspath.pb"]
 INDIRECT_INJECTION_FILE_MAPPING = {
     "framework.jar": "obj/JAVA_LIBRARIES/framework-minus-apex_intermediates/javalib.jar",
     "com.google.android.tzdata3.apex": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
+    "com.google.android.tzdata4.apex": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
     "framework-res.apk": "obj/APPS/framework-res_intermediates/package.apk",
     #"services.jar": "obj/JAVA_LIBRARIES/services_intermediates/services_intermediates",
 }
