@@ -253,8 +253,8 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
                     if file_path.endswith(".capex"):
                         file_path = replace_capex_with_apex(file_path)
-                    if "tzdata3" in file_path:
-                        new_name = filename.replace("tzdata3", "tzdata")
+                    if "tzdata3" in file_path or "tzdata4" in filename:
+                        new_name = filename.replace("tzdata3", "tzdata").replace("tzdata4", "tzdata")
                         file_path = rename_file(file_path, new_name)
 
                     if ALLOW_APEX_INJECTION_MERGE and any(keyword in filename for keyword in ALLOW_APEX_MERGE_KEYWORD_LIST):
