@@ -876,8 +876,8 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, ove
             except Exception as e:
                 logging.error(f"Inject File Error copying file: {source_file_path} -> {target_file_injection_path} | {e}")
 
-        #if not set_executable_permission(target_file_injection_path):
-        #    raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
+        if not set_executable_permission(target_file_injection_path):
+            raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
     return target_file_injection_path
 
 
