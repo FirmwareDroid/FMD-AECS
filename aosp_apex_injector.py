@@ -554,6 +554,7 @@ def get_apex_default_keys(aosp_path, apex_file_name):
     apex_split_name_list = apex_file_name.split(".")
     logging.info(f"APEX: Getting default keys for: {apex_split_name_list}")
     for key, value in APEX_DEFAULT_PATHS_DICT.items():
+        key = key.replace("_compressed", "").replace("_trimmed", "")
         if key in apex_split_name_list:
             apex_file_name_no_extension = get_apex_file_mapping(key)
             module_path = str(os.path.join(aosp_path, value))
@@ -598,6 +599,7 @@ def get_existing_file_context(apex_file_name, aosp_path):
     file_contexts_path = None
     apex_split_name_list = apex_file_name.split(".")
     for key, value in APEX_DEFAULT_PATHS_DICT.items():
+        key = key.replace("_compressed", "").replace("_trimmed", "")
         if key in apex_split_name_list:
             file_context_name = get_aosp_file_context_file_name(key)
             file_contexts_path = os.path.join(aosp_path, "system/sepolicy/apex", file_context_name)
