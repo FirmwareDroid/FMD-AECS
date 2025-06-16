@@ -33,7 +33,7 @@ for blacklisted_module_name in VENDOR_BLACKLISTED_PACKAGES:
 #".policy"
 
 SKIPPED_FILE_EXTENSION_LIST_GENERAL = [
-                               #".rc", # Init files might break the emulator
+                               ".rc", # Init files might break the emulator
                                ".ko", # Kernel modules break the emulator
                                ".prop", # Build properties should not be overwritten
                                #".apex", # Manual inject
