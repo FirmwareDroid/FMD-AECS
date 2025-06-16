@@ -198,6 +198,8 @@ SKIPPED_BINARY_LIST = [
                         "audioserver",
                         "surfaceflinger",
                         "libsurfaceflingerinsptr.so",
+                        "usbd",
+                        "traced",
                         #"app_process64",
                        ]
 
