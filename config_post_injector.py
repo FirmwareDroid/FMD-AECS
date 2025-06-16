@@ -229,7 +229,7 @@ SKIPPED_BINARY_LIST = [
 # Try to avoid using keywords that are too generic, as they might skip files that should be injected.
 SKIPPED_KEYWORD_LIST = ["keystore",
                         #"binder",
-                        #"vndk",
+                        "vndk",
                         "keymaster",
                         "selinux",
                         "android.system.suspend",
