@@ -193,6 +193,11 @@ SKIPPED_BINARY_LIST = [
                         "netd",
                         "libadbd_auth.so",
                         "libadbd_fs.so",
+                        "wificond",
+                        "cameraserver",
+                        "audioserver",
+                        "surfaceflinger",
+                        "libsurfaceflingerinsptr.so",
                         #"app_process64",
                        ]
 
@@ -282,8 +287,8 @@ ALLOW_FILE_INJECT_ALWAYS = [
                             "vndservicemanager.rc",
                             "init.zygote64_32",
                             "init.zygote32.rc"
-                            "audioserver.rc",
-                            "cameraserver.rc"
+                            #"audioserver.rc",
+                            #"cameraserver.rc"
                             ]
 
 ALLOW_APEX_MERGE_KEYWORD_LIST = [
