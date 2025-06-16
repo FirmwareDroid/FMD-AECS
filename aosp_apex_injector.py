@@ -549,12 +549,19 @@ def get_apex_file_mapping(key):
         apex_file_name_no_extension = f"com.android.tzdata"
     return apex_file_name_no_extension
 
+def remove_apex_build_strings(apex_split_name_list):
+    for split in apex_split_name_list:
+        if "_compressed" in split or "_trimmed" in split:
+            apex_split_name_list.remove(split)
+            split = split.replace("_compressed", "_trimmed")
+            apex_split_name_list.append(split)
+    return apex_split_name_list
 
 def get_apex_default_keys(aosp_path, apex_file_name):
     apex_split_name_list = apex_file_name.split(".")
+    apex_split_name_list = remove_apex_build_strings(apex_split_name_list)
     logging.info(f"APEX: Getting default keys for: {apex_split_name_list}")
     for key, value in APEX_DEFAULT_PATHS_DICT.items():
-        key = key.replace("_compressed", "").replace("_trimmed", "")
         if key in apex_split_name_list:
             apex_file_name_no_extension = get_apex_file_mapping(key)
             module_path = str(os.path.join(aosp_path, value))
@@ -598,8 +605,8 @@ def get_aosp_file_context_file_name(key):
 def get_existing_file_context(apex_file_name, aosp_path):
     file_contexts_path = None
     apex_split_name_list = apex_file_name.split(".")
+    apex_split_name_list = remove_apex_build_strings(apex_split_name_list)
     for key, value in APEX_DEFAULT_PATHS_DICT.items():
-        key = key.replace("_compressed", "").replace("_trimmed", "")
         if key in apex_split_name_list:
             file_context_name = get_aosp_file_context_file_name(key)
             file_contexts_path = os.path.join(aosp_path, "system/sepolicy/apex", file_context_name)
