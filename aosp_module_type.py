@@ -12,16 +12,18 @@ def is_file_inject_allowed(file_name):
 
     :return: bool - True if the file is allowed to be injected, False otherwise.
     """
-    if file_name in SKIPPED_BINARY_LIST:
+    if file_name in POST_INJECTOR_CONFIG["SKIPPED_BINARY_LIST"]:
         return False
-    for file_ending in SKIPPED_FILE_ENDING_LIST:
+    for file_ending in POST_INJECTOR_CONFIG["SKIPPED_FILE_ENDING_LIST"]:
         if file_name.endswith(file_ending):
             return False
     return True
 
 
 def is_file_extension_allowed(file_extension):
-    if file_extension in SKIPPED_FILE_EXTENSION_LIST_GENERAL:
+    if file_extension in POST_INJECTOR_CONFIG["ALLOW_ONLY_EXTENSION_LIST"]:
+        return True
+    if file_extension in POST_INJECTOR_CONFIG["SKIPPED_FILE_EXTENSION_LIST_GENERAL"]:
         return False
     return True
 
@@ -35,7 +37,7 @@ def is_file_path_allowed(file_path):
     :return: bool - True if the file path is allowed, False otherwise.
 
     """
-    if any(keyword in file_path for keyword in SKIPPED_KEYWORD_LIST):
+    if any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["SKIPPED_KEYWORD_LIST"]):
         return False
 
     return True
@@ -46,7 +48,7 @@ def is_apex_file_path_allowed(file_path):
     :param file_path: str - The path to the file.
     :return: bool - True if the file path is allowed, False otherwise.
     """
-    if any(keyword in file_path for keyword in SKIPPED_APEX_KEYWORD_LIST):
+    if any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["SKIPPED_APEX_KEYWORD_LIST"]):
         return False
     return True
 
@@ -89,11 +91,12 @@ def get_module_type(source_file_path, pre_injector_package_list=None):
     if pre_injector_package_list and file_name_no_ext in pre_injector_package_list:
         module_type = "SKIPPED"
 
-    if is_apex and any(keyword in file_name for keyword in SKIPPED_APEX_KEYWORD_LIST):
+    if is_apex and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_APEX_KEYWORD_LIST"]):
         module_type = "SKIPPED"
 
     # Override the module type if the file name or path contains specific keywords
-    if file_name in ALLOW_FILE_INJECT_ALWAYS or any(keyword in source_file_path for keyword in ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST):
+    if (file_name in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS"]
+            or any(keyword in source_file_path for keyword in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST"])):
         module_type = tmp_module_type
 
     logging.info(f"File Extension: {file_extension} for {source_file_path} is module type {module_type}")
