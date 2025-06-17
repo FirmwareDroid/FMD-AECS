@@ -288,7 +288,7 @@ ALLOWED_KEYWORD = ["Overlay",
 # in the pre-injector.
 ALLOW_FILE_INJECT_ALWAYS = [
                             "vndservicemanager.rc",
-                            "init.zygote64_32",
+                            "init.zygote64_32.rc",
                             "init.zygote32.rc"
                             #"audioserver.rc",
                             #"cameraserver.rc"
