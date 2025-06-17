@@ -248,7 +248,7 @@ def get_match_existing_emulator_folders(filename_no_vendor):
         if key in filename_no_vendor:
             if key == "media" and ("mediaprovider" in filename_no_vendor or "swcodec" in filename_no_vendor):
                 continue
-            logging.info(f"Found APEX default path for {filename_no_vendor}: {POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key]}")
+            logging.info(f"Found APEX default path for {filename_no_vendor}: {POST_INJECTOR_CONFIG['APEX_DEFAULT_EMULATOR_PATHS_DICT'][key]}")
             return POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key]
     return None
 
@@ -304,8 +304,9 @@ def get_vndk_version(file_path):
 def allow_vndk_merge(apex_path, apex_filename):
     if "vndk" in apex_filename:
         vendor_vndk_version = get_vndk_version(apex_path)
-        if EMULATOR_VNDK_VERSION > vendor_vndk_version:
-            logging.info(f"APEX: Emulator VNDK version {EMULATOR_VNDK_VERSION} is higher than vendor VNDK version {vendor_vndk_version}.")
+        if POST_INJECTOR_CONFIG['EMULATOR_VNDK_VERSION'] > vendor_vndk_version:
+            logging.info(f"APEX: Emulator VNDK version {POST_INJECTOR_CONFIG['EMULATOR_VNDK_VERSION']} "
+                         f"is higher than vendor VNDK version {vendor_vndk_version}.")
             return False
     return True
 
@@ -582,7 +583,7 @@ def get_apex_default_keys(aosp_path, apex_file_name):
             else:
                 raise ValueError(f"Error getting APEX default keys: {apex_file_name}. "
                                  f"Key files not found in {module_path} with privat: {priv_pem_file_path}.")
-    raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Key files not found in {POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"]}")
+    raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Key files not found in {POST_INJECTOR_CONFIG['APEX_DEFAULT_PATHS_DICT']}")
 
 
 def get_aosp_file_context_file_name(key):
