@@ -1,5 +1,6 @@
 import json
 import os
+import logging
 
 ROOT_PATH = os.path.dirname(os.path.realpath(__file__))
 AOSP_PACKAGES_APPS_PATH = "packages/apps/"
@@ -85,5 +86,7 @@ def load_configs(pre_injector_config_path, post_injector_config_path):
     global POST_INJECTOR_CONFIG
     with open(pre_injector_config_path, 'r') as file:
         PRE_INJECTOR_CONFIG = json.load(file)
+    logging.info(f"Loaded pre-injector config from {pre_injector_config_path}")
     with open(post_injector_config_path, 'r') as file:
         POST_INJECTOR_CONFIG = json.load(file)
+    logging.info(f"Loaded post injector config from {post_injector_config_path}")
