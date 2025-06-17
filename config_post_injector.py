@@ -230,7 +230,7 @@ SKIPPED_BINARY_LIST = [
 # Try to avoid using keywords that are too generic, as they might skip files that should be injected.
 SKIPPED_KEYWORD_LIST = ["keystore",
                         #"binder",
-                        "vndk",
+                        #"vndk",
                         "keymaster",
                         "selinux",
                         "android.system.suspend",
@@ -253,7 +253,10 @@ ALLOW_ALL_FILE_OVERWRITE = True
 ALLOW_FILE_OVERWRITE = []
 
 # "dex2oat"
-SKIPPED_APEX_KEYWORD_LIST = ["adb"]
+SKIPPED_APEX_KEYWORD_LIST = [
+    "adb",
+    "vndk",
+]
 
 ALLOWED_FILE_OVERWRITE_EXTENSION_LIST = [".ogg",
                                          ".otf",
@@ -417,30 +420,14 @@ LIST_SINGLETON_APPS = [
     #"WebView.apk"                    # com.android.webview
 ]
 
-ALLOW_APEX_FILE_INJECT = ["derive_classpath.rc",
-                          "derive_sdk.rc",
-                          "libminijail.so",
-                          "libavservices_minijail_vendor.so",
-                          "mediaextractor.policy",
-                          "mediaswcodec.policy"
-                          ]
-
 ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST = []
 ALLOW_APEX_FILE_INJECT_ALWAYS_KEYWORD_LIST = [".txt", ".art"]
 DISALLOW_APEX_FILE_OVERWRITE = []
 
 
-
-
-
 COPY_TO_SPECIFIC_PATH = {
     "boot-framework.art": "./system/framework/"
 }
-
-# Files that need to be adjusted for the emulator
-FILES_TO_MODIFY = ["systemserverclasspath.pb", "bootclasspath.pb"]
-
-
 
 INDIRECT_INJECTION_FILE_MAPPING = {
     "framework.jar": "obj/JAVA_LIBRARIES/framework-minus-apex_intermediates/javalib.jar",
