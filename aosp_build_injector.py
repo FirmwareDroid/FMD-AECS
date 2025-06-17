@@ -917,6 +917,18 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
         logging.error(f"Failed to build {len(failed_firmware_ids)} of the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
     logging.info(f"Successfully built {len(succeed_firmware_ids)} of the following firmware ids: {succeed_firmware_ids} for arch: {args.arch}")
 
+def load_configs(pre_injector_config_path, post_injector_config_path):
+    global PRE_INJECTOR_CONFIG
+    global POST_INJECTOR_CONFIG
+    with open(pre_injector_config_path, 'r') as file:
+        PRE_INJECTOR_CONFIG = json.load(file)
+    logging.info(f"Loaded pre-injector config from {pre_injector_config_path}. Keys: {list(PRE_INJECTOR_CONFIG.keys())}")
+    with open(post_injector_config_path, 'r') as file:
+        POST_INJECTOR_CONFIG = json.load(file)
+    logging.info(f"Loaded post injector config from {post_injector_config_path}. Keys: {list(POST_INJECTOR_CONFIG.keys())}")
+    if not PRE_INJECTOR_CONFIG or not POST_INJECTOR_CONFIG:
+        logging.error("Pre-injector or post-injector config is empty. Please check the config files.")
+        raise ValueError("Configuration files are empty or not loaded correctly.")
 
 def set_skipped_module_names():
     global SKIPPED_MODULE_NAMES
