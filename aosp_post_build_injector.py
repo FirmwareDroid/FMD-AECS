@@ -22,7 +22,6 @@ from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, 
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
 from common import extract_vendor_name, remove_vendor_name_from_path
-from config import VENDOR_NAMES
 from config_post_injector import *
 from setup_logger import setup_logger
 from tqdm import tqdm
@@ -225,7 +224,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         return f"File already processed: {file_path}", None, None
 
     try:
-        with lock:
+        with ((lock)):
             if os.path.exists(processed_marker):
                 return f"File already processed: {file_path}", None, None
             module_type = get_module_type(file_path, pre_injector_package_list=pre_injector_package_list)
@@ -243,7 +242,8 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 filename = os.path.basename(file_path)
                 file_extension = os.path.splitext(file_path)[1]
                 if filename and filename != "":
-                    allow_file_overwrite = (filename in ALLOW_FILE_OVERWRITE) or (file_extension in ALLOW_FILE_OVERWRITE_EXTENSIONS)
+                    allow_file_overwrite = (filename in POST_INJECTOR_CONFIG["ALLOW_FILE_OVERWRITE"]) \
+                    or (file_extension in POST_INJECTOR_CONFIG["ALLOW_FILE_OVERWRITE_EXTENSIONS"])
                 else:
                     allow_file_overwrite = False
 
@@ -257,7 +257,8 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                         new_name = filename.replace("tzdata3", "tzdata").replace("tzdata4", "tzdata")
                         file_path = rename_file(file_path, new_name)
 
-                    if ALLOW_APEX_INJECTION_MERGE and any(keyword in filename for keyword in ALLOW_APEX_MERGE_KEYWORD_LIST):
+                    if POST_INJECTOR_CONFIG["ALLOW_APEX_INJECTION_MERGE"] \
+                        and any(keyword in filename for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"]):
                         logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
                         is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
                         if not is_merge_success:
@@ -327,9 +328,9 @@ def check_file_is_really_injected(file_path, aosp_path):
 
 def handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite):
     error_message = None
-    if filename.lower() in SKIPPED_APP_LIST:
+    if filename.lower() in POST_INJECTOR_CONFIG["SKIPPED_APP_LIST"]:
         error_message = f"Skipped Apk known problematic app: {file_path}"
-    if allow_file_overwrite or any(keyword in filename for keyword in ALLOWED_KEYWORD):
+    if allow_file_overwrite or any(keyword in filename for keyword in POST_INJECTOR_CONFIG["ALLOWED_KEYWORD"]):
         signing_success, output, subprocess_error_message = handle_apk_signing(file_path, aosp_path)
         if not signing_success:
             error_message = f"Error signing APK file: {file_path}|{subprocess_error_message}"
@@ -353,7 +354,7 @@ def replace_capex_with_apex(file_path):
 
 def indirect_injection(target_file_injection_path, file_name, target_out_path, partition_name, module_type, file_path, inj_partition):
     file_ext = os.path.splitext(file_name)[1]
-    if file_ext in SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION:
+    if file_ext in POST_INJECTOR_CONFIG["SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION"]:
         logging.info(f"Skipped indirect injection for file: {file_path} with extension: {file_ext}")
         return None, inj_partition
 
@@ -361,8 +362,8 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
                  f"- skipping direct injection. Continue with indirect injection.")
     inj_obj = None
     # Indirect Injection
-    if file_name in INDIRECT_INJECTION_FILE_MAPPING.keys():
-        original_file_path = INDIRECT_INJECTION_FILE_MAPPING[file_name]
+    if file_name in POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"].keys():
+        original_file_path = POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"][file_name]
         original_file_path = os.path.join(target_out_path, original_file_path)
     else:
         original_file_path = search_original_file_in_obj(partition_name,
@@ -388,15 +389,15 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
             inject_file_into_obj(file_path, original_file_path, module_type)
             inj_obj = (file_path, original_file_path, module_type)
 
-    if file_name in COPY_TO_SPECIFIC_PATH.keys():
-        inject_path = COPY_TO_SPECIFIC_PATH[file_name]
-        inject_path = str(os.path.join(target_out_path, inject_path))
-        logging.info(f"Copy file to specific path: {file_path} -> {inject_path}")
-        try:
-            os.makedirs(os.path.dirname(inject_path), exist_ok=True)
-            shutil.copy2(file_path, inject_path, follow_symlinks=False)
-        except Exception as e:
-            logging.error(f"Error copying file to specific path: {file_path} -> {inject_path} | {e}")
+    # if file_name in POST_INJECTOR_CONFIG["COPY_TO_SPECIFIC_PATH"].keys():
+    #     inject_path = POST_INJECTOR_CONFIG["COPY_TO_SPECIFIC_PATH"][file_name]
+    #     inject_path = str(os.path.join(target_out_path, inject_path))
+    #     logging.info(f"Copy file to specific path: {file_path} -> {inject_path}")
+    #     try:
+    #         os.makedirs(os.path.dirname(inject_path), exist_ok=True)
+    #         shutil.copy2(file_path, inject_path, follow_symlinks=False)
+    #     except Exception as e:
+    #         logging.error(f"Error copying file to specific path: {file_path} -> {inject_path} | {e}")
     return inj_obj, inj_partition
 
 
@@ -412,7 +413,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         logging.info(f"APEX Injection Strategy Selection for file: {file_path}")
         if (not os.path.exists(target_file_injection_path)
                 and not any(keyword in os.path.basename(target_file_injection_path)
-                            for keyword in ALLOW_APEX_MERGE_KEYWORD_LIST)):
+                            for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"])):
             # Direct Injection
             target_path = inject_file_into_partition(file_path, target_file_injection_path, allow_file_overwrite)
             inj_partition = (file_path, target_path, module_type)
@@ -708,7 +709,7 @@ def search_original_file_in_obj(partition_name,
             elif ((file_extension_src == ".apex" and file_extension_obj == ".capex")
                   or (file_extension_src == ".capex" and file_extension_obj == ".apex")):
                 # Matching apex to capex files
-                if ALLOW_APEX_INJECTION_MERGE:
+                if POST_INJECTOR_CONFIG["ALLOW_APEX_INJECTION_MERGE"]:
                     result_file_path = candidate_path
                     logging.debug(f"File Matcher: Found APEX file2: {file_name}, result_file_path: {result_file_path}")
                     result_file_path_list.append(result_file_path)
@@ -826,19 +827,20 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
 
 # Direct Injection
 def inject_file_into_partition(source_file_path, target_file_injection_path, overwrite=False):
-    if OVERWRITE_APP_PROCESS_32:
+    if POST_INJECTOR_CONFIG["OVERWRITE_APP_PROCESS_32"]:
         source_file_path = handle_special_matching(source_file_path)
 
     if os.path.exists(target_file_injection_path):
         file_extension = os.path.splitext(target_file_injection_path)[1]
-        if os.path.islink(target_file_injection_path) or file_extension in ALLOWED_FILE_OVERWRITE_EXTENSION_LIST:
+        if (os.path.islink(target_file_injection_path)
+                or file_extension in POST_INJECTOR_CONFIG["ALLOWED_FILE_OVERWRITE_EXTENSION_LIST"]):
             try:
                 shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
                 logging.info(f"File link overwrite: {source_file_path} into {target_file_injection_path}")
             except Exception as e:
                 logging.error(f"Error copying file link: {source_file_path} -> {target_file_injection_path} | {e}")
         else:
-            if ALLOW_ALL_FILE_OVERWRITE:
+            if POST_INJECTOR_CONFIG["ALLOW_ALL_FILE_OVERWRITE"]:
                 overwrite = True
             if overwrite:
                 try:

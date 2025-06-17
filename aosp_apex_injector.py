@@ -1,6 +1,5 @@
 import hashlib
 import logging
-import os
 import re
 import shutil
 import subprocess
@@ -10,7 +9,6 @@ from jinja2 import Environment, FileSystemLoader
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
     sign_apex_container_apksigner, sign_apex_container_signapk
 from common import extract_vendor_name, remove_vendor_name_from_filename
-from config import MODULE_BASE_INJECT_DIR, VENDOR_NAMES, EMULATOR_VNDK_VERSION
 from shell_command import execute_shell_command
 from config_post_injector import *
 
@@ -246,12 +244,12 @@ def get_match_existing_emulator_folders(filename_no_vendor):
     if "tzdata3" in filename_no_vendor or "tzdata4" in filename_no_vendor:
         filename_no_vendor = filename_no_vendor.replace("tzdata3", "tzdata").replace("tzdata4", "tzdata")
 
-    for key in APEX_DEFAULT_EMULATOR_PATHS_DICT:
+    for key in POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"]:
         if key in filename_no_vendor:
             if key == "media" and ("mediaprovider" in filename_no_vendor or "swcodec" in filename_no_vendor):
                 continue
-            logging.info(f"Found APEX default path for {filename_no_vendor}: {APEX_DEFAULT_EMULATOR_PATHS_DICT[key]}")
-            return APEX_DEFAULT_EMULATOR_PATHS_DICT[key]
+            logging.info(f"Found APEX default path for {filename_no_vendor}: {POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key]}")
+            return POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key]
     return None
 
 
@@ -320,7 +318,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     Writes the merged apex to the apex_out_file
     """
     filename_input = str(os.path.basename(input_apex))
-    if CHECK_VNDK_VERSION_MISMATCH:
+    if POST_INJECTOR_CONFIG["CHECK_VNDK_VERSION_MISMATCH"]:
         if not allow_vndk_merge(input_apex, filename_input):
             return False, "APEX: Emulator VNDK version is higher than vendor VNDK version. Merging not allowed."
 
@@ -331,7 +329,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     apex_vendor_extract_dir_path = tempfile.mkdtemp(suffix=f"_{filename_input}_vendor")
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target)
     if extract_success:
-        if ALLOW_MIXED_APEX_FILES:
+        if POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_FILES"]:
             shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
         else:
             manifest_path = os.path.join(apex_emulator_folder, "apex_manifest.pb")
@@ -346,11 +344,11 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                 exit(-1)
 
         apk_name_list = []
-        if INJECT_APEX_VENDOR_FILES:
+        if POST_INJECTOR_CONFIG["INJECT_APEX_VENDOR_FILES"]:
             logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
             inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
 
-        if INJECT_APEX_VENDOR_APPS:
+        if POST_INJECTOR_CONFIG["INJECT_APEX_VENDOR_APPS"]:
             logging.info(f"Injecting APEX vendor app: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
             apk_name_list = inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
 
@@ -376,7 +374,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                private_key_path,
                                                                cert_apex_apk_path)
                     logging.info(f"Completed APEX merge successfully: {apex_out_file}")
-                    if REPLACE_AVB_KEYS:
+                    if POST_INJECTOR_CONFIG["REPLACE_AVB_KEYS"]:
                         logging.info(f"Overwriting AVB keys for APEX: {apex_out_file}")
                         is_success, log_message = inject_apex_avb_public_key(input_apex,
                                                                              avb_pub_key_path,
@@ -476,7 +474,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path:
                     continue
 
-                if file in DISALLOW_APEX_FILE_OVERWRITE:
+                if file in POST_INJECTOR_CONFIG["DISALLOW_APEX_FILE_OVERWRITE"]:
                     logging.error(f"SKIPPED APEX File: File in DISALLOW_APEX_FILE_OVERWRITE: {file_path}")
                     continue
 
@@ -561,7 +559,7 @@ def get_apex_default_keys(aosp_path, apex_file_name):
     apex_split_name_list = apex_file_name.split(".")
     apex_split_name_list = remove_apex_build_strings(apex_split_name_list)
     logging.info(f"APEX: Getting default keys for: {apex_split_name_list}")
-    for key, value in APEX_DEFAULT_PATHS_DICT.items():
+    for key, value in POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"].items():
         if key in apex_split_name_list:
             apex_file_name_no_extension = get_apex_file_mapping(key)
             module_path = str(os.path.join(aosp_path, value))
@@ -584,7 +582,7 @@ def get_apex_default_keys(aosp_path, apex_file_name):
             else:
                 raise ValueError(f"Error getting APEX default keys: {apex_file_name}. "
                                  f"Key files not found in {module_path} with privat: {priv_pem_file_path}.")
-    raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Key files not found in {APEX_DEFAULT_PATHS_DICT}")
+    raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Key files not found in {POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"]}")
 
 
 def get_aosp_file_context_file_name(key):
@@ -606,7 +604,7 @@ def get_existing_file_context(apex_file_name, aosp_path):
     file_contexts_path = None
     apex_split_name_list = apex_file_name.split(".")
     apex_split_name_list = remove_apex_build_strings(apex_split_name_list)
-    for key, value in APEX_DEFAULT_PATHS_DICT.items():
+    for key, value in POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"].items():
         if key in apex_split_name_list:
             file_context_name = get_aosp_file_context_file_name(key)
             file_contexts_path = os.path.join(aosp_path, "system/sepolicy/apex", file_context_name)
@@ -923,7 +921,7 @@ def search_string_in_apk(apk_file, search_string):
 
 def get_signing_key_from_manifest(apk_file):
     signing_key = None
-    for key, shared_uid_list in SHARED_USER_ID_MAPPING_DICT.items():
+    for key, shared_uid_list in POST_INJECTOR_CONFIG["SHARED_USER_ID_MAPPING_DICT"].items():
         for shared_uid in shared_uid_list:
             if search_string_in_apk(apk_file, shared_uid):
                 signing_key = key

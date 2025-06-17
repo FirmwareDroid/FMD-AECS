@@ -22,7 +22,20 @@ from config import *
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 from setup_logger import setup_logger
-BLOCKED_MODULE_NAMES = get_blocked_module_names()
+
+
+def get_skipped_module_names():
+    blocked_module_names = [EXTRACTION_ALL_FILES_DIR_NAME]
+    blocked_module_names.extend(PRE_INJECTOR_CONFIG["AOSP_DEFAULT_PACKAGE_NAMES"])
+    blocked_module_names.extend(PRE_INJECTOR_CONFIG["BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES"])
+    blocked_module_names.extend(PRE_INJECTOR_CONFIG["HOST_PACKAGES_LIST"])
+    blocked_module_names.extend(PRE_INJECTOR_CONFIG["ANDROID_HARDWARE_MODULE_LIST"])
+
+    for libray in PRE_INJECTOR_CONFIG["SKIPPED_LIBRARIES"]:
+        blocked_module_names.append(libray.replace(".so", ""))
+    return blocked_module_names
+
+SKIPPED_MODULE_NAMES = get_skipped_module_names()
 
 
 if os.environ.get("FMD_DEBUG") == "True":
@@ -208,7 +221,7 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version):
             stripped_line = line.replace("\\","").strip().replace("_FMD_APEX","")
             stripped_line = stripped_line.replace("_fmd", "")
             logging.info(f"Checking Module for inclusion in pre-injector: {stripped_line}")
-            if any(stripped_line.strip() == blacklisted_module for blacklisted_module in BLOCKED_MODULE_NAMES):
+            if any(stripped_line.strip() == blacklisted_module for blacklisted_module in SKIPPED_MODULE_NAMES):
                 logging.info(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
             else:
                 logging.info(f"Allowing module meta in build: {line}")
@@ -383,9 +396,9 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
         if os.path.isdir(package_path):
             uuid_dir = str(uuid.uuid4())
 
-            if dir_name.strip().replace("_fmd", "") in BLOCKED_MODULE_NAMES:
+            if dir_name.strip().replace("_fmd", "") in SKIPPED_MODULE_NAMES:
                 logging.info(f"Skipping package: {dir_name} as it is a default module.")
-            elif any(keyword in dir_name.strip() for keyword in BLACKLISTED_KEYWORDS):
+            elif any(keyword in dir_name.strip() for keyword in PRE_INJECTOR_CONFIG["BLACKLISTED_KEYWORDS"]):
                 logging.info(f"Skipping package by keyword: {dir_name} as it is likely a problematic module.")
             else:
                 so_file_extension_list = [".so"]
@@ -396,21 +409,22 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
                     shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
                     included_package_statistics["libs"].append(dir_name)
                 elif check_file_extension(package_path, apex_file_extension_list):
-                    if ALLOW_APEX_INJECTION:
+                    if PRE_INJECTOR_CONFIG["ALLOW_APEX_INJECTION"]:
                         package_dir_name = os.path.basename(package_path).lower()
                         apex_file_path = get_apex_file(package_path)
                         if not os.path.exists(apex_file_path):
                             logging.error(f"Could not find apex file in pre-injector: {apex_file_path}")
                             continue
                         apex_filename = os.path.basename(apex_file_path)
-                        if any(keyword.lower() in package_dir_name for keyword in APEX_PRE_INJECT_DISALLOWED_KEYWORDS):
+                        if any(keyword.lower() in package_dir_name for keyword
+                               in PRE_INJECTOR_CONFIG["APEX_PRE_INJECT_DISALLOWED_KEYWORDS"]):
                             logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
                             continue
                         modules_path = os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name)
                         logging.info(f"Copying APEX package: {package_path} to {modules_path}")
                         shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
                         if apex_file_path:
-                            if ALLOW_APEX_REPACKING_IN_PRE_INJECTOR:
+                            if PRE_INJECTOR_CONFIG["ALLOW_APEX_REPACKING_IN_PRE_INJECTOR"]:
                                 is_success = False
                                 log_message = ""
                                 is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, lunch_target)
@@ -576,7 +590,7 @@ def clear_packages(aosp_packages_path):
     """
     logging.debug(f"Clearing packages from {aosp_packages_path}")
     try:
-        delete_unlisted_directories(aosp_packages_path, AOSP_DEFAULT_PACKAGE_NAMES)
+        delete_unlisted_directories(aosp_packages_path, PRE_INJECTOR_CONFIG["AOSP_DEFAULT_PACKAGE_NAMES"])
         txt_files = glob.glob(os.path.join(aosp_packages_path, '*.txt'))
         zip_files = glob.glob(os.path.join(aosp_packages_path, '*.zip'))
         for file in txt_files + zip_files:
@@ -624,9 +638,7 @@ def clear_intermediate_files(aosp_path):
 
 def clear_extracted_packages():
     """
-    Deletes the build out directory.
-
-    :param build_out_path: str - path to the build out directory.
+    Reset the build environment by removing the extracted packages directory.
     """
     try:
         extracted_packages_path = os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME)
@@ -708,7 +720,13 @@ def parse_arguments():
     parser.add_argument("-c", "--skip-clean", action='store_true', default=False,
                         help='If set, skips the cleanup of the aosp build environment.')
     parser.add_argument("-p", "--pk-filter", type=str, default=None, help='Set a specific aecs job id '
-                                                                          'to process. Other jobs will be ingored when set.')
+                                                                          'to process. Other jobs will be ignored when set.')
+    parser.add_argument("-m", "--pre_injector_config",
+                        type=str,
+                        default="./device_configs/pre_injector_config_v1.json",)
+    parser.add_argument("-n", "--post_injector_config",
+                        type=str,
+                        default="./device_configs/post_injector_config_v1.json",)
     args = parser.parse_args()
 
     if not (args.fmd_url.startswith("https://") or args.fmd_url.startswith("http://")):
@@ -924,6 +942,13 @@ def main():
         exit(0)
     if args.arch not in SUPPORTED_ARCHITECTURES:
         raise RuntimeError(f"Unsupported architecture: {args.arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
+
+    if (not os.path.exists(args.aosp_path)
+            or not os.path.exists(args.pre_injector_config)
+            or not os.path.exists(args.post_injector_config)):
+        raise RuntimeError(f"Files or directories do not exist")
+
+    load_configs(args.pre_injector_config, args.post_injector_config)
     fmd_password, docker_repo_password = get_passwords(args)
     csrf_cookie = get_csrf_token(args.fmd_url)
     firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
