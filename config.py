@@ -90,3 +90,6 @@ def load_configs(pre_injector_config_path, post_injector_config_path):
     with open(post_injector_config_path, 'r') as file:
         POST_INJECTOR_CONFIG = json.load(file)
     logging.info(f"Loaded post injector config from {post_injector_config_path}")
+    if not PRE_INJECTOR_CONFIG or not POST_INJECTOR_CONFIG:
+        logging.error("Pre-injector or post-injector config is empty. Please check the config files.")
+        raise ValueError("Configuration files are empty or not loaded correctly.")
