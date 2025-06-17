@@ -200,6 +200,7 @@ SKIPPED_BINARY_LIST = [
                         "libsurfaceflingerinsptr.so",
                         "usbd",
                         "traced",
+                        "libvibrator.so",
                         #"app_process64",
                        ]
 
