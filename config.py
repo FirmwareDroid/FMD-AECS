@@ -76,7 +76,7 @@ VENDOR_NAMES = [
     "Lava", "Coolpad", "Panasonic", "Sharp", "LeEco", "Gionee", "Itel", "Karbonn",
     "Blu", "Wiko", "Fairphone", "Essential", "Pixel", "Miui"
 ]
-
+SKIPPED_MODULE_NAMES = []
 PRE_INJECTOR_CONFIG = {}
 POST_INJECTOR_CONFIG = {}
 

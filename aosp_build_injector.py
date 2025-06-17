@@ -24,20 +24,6 @@ from fmd_backend_requests import download_firmware_build_files, get_csrf_token, 
 from setup_logger import setup_logger
 
 
-def get_skipped_module_names():
-    blocked_module_names = [EXTRACTION_ALL_FILES_DIR_NAME]
-    blocked_module_names.extend(PRE_INJECTOR_CONFIG["AOSP_DEFAULT_PACKAGE_NAMES"])
-    blocked_module_names.extend(PRE_INJECTOR_CONFIG["BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES"])
-    blocked_module_names.extend(PRE_INJECTOR_CONFIG["HOST_PACKAGES_LIST"])
-    blocked_module_names.extend(PRE_INJECTOR_CONFIG["ANDROID_HARDWARE_MODULE_LIST"])
-
-    for libray in PRE_INJECTOR_CONFIG["SKIPPED_LIBRARIES"]:
-        blocked_module_names.append(libray.replace(".so", ""))
-    return blocked_module_names
-
-SKIPPED_MODULE_NAMES = get_skipped_module_names()
-
-
 if os.environ.get("FMD_DEBUG") == "True":
     setup_logger(logging.DEBUG)
 else:
@@ -932,6 +918,18 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     logging.info(f"Successfully built {len(succeed_firmware_ids)} of the following firmware ids: {succeed_firmware_ids} for arch: {args.arch}")
 
 
+def set_skipped_module_names():
+    global SKIPPED_MODULE_NAMES
+    blocked_module_names = [EXTRACTION_ALL_FILES_DIR_NAME]
+    blocked_module_names.extend(PRE_INJECTOR_CONFIG["AOSP_DEFAULT_PACKAGE_NAMES"])
+    blocked_module_names.extend(PRE_INJECTOR_CONFIG["BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES"])
+    blocked_module_names.extend(PRE_INJECTOR_CONFIG["HOST_PACKAGES_LIST"])
+    blocked_module_names.extend(PRE_INJECTOR_CONFIG["ANDROID_HARDWARE_MODULE_LIST"])
+
+    for libray in PRE_INJECTOR_CONFIG["SKIPPED_LIBRARIES"]:
+        blocked_module_names.append(libray.replace(".so", ""))
+    SKIPPED_MODULE_NAMES = blocked_module_names
+
 def main():
     logging.info("=======================BUILD INJECTOR=======================")
     args = parse_arguments()
@@ -949,6 +947,7 @@ def main():
         raise RuntimeError(f"Files or directories do not exist")
 
     load_configs(args.pre_injector_config, args.post_injector_config)
+    set_skipped_module_names()
     fmd_password, docker_repo_password = get_passwords(args)
     csrf_cookie = get_csrf_token(args.fmd_url)
     firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
