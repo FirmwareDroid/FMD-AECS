@@ -1,6 +1,8 @@
 import logging
 import os
 
+POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
+
 
 def is_file_inject_allowed(file_name):
     """
@@ -10,7 +12,6 @@ def is_file_inject_allowed(file_name):
 
     :return: bool - True if the file is allowed to be injected, False otherwise.
     """
-    from config_post_injector import POST_INJECTOR_CONFIG
     if file_name in POST_INJECTOR_CONFIG["SKIPPED_BINARY_LIST"]:
         return False
     for file_ending in POST_INJECTOR_CONFIG["SKIPPED_FILE_ENDING_LIST"]:
@@ -20,7 +21,6 @@ def is_file_inject_allowed(file_name):
 
 
 def is_file_extension_allowed(file_extension):
-    from config_post_injector import POST_INJECTOR_CONFIG
     if (len(POST_INJECTOR_CONFIG["ALLOW_ONLY_EXTENSION_LIST"] > 0)
             and file_extension not in POST_INJECTOR_CONFIG["ALLOW_ONLY_EXTENSION_LIST"]):
         return False
@@ -38,7 +38,6 @@ def is_file_path_allowed(file_path):
     :return: bool - True if the file path is allowed, False otherwise.
 
     """
-    from config_post_injector import POST_INJECTOR_CONFIG
     if any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["SKIPPED_KEYWORD_LIST"]):
         return False
 
@@ -50,7 +49,6 @@ def is_apex_file_path_allowed(file_path):
     :param file_path: str - The path to the file.
     :return: bool - True if the file path is allowed, False otherwise.
     """
-    from config_post_injector import POST_INJECTOR_CONFIG
     if any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["SKIPPED_APEX_KEYWORD_LIST"]):
         return False
     return True
@@ -60,7 +58,7 @@ def get_module_type(source_file_path, pre_injector_package_list=None):
     """
     Determines the module type of the source file.
     """
-    from config_post_injector import POST_INJECTOR_CONFIG
+
     source_file_path = source_file_path.strip()
     file_extension = os.path.splitext(source_file_path)[1]
     file_name = os.path.basename(source_file_path)
