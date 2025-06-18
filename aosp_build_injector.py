@@ -17,12 +17,12 @@ from getpass import getpass
 import time
 from aosp_apex_injector import repackage_apex_file
 from aosp_post_build_injector import start_post_build_injector
-from common import extract_zip
+from common import extract_zip, load_configs
 from config import *
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 from setup_logger import setup_logger
-from ConfigManager import ConfigManager
+
 
 
 if os.environ.get("FMD_DEBUG") == "True":
@@ -107,7 +107,9 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
                                       target_out_path,
                                       lunch_target,
                                       firmware_id,
-                                      included_package_statistics["apps"]
+                                      included_package_statistics["apps"],
+                                      PRE_INJECTOR_CONFIG_PATH,
+                                      POST_INJECTOR_CONFIG_PATH
                                       )
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target)
             execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path)
@@ -919,19 +921,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
         logging.error(f"Failed to build {len(failed_firmware_ids)} of the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
     logging.info(f"Successfully built {len(succeed_firmware_ids)} of the following firmware ids: {succeed_firmware_ids} for arch: {args.arch}")
 
-def load_configs(pre_injector_config_path, post_injector_config_path):
-    # Usage
-    ConfigManager.load_config("PRE_INJECTOR_CONFIG", pre_injector_config_path)
-    ConfigManager.load_config("POST_INJECTOR_CONFIG", post_injector_config_path)
-    global PRE_INJECTOR_CONFIG
-    global POST_INJECTOR_CONFIG
-    PRE_INJECTOR_CONFIG = ConfigManager.get_config("PRE_INJECTOR_CONFIG")
-    POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
-    logging.info(f"Loaded pre-injector config from {pre_injector_config_path}. Keys: {list(PRE_INJECTOR_CONFIG.keys())}")
-    logging.info(f"Loaded post injector config from {post_injector_config_path}. Keys: {list(POST_INJECTOR_CONFIG.keys())}")
-    if not PRE_INJECTOR_CONFIG or not POST_INJECTOR_CONFIG:
-        logging.error("Pre-injector or post-injector config is empty. Please check the config files.")
-        raise ValueError("Configuration files are empty or not loaded correctly.")
+
 
 def set_skipped_module_names():
     global SKIPPED_MODULE_NAMES
@@ -961,7 +951,16 @@ def main():
             or not os.path.exists(args.post_injector_config)):
         raise RuntimeError(f"Files or directories do not exist")
 
-    load_configs(args.pre_injector_config, args.post_injector_config)
+    pre_injector_config, post_injector_config = load_configs(args.pre_injector_config, args.post_injector_config)
+    global PRE_INJECTOR_CONFIG
+    global POST_INJECTOR_CONFIG
+    global PRE_INJECTOR_CONFIG_PATH
+    global POST_INJECTOR_CONFIG_PATH
+    PRE_INJECTOR_CONFIG = pre_injector_config
+    POST_INJECTOR_CONFIG = post_injector_config
+    PRE_INJECTOR_CONFIG_PATH = args.pre_injector_config
+    POST_INJECTOR_CONFIG_PATH = args.post_injector_config
+
     set_skipped_module_names()
     fmd_password, docker_repo_password = get_passwords(args)
     csrf_cookie = get_csrf_token(args.fmd_url)

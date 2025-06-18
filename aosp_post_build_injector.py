@@ -21,11 +21,10 @@ from filelock import FileLock
 from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
-from common import extract_vendor_name, remove_vendor_name_from_path
+from common import extract_vendor_name, remove_vendor_name_from_path, load_configs
 from config_post_injector import *
 from setup_logger import setup_logger
 from tqdm import tqdm
-from ConfigManager import ConfigManager
 
 
 if os.environ.get("FMD_DEBUG") == "True":
@@ -67,7 +66,7 @@ def write_json_output(data, output_file):
 
 
 def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target, firmware_id=None,
-                              pre_injector_package_list=None):
+                              pre_injector_package_list=None, pre_injector_config_path=None, post_injector_config_path=None):
     """
     Start the post build injector. Replaces the original objects in the AOSP source code with the vendor flavoured
     objects.
@@ -77,10 +76,12 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lu
     :param target_out_path: str - path to the AOSP target out folder.
     :param lunch_target: str - lunch target for the AOSP build.
     """
+    pre_injector_config, post_injector_config = load_configs(pre_injector_config_path, post_injector_config_path)
     global PRE_INJECTOR_CONFIG
     global POST_INJECTOR_CONFIG
-    PRE_INJECTOR_CONFIG = ConfigManager.get_config("PRE_INJECTOR_CONFIG")
-    POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
+    PRE_INJECTOR_CONFIG = pre_injector_config
+    POST_INJECTOR_CONFIG = post_injector_config
+
     logging.info(f"Starting post build injector with the following configuration: {POST_INJECTOR_CONFIG} | {PRE_INJECTOR_CONFIG}")
     if not aosp_path.endswith("/"):
         aosp_path = f"{aosp_path}/"
