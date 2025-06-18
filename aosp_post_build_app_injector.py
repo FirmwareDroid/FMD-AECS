@@ -2,7 +2,6 @@ import logging
 import os
 import shutil
 import traceback
-
 from shell_command import execute_command
 from config_post_injector import *
 
