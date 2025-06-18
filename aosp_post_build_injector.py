@@ -988,6 +988,12 @@ def parse_arguments():
                         required=True,
                         type=str,
                         help='Path to the AOSP root folder.')
+    parser.add_argument("-m", "--pre_injector_config",
+                        type=str,
+                        default="./device_configs/pre_injector_config_v1.json", )
+    parser.add_argument("-i", "--post_injector_config",
+                        type=str,
+                        default="./device_configs/post_injector_config_v1.json", )
     args = parser.parse_args()
 
     return args
@@ -1009,6 +1015,7 @@ def main():
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")
     start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target)
+
     logging.info("=======================AOSP POST BUILD INJECTOR EXIT=======================")
 
 
