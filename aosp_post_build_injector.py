@@ -77,8 +77,6 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lu
     :param target_out_path: str - path to the AOSP target out folder.
     :param lunch_target: str - lunch target for the AOSP build.
     """
-    ConfigManager.load_config("PRE_INJECTOR_CONFIG", pre_injector_config_path)
-    ConfigManager.load_config("POST_INJECTOR_CONFIG", post_injector_config_path)
     global PRE_INJECTOR_CONFIG
     global POST_INJECTOR_CONFIG
     PRE_INJECTOR_CONFIG = ConfigManager.get_config("PRE_INJECTOR_CONFIG")
