@@ -1014,7 +1014,7 @@ def main():
     lunch_target = "sdk_phone_arm64-userdebug"
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")
-    start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target)
+    start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target, args.pre_injector_config, args.post_injector_config)
 
     logging.info("=======================AOSP POST BUILD INJECTOR EXIT=======================")
 
