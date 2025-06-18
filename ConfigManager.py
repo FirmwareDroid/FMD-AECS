@@ -1,39 +1,48 @@
+# Python
 import json
 import logging
 
-class ConfigManager:
-    _configs = {}
 
-    @classmethod
-    def load_config(cls, config_name, config_path):
+class ConfigManager:
+    _configurations = {}  # Class-level dictionary to store configurations
+
+    @staticmethod
+    def load_config(name, path):
         """
-        Load a configuration file and store it in the manager.
-        :param config_name: str - Name of the configuration.
-        :param config_path: str - Path to the configuration file.
+        Loads a configuration file and stores it in the class-level dictionary.
+
+        :param name: str - Name of the configuration.
+        :param path: str - Path to the configuration file.
         """
         try:
-            with open(config_path, 'r') as file:
-                cls._configs[config_name] = json.load(file)
-                logging.info(f"Loaded configuration '{config_name}' from {config_path}.")
+            with open(path, 'r') as file:
+                ConfigManager._configurations[name] = json.load(file)
         except Exception as e:
-            logging.error(f"Error loading configuration '{config_name}' from {config_path}: {e}")
+            logging.error(f"Failed to load config {name} from {path}: {e}")
             raise
 
-    @classmethod
-    def get_config(cls, config_name):
+    @staticmethod
+    def get_config(name):
         """
-        Retrieve a configuration by name.
-        :param config_name: str - Name of the configuration.
-        :return: dict - Configuration data.
-        """
-        return cls._configs.get(config_name)
+        Retrieves a configuration by name.
 
-    @classmethod
-    def reload_config(cls, config_name, config_path):
+        :param name: str - Name of the configuration.
+        :return: dict - The configuration data.
         """
-        Reload a configuration file.
-        :param config_name: str - Name of the configuration.
-        :param config_path: str - Path to the configuration file.
-        """
-        cls.load_config(config_name, config_path)
+        return ConfigManager._configurations.get(name)
 
+    @staticmethod
+    def clear_config(name):
+        """
+        Clears a specific configuration.
+
+        :param name: str - Name of the configuration to clear.
+        """
+        ConfigManager._configurations.pop(name, None)
+
+    @staticmethod
+    def clear_all_configs():
+        """
+        Clears all configurations.
+        """
+        ConfigManager._configurations.clear()
