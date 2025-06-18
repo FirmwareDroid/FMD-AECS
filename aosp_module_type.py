@@ -1,6 +1,8 @@
 import logging
 import os
 
+from ConfigManager import ConfigManager
+
 POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
 
 
