@@ -6,17 +6,21 @@ import subprocess
 import tempfile
 import zipfile
 from jinja2 import Environment, FileSystemLoader
+from ConfigManager import ConfigManager
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
     sign_apex_container_apksigner, sign_apex_container_signapk
 from common import extract_vendor_name, remove_vendor_name_from_filename
 from shell_command import execute_shell_command
 from config_post_injector import *
 
+POST_INJECTOR_CONFIG = None
 
 def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     """
     Merges two APEX files into one. Overwrites the vendor's APEX for later injection.
     """
+    global POST_INJECTOR_CONFIG
+    POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
     logging.info(f"Handling APEX modules: {file_path} | {aosp_path} | {lunch_target} | {target_out_path}")
     is_merge_success = False
     log_message = ""
@@ -121,6 +125,9 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target):
     :return: tuple - (bool, str) - True if the repackage was successful, False otherwise. String containing the log.
 
     """
+    global POST_INJECTOR_CONFIG
+    POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
+
     filename = str(os.path.basename(apex_file_path)).replace(".apex", "").replace(".capex", "")
     logging.info(f"Repackaging APEX file: {apex_file_path}")
     is_success = False
