@@ -65,8 +65,14 @@ def write_json_output(data, output_file):
         print(f"Error writing JSON output: {e}")
 
 
-def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lunch_target, firmware_id=None,
-                              pre_injector_package_list=None, pre_injector_config_path=None, post_injector_config_path=None):
+def start_post_build_injector(aosp_path,
+                              source_folder_path,
+                              target_out_path,
+                              lunch_target,
+                              firmware_id=None,
+                              pre_injector_package_list=None,
+                              pre_injector_config_path=None,
+                              post_injector_config_path=None):
     """
     Start the post build injector. Replaces the original objects in the AOSP source code with the vendor flavoured
     objects.
@@ -76,6 +82,8 @@ def start_post_build_injector(aosp_path, source_folder_path, target_out_path, lu
     :param target_out_path: str - path to the AOSP target out folder.
     :param lunch_target: str - lunch target for the AOSP build.
     """
+    logging.info(
+        f"Starting post build injector : {post_injector_config_path} | {pre_injector_config_path}")
     pre_injector_config, post_injector_config = load_configs(pre_injector_config_path, post_injector_config_path)
     global PRE_INJECTOR_CONFIG
     global POST_INJECTOR_CONFIG
