@@ -1,9 +1,7 @@
 import logging
 import os
 
-from ConfigManager import ConfigManager
-
-POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
+POST_INJECTOR_CONFIG = None
 
 
 def is_file_inject_allowed(file_name):
@@ -56,11 +54,12 @@ def is_apex_file_path_allowed(file_path):
     return True
 
 
-def get_module_type(source_file_path, pre_injector_package_list=None):
+def get_module_type(source_file_path, pre_injector_package_list=None, post_injector_config=None):
     """
     Determines the module type of the source file.
     """
-
+    global POST_INJECTOR_CONFIG
+    POST_INJECTOR_CONFIG = post_injector_config
     source_file_path = source_file_path.strip()
     file_extension = os.path.splitext(source_file_path)[1]
     file_name = os.path.basename(source_file_path)
