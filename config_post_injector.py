@@ -1,7 +1,6 @@
 import os
 
-from config import (POST_INJECTOR_CONFIG,
-                    BUILD_OUT_PATH,
+from config import (BUILD_OUT_PATH,
                     FILE_CONTEXT_TEMPLATE_PATH,
                     ROOT_PATH,
                     TEMPLATE_FOLDER,
@@ -9,7 +8,6 @@ from config import (POST_INJECTOR_CONFIG,
                     VENDOR_NAMES,
                     MODULE_BASE_INJECT_DIR
                     )
-POST_INJECTOR_CONFIG = POST_INJECTOR_CONFIG
 PRINT_ALL_LOGS = True
 PRINT_ERROR_LOGS = True
 FOLDER_NAME_OBJECTS = "obj"
