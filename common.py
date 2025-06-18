@@ -2,7 +2,7 @@ import logging
 import os
 import re
 import zipfile
-
+from ConfigManager import ConfigManager
 from config import VENDOR_NAMES
 
 
@@ -57,8 +57,6 @@ def extract_vendor_name_from_filename(filename):
     return ""
 
 
-
-
 def get_vendor_words(file_path=None, filename=None):
     """
     Get the vendor name from the file path.
@@ -86,7 +84,8 @@ def get_vendor_words(file_path=None, filename=None):
 
     words_to_replace = []
     for name in vendor_name_list:
-        if name and name != "" and name != "." and name != "..":
+        name = str(name)
+        if name and name is not "" and name is not "." and name is not "..":
             name.replace("..", ".")
             words_to_replace.append(f".{name.lower()}")
             words_to_replace.append(f".{name.capitalize()}")
@@ -115,3 +114,20 @@ def remove_vendor_name_from_filename(filename):
         filename_no_ext = filename_no_ext.replace(word, "")
     logging.info(f"Removed vendor name: {filename_no_ext}")
     return filename_no_ext
+
+
+def load_configs(pre_injector_config_path, post_injector_config_path):
+    # Usage
+    ConfigManager.load_config("PRE_INJECTOR_CONFIG", pre_injector_config_path)
+    ConfigManager.load_config("POST_INJECTOR_CONFIG", post_injector_config_path)
+
+    pre_injector_config = ConfigManager.get_config("PRE_INJECTOR_CONFIG")
+    post_injector_config = ConfigManager.get_config("POST_INJECTOR_CONFIG")
+    logging.info(f"Loaded pre-injector config from {pre_injector_config_path}. Keys: {list(pre_injector_config.keys())}")
+    logging.info(f"Loaded post injector config from {post_injector_config_path}. Keys: {list(post_injector_config.keys())}")
+    if not pre_injector_config or not post_injector_config:
+        logging.error("Pre-injector or post-injector config is empty. Please check the config files.")
+        raise ValueError("Configuration files are empty or not loaded correctly.")
+    return pre_injector_config, post_injector_config
+
+
