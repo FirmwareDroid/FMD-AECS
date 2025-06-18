@@ -13,7 +13,7 @@ from common import extract_vendor_name, remove_vendor_name_from_filename
 from shell_command import execute_shell_command
 from config_post_injector import *
 
-POST_INJECTOR_CONFIG = None
+POST_INJECTOR_CONFIG = {}
 
 def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     """
@@ -21,6 +21,8 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
     """
     global POST_INJECTOR_CONFIG
     POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
+    if not POST_INJECTOR_CONFIG:
+        raise Exception("No POST_INJECTOR_CONFIG found")
     logging.info(f"Handling APEX modules: {file_path} | {aosp_path} | {lunch_target} | {target_out_path}")
     is_merge_success = False
     log_message = ""
