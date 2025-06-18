@@ -19,6 +19,7 @@ from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 from filelock import FileLock
 from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file
+from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs
 from config_post_injector import *
@@ -226,7 +227,6 @@ def process_partitions(aosp_path, source_folder_path, target_out_path, executor,
 
 
 def process_file_concurrently(aosp_path, file_path, partition_name, target_out_path, lunch_target, pre_injector_package_list):
-    from aosp_module_type import get_module_type
     inj_obj = None
     inj_partition = None
     error_message = None
