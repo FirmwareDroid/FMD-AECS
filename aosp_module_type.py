@@ -21,7 +21,7 @@ def is_file_inject_allowed(file_name):
 
 
 def is_file_extension_allowed(file_extension):
-    if (len(POST_INJECTOR_CONFIG["ALLOW_ONLY_EXTENSION_LIST"] > 0)
+    if (len(POST_INJECTOR_CONFIG["ALLOW_ONLY_EXTENSION_LIST"]) > 0
             and file_extension not in POST_INJECTOR_CONFIG["ALLOW_ONLY_EXTENSION_LIST"]):
         return False
     if file_extension in POST_INJECTOR_CONFIG["SKIPPED_FILE_EXTENSION_LIST_GENERAL"]:
