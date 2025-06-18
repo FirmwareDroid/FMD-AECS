@@ -932,7 +932,6 @@ def load_configs(pre_injector_config_path, post_injector_config_path):
 
 def set_skipped_module_names():
     global SKIPPED_MODULE_NAMES
-    logging.info(PRE_INJECTOR_CONFIG)
     blocked_module_names = [EXTRACTION_ALL_FILES_DIR_NAME]
     blocked_module_names.extend(PRE_INJECTOR_CONFIG["AOSP_DEFAULT_PACKAGE_NAMES"])
     blocked_module_names.extend(PRE_INJECTOR_CONFIG["BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES"])
