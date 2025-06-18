@@ -22,6 +22,7 @@ from config import *
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 from setup_logger import setup_logger
+import ConfigManager
 
 
 if os.environ.get("FMD_DEBUG") == "True":
@@ -106,7 +107,8 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
                                       target_out_path,
                                       lunch_target,
                                       firmware_id,
-                                      included_package_statistics["apps"])
+                                      included_package_statistics["apps"]
+                                      )
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target)
             execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path)
             is_successful = True
@@ -918,13 +920,14 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     logging.info(f"Successfully built {len(succeed_firmware_ids)} of the following firmware ids: {succeed_firmware_ids} for arch: {args.arch}")
 
 def load_configs(pre_injector_config_path, post_injector_config_path):
+    # Usage
+    ConfigManager.load_config("PRE_INJECTOR_CONFIG", pre_injector_config_path)
+    ConfigManager.load_config("POST_INJECTOR_CONFIG", post_injector_config_path)
     global PRE_INJECTOR_CONFIG
     global POST_INJECTOR_CONFIG
-    with open(pre_injector_config_path, 'r') as file:
-        PRE_INJECTOR_CONFIG = json.load(file)
+    PRE_INJECTOR_CONFIG = ConfigManager.get_config("PRE_INJECTOR_CONFIG")
+    POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
     logging.info(f"Loaded pre-injector config from {pre_injector_config_path}. Keys: {list(PRE_INJECTOR_CONFIG.keys())}")
-    with open(post_injector_config_path, 'r') as file:
-        POST_INJECTOR_CONFIG = json.load(file)
     logging.info(f"Loaded post injector config from {post_injector_config_path}. Keys: {list(POST_INJECTOR_CONFIG.keys())}")
     if not PRE_INJECTOR_CONFIG or not POST_INJECTOR_CONFIG:
         logging.error("Pre-injector or post-injector config is empty. Please check the config files.")
