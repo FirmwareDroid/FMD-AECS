@@ -22,7 +22,7 @@ from config import *
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
 from setup_logger import setup_logger
-import ConfigManager
+from ConfigManager import ConfigManager
 
 
 if os.environ.get("FMD_DEBUG") == "True":
