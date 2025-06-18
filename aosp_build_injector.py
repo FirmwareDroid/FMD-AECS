@@ -960,7 +960,7 @@ def main():
     POST_INJECTOR_CONFIG = post_injector_config
     PRE_INJECTOR_CONFIG_PATH = args.pre_injector_config
     POST_INJECTOR_CONFIG_PATH = args.post_injector_config
-
+    logging.info(f"Pre-injector config: {PRE_INJECTOR_CONFIG_PATH}, Post-injector config: {POST_INJECTOR_CONFIG_PATH}")
     set_skipped_module_names()
     fmd_password, docker_repo_password = get_passwords(args)
     csrf_cookie = get_csrf_token(args.fmd_url)
