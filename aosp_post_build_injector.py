@@ -25,6 +25,7 @@ from common import extract_vendor_name, remove_vendor_name_from_path
 from config_post_injector import *
 from setup_logger import setup_logger
 from tqdm import tqdm
+from ConfigManager import ConfigManager
 
 
 if os.environ.get("FMD_DEBUG") == "True":
