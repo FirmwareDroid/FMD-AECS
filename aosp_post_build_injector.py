@@ -241,7 +241,9 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         with ((lock)):
             if os.path.exists(processed_marker):
                 return f"File already processed: {file_path}", None, None
-            module_type = get_module_type(file_path, pre_injector_package_list=pre_injector_package_list)
+            module_type = get_module_type(file_path,
+                                          pre_injector_package_list=pre_injector_package_list,
+                                          post_injector_config=POST_INJECTOR_CONFIG)
 
             with processed_files_lock:
                 if file_path in processed_files:
