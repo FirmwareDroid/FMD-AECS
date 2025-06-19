@@ -218,7 +218,8 @@
     "usbd",
     "traced",
     "libvibrator.so",
-    "libaudioprocessing.so"
+    "libaudioprocessing.so",
+    "libandroid_runtime.so"
   ],
   "SKIPPED_KEYWORD_LIST": [
     "keystore",
