@@ -87,7 +87,11 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         exit(-1)
 
     try:
-        inject_meta_files(aosp_path, aosp_version)
+        package_name_list = []
+        package_name_list.extend(included_package_statistics["apps"])
+        package_name_list.extend(included_package_statistics["libs"])
+        package_name_list.extend(included_package_statistics["apex"])
+        inject_meta_files(aosp_path, aosp_version, package_name_list)
         logging.info(f"Injected meta files into aosp source code: {aosp_path}")
     except Exception as err:
         logging.error(f"Error injecting meta files: {err}")
@@ -194,35 +198,96 @@ def get_base_filename(meta_build_filename):
         return BASE_SYSTEM_FILE_NAME
 
 
-def read_and_render_template(meta_build_path, base_filename, aosp_version):
+# def read_and_render_template(meta_build_path, base_filename, aosp_version):
+#     """
+#     Reads the meta_build.txt file and renders the aosp build file template with the package names.
+#
+#     :param meta_build_path: str - path to the meta_build.txt file.
+#     :param base_filename: str - base filename of the aosp build file to use as template.
+#     :param aosp_version: str - version of the aosp build.
+#
+#     :returns: str - rendered aosp build file template.
+#
+#     """
+#     logging.info(f"Reading meta file: {meta_build_path}")
+#     with open(meta_build_path, 'r') as meta_build_file:
+#         package_name_list = []
+#         for line in meta_build_file:
+#             stripped_line = line.replace("\\","").strip().replace("_FMD_APEX","")
+#             stripped_line = stripped_line.replace("_fmd", "")
+#             logging.info(f"Checking Module for inclusion in pre-injector: {stripped_line}")
+#             if any(stripped_line.strip() == blacklisted_module for blacklisted_module in SKIPPED_MODULE_NAMES):
+#                 logging.info(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
+#             else:
+#                 logging.info(f"Allowing module meta in build: {line}")
+#                 package_name_list.append(line)
+#         template_folder_abs_path = get_template_folder_path(aosp_version)
+#         logging.debug(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
+#         environment = Environment(loader=FileSystemLoader(str(template_folder_abs_path)))
+#         template = environment.get_template(base_filename)
+#         return template.render(package_name_list=package_name_list)
+
+def read_and_render_template(meta_build_path, base_filename, aosp_version, package_name_list):
     """
-    Reads the meta_build.txt file and renders the aosp build file template with the package names.
+    Reads the meta_build.txt file and renders the AOSP build file template with the package names.
 
     :param meta_build_path: str - path to the meta_build.txt file.
-    :param base_filename: str - base filename of the aosp build file to use as template.
-    :param aosp_version: str - version of the aosp build.
+    :param base_filename: str - base filename of the AOSP build file to use as a template.
+    :param aosp_version: str - version of the AOSP build.
 
-    :returns: str - rendered aosp build file template.
+    :returns: str - rendered AOSP build file template.
+    """
+    package_line_list = extract_package_names(meta_build_path, package_name_list)
+    template_folder_abs_path = get_template_folder_path(aosp_version)
+    return render_template(template_folder_abs_path, base_filename, package_line_list)
+
+
+def extract_package_names(meta_build_path, package_name_list):
+    """
+    Extracts package names from the meta_build.txt file, filtering out blacklisted modules.
+
+    :param meta_build_path: str - path to the meta_build.txt file.
+    :param package_name_list: list - list of allowed package names to filter against.
+    :returns: list - list of package names.
 
     """
-    logging.info(f"Reading meta file: {meta_build_path}")
+    package_line_list = []
     with open(meta_build_path, 'r') as meta_build_file:
-        package_name_list = []
         for line in meta_build_file:
-            stripped_line = line.replace("\\","").strip().replace("_FMD_APEX","")
-            stripped_line = stripped_line.replace("_fmd", "")
-            logging.info(f"Checking Module for inclusion in pre-injector: {stripped_line}")
-            if any(stripped_line.strip() == blacklisted_module for blacklisted_module in SKIPPED_MODULE_NAMES):
+            stripped_line = clean_package_name(line)
+            if stripped_line not in package_name_list:
                 logging.info(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
             else:
                 logging.info(f"Allowing module meta in build: {line}")
-                package_name_list.append(line)
-        template_folder_abs_path = get_template_folder_path(aosp_version)
-        logging.debug(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
-        environment = Environment(loader=FileSystemLoader(str(template_folder_abs_path)))
-        template = environment.get_template(base_filename)
-        return template.render(package_name_list=package_name_list)
+                package_line_list.append(line)
+    return package_line_list
 
+
+def clean_package_name(package_name):
+    """
+    Cleans the package name by removing unwanted characters.
+
+    :param package_name: str - raw package name.
+
+    :returns: str - cleaned package name.
+    """
+    return package_name.replace("\\", "").replace("_FMD_APEX", "").replace("_fmd", "").strip()
+
+
+def render_template(template_folder_abs_path, base_filename, package_name_list):
+    """
+    Renders the template with the given package names.
+
+    :param template_folder_abs_path: str - path to the template folder.
+    :param base_filename: str - base filename of the template.
+    :param package_name_list: list - list of package names.
+
+    :returns: str - rendered template.
+    """
+    logging.debug(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
+    environment = Environment(loader=FileSystemLoader(str(template_folder_abs_path)))
+    template = environment.get_template(base_filename)
+    return template.render(package_name_list=package_name_list)
 
 def get_template_folder_path(aosp_version):
     if aosp_version == "12":
@@ -367,85 +432,220 @@ def get_apex_file(directory_path):
 
 def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
     """
-    Moves the prebuilt packages to the aosp source code.
+    Moves the prebuilt packages to the AOSP source code.
 
     :param extracted_packages_path: str - path to the extracted packages.
-    :param aosp_path: str - path to aosp root folder.
-    :param lunch_target: str - aosp build argument to select the build arch.
+    :param aosp_path: str - path to AOSP root folder.
+    :param lunch_target: str - AOSP build argument to select the build arch.
 
-    :returns: list(str) - list of included package names.
-
+    :returns: dict - statistics of included packages.
     """
-    out_dir = str(os.path.join(aosp_path, MODULE_BASE_INJECT_DIR))
+    out_dir = os.path.join(aosp_path, MODULE_BASE_INJECT_DIR)
     os.makedirs(out_dir, exist_ok=True)
-    if not aosp_path.endswith("/"):
-        aosp_path = aosp_path + "/"
     included_package_statistics = {"apps": [], "libs": [], "apex": [], "count": 0}
-    package_count = 0
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
         if os.path.isdir(package_path):
-            uuid_dir = str(uuid.uuid4())
+            process_package(package_path, dir_name, aosp_path, out_dir, included_package_statistics, lunch_target)
 
-            if dir_name.strip().replace("_fmd", "") in SKIPPED_MODULE_NAMES:
-                logging.info(f"Skipping package: {dir_name} as it is a default module.")
-            elif any(keyword in dir_name.strip() for keyword in PRE_INJECTOR_CONFIG["BLACKLISTED_KEYWORDS"]):
-                logging.info(f"Skipping package by keyword: {dir_name} as it is likely a problematic module.")
-            else:
-                so_file_extension_list = [".so"]
-                apex_file_extension_list = [".apex", ".capex"]
-                if check_file_extension(package_path, so_file_extension_list):
-                    if not PRE_INJECTOR_CONFIG["DISABLE_NATIVE_LIBRARY_INJECTION"]:
-                        framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", f"{dir_name}_{uuid_dir}")
-                        logging.info(f"Copying library package: {package_path} to {framework_lib_path}")
-                        shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
-                        included_package_statistics["libs"].append(dir_name)
-                    else:
-                        logging.info(f"Native library injection disabled in pre-injector: {dir_name}")
-                elif check_file_extension(package_path, apex_file_extension_list):
-                    if PRE_INJECTOR_CONFIG["ALLOW_APEX_INJECTION"]:
-                        package_dir_name = os.path.basename(package_path).lower()
-                        apex_file_path = get_apex_file(package_path)
-                        if not os.path.exists(apex_file_path):
-                            logging.error(f"Could not find apex file in pre-injector: {apex_file_path}")
-                            continue
-                        apex_filename = os.path.basename(apex_file_path)
-                        if any(keyword.lower() in package_dir_name for keyword
-                               in PRE_INJECTOR_CONFIG["APEX_PRE_INJECT_DISALLOWED_KEYWORDS"]):
-                            logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
-                            continue
-                        modules_path = os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name)
-                        logging.info(f"Copying APEX package: {package_path} to {modules_path}")
-                        shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
-                        if apex_file_path:
-                            if PRE_INJECTOR_CONFIG["ALLOW_APEX_REPACKING_IN_PRE_INJECTOR"]:
-                                is_success = False
-                                log_message = ""
-                                is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, lunch_target)
-                                if is_success:
-                                    logging.info(f"Repackaged APEX package: {apex_file_path} successfully.")
-                                    included_package_statistics["apex"].append(dir_name)
-                                else:
-                                    logging.error(f"APEX repacking error: {log_message}. EXIT PROGRAM NOW.")
-                                    exit(1)
-                        else:
-                            logging.error(f"Could not find apex file in: {modules_path}")
-                    else:
-                        logging.debug(f"APEX injection disabled in pre-injector: {dir_name}")
-                else:
-                    if "FMD_APEX" in dir_name:
-                        logging.info(f"Skipping APEX APP package in pre-injector: {dir_name}")
-                    else:
-                        logging.info(f"Moving App: {dir_name} from {package_path} to {out_dir}")
-                        app_modules_path = os.path.join(aosp_path, f"{out_dir}apps/", f"{dir_name}_{uuid_dir}")
-                        shutil.copytree(package_path, app_modules_path, dirs_exist_ok=True)
-                        included_package_statistics["apps"].append(dir_name)
-                package_count += 1
-    included_package_statistics["count"] = package_count
+    included_package_statistics["count"] = len(included_package_statistics["apps"]) + \
+                                           len(included_package_statistics["libs"]) + \
+                                           len(included_package_statistics["apex"])
+    included_package_statistics["apps"] = sorted(included_package_statistics["apps"])
+    included_package_statistics["libs"] = sorted(included_package_statistics["libs"])
+    included_package_statistics["apex"] = sorted(included_package_statistics["apex"])
+
     return included_package_statistics
 
 
-def inject_meta_files(aosp_path, aosp_version):
+def process_package(package_path, dir_name, aosp_path, out_dir, included_package_statistics, lunch_target):
+    """
+    Processes a single package directory and moves it to the appropriate location.
+
+    :param package_path: str - path to the package directory.
+    :param dir_name: str - name of the package directory.
+    :param aosp_path: str - path to AOSP root folder.
+    :param out_dir: str - output directory for injected packages.
+    :param included_package_statistics: dict - statistics of included packages.
+    :param lunch_target: str - AOSP build argument to select the build arch.
+    """
+    uuid_dir = str(uuid.uuid4())
+    if is_package_skipped(dir_name):
+        logging.info(f"Skipping package: {dir_name}")
+        return
+
+    if check_file_extension(package_path, [".so"]):
+        handle_library_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics)
+    elif check_file_extension(package_path, [".apex", ".capex"]):
+        handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics, lunch_target)
+    else:
+        handle_app_package(package_path, dir_name, uuid_dir, out_dir, included_package_statistics)
+
+
+def is_package_skipped(dir_name):
+    """
+    Checks if a package should be skipped based on its name.
+
+    :param dir_name: str - name of the package directory.
+
+    :returns: bool - True if the package should be skipped, False otherwise.
+    """
+    dir_name_cleaned = clean_package_name(dir_name)
+    if dir_name_cleaned in SKIPPED_MODULE_NAMES or any(keyword in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["BLACKLISTED_KEYWORDS"]):
+        return True
+    return False
+
+
+def handle_library_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics):
+    """
+    Handles the injection of library packages.
+
+    :param package_path: str - path to the package directory.
+    :param dir_name: str - name of the package directory.
+    :param uuid_dir: str - unique identifier for the package.
+    :param aosp_path: str - path to AOSP root folder.
+    :param out_dir: str - output directory for injected packages.
+    :param included_package_statistics: dict - statistics of included packages.
+    """
+    if not PRE_INJECTOR_CONFIG["DISABLE_NATIVE_LIBRARY_INJECTION"]:
+        framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", f"{dir_name}_{uuid_dir}")
+        logging.info(f"Copying library package: {package_path} to {framework_lib_path}")
+        shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
+        included_package_statistics["libs"].append(dir_name)
+    else:
+        logging.info(f"Native library injection disabled for package: {dir_name}")
+
+
+def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics, lunch_target):
+    """
+    Handles the injection of APEX packages.
+
+    :param package_path: str - path to the package directory.
+    :param dir_name: str - name of the package directory.
+    :param uuid_dir: str - unique identifier for the package.
+    :param aosp_path: str - path to AOSP root folder.
+    :param out_dir: str - output directory for injected packages.
+    :param included_package_statistics: dict - statistics of included packages.
+    :param lunch_target: str - AOSP build argument to select the build arch.
+    """
+    apex_file_path = get_apex_file(package_path)
+    if not apex_file_path or not PRE_INJECTOR_CONFIG["ALLOW_APEX_INJECTION"]:
+        logging.info(f"Skipping APEX package: {dir_name}")
+        return
+
+    package_dir_name = os.path.basename(package_path).lower()
+    if any(keyword.lower() in package_dir_name for keyword in PRE_INJECTOR_CONFIG["APEX_PRE_INJECT_DISALLOWED_KEYWORDS"]):
+        logging.info(f"Skipping APEX package due to disallowed keyword: {package_dir_name}")
+        return
+
+    modules_path = os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name)
+    logging.info(f"Copying APEX package: {package_path} to {modules_path}")
+    shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
+    if PRE_INJECTOR_CONFIG["ALLOW_APEX_REPACKING_IN_PRE_INJECTOR"]:
+        is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, lunch_target)
+        if is_success:
+            logging.info(f"Repackaged APEX package: {apex_file_path} successfully.")
+            included_package_statistics["apex"].append(dir_name)
+        else:
+            logging.error(f"APEX repacking error: {log_message}. Exiting.")
+            exit(1)
+
+
+def handle_app_package(package_path, dir_name, uuid_dir, out_dir, included_package_statistics):
+    """
+    Handles the injection of app packages.
+
+    :param package_path: str - path to the package directory.
+    :param dir_name: str - name of the package directory.
+    :param uuid_dir: str - unique identifier for the package.
+    :param out_dir: str - output directory for injected packages.
+    :param included_package_statistics: dict - statistics of included packages.
+    """
+    app_modules_path = os.path.join(out_dir, "apps", f"{dir_name}_{uuid_dir}")
+    logging.info(f"Moving app package: {dir_name} from {package_path} to {app_modules_path}")
+
+
+# def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
+#     """
+#     Moves the prebuilt packages to the aosp source code.
+#
+#     :param extracted_packages_path: str - path to the extracted packages.
+#     :param aosp_path: str - path to aosp root folder.
+#     :param lunch_target: str - aosp build argument to select the build arch.
+#
+#     :returns: list(str) - list of included package names.
+#
+#     """
+#     out_dir = str(os.path.join(aosp_path, MODULE_BASE_INJECT_DIR))
+#     os.makedirs(out_dir, exist_ok=True)
+#     if not aosp_path.endswith("/"):
+#         aosp_path = aosp_path + "/"
+#     included_package_statistics = {"apps": [], "libs": [], "apex": [], "count": 0}
+#     package_count = 0
+#     for dir_name in os.listdir(extracted_packages_path):
+#         package_path = os.path.join(extracted_packages_path, dir_name)
+#         if os.path.isdir(package_path):
+#             uuid_dir = str(uuid.uuid4())
+#
+#             if dir_name.strip().replace("_fmd", "") in SKIPPED_MODULE_NAMES:
+#                 logging.info(f"Skipping package: {dir_name} as it is a default module.")
+#             elif any(keyword in dir_name.strip() for keyword in PRE_INJECTOR_CONFIG["BLACKLISTED_KEYWORDS"]):
+#                 logging.info(f"Skipping package by keyword: {dir_name} as it is likely a problematic module.")
+#             else:
+#                 so_file_extension_list = [".so"]
+#                 apex_file_extension_list = [".apex", ".capex"]
+#                 if check_file_extension(package_path, so_file_extension_list):
+#                     if not PRE_INJECTOR_CONFIG["DISABLE_NATIVE_LIBRARY_INJECTION"]:
+#                         framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", f"{dir_name}_{uuid_dir}")
+#                         logging.info(f"Copying library package: {package_path} to {framework_lib_path}")
+#                         shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
+#                         included_package_statistics["libs"].append(dir_name)
+#                     else:
+#                         logging.info(f"Native library injection disabled in pre-injector: {dir_name}")
+#                 elif check_file_extension(package_path, apex_file_extension_list):
+#                     if PRE_INJECTOR_CONFIG["ALLOW_APEX_INJECTION"]:
+#                         package_dir_name = os.path.basename(package_path).lower()
+#                         apex_file_path = get_apex_file(package_path)
+#                         if not os.path.exists(apex_file_path):
+#                             logging.error(f"Could not find apex file in pre-injector: {apex_file_path}")
+#                             continue
+#                         apex_filename = os.path.basename(apex_file_path)
+#                         if any(keyword.lower() in package_dir_name for keyword
+#                                in PRE_INJECTOR_CONFIG["APEX_PRE_INJECT_DISALLOWED_KEYWORDS"]):
+#                             logging.info(f"Skipping APEX package (KEYWORD) in pre-injector: {package_dir_name}")
+#                             continue
+#                         modules_path = os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name)
+#                         logging.info(f"Copying APEX package: {package_path} to {modules_path}")
+#                         shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
+#                         if apex_file_path:
+#                             if PRE_INJECTOR_CONFIG["ALLOW_APEX_REPACKING_IN_PRE_INJECTOR"]:
+#                                 is_success = False
+#                                 log_message = ""
+#                                 is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, lunch_target)
+#                                 if is_success:
+#                                     logging.info(f"Repackaged APEX package: {apex_file_path} successfully.")
+#                                     included_package_statistics["apex"].append(dir_name)
+#                                 else:
+#                                     logging.error(f"APEX repacking error: {log_message}. EXIT PROGRAM NOW.")
+#                                     exit(1)
+#                         else:
+#                             logging.error(f"Could not find apex file in: {modules_path}")
+#                     else:
+#                         logging.debug(f"APEX injection disabled in pre-injector: {dir_name}")
+#                 else:
+#                     if "FMD_APEX" in dir_name:
+#                         logging.info(f"Skipping APEX APP package in pre-injector: {dir_name}")
+#                     else:
+#                         logging.info(f"Moving App: {dir_name} from {package_path} to {out_dir}")
+#                         app_modules_path = os.path.join(aosp_path, f"{out_dir}apps/", f"{dir_name}_{uuid_dir}")
+#                         shutil.copytree(package_path, app_modules_path, dirs_exist_ok=True)
+#                         included_package_statistics["apps"].append(dir_name)
+#                 package_count += 1
+#     included_package_statistics["count"] = package_count
+#     return included_package_statistics
+
+
+def inject_meta_files(aosp_path, aosp_version, package_name_list):
     """
     Replaces the original base_system.mk of the AOSP source code with a modified version.
     The modified version includes all the packages to inject into the build process.
@@ -466,7 +666,7 @@ def inject_meta_files(aosp_path, aosp_version):
             else:
                 continue
         base_filename = get_base_filename(meta_build_filename)
-        content = read_and_render_template(meta_build_path, base_filename, aosp_version)
+        content = read_and_render_template(meta_build_path, base_filename, aosp_version, package_name_list)
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
         out_file_path = os.path.join(BUILD_OUT_PATH, base_filename)
         write_and_copy_file(content, out_file_path, aosp_base_file_path)
