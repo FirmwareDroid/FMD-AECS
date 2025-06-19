@@ -395,10 +395,13 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
                 so_file_extension_list = [".so"]
                 apex_file_extension_list = [".apex", ".capex"]
                 if check_file_extension(package_path, so_file_extension_list):
-                    framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", f"{dir_name}_{uuid_dir}")
-                    logging.info(f"Copying library package: {package_path} to {framework_lib_path}")
-                    shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
-                    included_package_statistics["libs"].append(dir_name)
+                    if not PRE_INJECTOR_CONFIG["DISABLE_NATIVE_LIBRARY_INJECTION"]:
+                        framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", f"{dir_name}_{uuid_dir}")
+                        logging.info(f"Copying library package: {package_path} to {framework_lib_path}")
+                        shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
+                        included_package_statistics["libs"].append(dir_name)
+                    else:
+                        logging.info(f"Native library injection disabled in pre-injector: {dir_name}")
                 elif check_file_extension(package_path, apex_file_extension_list):
                     if PRE_INJECTOR_CONFIG["ALLOW_APEX_INJECTION"]:
                         package_dir_name = os.path.basename(package_path).lower()

@@ -325,6 +325,8 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     """
     Merges the emulator APEX file with a vendor apex in case they have the same name.
     Keeps the structure of the emulator apex and injects additional files into the apex.
+    Normal Mode: Replaces the original emulator apex file with the vendor one.
+    If ALLOW_MIXED_APEX_FILES then two apex files are merged together.
     Writes the merged apex to the apex_out_file
     """
     filename_input = str(os.path.basename(input_apex))
@@ -484,9 +486,25 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path:
                     continue
 
+                file_ext = os.path.splitext(file)[1]
+
+                if file_ext in ["", None] and POST_INJECTOR_CONFIG["DISABLE_APEX_BINARY_INJECTION"]:
+                    logging.error(f"SKIPPED APEX Binary Injection: DISABLE_APEX_BINARY_INJECTION is set to True")
+                    continue
+
                 if file in POST_INJECTOR_CONFIG["DISALLOW_APEX_FILE_OVERWRITE"]:
                     logging.error(f"SKIPPED APEX File: File in DISALLOW_APEX_FILE_OVERWRITE: {file_path}")
                     continue
+
+                if (len(POST_INJECTOR_CONFIG["ALLOWED_APEX_FILE_INJECTION_EXTENSIONS"]) > 0
+                        and file_ext not in POST_INJECTOR_CONFIG["ALLOWED_APEX_FILE_INJECTION_EXTENSIONS"]):
+                    logging.error(f"SKIPPED APEX File Injection: File not in ALLOWED_APEX_FILE_INJECTION_EXTENSIONS: {file_path}")
+                    continue
+
+                if file_ext in POST_INJECTOR_CONFIG["DISALLOW_APEX_FILE_INJECTION_EXTENSIONS"]:
+                    logging.error(f"SKIPPED APEX File: File in DISALLOW_APEX_FILE_EXTENSIONS: {file_path}")
+                    continue
+
 
                 try:
                     logging.info(f"APEX Vendor: {merged_apex_extract_dir_path} | dst: {dst_file_path}")

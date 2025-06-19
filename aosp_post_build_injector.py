@@ -89,7 +89,7 @@ def start_post_build_injector(aosp_path,
     global POST_INJECTOR_CONFIG
     PRE_INJECTOR_CONFIG = pre_injector_config
     POST_INJECTOR_CONFIG = post_injector_config
-    logging.info(f"Starting post build injector with the following configuration: {POST_INJECTOR_CONFIG} | {PRE_INJECTOR_CONFIG} | {post_injector_config_path} | {pre_injector_config_path}")
+    logging.debug(f"Starting post build injector with the following configuration: {POST_INJECTOR_CONFIG} | {PRE_INJECTOR_CONFIG} | {post_injector_config_path} | {pre_injector_config_path}")
     if not aosp_path.endswith("/"):
         aosp_path = f"{aosp_path}/"
         if not os.path.exists(aosp_path):
