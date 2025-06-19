@@ -169,6 +169,9 @@
     ".art"
   ],
   "DISALLOW_APEX_FILE_OVERWRITE": [],
+  "DISALLOW_APEX_FILE_INJECTION_EXTENSIONS": [".so"],
+  "ALLOWED_APEX_FILE_INJECTION_EXTENSIONS": [".apk"],
+  "DISABLE_APEX_BINARY_INJECTION": true,
   "COPY_TO_SPECIFIC_PATH": {
     "boot-framework.art": "./system/framework/"
   },
