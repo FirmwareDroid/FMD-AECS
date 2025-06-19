@@ -146,6 +146,9 @@
     ".art"
   ],
   "DISALLOW_APEX_FILE_OVERWRITE": [],
+  "DISALLOW_APEX_FILE_INJECTION_EXTENSIONS": [],
+  "ALLOWED_APEX_FILE_INJECTION_EXTENSIONS": [],
+  "DISABLE_APEX_BINARY_INJECTION": false,
   "COPY_TO_SPECIFIC_PATH": {
     "boot-framework.art": "./system/framework/"
   },
