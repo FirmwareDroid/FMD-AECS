@@ -238,7 +238,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         return f"File already processed: {file_path}", None, None
 
     try:
-        with ((lock)):
+        with lock:
             if os.path.exists(processed_marker):
                 return f"File already processed: {file_path}", None, None
             module_type = get_module_type(file_path,

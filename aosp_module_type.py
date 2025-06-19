@@ -85,7 +85,7 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
         module_type = "MISC"
 
 
-    if module_type.startswith("EXECUTABLES") and POST_INJECTOR_CONFIG["DISABLE_BINARY_INJECTION"]:
+    if module_type in ["EXECUTABLES", "ETC"] and POST_INJECTOR_CONFIG["DISABLE_BINARY_INJECTION"]:
         module_type = "SKIPPED"
 
     tmp_module_type = module_type
