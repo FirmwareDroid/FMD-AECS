@@ -217,7 +217,8 @@
     "libsurfaceflingerinsptr.so",
     "usbd",
     "traced",
-    "libvibrator.so"
+    "libvibrator.so",
+    "libaudioprocessing.so"
   ],
   "SKIPPED_KEYWORD_LIST": [
     "keystore",
