@@ -531,7 +531,7 @@ def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, in
     """
 
     if "_FMD_APEX" in dir_name and PRE_INJECTOR_CONFIG["DISABLE_APEX_INJECTION"]:
-        logging.info(f"Skipping APEX package: {dir_name} due to disabled APEX injection.")
+        logging.info(f"Skipping APEX APP package: {dir_name} due to disabled APEX injection.")
         return included_package_statistics
 
     apex_file_path = get_apex_file(package_path)
