@@ -530,7 +530,7 @@ def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, in
     :param lunch_target: str - AOSP build argument to select the build arch.
     """
 
-    if "_FMD_APEX" in dir_name and PRE_INJECTOR_CONFIG["DISABLE_APEX_INJECTION"]:
+    if "_FMD_APEX" in dir_name and PRE_INJECTOR_CONFIG["DISABLE_APEX_APP_INJECTION"]:
         logging.info(f"Skipping APEX APP package: {dir_name} due to disabled APEX injection.")
         return included_package_statistics
 
