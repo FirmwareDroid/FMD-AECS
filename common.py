@@ -130,4 +130,17 @@ def load_configs(pre_injector_config_path, post_injector_config_path):
         raise ValueError("Configuration files are empty or not loaded correctly.")
     return pre_injector_config, post_injector_config
 
+def is_elf_binary(file_path):
+    """
+    Check if a file is an ELF binary.
+
+    :param file_path: str - path to the file.
+    :return: bool - True if the file is an ELF binary, False otherwise.
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            magic = f.read(4)
+            return magic == b'\x7fELF'
+    except Exception as e:
+        return False
 

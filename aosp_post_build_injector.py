@@ -21,7 +21,7 @@ from filelock import FileLock
 from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
-from common import extract_vendor_name, remove_vendor_name_from_path, load_configs
+from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary
 from config_post_injector import *
 from setup_logger import setup_logger
 from tqdm import tqdm
@@ -580,19 +580,7 @@ def is_abi_compatible(candidate_path, file_path):
     return is_same_architecture
 
 
-def is_elf_binary(file_path):
-    """
-    Check if a file is an ELF binary.
 
-    :param file_path: str - path to the file.
-    :return: bool - True if the file is an ELF binary, False otherwise.
-    """
-    try:
-        with open(file_path, 'rb') as f:
-            magic = f.read(4)
-            return magic == b'\x7fELF'
-    except Exception as e:
-        return False
 
 
 def is_parent_dir_arm_and_target_arm(file_path, candidate_path):

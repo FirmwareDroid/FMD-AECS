@@ -1,4 +1,5 @@
 {
+  "DISABLE_APEX_INJECTION": true,
   "DISABLE_NATIVE_LIBRARY_INJECTION": false,
   "SHARED_USER_ID_MAPPING_DICT": {
     "media": [
