@@ -465,7 +465,7 @@ def process_package(package_path, dir_name, aosp_path, out_dir, included_package
     uuid_dir = str(uuid.uuid4())
     if is_package_skipped(dir_name):
         logging.info(f"Skipping package: {dir_name}")
-        return
+        return included_package_statistics
 
     if check_file_extension(package_path, [".so"]):
         included_package_statistics = handle_library_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics)
@@ -535,12 +535,12 @@ def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, in
     apex_file_path = get_apex_file(package_path)
     if not apex_file_path or not PRE_INJECTOR_CONFIG["ALLOW_APEX_INJECTION"]:
         logging.info(f"Skipping APEX package: {dir_name}")
-        return
+        return included_package_statistics
 
     package_dir_name = str(os.path.basename(package_path).lower())
     if any(keyword.lower() in package_dir_name for keyword in PRE_INJECTOR_CONFIG["APEX_PRE_INJECT_DISALLOWED_KEYWORDS"]):
         logging.info(f"Skipping APEX package due to disallowed keyword: {package_dir_name}")
-        return
+        return included_package_statistics
 
     modules_path = str(os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name, uuid_dir))
     logging.info(f"Copying APEX package: {package_path} to {modules_path}")
