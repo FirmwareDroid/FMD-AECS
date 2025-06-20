@@ -251,6 +251,7 @@ def extract_package_names(meta_build_path, package_name_list):
     :returns: list - list of package names.
 
     """
+    logging.info(f"Package names to filter against: {package_name_list}")
     package_line_list = []
     with open(meta_build_path, 'r') as meta_build_file:
         for line in meta_build_file:
@@ -263,15 +264,7 @@ def extract_package_names(meta_build_path, package_name_list):
     return package_line_list
 
 
-def clean_package_name(package_name):
-    """
-    Cleans the package name by removing unwanted characters.
 
-    :param package_name: str - raw package name.
-
-    :returns: str - cleaned package name.
-    """
-    return package_name.replace("\\", "").replace("_FMD_APEX", "").replace("_fmd", "").strip()
 
 
 def render_template(template_folder_abs_path, base_filename, package_name_list):
@@ -446,7 +439,7 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
         if os.path.isdir(package_path):
-            process_package(package_path, dir_name, aosp_path, out_dir, included_package_statistics, lunch_target)
+            included_package_statistics = process_package(package_path, dir_name, aosp_path, out_dir, included_package_statistics, lunch_target)
 
     included_package_statistics["count"] = len(included_package_statistics["apps"]) + \
                                            len(included_package_statistics["libs"]) + \
@@ -454,7 +447,7 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
     included_package_statistics["apps"] = sorted(included_package_statistics["apps"])
     included_package_statistics["libs"] = sorted(included_package_statistics["libs"])
     included_package_statistics["apex"] = sorted(included_package_statistics["apex"])
-
+    logging.info(f"Included package statistics: {included_package_statistics}")
     return included_package_statistics
 
 
@@ -475,12 +468,22 @@ def process_package(package_path, dir_name, aosp_path, out_dir, included_package
         return
 
     if check_file_extension(package_path, [".so"]):
-        handle_library_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics)
+        included_package_statistics = handle_library_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics)
     elif check_file_extension(package_path, [".apex", ".capex"]):
-        handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics, lunch_target)
+        included_package_statistics = handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics, lunch_target)
     else:
-        handle_app_package(package_path, dir_name, uuid_dir, out_dir, included_package_statistics)
+        included_package_statistics = handle_app_package(package_path, dir_name, uuid_dir, out_dir, included_package_statistics)
+    return included_package_statistics
 
+def clean_package_name(package_name):
+    """
+    Cleans the package name by removing unwanted characters.
+
+    :param package_name: str - raw package name.
+
+    :returns: str - cleaned package name.
+    """
+    return package_name.replace("\\", "").replace("_FMD_APEX", "").replace("_fmd", "").strip()
 
 def is_package_skipped(dir_name):
     """
@@ -514,6 +517,7 @@ def handle_library_package(package_path, dir_name, uuid_dir, aosp_path, out_dir,
         included_package_statistics["libs"].append(dir_name)
     else:
         logging.info(f"Native library injection disabled for package: {dir_name}")
+    return included_package_statistics
 
 
 def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics, lunch_target):
@@ -533,12 +537,12 @@ def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, in
         logging.info(f"Skipping APEX package: {dir_name}")
         return
 
-    package_dir_name = os.path.basename(package_path).lower()
+    package_dir_name = str(os.path.basename(package_path).lower())
     if any(keyword.lower() in package_dir_name for keyword in PRE_INJECTOR_CONFIG["APEX_PRE_INJECT_DISALLOWED_KEYWORDS"]):
         logging.info(f"Skipping APEX package due to disallowed keyword: {package_dir_name}")
         return
 
-    modules_path = os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name)
+    modules_path = str(os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name, uuid_dir))
     logging.info(f"Copying APEX package: {package_path} to {modules_path}")
     shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
     if PRE_INJECTOR_CONFIG["ALLOW_APEX_REPACKING_IN_PRE_INJECTOR"]:
@@ -549,6 +553,7 @@ def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, in
         else:
             logging.error(f"APEX repacking error: {log_message}. Exiting.")
             exit(1)
+    return included_package_statistics
 
 
 def handle_app_package(package_path, dir_name, uuid_dir, out_dir, included_package_statistics):
@@ -563,6 +568,9 @@ def handle_app_package(package_path, dir_name, uuid_dir, out_dir, included_packa
     """
     app_modules_path = os.path.join(out_dir, "apps", f"{dir_name}_{uuid_dir}")
     logging.info(f"Moving app package: {dir_name} from {package_path} to {app_modules_path}")
+    shutil.copytree(package_path, app_modules_path, dirs_exist_ok=True)
+    included_package_statistics["apps"].append(dir_name)
+    return included_package_statistics
 
 
 # def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
