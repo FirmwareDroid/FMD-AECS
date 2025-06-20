@@ -264,9 +264,6 @@ def extract_package_names(meta_build_path, package_name_list):
     return package_line_list
 
 
-
-
-
 def render_template(template_folder_abs_path, base_filename, package_name_list):
     """
     Renders the template with the given package names.
@@ -532,6 +529,11 @@ def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, in
     :param included_package_statistics: dict - statistics of included packages.
     :param lunch_target: str - AOSP build argument to select the build arch.
     """
+
+    if "_FMD_APEX" in dir_name and PRE_INJECTOR_CONFIG["DISABLE_APEX_INJECTION"]:
+        logging.info(f"Skipping APEX package: {dir_name} due to disabled APEX injection.")
+        return included_package_statistics
+
     apex_file_path = get_apex_file(package_path)
     if not apex_file_path or not PRE_INJECTOR_CONFIG["ALLOW_APEX_INJECTION"]:
         logging.info(f"Skipping APEX package: {dir_name}")

@@ -1,6 +1,6 @@
 import logging
 import os
-
+from common import is_elf_binary
 POST_INJECTOR_CONFIG = None
 
 
@@ -67,7 +67,7 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
 
     is_apex = file_extension in [".apex", ".capex"]
 
-    if file_extension in ["", None] and "/bin/" in source_file_path:
+    if file_extension in ["", None] and is_elf_binary(source_file_path):
         module_type = "EXECUTABLES"
     elif file_extension in [".jar"]:
         module_type = "JAVA_LIBRARIES"
