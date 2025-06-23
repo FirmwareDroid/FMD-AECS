@@ -10,7 +10,7 @@
   "ALLOW_MIXED_APEX_FILES": false,
   "ALLOW_APEX_INJECTION_MERGE": true,
   "SKIPPED_APP_LIST": [],
-  "ALLOW_ONLY_EXTENSION_LIST": [],
+  "ALLOW_ONLY_EXTENSION_LIST": [".apk",".jar", ".art", ".odex", ".oat", ".ttf", ".otf", ".ogg", ".apex", ".capex"],
   "SKIPPED_FILE_EXTENSION_LIST_GENERAL": [
     ".rc",
     ".ko",
