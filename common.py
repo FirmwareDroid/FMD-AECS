@@ -85,7 +85,7 @@ def get_vendor_words(file_path=None, filename=None):
     words_to_replace = []
     for name in vendor_name_list:
         name = str(name)
-        if name and name is not "" and name is not "." and name is not "..":
+        if name and name != "" and name != "." and name != "..":
             name.replace("..", ".")
             words_to_replace.append(f".{name.lower()}")
             words_to_replace.append(f".{name.capitalize()}")
