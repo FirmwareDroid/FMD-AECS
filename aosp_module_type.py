@@ -60,6 +60,7 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
     """
     global POST_INJECTOR_CONFIG
     POST_INJECTOR_CONFIG = post_injector_config
+    parent_dir = os.path.dirname(source_file_path)
     source_file_path = source_file_path.strip()
     file_extension = os.path.splitext(source_file_path)[1]
     file_name = os.path.basename(source_file_path)
@@ -67,7 +68,7 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
 
     is_apex = file_extension in [".apex", ".capex"]
 
-    if file_extension in ["", None] and is_elf_binary(source_file_path):
+    if file_extension in ["", None] and (is_elf_binary(source_file_path) or "bin" in parent_dir):
         module_type = "EXECUTABLES"
     elif file_extension in [".jar"]:
         module_type = "JAVA_LIBRARIES"
@@ -98,6 +99,9 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
         module_type = "SKIPPED"
 
     if is_apex and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_APEX_KEYWORD_LIST"]):
+        module_type = "SKIPPED"
+
+    if module_type == "MISC" and POST_INJECTOR_CONFIG["DISABLE_MISC_INJECTION"]:
         module_type = "SKIPPED"
 
     # Override the module type if the file name or path contains specific keywords
