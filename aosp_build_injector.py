@@ -1144,6 +1144,7 @@ def set_skipped_module_names():
     blocked_module_names.extend(PRE_INJECTOR_CONFIG["BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES"])
     blocked_module_names.extend(PRE_INJECTOR_CONFIG["HOST_PACKAGES_LIST"])
     blocked_module_names.extend(PRE_INJECTOR_CONFIG["ANDROID_HARDWARE_MODULE_LIST"])
+    blocked_module_names.extend(PRE_INJECTOR_CONFIG["DISALLOWED_APK_PACKAGES"])
 
     for libray in PRE_INJECTOR_CONFIG["SKIPPED_LIBRARIES"]:
         blocked_module_names.append(libray.replace(".so", ""))
