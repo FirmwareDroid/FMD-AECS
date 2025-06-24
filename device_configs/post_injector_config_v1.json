@@ -111,11 +111,8 @@
     "atrace",
     "setprop",
     "getprop",
-    "std.build.prop",
-    "pro.build.prop",
     "default.prop",
     "lmkd",
-    "build.prop",
     "otacerts.zip",
     "raw.image",
     ".product.img.raw",
@@ -220,7 +217,13 @@
     "traced",
     "libvibrator.so",
     "libaudioprocessing.so",
-    "libandroid_runtime.so"
+    "libandroid_runtime.so",
+    "libbootanimation.so",
+    "spatializer-aidl-cpp.so",
+    "mediaserver",
+    "bootanimation",
+    "libheadtracking.so",
+    "libheadtracking-binding.so"
   ],
   "SKIPPED_KEYWORD_LIST": [
     "keystore",
