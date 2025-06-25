@@ -248,6 +248,7 @@
     "vndk",
     "statsd"
   ],
+  "DISALLOW_APP_INJECTION": false,
   "ALLOWED_FILE_OVERWRITE_EXTENSION_LIST": [
     ".ogg",
     ".otf",
@@ -256,7 +257,7 @@
   "ALLOW_FILE_OVERWRITE_EXTENSIONS": [
     ".jar"
   ],
-  "ALLOWED_KEYWORD": [
+  "ALLOWED_APP_INJECTION_KEYWORD": [
     "Overlay",
     "Connectivity",
     "Wifi",
