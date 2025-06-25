@@ -257,13 +257,6 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 logging.info(f"Processing file {file_path}")
                 filename = os.path.basename(file_path)
                 file_extension = os.path.splitext(file_path)[1]
-                if filename and filename != "":
-                    allow_file_overwrite = (filename in POST_INJECTOR_CONFIG["ALLOW_FILE_OVERWRITE"]) \
-                    or (file_extension in POST_INJECTOR_CONFIG["ALLOW_FILE_OVERWRITE_EXTENSIONS"])
-                else:
-                    allow_file_overwrite = False
-
-                file_extension = os.path.splitext(file_path)[1]
                 if module_type == "APPS" and file_extension.lower() == ".apk":
                     error_message = handle_app_modules(file_path, aosp_path)
                 elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
