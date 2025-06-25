@@ -122,6 +122,7 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
     # Override the module type if the file name or path contains specific keywords
     if (file_name in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS"]
             or any(keyword in source_file_path for keyword in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST"])):
+        logging.info(f"File {source_file_path} is allowed to be injected regardless of its type. ALLOW_FILE_INJECT_ALWAYS / ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST")
         module_type = tmp_module_type
 
     logging.debug(f"File Extension: {file_extension} for {source_file_path} is module type {module_type}")
