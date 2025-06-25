@@ -29,7 +29,8 @@
   ],
   "SKIPPED_KEYWORD_LIST": [
     "_apex",
-    "_capex"
+    "_capex",
+    "selinux"
   ],
   "ALLOW_ALL_FILE_OVERWRITE": true,
   "ALLOW_FILE_OVERWRITE": [],
