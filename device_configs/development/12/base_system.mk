@@ -32,7 +32,6 @@ PRODUCT_PACKAGES += \
     android.test.base \
     android.test.mock \
     android.test.runner \
-    PackageInstaller \
     apexd \
     appops \
     app_process \
