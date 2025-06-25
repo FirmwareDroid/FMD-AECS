@@ -265,7 +265,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 
                 file_extension = os.path.splitext(file_path)[1]
                 if module_type == "APPS" and file_extension.lower() == ".apk":
-                    error_message = handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite)
+                    error_message = handle_app_modules(file_path, aosp_path)
                 elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
                     if file_path.endswith(".capex"):
                         file_path = replace_capex_with_apex(file_path)
