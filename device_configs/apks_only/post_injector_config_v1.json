@@ -44,15 +44,9 @@
     "_apex",
     "_capex"
   ],
-  "ALLOW_ALL_FILE_OVERWRITE": true,
   "SKIPPED_APEX_KEYWORD_LIST": [
     "adb",
     "vndk"
-  ],
-  "ALLOWED_FILE_OVERWRITE_EXTENSION_LIST": [
-    ".ogg",
-    ".otf",
-    ".ttf"
   ],
   "DISALLOW_APP_INJECTION": false,
   "ALLOWED_APP_INJECTION_KEYWORD": [

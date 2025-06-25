@@ -241,8 +241,6 @@
     "_apex",
     "_capex"
   ],
-  "ALLOW_ALL_FILE_OVERWRITE": true,
-  "ALLOW_FILE_OVERWRITE": [],
   "SKIPPED_APEX_KEYWORD_LIST": [
     "adb",
     "vndk",
@@ -253,9 +251,6 @@
     ".ogg",
     ".otf",
     ".ttf"
-  ],
-  "ALLOW_FILE_OVERWRITE_EXTENSIONS": [
-    ".jar"
   ],
   "ALLOWED_APP_INJECTION_KEYWORD": [
     "Overlay",
