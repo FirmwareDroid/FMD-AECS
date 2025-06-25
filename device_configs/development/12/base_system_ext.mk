@@ -14,14 +14,12 @@
 # limitations under the License.
 #
 
-# Base modules and settings for the product partition.
+# Base modules and settings for the system_ext partition.
 PRODUCT_PACKAGES += \
-    fs_config_dirs_product \
-    fs_config_files_product \
-    group_product \
-    ModuleMetadata \
-    passwd_product \
-    product_compatibility_matrix.xml \
-    product_manifest.xml \
-    selinux_policy_product \
-{% for line in product_package_name_list -%}{{ line }}{%- endfor %}
+    fs_config_dirs_system_ext \
+    fs_config_files_system_ext \
+    group_system_ext \
+    passwd_system_ext \
+    selinux_policy_system_ext \
+    system_ext_manifest.xml \
+{% for line in package_name_list -%}{{ line }}{%- endfor %}

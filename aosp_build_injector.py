@@ -280,10 +280,12 @@ def render_template(template_folder_abs_path, base_filename, package_name_list):
     return template.render(package_name_list=package_name_list)
 
 def get_template_folder_path(aosp_version):
+    config_path = PRE_INJECTOR_CONFIG["PRE_INJECTOR_CONFIG_PATH"]
+    base_dir = os.path.dirname(config_path)
     if aosp_version == "12":
-        template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "12/")
-    elif aosp_version == "13":
-        template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "13/")
+        template_folder_abs_path = os.path.join(base_dir, "12/")
+        if not os.path.isdir(template_folder_abs_path):
+            raise OSError(f"Could not find AOSP template folder: {template_folder_abs_path}")
     else:
         raise RuntimeError(f"Unsupported aosp version: {aosp_version}")
     return template_folder_abs_path
@@ -924,13 +926,14 @@ def parse_arguments():
     parser.add_argument("-c", "--skip-clean", action='store_true', default=False,
                         help='If set, skips the cleanup of the aosp build environment.')
     parser.add_argument("-p", "--pk-filter", type=str, default=None, help='Set a specific aecs job id '
-                                                                          'to process. Other jobs will be ignored when set.')
+                                                                          'to process. Other jobs will be ignored '
+                                                                          'when set.')
     parser.add_argument("-m", "--pre_injector_config",
                         type=str,
-                        default="./device_configs/pre_injector_config_v1.json",)
+                        default="./device_configs/development/pre_injector_config_v1.json",)
     parser.add_argument("-i", "--post_injector_config",
                         type=str,
-                        default="./device_configs/post_injector_config_v1.json",)
+                        default="./device_configs/development/post_injector_config_v1.json",)
     args = parser.parse_args()
 
     if not (args.fmd_url.startswith("https://") or args.fmd_url.startswith("http://")):
@@ -1175,6 +1178,7 @@ def main():
     POST_INJECTOR_CONFIG = post_injector_config
     PRE_INJECTOR_CONFIG_PATH = args.pre_injector_config
     POST_INJECTOR_CONFIG_PATH = args.post_injector_config
+    PRE_INJECTOR_CONFIG["PRE_INJECTOR_CONFIG_PATH"] = args.pre_injector_config
     logging.info(f"Pre-injector config: {PRE_INJECTOR_CONFIG_PATH}, Post-injector config: {POST_INJECTOR_CONFIG_PATH}")
     set_skipped_module_names()
     fmd_password, docker_repo_password = get_passwords(args)
