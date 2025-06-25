@@ -282,8 +282,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                         else:
                             error_message = None
                 if not error_message:
-                    inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path,
-                                                               allow_file_overwrite)
+                    inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path)
                 else:
                     logging.info(f"File not further processed: {file_path} | {error_message}")
     except Exception as e:
@@ -394,19 +393,10 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
             inject_file_into_obj(file_path, original_file_path, module_type)
             inj_obj = (file_path, original_file_path, module_type)
 
-    # if file_name in POST_INJECTOR_CONFIG["COPY_TO_SPECIFIC_PATH"].keys():
-    #     inject_path = POST_INJECTOR_CONFIG["COPY_TO_SPECIFIC_PATH"][file_name]
-    #     inject_path = str(os.path.join(target_out_path, inject_path))
-    #     logging.info(f"Copy file to specific path: {file_path} -> {inject_path}")
-    #     try:
-    #         os.makedirs(os.path.dirname(inject_path), exist_ok=True)
-    #         shutil.copy2(file_path, inject_path, follow_symlinks=False)
-    #     except Exception as e:
-    #         logging.error(f"Error copying file to specific path: {file_path} -> {inject_path} | {e}")
     return inj_obj, inj_partition
 
 
-def search_and_inject(partition_name, module_type, file_path, target_out_path, allow_file_overwrite):
+def search_and_inject(partition_name, module_type, file_path, target_out_path):
     inj_partition = None
     inj_obj = None
     file_name = os.path.basename(file_path)
@@ -420,14 +410,14 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                 and not any(keyword in os.path.basename(target_file_injection_path)
                             for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"])):
             # Direct Injection
-            target_path = inject_file_into_partition(file_path, target_file_injection_path, allow_file_overwrite)
+            target_path = inject_file_into_partition(file_path, target_file_injection_path)
             inj_partition = (file_path, target_path, module_type)
         else:
             inj_obj, inj_partition = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition)
     elif not os.path.exists(target_file_injection_path):
         # Direct Injection
-        target_path = inject_file_into_partition(file_path, target_file_injection_path, allow_file_overwrite)
+        target_path = inject_file_into_partition(file_path, target_file_injection_path)
         inj_partition = (file_path, target_path, module_type)
     else:
         inj_obj, inj_partition = indirect_injection(target_file_injection_path, file_name, target_out_path,
@@ -819,40 +809,29 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
 
 
 # Direct Injection
-def inject_file_into_partition(source_file_path, target_file_injection_path, overwrite=False):
+def inject_file_into_partition(source_file_path, target_file_injection_path):
     if POST_INJECTOR_CONFIG["OVERWRITE_APP_PROCESS_32"]:
         source_file_path = handle_special_matching(source_file_path)
 
     if os.path.exists(target_file_injection_path):
-        file_extension = os.path.splitext(target_file_injection_path)[1]
-        if (os.path.islink(target_file_injection_path)
-                or file_extension in POST_INJECTOR_CONFIG["ALLOWED_FILE_OVERWRITE_EXTENSION_LIST"]):
+        if os.path.islink(target_file_injection_path):
             try:
                 shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
                 logging.info(f"File link overwrite: {source_file_path} into {target_file_injection_path}")
             except Exception as e:
                 logging.error(f"Error copying file link: {source_file_path} -> {target_file_injection_path} | {e}")
         else:
-            if POST_INJECTOR_CONFIG["ALLOW_ALL_FILE_OVERWRITE"]:
-                overwrite = True
-            if overwrite:
-                try:
-                    if os.path.isfile(source_file_path):
-                        inj_md5 = compute_file_hash(source_file_path)
-                        org_md5 = compute_file_hash(target_file_injection_path)
-                        shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
-                        logging.info(f"File overwrite: {source_file_path}:{inj_md5} into {target_file_injection_path}:{org_md5}")
-                        if not set_executable_permission(target_file_injection_path):
-                            raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
-                except Exception as e:
-                    logging.error(f"Error copying file: {source_file_path} -> {target_file_injection_path} | {e}")
-            else:
-                if os.path.isfile(target_file_injection_path):
-                    file_extension = os.path.splitext(target_file_injection_path)[1]
-                    if not file_extension:
-                        logging.error(f"Skipped Inject File of binary: {target_file_injection_path}")
-                    else:
-                        logging.info(f"Skipped Inject File {target_file_injection_path} already exists.")
+            # Fîle should not already exists, but if it does, we overwrite it, but it is not recommended.
+            try:
+                if os.path.isfile(source_file_path):
+                    inj_md5 = compute_file_hash(source_file_path)
+                    org_md5 = compute_file_hash(target_file_injection_path)
+                    shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
+                    logging.error(f"File overwrite: {source_file_path}:{inj_md5} into {target_file_injection_path}:{org_md5}")
+                    if not set_executable_permission(target_file_injection_path):
+                        raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
+            except Exception as e:
+                logging.error(f"Error copying file: {source_file_path} -> {target_file_injection_path} | {e}")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         if not os.path.exists(source_file_path):
