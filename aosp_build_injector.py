@@ -254,6 +254,9 @@ def get_template_folder_path(aosp_version):
     base_dir = os.path.dirname(config_path)
     if aosp_version == "12":
         template_folder_abs_path = os.path.join(base_dir, "12/")
+        if not os.path.isabs(template_folder_abs_path):
+            template_folder_abs_path = os.path.join(ROOT_PATH, template_folder_abs_path)
+            template_folder_abs_path = os.path.normpath(template_folder_abs_path)
         if not os.path.isdir(template_folder_abs_path):
             raise OSError(f"Could not find AOSP template folder: {template_folder_abs_path}")
     else:
