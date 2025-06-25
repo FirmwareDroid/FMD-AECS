@@ -58,7 +58,8 @@
   "ALLOW_FILE_OVERWRITE_EXTENSIONS": [
     ".jar"
   ],
-  "ALLOWED_KEYWORD": [
+  "DISALLOW_APP_INJECTION": false,
+  "ALLOWED_APP_INJECTION_KEYWORD": [
     "Overlay",
     "Connectivity",
     "Wifi",

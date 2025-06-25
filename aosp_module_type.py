@@ -54,6 +54,12 @@ def is_apex_file_path_allowed(file_path):
     return True
 
 
+def is_app_already_injected(file_name, pre_injector_package_list):
+    if file_name in pre_injector_package_list:
+        return True
+    return False
+
+
 def get_module_type(source_file_path, pre_injector_package_list=None, post_injector_config=None):
     """
     Determines the module type of the source file.
@@ -86,6 +92,11 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
         module_type = "MISC"
 
 
+    if module_type == "APPS" and file_name in POST_INJECTOR_CONFIG["SKIPPED_APP_LIST"]:
+        module_type = "SKIPPED"
+    if module_type == "APPS" and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["ALLOWED_APP_INJECTION_KEYWORD"]):
+        module_type = "APPS"
+
     if module_type in ["EXECUTABLES", "ETC"] and POST_INJECTOR_CONFIG["DISABLE_BINARY_INJECTION"]:
         module_type = "SKIPPED"
 
@@ -95,8 +106,12 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
             or not is_file_inject_allowed(file_name)):
         module_type = "SKIPPED"
 
-    if pre_injector_package_list and file_name_no_ext in pre_injector_package_list:
-        module_type = "SKIPPED"
+    for package_name in pre_injector_package_list:
+        stripped_package_name = package_name.replace("FMD_APEX", "").replace("fmd", "").strip()
+        if file_name == stripped_package_name or file_name_no_ext == stripped_package_name:
+            logging.info(f"Skipping {source_file_path} as it was already injected via pre-injector.")
+            module_type = "SKIPPED"
+            break
 
     if is_apex and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_APEX_KEYWORD_LIST"]):
         module_type = "SKIPPED"
@@ -109,6 +124,6 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
             or any(keyword in source_file_path for keyword in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST"])):
         module_type = tmp_module_type
 
-    logging.info(f"File Extension: {file_extension} for {source_file_path} is module type {module_type}")
+    logging.debug(f"File Extension: {file_extension} for {source_file_path} is module type {module_type}")
 
     return module_type

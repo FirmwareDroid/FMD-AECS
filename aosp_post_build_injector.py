@@ -340,18 +340,14 @@ def check_file_is_really_injected(file_path, aosp_path):
     logging.warning(f"Maybe file was not correctly injected. Filename not found in AOSP out folders: {file_path}")
     return False
 
-
-
-def handle_app_modules(file_path, aosp_path, filename, allow_file_overwrite):
+def handle_app_modules(file_path, aosp_path):
     error_message = None
-    if filename.lower() in POST_INJECTOR_CONFIG["SKIPPED_APP_LIST"]:
-        error_message = f"Skipped Apk known problematic app: {file_path}"
-    if allow_file_overwrite or any(keyword in filename for keyword in POST_INJECTOR_CONFIG["ALLOWED_KEYWORD"]):
-        signing_success, output, subprocess_error_message = handle_apk_signing(file_path, aosp_path)
-        if not signing_success:
-            error_message = f"Error signing APK file: {file_path}|{subprocess_error_message}"
-    else:
-        error_message = f"Skipped APP inject in post-injection (should already be in the image): {file_path}"
+    if POST_INJECTOR_CONFIG["DISALLOW_APP_INJECTION"]:
+        error_message = f"App injection is disallowed by configuration: {file_path}"
+
+    signing_success, output, subprocess_error_message = handle_apk_signing(file_path, aosp_path)
+    if not signing_success:
+        error_message = f"Error signing APK file: {file_path}|{subprocess_error_message}"
     return error_message
 
 

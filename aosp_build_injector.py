@@ -197,36 +197,6 @@ def get_base_filename(meta_build_filename):
     else:
         return BASE_SYSTEM_FILE_NAME
 
-
-# def read_and_render_template(meta_build_path, base_filename, aosp_version):
-#     """
-#     Reads the meta_build.txt file and renders the aosp build file template with the package names.
-#
-#     :param meta_build_path: str - path to the meta_build.txt file.
-#     :param base_filename: str - base filename of the aosp build file to use as template.
-#     :param aosp_version: str - version of the aosp build.
-#
-#     :returns: str - rendered aosp build file template.
-#
-#     """
-#     logging.info(f"Reading meta file: {meta_build_path}")
-#     with open(meta_build_path, 'r') as meta_build_file:
-#         package_name_list = []
-#         for line in meta_build_file:
-#             stripped_line = line.replace("\\","").strip().replace("_FMD_APEX","")
-#             stripped_line = stripped_line.replace("_fmd", "")
-#             logging.info(f"Checking Module for inclusion in pre-injector: {stripped_line}")
-#             if any(stripped_line.strip() == blacklisted_module for blacklisted_module in SKIPPED_MODULE_NAMES):
-#                 logging.info(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
-#             else:
-#                 logging.info(f"Allowing module meta in build: {line}")
-#                 package_name_list.append(line)
-#         template_folder_abs_path = get_template_folder_path(aosp_version)
-#         logging.debug(f"Using template folder: {template_folder_abs_path} with base filename: {base_filename}")
-#         environment = Environment(loader=FileSystemLoader(str(template_folder_abs_path)))
-#         template = environment.get_template(base_filename)
-#         return template.render(package_name_list=package_name_list)
-
 def read_and_render_template(meta_build_path, base_filename, aosp_version, package_name_list):
     """
     Reads the meta_build.txt file and renders the AOSP build file template with the package names.
