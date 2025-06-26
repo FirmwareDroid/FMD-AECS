@@ -579,7 +579,7 @@ def remove_apex_build_strings(apex_split_name_list):
     for split in apex_split_name_list:
         if "_compressed" in split or "_trimmed" in split:
             apex_split_name_list.remove(split)
-            split = split.replace("_compressed", "_trimmed")
+            split = split.replace("_compressed", "").replace("_trimmed", "")
             apex_split_name_list.append(split)
     return apex_split_name_list
 
