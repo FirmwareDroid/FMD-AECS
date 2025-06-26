@@ -136,6 +136,22 @@ def extract_file_type_frequencies(error_list):
             file_type_counts[file_extension] += 1
     return file_type_counts
 
+def count_number_of_extracted_files(source_folder_path):
+    """
+    Counts the number of files in the source folder.
+
+    :param source_folder_path: str - Path to the source folder.
+    :return: dict - Number of files in the source folder per partition.
+    """
+    partition_names = ["system", "vendor", "product", "system_ext"]
+    file_count_per_partition = defaultdict(int)
+    for partition_name in partition_names:
+        partition_path = os.path.join(source_folder_path, partition_name)
+        if os.path.exists(partition_path):
+            for root, _, files in os.walk(partition_path):
+                file_count_per_partition[partition_name] += len(files)
+    return file_count_per_partition
+
 
 def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list):
     start_time = time.time()
@@ -160,6 +176,8 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
         for obj in error_list:
             logging.info(f"Error: {obj}")
     logging.info(f"Execution time: {execution_time_minutes} minutes")
+    number_of_files = count_number_of_extracted_files(source_folder_path)
+    logging.info(f"Number of File in ALL_FILES: {number_of_files}")
     logging.info(f"Number of errors: {len(error_list)}")
     logging.info(f"Number of objects injected: {len(inj_obj_list)}")
     logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
