@@ -468,6 +468,19 @@ def is_package_skipped(dir_name):
     dir_name_cleaned = clean_package_name(dir_name)
     if dir_name_cleaned in SKIPPED_MODULE_NAMES or any(keyword in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["BLACKLISTED_KEYWORDS"]):
         return True
+
+    if "_FMD_APEX" in dir_name:
+        if not PRE_INJECTOR_CONFIG["DISABLE_APEX_APP_INJECTION"]:
+            if "_FMD_APEX" in dir_name and any(keyword.lower() in dir_name_cleaned for keyword in
+                   PRE_INJECTOR_CONFIG["APEX_PRE_INJECT_DISALLOWED_KEYWORDS"]):
+                logging.info(f"Skipping APEX package due to disallowed keyword: {dir_name_cleaned}")
+                return True
+            else:
+                logging.info(f"Injecting APEX package: {dir_name}")
+                return False
+        else:
+            logging.info(f"Skipping APEX package: {dir_name} due to disabled APEX injection.")
+            return True
     return False
 
 
@@ -504,21 +517,8 @@ def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, in
     :param included_package_statistics: dict - statistics of included packages.
     :param lunch_target: str - AOSP build argument to select the build arch.
     """
-
-    if "_FMD_APEX" in dir_name and PRE_INJECTOR_CONFIG["DISABLE_APEX_APP_INJECTION"]:
-        logging.info(f"Skipping APEX APP package: {dir_name} due to disabled APEX injection.")
-        return included_package_statistics
-
     apex_file_path = get_apex_file(package_path)
-    if not apex_file_path or not PRE_INJECTOR_CONFIG["ALLOW_APEX_INJECTION"]:
-        logging.info(f"Skipping APEX package: {dir_name}")
-        return included_package_statistics
-
     package_dir_name = str(os.path.basename(package_path).lower())
-    if any(keyword.lower() in package_dir_name for keyword in PRE_INJECTOR_CONFIG["APEX_PRE_INJECT_DISALLOWED_KEYWORDS"]):
-        logging.info(f"Skipping APEX package due to disallowed keyword: {package_dir_name}")
-        return included_package_statistics
-
     modules_path = str(os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name, uuid_dir))
     logging.info(f"Copying APEX package: {package_path} to {modules_path}")
     shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
