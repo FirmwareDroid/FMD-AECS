@@ -100,6 +100,7 @@ def start_post_build_injector(aosp_path,
         f"Starting post build injector: {aosp_path} | {source_folder_path} | {target_out_path} | {lunch_target}")
     with Executor() as executor:
         inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list)
+    logging.debug(f"Finished post build injector")
 
 def group_errors_by_prefix(error_list):
     """
@@ -463,6 +464,7 @@ def cleanup_files(directory):
 
     :param directory: str - path to the directory to clean up.
     """
+    logging.info(f"Cleaning up all .lock files in {directory}")
     for root, _, files in os.walk(directory):
         for file in files:
             if file.endswith('.fmd-aecs-lock') or file.endswith('.fmd-aecs-processed'):
@@ -475,12 +477,19 @@ def cleanup_files(directory):
 
 
 def process_partition_files(aosp_path, folder_path, target_out_path, executor, lunch_target, pre_injector_package_list):
+    logging.info(f"Processing {folder_path} into {target_out_path}")
+    logging.debug(f"AOSP Path: {aosp_path} "
+                  f"| Target Out Path: {target_out_path} "
+                  f"| Lunch Target: {lunch_target} "
+                  f"| Folder Path: {folder_path} "
+                  f"| Pre Injector Package List: {len(pre_injector_package_list)}")
     error_list = []
     inj_obj_list = []
     inj_partition_list = []
     partition_name = os.path.basename(folder_path)
     file_paths = list(set(os.path.join(root, file_name.strip()) for root, _, file_name_list in scandir_walk(folder_path)
                           for file_name in file_name_list))
+    logging.info(f"Found {len(file_paths)} files in {folder_path} for post-injection...")
 
     # Initialize tqdm progress bar
     progress_bar = tqdm(total=len(file_paths), desc=f"Processing files in partition: {partition_name}")
