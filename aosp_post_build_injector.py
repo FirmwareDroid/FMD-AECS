@@ -161,6 +161,7 @@ def count_number_of_extracted_files(source_folder_path):
 
 def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list):
     start_time = time.time()
+    logging.info(f"Injection started at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
     error_list, inj_obj_list, inj_partition_list = process_partitions(aosp_path,
                                                                       source_folder_path,
                                                                       target_out_path,
@@ -231,7 +232,6 @@ def get_folders(directory_path):
 def process_partitions(aosp_path, source_folder_path, target_out_path, executor, lunch_target, pre_injector_package_list):
     folder_path_list = get_folders(source_folder_path)
     logging.debug(f"Folder path list: {folder_path_list}")
-
     combined_error_list = []
     combined_inj_obj_list = []
     combined_inj_partition_list = []
@@ -483,7 +483,7 @@ def cleanup_files(directory):
 
 def process_partition_files(aosp_path, folder_path, target_out_path, executor, lunch_target, pre_injector_package_list):
     logging.info(f"Processing {folder_path} into {target_out_path}")
-    logging.debug(f"AOSP Path: {aosp_path} "
+    logging.info(f"AOSP Path: {aosp_path} "
                   f"| Target Out Path: {target_out_path} "
                   f"| Lunch Target: {lunch_target} "
                   f"| Folder Path: {folder_path} "
@@ -522,10 +522,8 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
             logging.error(f"Error processing file {file_path}: {exc}")
             error_list.append(str(exc))
         finally:
-            # Update progress bar after each task is completed
             progress_bar.update(1)
 
-    # Close the progress bar after all tasks are completed
     progress_bar.close()
 
     #handle_duplicated_permissions(target_out_path)
