@@ -225,6 +225,7 @@
     "libheadtracking.so",
     "libheadtracking-binding.so"
   ],
+  "EMULATOR_VNDK_VERSION": 32,
   "SKIPPED_KEYWORD_LIST": [
     "keystore",
     "keymaster",

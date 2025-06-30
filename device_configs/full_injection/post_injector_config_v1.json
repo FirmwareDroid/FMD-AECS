@@ -24,6 +24,7 @@
   ],
   "SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION": [
   ],
+  "EMULATOR_VNDK_VERSION": 32,
   "SKIPPED_FILE_ENDING_LIST": [
     "adbd_compressed.apex",
     "adbd.apex",

@@ -284,6 +284,7 @@
     "tzdata": "com.android.tzdata",
     "wifi": "com.android.wifi"
   },
+  "EMULATOR_VNDK_VERSION": 32,
   "LIST_SINGLETON_APPS": [
     "PackageInstaller.apk",
     "SystemUI.apk",

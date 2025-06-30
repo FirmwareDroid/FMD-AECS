@@ -305,7 +305,7 @@ def get_vndk_version(file_path):
                     version = get_last_two_as_int(version_string)
                     if version != 0:
                         logging.info(f"Extracted VNDK version: {version}")
-                        return version
+                        return int(version)
     except Exception as e:
         logging.error(f"Error reading file {file_path}: {e}")
     return version
@@ -313,6 +313,9 @@ def get_vndk_version(file_path):
 def allow_vndk_merge(apex_path, apex_filename):
     if "vndk" in apex_filename:
         vendor_vndk_version = get_vndk_version(apex_path)
+        if vendor_vndk_version == 0:
+            logging.error(f"APEX: Vendor VNDK version not found in {apex_path}. Cannot merge APEX files.")
+            return False
         if POST_INJECTOR_CONFIG['EMULATOR_VNDK_VERSION'] > vendor_vndk_version:
             logging.info(f"APEX: Emulator VNDK version {POST_INJECTOR_CONFIG['EMULATOR_VNDK_VERSION']} "
                          f"is higher than vendor VNDK version {vendor_vndk_version}.")
