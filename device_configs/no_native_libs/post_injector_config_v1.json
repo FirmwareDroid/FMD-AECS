@@ -38,6 +38,10 @@
   "CHECK_VNDK_VERSION_MISMATCH": true,
   "OVERWRITE_APP_PROCESS_32": true,
   "SKIPPED_BINARY_LIST": [
+    "linker_asan",
+    "linkerconfig",
+    "linker64",
+    "linker",
     "hwservicemanager",
     "servicemanager",
     "vold",
