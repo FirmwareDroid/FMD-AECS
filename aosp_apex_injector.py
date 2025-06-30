@@ -496,12 +496,12 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     logging.error(f"SKIPPED APEX File: File in DISALLOW_APEX_FILE_OVERWRITE: {file_path}")
                     continue
 
-                if (len(POST_INJECTOR_CONFIG["ALLOWED_APEX_FILE_INJECTION_EXTENSIONS"]) > 0
+                if file_ext not in ["", None] and (len(POST_INJECTOR_CONFIG["ALLOWED_APEX_FILE_INJECTION_EXTENSIONS"]) > 0
                         and file_ext not in POST_INJECTOR_CONFIG["ALLOWED_APEX_FILE_INJECTION_EXTENSIONS"]):
                     logging.error(f"SKIPPED APEX File Injection: File not in ALLOWED_APEX_FILE_INJECTION_EXTENSIONS: {file_path}")
                     continue
 
-                if file_ext in POST_INJECTOR_CONFIG["DISALLOW_APEX_FILE_INJECTION_EXTENSIONS"]:
+                if file_ext not in ["", None] and file_ext in POST_INJECTOR_CONFIG["DISALLOW_APEX_FILE_INJECTION_EXTENSIONS"]:
                     logging.error(f"SKIPPED APEX File: File in DISALLOW_APEX_FILE_EXTENSIONS: {file_path}")
                     continue
 
