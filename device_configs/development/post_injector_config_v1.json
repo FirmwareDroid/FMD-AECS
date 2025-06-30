@@ -223,7 +223,8 @@
     "mediaserver",
     "bootanimation",
     "libheadtracking.so",
-    "libheadtracking-binding.so"
+    "libheadtracking-binding.so",
+    "libbootloader_message.so"
   ],
   "EMULATOR_VNDK_VERSION": 32,
   "SKIPPED_KEYWORD_LIST": [
