@@ -83,7 +83,7 @@ def start_post_build_injector(aosp_path,
     :param lunch_target: str - lunch target for the AOSP build.
     """
     logging.info(
-        f"Starting post build injector : {post_injector_config_path} | {pre_injector_config_path}")
+        f"Starting post build injector with config:: {post_injector_config_path} | {pre_injector_config_path}")
     pre_injector_config, post_injector_config = load_configs(pre_injector_config_path, post_injector_config_path)
     global PRE_INJECTOR_CONFIG
     global POST_INJECTOR_CONFIG
@@ -98,6 +98,11 @@ def start_post_build_injector(aosp_path,
 
     logging.info(
         f"Starting post build injector: {aosp_path} | {source_folder_path} | {target_out_path} | {lunch_target}")
+
+    if not os.path.exists(source_folder_path) or not os.path.isdir(source_folder_path) or not os.listdir(source_folder_path):
+        logging.error(f"Source folder does not exist or is empty: {source_folder_path}")
+        raise FileNotFoundError(f"Post-Injection Source folder does not exist or is empty: {source_folder_path}")
+
     with Executor() as executor:
         inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list)
     logging.debug(f"Finished post build injector")
@@ -144,7 +149,7 @@ def count_number_of_extracted_files(source_folder_path):
     :param source_folder_path: str - Path to the source folder.
     :return: dict - Number of files in the source folder per partition.
     """
-    partition_names = ["system", "vendor", "product", "system_ext"]
+    partition_names = ["system", "vendor", "product", "system_ext", "system_other"]
     file_count_per_partition = defaultdict(int)
     for partition_name in partition_names:
         partition_path = os.path.join(source_folder_path, partition_name)
