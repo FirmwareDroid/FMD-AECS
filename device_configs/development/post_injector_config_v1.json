@@ -224,7 +224,10 @@
     "bootanimation",
     "libheadtracking.so",
     "libheadtracking-binding.so",
-    "libbootloader_message.so"
+    "libbootloader_message.so",
+    "apex_aidl_interface-cpp.so",
+    "libprotobuf-cpp-full.so",
+    "libziparchive.so"
   ],
   "EMULATOR_VNDK_VERSION": 32,
   "SKIPPED_KEYWORD_LIST": [
