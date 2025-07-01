@@ -42,7 +42,6 @@
     "selinux"
   ],
   "SKIPPED_APEX_KEYWORD_LIST": [
-    "adbd"
   ],
   "DISALLOW_APP_INJECTION": false,
   "ALLOWED_APP_INJECTION_KEYWORD": [
@@ -94,6 +93,7 @@
     "ipsec": "packages/modules/IPsec/apex",
     "scheduling": "packages/modules/Scheduling/apex",
     "adb": "packages/modules/adb/apex",
+    "adbd": "packages/modules/adb/apex",
     "statsd": "packages/modules/StatsD/apex",
     "resolv": "packages/modules/DnsResolver/apex",
     "neuralnetworks": "packages/modules/NeuralNetworks/apex",
@@ -123,6 +123,7 @@
     "tethering": "com.android.tethering",
     "vndk": "com.android.vndk.v32",
     "adb": "com.android.adbd",
+    "adbd": "com.android.adbd",
     "art": "com.android.art",
     "extservices": "com.android.extservices",
     "ipsec": "com.android.ipsec",

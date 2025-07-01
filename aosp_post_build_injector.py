@@ -421,6 +421,7 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
             is_injected = inject_file_into_obj(file_path, original_file_path, module_type)
             inj_obj = (file_path, original_file_path, module_type)
     else:
+        is_injected = False
         error_message = f"Original file not found for indirect injection: {file_path} | {file_name}"
         logging.error(error_message)
         inj_obj = (error_message, None, module_type)
