@@ -43,7 +43,8 @@
     "exfat",
     "secureboot",
     "_apex",
-    "_capex"
+    "_capex",
+    "framework-res"
   ],
   "SKIPPED_APEX_KEYWORD_LIST": [
     "adb",
@@ -59,8 +60,7 @@
     "TeleService",
     "TelephonyProvider",
     "NetworkStackGoogle",
-    "SystemUI",
-    "libadb_protos"
+    "SystemUI"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "vndservicemanager.rc",
