@@ -174,7 +174,8 @@
     "libsurfaceflingerinsptr.so",
     "usbd",
     "traced",
-    "libvibrator.so"
+    "libvibrator.so",
+    "boringssl_self_test64"
   ],
   "SKIPPED_KEYWORD_LIST": [
     "keystore",

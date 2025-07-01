@@ -221,7 +221,7 @@
     "apex_aidl_interface-cpp.so",
     "libprotobuf-cpp-full.so",
     "libziparchive.so",
-    "libvintf.so"
+    "libvintf.so",
   ],
   "EMULATOR_VNDK_VERSION": 32,
   "SKIPPED_KEYWORD_LIST": [
