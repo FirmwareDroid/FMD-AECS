@@ -388,6 +388,8 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
 
     logging.info(f"File exists in target path: {target_file_injection_path} "
                  f"- skipping direct injection. Continue with indirect injection.")
+
+
     inj_obj = None
     # Indirect Injection
     if file_name in POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"].keys():
@@ -407,26 +409,29 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
                                                          file_path_vendor_replaced,
                                                          file_name_vendor_replaced,
                                                          target_out_path)
+
+    is_injected = False
     if original_file_path is not None:
         if isinstance(original_file_path, list):
             original_file_path_list = original_file_path
             for original_file_path in original_file_path_list:
-                inject_file_into_obj(file_path, original_file_path, module_type)
+                is_injected = inject_file_into_obj(file_path, original_file_path, module_type)
                 inj_obj = (file_path, original_file_path, module_type)
         else:
-            inject_file_into_obj(file_path, original_file_path, module_type)
+            is_injected = inject_file_into_obj(file_path, original_file_path, module_type)
             inj_obj = (file_path, original_file_path, module_type)
     else:
         error_message = f"Original file not found for indirect injection: {file_path} | {file_name}"
         logging.error(error_message)
         inj_obj = (error_message, None, module_type)
 
-    return inj_obj, inj_partition
+    return inj_obj, inj_partition, is_injected
 
 
 def search_and_inject(partition_name, module_type, file_path, target_out_path):
     inj_partition = None
     inj_obj = None
+    target_path = None
     file_name = os.path.basename(file_path)
     file_extension = os.path.splitext(file_name)[1]
 
@@ -441,15 +446,31 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path):
             target_path = inject_file_into_partition(file_path, target_file_injection_path)
             inj_partition = (file_path, target_path, module_type)
         else:
-            inj_obj, inj_partition = indirect_injection(target_file_injection_path, file_name, target_out_path,
+            inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition)
+            if not is_injected:
+                # Fallback to Direct Injection
+                target_path = inject_file_into_partition(file_path, target_file_injection_path)
+                inj_partition = (file_path, target_path, module_type)
     elif not os.path.exists(target_file_injection_path):
         # Direct Injection
         target_path = inject_file_into_partition(file_path, target_file_injection_path)
         inj_partition = (file_path, target_path, module_type)
     else:
-        inj_obj, inj_partition = indirect_injection(target_file_injection_path, file_name, target_out_path,
+        inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                     partition_name, module_type, file_path, inj_partition)
+        if not is_injected:
+            # Fallback to Direct Injection
+            target_path = inject_file_into_partition(file_path, target_file_injection_path)
+            inj_partition = (file_path, target_path, module_type)
+
+    if target_path:
+        try:
+            md5sum = hashlib.md5(target_path).hexdigest()
+            inj_partition = (inj_partition[0], inj_partition[1], inj_partition[2], md5sum)
+        except Exception:
+            pass
+
     return inj_obj, inj_partition
 
 def handle_file_modification(file_path, target_out_path):
@@ -937,7 +958,8 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type):
     """
     Injects a file into the AOSP source code directly without matching to existing files.
     """
-    inj_md5= compute_file_hash(source_file_path)
+    is_injected = False
+    inj_md5 = compute_file_hash(source_file_path)
     org_md5 = compute_file_hash(original_file_path)
     logging.info(f"Overwriting Obj file: {source_file_path}:{inj_md5} into {original_file_path}:{org_md5}")
     file_name = os.path.basename(original_file_path)
@@ -950,11 +972,13 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type):
         else:
             new_file_path = "/etc/" + file_name
         shutil.copyfile(source_file_path, new_file_path)
+        is_injected = True
     else:
         shutil.copyfile(source_file_path, original_file_path)
+        is_injected = True
         set_executable_permission(original_file_path)
         #os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
-
+    return is_injected
 
 def parse_arguments():
     """
