@@ -34,6 +34,7 @@
   "CHECK_VNDK_VERSION_MISMATCH": true,
   "OVERWRITE_APP_PROCESS_32": false,
   "SKIPPED_BINARY_LIST": [
+    "init"
   ],
   "SKIPPED_KEYWORD_LIST": [
     "_apex",
