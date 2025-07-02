@@ -1020,10 +1020,10 @@ def parse_arguments():
                         help='Path to the AOSP root folder.')
     parser.add_argument("-m", "--pre_injector_config",
                         type=str,
-                        default="./device_configs/pre_injector_config_v1.json", )
+                        default="./device_configs/development/pre_injector_config_v1.json", )
     parser.add_argument("-i", "--post_injector_config",
                         type=str,
-                        default="./device_configs/post_injector_config_v1.json", )
+                        default="./device_configs/development/post_injector_config_v1.json", )
     args = parser.parse_args()
 
     return args
