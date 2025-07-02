@@ -450,10 +450,6 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path):
         else:
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition)
-            if not is_injected and is_injected is not None:
-                # Fallback to Direct Injection
-                target_path = inject_file_into_partition(file_path, target_file_injection_path)
-                inj_partition = (file_path, target_path, module_type)
     elif not os.path.exists(target_file_injection_path):
         # Direct Injection
         target_path = inject_file_into_partition(file_path, target_file_injection_path)
