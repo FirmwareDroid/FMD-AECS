@@ -385,7 +385,7 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
     file_ext = os.path.splitext(file_name)[1]
     if file_ext in POST_INJECTOR_CONFIG["SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION"]:
         logging.info(f"Skipped indirect injection for file: {file_path} with extension: {file_ext}")
-        return None, inj_partition
+        return None, inj_partition, None
 
     logging.info(f"File exists in target path: {target_file_injection_path} "
                  f"- skipping direct injection. Continue with indirect injection.")
@@ -450,7 +450,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path):
         else:
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition)
-            if not is_injected:
+            if not is_injected and is_injected is not None:
                 # Fallback to Direct Injection
                 target_path = inject_file_into_partition(file_path, target_file_injection_path)
                 inj_partition = (file_path, target_path, module_type)
@@ -461,7 +461,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path):
     else:
         inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                     partition_name, module_type, file_path, inj_partition)
-        if not is_injected:
+        if not is_injected and is_injected is not None:
             # Fallback to Direct Injection
             target_path = inject_file_into_partition(file_path, target_file_injection_path)
             inj_partition = (file_path, target_path, module_type)
