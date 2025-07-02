@@ -252,16 +252,6 @@
     ".ttf"
   ],
   "ALLOWED_APP_INJECTION_KEYWORD": [
-    "Overlay",
-    "Connectivity",
-    "Wifi",
-    "Telephony",
-    "Telecom",
-    "TeleService",
-    "TelephonyProvider",
-    "NetworkStackGoogle",
-    "SystemUI",
-    "libadb_protos"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "vndservicemanager.rc",
