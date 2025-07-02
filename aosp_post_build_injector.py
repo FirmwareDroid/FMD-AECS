@@ -169,6 +169,7 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
                                                                       lunch_target,
                                                                       pre_injector_package_list)
     end_time = time.time()
+    logging.info(f"Injection ended at {end_time}")
     execution_time = end_time - start_time
     execution_time_minutes = execution_time / 60
     logging.info(f"Objects injected:")
@@ -231,7 +232,7 @@ def get_folders(directory_path):
 
 def process_partitions(aosp_path, source_folder_path, target_out_path, executor, lunch_target, pre_injector_package_list):
     folder_path_list = get_folders(source_folder_path)
-    logging.debug(f"Folder path list: {folder_path_list}")
+    logging.info(f"Folder path list: {folder_path_list}")
     combined_error_list = []
     combined_inj_obj_list = []
     combined_inj_partition_list = []
@@ -522,13 +523,20 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     progress_bar = tqdm(total=len(file_paths), desc=f"Processing files in partition: {partition_name}")
 
     future_dict = {}
+    skip_counter = 0
     for file_path in file_paths:
         with processed_files_lock:
             if file_path in processed_files:
+                skip_counter += 1
                 continue
             processed_files.add(file_path)
+        logging.info(f"Submitting file for injection: {file_path} | Partition: {partition_name} "
+                     f"| Target Out Path: {target_out_path} | Lunch Target: {lunch_target} | Length of pre_injector_package_list: {len(pre_injector_package_list)}")
         future = executor.submit(process_file_concurrently, aosp_path, file_path, partition_name, target_out_path, lunch_target, pre_injector_package_list)
         future_dict[future] = file_path
+
+    logging.info(f"Finished processing {len(processed_files)}/{len(file_paths)} files in partition: {partition_name}. "
+                 f"Skipped {skip_counter} files that were already processed.")
 
     for future in as_completed(future_dict):
         file_path = future_dict[future]
@@ -544,6 +552,8 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
             logging.error(f"Error processing file {file_path}: {exc}")
             error_list.append(str(exc))
         finally:
+            if future.exception():
+                logging.error(f"Future for file {file_path} raised an exception: {future.exception()}")
             progress_bar.update(1)
 
     progress_bar.close()
@@ -647,6 +657,9 @@ def get_all_files(directory):
     return all_files
 
 
+
+# ./obj/APPS/framework-res__auto_generated_rro_vendor_intermediates
+# framework-res__auto_generated_rro_vendor.apk
 def search_original_file_in_obj(partition_name,
                                 module_type,
                                 file_path,
