@@ -103,8 +103,10 @@ def start_post_build_injector(aosp_path,
         logging.error(f"Source folder does not exist or is empty: {source_folder_path}")
         raise FileNotFoundError(f"Post-Injection Source folder does not exist or is empty: {source_folder_path}")
 
-    with Executor() as executor:
-        inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list)
+    if POST_INJECTOR_CONFIG["ENABLE_INJECTION"]:
+        with Executor() as executor:
+            inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list)
+
     logging.debug(f"Finished post build injector")
 
 

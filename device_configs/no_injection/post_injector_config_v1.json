@@ -1,5 +1,5 @@
 {
-  "ENABLE_INJECTION": true,
+  "ENABLE_INJECTION": false,
   "DISABLE_MISC_INJECTION": true,
   "SHARED_USER_ID_MAPPING_DICT":{
     "media": ["android.media", "android.uid.media"],
@@ -53,20 +53,8 @@
   ],
   "DISALLOW_APP_INJECTION": false,
   "ALLOWED_APP_INJECTION_KEYWORD": [
-    "Overlay",
-    "Connectivity",
-    "Wifi",
-    "Telephony",
-    "Telecom",
-    "TeleService",
-    "TelephonyProvider",
-    "NetworkStackGoogle",
-    "SystemUI"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
-    "vndservicemanager.rc",
-    "init.zygote64_32.rc",
-    "init.zygote32.rc"
   ],
   "ALLOW_APEX_MERGE_KEYWORD_LIST": [
     "sdkext",
@@ -159,12 +147,10 @@
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [],
   "ALLOW_APEX_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
-    ".txt",
-    ".art"
   ],
   "DISALLOW_APEX_FILE_OVERWRITE": [],
-  "DISALLOW_APEX_FILE_INJECTION_EXTENSIONS": [".so"],
-  "ALLOWED_APEX_FILE_INJECTION_EXTENSIONS": [".apk", ".jar", ".art", ".odex", ".oat", ".ttf", ".otf", ".ogg"],
+  "DISALLOW_APEX_FILE_INJECTION_EXTENSIONS": [],
+  "ALLOWED_APEX_FILE_INJECTION_EXTENSIONS": [],
   "DISABLE_APEX_BINARY_INJECTION": true,
   "COPY_TO_SPECIFIC_PATH": {
     "boot-framework.art": "./system/framework/"
