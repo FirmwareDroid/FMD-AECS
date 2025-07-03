@@ -66,7 +66,11 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     logging.info(f"Environment setup for {lunch_target} completed. Moving packages to aosp source code next.")
     try:
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
-        included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target)
+        if PRE_INJECTOR_CONFIG["ENABLE_INJECTION"]:
+            included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target)
+        else:
+            logging.info("Skipping package injection as ENABLE_INJECTION is set to False.")
+            included_package_statistics = {"apps": [], "libs": [], "apex": [], "count": 0}
     except Exception as e:
         logging.error(f"Error moving packages to aosp source code: {e}. EXIT PROGRAM!")
         traceback.print_exc()
