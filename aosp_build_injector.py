@@ -116,6 +116,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
                                       pre_injector_config_path=PRE_INJECTOR_CONFIG_PATH,
                                       post_injector_config_path=POST_INJECTOR_CONFIG_PATH
                                       )
+            logging.info(f"Summary Pre-Injector: {included_package_statistics}")
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target)
             execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path)
             is_successful = True
