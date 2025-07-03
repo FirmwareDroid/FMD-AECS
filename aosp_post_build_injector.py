@@ -106,6 +106,9 @@ def start_post_build_injector(aosp_path,
     if POST_INJECTOR_CONFIG["ENABLE_INJECTION"]:
         with Executor() as executor:
             inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list)
+    else:
+        logging.info(f"Post-Injection is disabled by configuration: {POST_INJECTOR_CONFIG['ENABLE_INJECTION']}")
+        logging.info(f"Skipping post build injection for {source_folder_path} into {target_out_path}")
 
     logging.debug(f"Finished post build injector")
 
