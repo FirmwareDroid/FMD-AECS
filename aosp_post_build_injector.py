@@ -107,6 +107,7 @@ def start_post_build_injector(aosp_path,
         inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list)
     logging.debug(f"Finished post build injector")
 
+
 def group_errors_by_prefix(error_list):
     """
     Groups errors by the first three words and counts occurrences.
@@ -219,6 +220,7 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
         "errors_grouped": grouped_errors,
     }
     write_json_output(result, PATH_EXECUTION_TIME_LOG)
+
 
 
 def get_folders(directory_path):
@@ -402,6 +404,7 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
                                                          file_path,
                                                          file_name,
                                                          target_out_path)
+
     if original_file_path is None:
         file_path_vendor_replaced = remove_vendor_name_from_path(file_path)
         file_name_vendor_replaced = os.path.basename(file_path_vendor_replaced)
