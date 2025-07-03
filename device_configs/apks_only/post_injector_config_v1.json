@@ -6,11 +6,11 @@
     "shared":["android.shared", "android.uid.shared"],
     "networkstack": ["android.networkstack", "android.uid.networkstack"]
   },
-  "INJECT_APEX_VENDOR_APPS": false,
+  "INJECT_APEX_VENDOR_APPS": true,
   "REPLACE_AVB_KEYS": false,
   "INJECT_APEX_VENDOR_FILES": false,
   "ALLOW_MIXED_APEX_FILES": false,
-  "ALLOW_APEX_INJECTION_MERGE": false,
+  "ALLOW_APEX_INJECTION_MERGE": true,
   "DISABLE_BINARY_INJECTION": true,
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
@@ -48,7 +48,9 @@
   ],
   "SKIPPED_APEX_KEYWORD_LIST": [
     "adb",
-    "vndk"
+    "vndk",
+    "apex",
+    "capex"
   ],
   "DISALLOW_APP_INJECTION": false,
   "ALLOWED_APP_INJECTION_KEYWORD": [
@@ -67,6 +69,7 @@
     "init.zygote64_32.rc",
     "init.zygote32.rc"
   ],
+  "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": ["extservice"],
   "ALLOW_APEX_MERGE_KEYWORD_LIST": [
     "sdkext",
     "extservices",
