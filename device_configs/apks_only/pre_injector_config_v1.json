@@ -4,6 +4,8 @@
   "ALLOW_APEX_REPACKING_IN_PRE_INJECTOR": false,
   "DISABLE_NATIVE_LIBRARY_INJECTION": true,
   "DISALLOWED_APK_PACKAGES": [
+    "Bluetooth",
+    "BluetoothMidiService"
   ],
   "SHARED_USER_ID_MAPPING_DICT": {
     "media": [
