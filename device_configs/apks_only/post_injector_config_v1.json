@@ -68,11 +68,8 @@
     "SystemUI"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
-    "vndservicemanager.rc",
-    "init.zygote64_32.rc",
-    "init.zygote32.rc"
   ],
-  "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": ["extservice"],
+  "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": ["extservice", "runtime"],
   "ALLOW_APEX_MERGE_KEYWORD_LIST": [
     "sdkext",
     "extservices",
