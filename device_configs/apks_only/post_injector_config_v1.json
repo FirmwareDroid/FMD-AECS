@@ -165,8 +165,8 @@
     ".art"
   ],
   "DISALLOW_APEX_FILE_OVERWRITE": [],
-  "DISALLOW_APEX_FILE_INJECTION_EXTENSIONS": [".so"],
-  "ALLOWED_APEX_FILE_INJECTION_EXTENSIONS": [".apk", ".jar", ".art", ".odex", ".oat", ".ttf", ".otf", ".ogg"],
+  "DISALLOW_APEX_FILE_INJECTION_EXTENSIONS": [],
+  "ALLOWED_APEX_FILE_INJECTION_EXTENSIONS": [".apk", ".jar", ".art", ".odex", ".oat", ".ttf", ".otf", ".ogg", ".so"],
   "DISABLE_APEX_BINARY_INJECTION": true,
   "COPY_TO_SPECIFIC_PATH": {
     "boot-framework.art": "./system/framework/"
