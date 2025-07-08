@@ -14,9 +14,7 @@
 # limitations under the License.
 #
 # Removed packages:
-# PackageInstaller \
-# NetworkStack \
-# SettingsProvider \
+
 
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \
@@ -32,6 +30,9 @@ PRODUCT_PACKAGES += \
     android.test.base \
     android.test.mock \
     android.test.runner \
+    PackageInstaller \
+	NetworkStack \
+	SettingsProvider \
     PackageInstaller \
     apexd \
     appops \
