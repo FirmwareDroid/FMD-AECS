@@ -9,7 +9,7 @@
   "INJECT_APEX_VENDOR_APPS": true,
   "REPLACE_AVB_KEYS": false,
   "INJECT_APEX_VENDOR_FILES": true,
-  "ALLOW_MIXED_APEX_FILES": false,
+  "ALLOW_MIXED_APEX_FILES": true,
   "ALLOW_APEX_INJECTION_MERGE": true,
   "DISABLE_BINARY_INJECTION": true,
   "SKIPPED_APP_LIST": [
@@ -67,7 +67,8 @@
     "NetworkStackGoogle",
     "SystemUI"
   ],
-  "ALLOW_FILE_INJECT_ALWAYS": [],
+  "ALLOW_FILE_INJECT_ALWAYS": [
+  ],
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": ["extservice", "runtime"],
   "ALLOW_APEX_MERGE_KEYWORD_LIST": [
     "sdkext",
