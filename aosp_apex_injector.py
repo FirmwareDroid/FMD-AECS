@@ -362,10 +362,14 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         if POST_INJECTOR_CONFIG["INJECT_APEX_VENDOR_FILES"]:
             logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
             inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
+        else:
+            logging.info("Injecting APEX vendor files is disabled.")
 
         if POST_INJECTOR_CONFIG["INJECT_APEX_VENDOR_APPS"]:
             logging.info(f"Injecting APEX vendor app: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
             apk_name_list = inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
+        else:
+            logging.info("Injecting APEX vendor apps is disabled.")
 
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name, apk_name_list)
