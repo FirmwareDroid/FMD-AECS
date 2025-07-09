@@ -33,7 +33,7 @@ PRODUCT_PACKAGES += \
     PackageInstaller \
 	NetworkStack \
 	SettingsProvider \
-    PackageInstaller \
+	PackageInstaller \
     apexd \
     appops \
     app_process \
