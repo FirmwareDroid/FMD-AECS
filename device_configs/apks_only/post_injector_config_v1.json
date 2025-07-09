@@ -11,6 +11,10 @@
   "INJECT_APEX_VENDOR_FILES": true,
   "ALLOW_MIXED_APEX_FILES": false,
   "ALLOW_APEX_INJECTION_MERGE": true,
+  "DISALLOW_APEX_FILE_OVERWRITE": [],
+  "DISALLOW_APEX_FILE_INJECTION_EXTENSIONS": [],
+  "ALLOWED_APEX_FILE_INJECTION_EXTENSIONS": [".apk", ".jar", ".art", ".odex", ".oat", ".ttf", ".otf", ".ogg", ".so"],
+  "DISABLE_APEX_BINARY_INJECTION": false,
   "DISABLE_BINARY_INJECTION": true,
   "SKIPPED_APP_LIST": [
     "Bluetooth",
@@ -164,10 +168,6 @@
     ".txt",
     ".art"
   ],
-  "DISALLOW_APEX_FILE_OVERWRITE": [],
-  "DISALLOW_APEX_FILE_INJECTION_EXTENSIONS": [],
-  "ALLOWED_APEX_FILE_INJECTION_EXTENSIONS": [".apk", ".jar", ".art", ".odex", ".oat", ".ttf", ".otf", ".ogg", ".so"],
-  "DISABLE_APEX_BINARY_INJECTION": true,
   "COPY_TO_SPECIFIC_PATH": {
     "boot-framework.art": "./system/framework/"
   },
