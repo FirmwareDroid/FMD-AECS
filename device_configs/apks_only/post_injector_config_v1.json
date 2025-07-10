@@ -16,6 +16,22 @@
   "ALLOWED_APEX_FILE_INJECTION_EXTENSIONS": [".apk", ".jar", ".art", ".odex", ".oat", ".ttf", ".otf", ".ogg", ".so"],
   "DISABLE_APEX_BINARY_INJECTION": false,
   "DISABLE_BINARY_INJECTION": true,
+  "SKIPPED_APP_KEYWORDLIST": [
+    "Bluetooth",
+    "BluetoothMidiService",
+    "framework-res",
+    "PackageInstaller",
+    "SystemUI",
+    "Settings",
+    "Telecom",
+    "ContactsProvider",
+    "MediaProvider",
+    "PermissionController",
+    "LatinIME",
+    "Dialer",
+    "NetworkStack",
+    "DocumentsUI",
+    "Provision"],
   "SKIPPED_APP_LIST": [
     "Bluetooth",
     "BluetoothMidiService"

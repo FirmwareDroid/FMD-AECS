@@ -12,7 +12,7 @@
   "ALLOW_MIXED_APEX_FILES": false,
   "ALLOW_APEX_INJECTION_MERGE": false,
   "DISABLE_BINARY_INJECTION": true,
-  "SKIPPED_APP_LIST": [
+  "SKIPPED_APP_KEYWORDLIST": [
     "Bluetooth",
     "BluetoothMidiService",
     "framework-res",
@@ -27,7 +27,8 @@
     "Dialer",
     "NetworkStack",
     "DocumentsUI",
-    "Provision"
+    "Provision"],
+  "SKIPPED_APP_LIST": [
   ],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
   "SKIPPED_FILE_EXTENSION_LIST_GENERAL": [
