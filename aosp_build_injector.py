@@ -440,7 +440,7 @@ def process_package(package_path, dir_name, aosp_path, out_dir, included_package
     :param lunch_target: str - AOSP build argument to select the build arch.
     """
     uuid_dir = str(uuid.uuid4())
-    if is_package_skipped(dir_name):
+    if is_package_skipped(dir_name, package_path):
         logging.info(f"Skipping package: {dir_name}")
         return included_package_statistics
 
@@ -462,7 +462,7 @@ def clean_package_name(package_name):
     """
     return package_name.replace("\\", "").replace("_FMD_APEX", "").replace("_fmd", "").strip()
 
-def is_package_skipped(dir_name):
+def is_package_skipped(dir_name, package_path):
     """
     Checks if a package should be skipped based on its name.
 
@@ -473,6 +473,10 @@ def is_package_skipped(dir_name):
     dir_name_cleaned = clean_package_name(dir_name)
     if dir_name_cleaned in SKIPPED_MODULE_NAMES or any(keyword in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["BLACKLISTED_KEYWORDS"]):
         return True
+    elif check_file_extension(package_path, [".apk"]):
+        if any(keyword in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["DISALLOWED_APK_KEYWORDS"]):
+            logging.info(f"Skipping APK package due to disallowed keyword: {dir_name_cleaned}")
+            return True
 
     if "_FMD_APEX" in dir_name:
         if not PRE_INJECTOR_CONFIG["DISABLE_APEX_APP_INJECTION"]:

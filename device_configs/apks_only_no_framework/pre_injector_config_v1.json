@@ -3,9 +3,24 @@
   "DISABLE_APEX_APP_INJECTION": true,
   "ALLOW_APEX_REPACKING_IN_PRE_INJECTOR": false,
   "DISABLE_NATIVE_LIBRARY_INJECTION": true,
-  "DISALLOWED_APK_PACKAGES": [
+  "DISALLOWED_APK_KEYWORDS": [
     "Bluetooth",
-    "BluetoothMidiService"
+    "BluetoothMidiService",
+    "framework-res",
+    "PackageInstaller",
+    "SystemUI",
+    "Settings",
+    "Telecom",
+    "ContactsProvider",
+    "MediaProvider",
+    "PermissionController",
+    "LatinIME",
+    "Dialer",
+    "NetworkStack",
+    "DocumentsUI",
+    "Provision"
+  ],
+  "DISALLOWED_APK_PACKAGES": [
   ],
   "SHARED_USER_ID_MAPPING_DICT": {
     "media": [
