@@ -27,7 +27,8 @@
     "Dialer",
     "NetworkStack",
     "DocumentsUI",
-    "Provision"],
+    "Provision"
+  ],
   "SKIPPED_APP_LIST": [
   ],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
