@@ -31,7 +31,8 @@
     "Dialer",
     "NetworkStack",
     "DocumentsUI",
-    "Provision"],
+    "Provision"
+  ],
   "SKIPPED_APP_LIST": [
     "Bluetooth",
     "BluetoothMidiService"
@@ -89,7 +90,11 @@
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
   ],
-  "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": ["extservice", "runtime"],
+  "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [
+    "extservice",
+    "runtime",
+    "ipsec"
+  ],
   "ALLOW_APEX_MERGE_KEYWORD_LIST": [
     "sdkext",
     "extservices",
