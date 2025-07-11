@@ -27,6 +27,7 @@
     "Dialer",
     "NetworkStack",
     "DocumentsUI",
+    "DocumentsUi",
     "Provision"
   ],
   "SKIPPED_APP_LIST": [
