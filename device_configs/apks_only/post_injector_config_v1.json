@@ -16,6 +16,11 @@
   "ALLOWED_APEX_FILE_INJECTION_EXTENSIONS": [".apk", ".jar", ".art", ".odex", ".oat", ".ttf", ".otf", ".ogg", ".so"],
   "DISABLE_APEX_BINARY_INJECTION": false,
   "DISABLE_BINARY_INJECTION": true,
+  "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [
+    "extservice",
+    "runtime",
+    "ipsec"
+  ],
   "SKIPPED_APP_KEYWORDLIST": [
     "Bluetooth",
     "BluetoothMidiService",
@@ -89,11 +94,6 @@
     "SystemUI"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
-  ],
-  "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [
-    "extservice",
-    "runtime",
-    "ipsec"
   ],
   "ALLOW_APEX_MERGE_KEYWORD_LIST": [
     "sdkext",

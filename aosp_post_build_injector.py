@@ -183,13 +183,14 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     if PRINT_ALL_LOGS:
         for obj in inj_obj_list:
             logging.info(f"Indirect Inject via obj: {obj}")
-            if ".apk" in obj:
+            if isinstance(obj, tuple) and any(".apk" in str(element) for element in obj):
                 file_name = os.path.basename(obj[0])
                 app_list.append(file_name)
+
         logging.info(f"Partition files injected:")
         for obj in inj_partition_list:
             logging.info(f"Direct Inject: {obj}")
-            if ".apk" in obj:
+            if isinstance(obj, tuple) and any(".apk" in str(element) for element in obj):
                 file_name = os.path.basename(obj[0])
                 app_list.append(file_name)
     if PRINT_ERROR_LOGS:
