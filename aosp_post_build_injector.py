@@ -179,12 +179,19 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     execution_time = end_time - start_time
     execution_time_minutes = execution_time / 60
     logging.info(f"Objects injected:")
+    app_list = []
     if PRINT_ALL_LOGS:
         for obj in inj_obj_list:
             logging.info(f"Indirect Inject via obj: {obj}")
+            if ".apk" in obj:
+                file_name = os.path.basename(obj[0])
+                app_list.append(file_name)
         logging.info(f"Partition files injected:")
         for obj in inj_partition_list:
             logging.info(f"Direct Inject: {obj}")
+            if ".apk" in obj:
+                file_name = os.path.basename(obj[0])
+                app_list.append(file_name)
     if PRINT_ERROR_LOGS:
         logging.info(f"Errors:")
         for obj in error_list:
@@ -196,6 +203,7 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     logging.info(f"Number of objects injected: {len(inj_obj_list)}")
     logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
     logging.info(f"Number of files processed: {len(error_list) + len(inj_obj_list) + len(inj_partition_list)}")
+    logging.info(f"App files injected: {app_list}")
 
     grouped_errors = group_errors_by_prefix(error_list)
 
@@ -548,9 +556,9 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
             result = future.result()
             if result[0]:  # If there's an error
                 error_list.append(result[0])
-            if result[1]:  # If an object was injected
+            if result[1]:  # Indirect Injection
                 inj_obj_list.append(result[1])
-            if result[2]:  # If a partition file was injected
+            if result[2]:  # Direct Injection
                 inj_partition_list.append(result[2])
         except Exception as exc:
             logging.error(f"Error processing file {file_path}: {exc}")
