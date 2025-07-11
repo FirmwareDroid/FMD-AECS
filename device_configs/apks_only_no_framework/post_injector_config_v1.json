@@ -31,6 +31,7 @@
   ],
   "SKIPPED_APP_LIST": [
   ],
+  "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
   "SKIPPED_FILE_EXTENSION_LIST_GENERAL": [
   ],
@@ -84,7 +85,6 @@
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
   ],
-  "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": ["extservice", "runtime"],
   "ALLOW_APEX_MERGE_KEYWORD_LIST": [
     "sdkext",
     "extservices",
