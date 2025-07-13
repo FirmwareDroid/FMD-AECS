@@ -28,7 +28,8 @@
     "NetworkStack",
     "DocumentsUI",
     "DocumentsUi",
-    "Provision"
+    "Provision",
+    "FusedLocation"
   ],
   "SKIPPED_APP_LIST": [
     "Shell"

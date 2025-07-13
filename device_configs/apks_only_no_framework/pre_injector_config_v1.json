@@ -18,7 +18,8 @@
     "Dialer",
     "NetworkStack",
     "DocumentsUI",
-    "Provision"
+    "Provision",
+    "FusedLocation"
   ],
   "DISALLOWED_APK_PACKAGES": [
   ],
