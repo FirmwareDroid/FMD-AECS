@@ -19,7 +19,9 @@
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [
     "extservice",
     "runtime",
-    "ipsec"
+    "ipsec",
+    "mainline",
+    "samsung"
   ],
   "SKIPPED_APP_KEYWORDLIST": [
     "Bluetooth",
@@ -94,6 +96,8 @@
     "SystemUI"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
+    "app_process64",
+    "app_process32"
   ],
   "ALLOW_APEX_MERGE_KEYWORD_LIST": [
     "sdkext",
