@@ -326,7 +326,7 @@ def parse_arguments():
                         help="Username for the authentication to the docker registry.")
     parser.add_argument("--download-destination",
                         type=str,
-                        required=True,
+                        required=False,
                         help="Path where the downloaded files will be stored.")
     parser.add_argument("--file-list",
                         type=str,
