@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 import platform
 from common import extract_zip
 from config import ROOT_PATH, IMAGE_ARTEFACTS_X86_64_ABS_PATH, IMAGE_ARTEFACTS_ARM64_PATH, IMAGE_ARTEFACTS_ABS_PATH, \
-    NEXUS_EMULATOR_REPOSITORY, EMULATOR_IMG_ABS_PATH, SUPPORTED_ARCHITECTURES, EMULATOR_DOCKERFILE_X8664_ABS_PATH, \
+    NEXUS_EMULATOR_REPOSITORY, SUPPORTED_ARCHITECTURES, EMULATOR_DOCKERFILE_X8664_ABS_PATH, \
     EMULATOR_DOCKERFILE_ARM64_ABS_PATH, BUILD_OUT_PATH, NEXUS_DOCKER_EMULATOR_REPOSITORY, \
     EMULATOR_DOCKERFILE_BASE_ABS_PATH
 from fmd_backend_requests import download_file, fetch_emulator_image_list
@@ -68,17 +68,16 @@ def get_filtered_emulator_image_list(repository_url, file_list):
 
 
 def get_image_file_list_form_disk(local_repo_path):
-    if not local_repo_path:
-        if not os.path.exists(EMULATOR_IMG_ABS_PATH):
-            os.makedirs(EMULATOR_IMG_ABS_PATH, exist_ok=True)
-        emulator_images = [os.path.join(EMULATOR_IMG_ABS_PATH, img) for img in os.listdir(EMULATOR_IMG_ABS_PATH)]
-    else:
-        if not os.path.exists(local_repo_path):
-            raise ValueError(f"Local repository path does not exist: {local_repo_path}")
-        if not os.path.isdir(local_repo_path):
-            raise ValueError(f"Local repository path is not a directory: {local_repo_path}")
-        emulator_images = [os.path.join(local_repo_path, img) for img in os.listdir(local_repo_path)]
-    logging.info(f"Emulator images in {EMULATOR_IMG_ABS_PATH}: {len(emulator_images)}: {emulator_images}")
+    if not os.path.exists(local_repo_path):
+        os.makedirs(local_repo_path, exist_ok=True)
+
+    if not os.path.exists(local_repo_path):
+        raise ValueError(f"Local repository path does not exist: {local_repo_path}")
+    if not os.path.isdir(local_repo_path):
+        raise ValueError(f"Local repository path is not a directory: {local_repo_path}")
+
+    emulator_images = [os.path.join(local_repo_path, img) for img in os.listdir(local_repo_path)]
+    logging.info(f"Emulator images in {local_repo_path}: {len(emulator_images)}: {emulator_images}")
     return emulator_images
 
 
@@ -254,8 +253,6 @@ def delete_emulator_images(local_repo_path):
     Deletes the emulator images from the local repository path.
     :param local_repo_path: Path to the local repository where the emulator images are stored.
     """
-    if not local_repo_path:
-        local_repo_path = EMULATOR_IMG_ABS_PATH
     if os.path.exists(local_repo_path):
         logging.info(f"Deleting emulator images from {local_repo_path}")
         shutil.rmtree(local_repo_path)
@@ -286,7 +283,6 @@ def process_images(local_repo_path, docker_repo_url, repository_username, build_
             logging.info("Skipped pushing the image to the docker repository. Only local build.")
         clear_image_artefacts()
         clear_docker_builder()
-        delete_emulator_images(local_repo_path)
     logging.info("Finished processing images.")
 
 
@@ -307,7 +303,7 @@ def parse_arguments():
                         action='store_true',
                         default=False,
                         required=False,
-                        help="If set, skips the download of the emulator images and uses the local files from 'emulator_images' directory.")
+                        help="If set, skips the download of the emulator images and uses the local files from the input directory.")
     parser.add_argument("-r",
                         "--repository-url",
                         type=str,
@@ -324,10 +320,12 @@ def parse_arguments():
                         default=None,
                         required=False,
                         help="Username for the authentication to the docker registry.")
-    parser.add_argument("--download-destination",
+    parser.add_argument("-i",
+                        "--input-dir",
                         type=str,
-                        required=False,
-                        help="Path where the downloaded files will be stored.")
+                        required=True,
+                        default="./emulator_images",
+                        help="Path where the output files will be stored.")
     parser.add_argument("--file-list",
                         type=str,
                         required=False,
@@ -337,12 +335,12 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
-    clear_environment(args.download_destination)
 
     if not args.create_local:
+        clear_environment(args.input_dir)
         if not args.repository_url or not args.docker_repo_url or not args.repository_username:
             raise ValueError("Repository URL, Docker repository URL and repository username must be provided.")
-        if not args.download_destination:
+        if not args.input_dir:
             raise ValueError("Download destination must be provided.")
         if not args.file_list:
             file_list = []
@@ -353,9 +351,9 @@ def main():
         for image in filtered_image_list:
             try:
                 image_list = [image]
-                download_emulator_images(image_list, args.download_destination)
+                download_emulator_images(image_list, args.input_dir)
                 start_time = time.time()
-                process_images(args.download_destination, args.docker_repo_url, args.repository_username,
+                process_images(args.input_dir, args.docker_repo_url, args.repository_username,
                                args.create_local)
                 end_time = time.time()
                 elapsed_time_seconds = end_time - start_time
@@ -373,7 +371,7 @@ def main():
             f"Finished processing images. Successful images: {successful_images}. Failed images: {failed_images}.")
     else:
         logging.info("Skipping download of emulator images.")
-        process_images(args.download_destination, args.docker_repo_url, args.repository_username, args.create_local)
+        process_images(args.input_dir, args.docker_repo_url, args.repository_username, args.create_local)
 
 
 if __name__ == "__main__":
