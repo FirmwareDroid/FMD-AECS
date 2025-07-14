@@ -276,9 +276,12 @@ def process_images(input_dir, docker_repo_url, repository_username, build_local)
         filename = os.path.basename(emulator_zip_path)
         if "arm64" in filename:
             docker_build_arch = "linux/arm64"
-        else:
+        elif "x86_64" in filename:
             docker_build_arch = "linux/amd64"
-
+        else:
+            logging.error(f"Unsupported architecture in filename: {filename}. Skipping.")
+            continue
+        logging.info(f"Building emulator image: {filename} for architecture: {docker_build_arch}")
         build_container_image(filename.replace(".zip", ""), docker_build_arch)
         if not build_local:
             repository_password = get_repo_password(repository_username)
