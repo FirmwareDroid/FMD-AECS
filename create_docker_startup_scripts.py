@@ -44,7 +44,7 @@ def main():
     parser.add_argument("-c",
                         "--cpu-arch",
                         type=str,
-                        default=PLATFORM_X86_64,
+                        default=PLATFORM_ARM64,
                         choices=[PLATFORM_X86_64, PLATFORM_ARM64],
                         help="Defines the CPU architecture for docker. Default is linux/amd64.")
     parser.add_argument("-d",
@@ -54,11 +54,10 @@ def main():
                         help="Defines the debug mode for docker.")
     args = parser.parse_args()
 
-    logging.info("Creating docker-compose.yaml file...")
-
     if args.cpu_arch not in [PLATFORM_X86_64, PLATFORM_ARM64]:
         logging.info(f"CPU architecture is set to {args.cpu_arch}.")
         raise ValueError("CPU architecture must be either linux/amd64 or linux/arm64.")
+    logging.info("Creating docker-compose.yaml file for CPU architecture: %s", args.cpu_arch)
 
     if args.debug:
         envoy_port_mapping = ["- \"4443:443\""]
