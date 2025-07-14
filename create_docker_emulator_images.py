@@ -11,15 +11,20 @@ import docker
 from werkzeug.utils import secure_filename
 import platform
 from common import extract_zip
-from config import ROOT_PATH, IMAGE_ARTEFACTS_X86_64_ABS_PATH, IMAGE_ARTEFACTS_ARM64_PATH, IMAGE_ARTEFACTS_ABS_PATH, \
-    NEXUS_EMULATOR_REPOSITORY, SUPPORTED_ARCHITECTURES, EMULATOR_DOCKERFILE_X8664_ABS_PATH, \
-    EMULATOR_DOCKERFILE_ARM64_ABS_PATH, BUILD_OUT_PATH, NEXUS_DOCKER_EMULATOR_REPOSITORY, \
-    EMULATOR_DOCKERFILE_BASE_ABS_PATH
 from fmd_backend_requests import download_file, fetch_emulator_image_list
 from setup_logger import setup_logger
 
 setup_logger()
 
+IMAGE_ARTEFACTS_ARM64_PATH = "image_artefacts/arm64-v8a/"
+IMAGE_ARTEFACTS_X86_64_PATH = "image_artefacts/x86_64/"
+IMAGE_ARTEFACTS_PATH = "image_artefacts/"
+ROOT_PATH = os.path.dirname(os.path.realpath(__file__))
+IMAGE_ARTEFACTS_X86_64_ABS_PATH = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_X86_64_PATH)
+IMAGE_ARTEFACTS_ABS_PATH = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_PATH)
+EMULATOR_DOCKERFILE_X8664_ABS_PATH = os.path.join(ROOT_PATH, "emulator/Dockerfile_x86_64")
+EMULATOR_DOCKERFILE_ARM64_ABS_PATH = os.path.join(ROOT_PATH, "emulator/Dockerfile_arm64")
+EMULATOR_DOCKERFILE_BASE_ABS_PATH = os.path.join(ROOT_PATH, "emulator/Dockerfile_base_emulator_")
 
 def download_emulator_images(image_list, destination):
     """
@@ -220,7 +225,7 @@ def check_if_base_images_exists():
     """
     base_images_exist = True
     client = docker.from_env()
-    for arch in SUPPORTED_ARCHITECTURES:
+    for arch in ["x86_64", "arm64"]:
         try:
             image = client.images.get(f"fmd-emulator_{arch}")
             logging.info(f"Base image {image.id} exists.")
@@ -242,7 +247,7 @@ def create_base_images():
     Returns:
 
     """
-    for arch in SUPPORTED_ARCHITECTURES:
+    for arch in ["x86_64", "arm64"]:
         if arch in get_host_architecture():
             logging.info(f"Building base image for {arch}")
             build_container_image(f"fmd-emulator_{arch}", f"linux/{arch}", f"{EMULATOR_DOCKERFILE_BASE_ABS_PATH}{arch}")
@@ -260,10 +265,10 @@ def delete_emulator_images(local_repo_path):
         logging.warning(f"Local repository path does not exist: {local_repo_path}")
 
 
-def process_images(local_repo_path, docker_repo_url, repository_username, build_local):
+def process_images(input_dir, docker_repo_url, repository_username, build_local):
     if not check_if_base_images_exists():
         create_base_images()
-    emulator_zip_file_list = get_image_file_list_form_disk(local_repo_path)
+    emulator_zip_file_list = get_image_file_list_form_disk(input_dir)
     logging.info(f"Processing images: {len(emulator_zip_file_list)}")
     for emulator_zip_path in emulator_zip_file_list:
         logging.info(f"Processing emulator image: {emulator_zip_path}")
@@ -323,7 +328,7 @@ def parse_arguments():
     parser.add_argument("-i",
                         "--input-dir",
                         type=str,
-                        required=True,
+                        required=False,
                         default="./emulator_images",
                         help="Path where the output files will be stored.")
     parser.add_argument("--file-list",
