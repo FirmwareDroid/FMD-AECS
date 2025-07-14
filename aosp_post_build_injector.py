@@ -286,10 +286,10 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                                           pre_injector_package_list=pre_injector_package_list,
                                           post_injector_config=POST_INJECTOR_CONFIG)
 
-            with processed_files_lock:
-                if file_path in processed_files:
-                    return f"File already processed: {file_path}", None, None
-                processed_files.add(file_path)
+            #with processed_files_lock:
+                #if file_path in processed_files:
+                #    return f"File already processed: {file_path}", None, None
+                #processed_files.add(file_path)
 
             if module_type in ["SKIPPED"]:
                 error_message = f"Skipped File post-inject (Keyword/Extension/Filename): {file_path} | module_type: {module_type}"
@@ -544,6 +544,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
                 skip_counter += 1
                 continue
             processed_files.add(file_path)
+
         logging.info(f"Submitting file for injection: {file_path} | Partition: {partition_name} "
                      f"| Target Out Path: {target_out_path} | Lunch Target: {lunch_target} | Length of pre_injector_package_list: {len(pre_injector_package_list)}")
         future = executor.submit(process_file_concurrently, aosp_path, file_path, partition_name, target_out_path, lunch_target, pre_injector_package_list)

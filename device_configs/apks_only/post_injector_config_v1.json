@@ -6,6 +6,11 @@
     "shared":["android.shared", "android.uid.shared"],
     "networkstack": ["android.networkstack", "android.uid.networkstack"]
   },
+  "ALLOW_FILE_INJECT_ALWAYS": [
+    "app_process64",
+    "app_process32",
+    "libandroid_runtime.so"
+  ],
   "INJECT_APEX_VENDOR_APPS": true,
   "REPLACE_AVB_KEYS": false,
   "INJECT_APEX_VENDOR_FILES": true,
@@ -94,10 +99,6 @@
     "TelephonyProvider",
     "NetworkStackGoogle",
     "SystemUI"
-  ],
-  "ALLOW_FILE_INJECT_ALWAYS": [
-    "app_process64",
-    "app_process32"
   ],
   "ALLOW_APEX_MERGE_KEYWORD_LIST": [
     "sdkext",
