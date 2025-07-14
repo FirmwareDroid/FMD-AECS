@@ -26,7 +26,6 @@ AOSP_BUILD_OUT_SDK_x86_64_PATH = "out/target/product/emulator_x86_64/"
 AOSP_EMU_ZIP_FILENAME = f"sdk-repo-linux-system-images-eng.{os.getlogin()}.zip"
 IMAGE_ARTEFACTS_X86_64_ABS_PATH = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_X86_64_PATH)
 IMAGE_ARTEFACTS_ABS_PATH = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_PATH)
-EMULATOR_IMG_ABS_PATH = os.path.join(ROOT_PATH, "emulator_images/")
 EMULATOR_DOCKERFILE_X8664_ABS_PATH = os.path.join(ROOT_PATH, "emulator/Dockerfile_x86_64")
 EMULATOR_DOCKERFILE_ARM64_ABS_PATH = os.path.join(ROOT_PATH, "emulator/Dockerfile_arm64")
 EMULATOR_DOCKERFILE_BASE_ABS_PATH = os.path.join(ROOT_PATH, "emulator/Dockerfile_base_emulator_")
