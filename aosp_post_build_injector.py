@@ -204,7 +204,7 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     logging.info(f"Number of objects injected: {len(inj_obj_list)}")
     logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
     logging.info(f"Number of files processed: {len(error_list) + len(inj_obj_list) + len(inj_partition_list)}")
-    logging.info(f"App files injected: {app_list}")
+    logging.info(f"Post-Injection Apps injected: {app_list}")
 
     grouped_errors = group_errors_by_prefix(error_list)
 

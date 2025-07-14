@@ -444,12 +444,16 @@ def process_package(package_path, dir_name, aosp_path, out_dir, included_package
         logging.info(f"Skipping package: {dir_name}")
         return included_package_statistics
 
-    if check_file_extension(package_path, [".so"]):
+    if check_file_extension(package_path, [".so", ".1", ".2", ".3", ".4", ".5", ".6", ".7", ".8", ".9"]):
         included_package_statistics = handle_library_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics)
     elif check_file_extension(package_path, [".apex", ".capex"]):
         included_package_statistics = handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics, lunch_target)
-    else:
+    elif check_file_extension(package_path, [".apk"]):
         included_package_statistics = handle_app_package(package_path, dir_name, uuid_dir, out_dir, included_package_statistics)
+    else:
+        logging.error(f"Skipping package: {dir_name} as it does not match any known file type.")
+        return included_package_statistics
+
     return included_package_statistics
 
 def clean_package_name(package_name):
