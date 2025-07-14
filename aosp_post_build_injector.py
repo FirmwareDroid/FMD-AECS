@@ -32,7 +32,7 @@ if os.environ.get("FMD_DEBUG") == "True":
 else:
     setup_logger()
 
-processed_files = set()
+
 processed_files_lock = threading.Lock()
 
 
@@ -527,6 +527,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     error_list = []
     inj_obj_list = []
     inj_partition_list = []
+    processed_files = set()
     partition_name = os.path.basename(folder_path)
     file_paths = list(set(os.path.join(root, file_name.strip()) for root, _, file_name_list in scandir_walk(folder_path)
                           for file_name in file_name_list))
@@ -570,7 +571,6 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
             progress_bar.update(1)
 
     progress_bar.close()
-
     #handle_duplicated_permissions(target_out_path)
     cleanup_files(folder_path)
 
