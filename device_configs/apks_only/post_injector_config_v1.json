@@ -11,7 +11,8 @@
     "app_process32",
     "libandroid_runtime.so",
     "libgui.so",
-    "libremotedisplay.so"
+    "libremotedisplay.so",
+    "libaudioclient.so"
   ],
   "INJECT_APEX_VENDOR_APPS": true,
   "REPLACE_AVB_KEYS": false,
