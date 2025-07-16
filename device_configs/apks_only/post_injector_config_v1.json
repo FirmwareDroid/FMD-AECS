@@ -9,7 +9,8 @@
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
     "app_process32",
-    "libandroid_runtime.so"
+    "libandroid_runtime.so",
+    "libgui.so"
   ],
   "INJECT_APEX_VENDOR_APPS": true,
   "REPLACE_AVB_KEYS": false,
