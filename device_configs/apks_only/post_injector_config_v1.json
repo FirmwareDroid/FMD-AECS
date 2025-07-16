@@ -10,7 +10,8 @@
     "app_process64",
     "app_process32",
     "libandroid_runtime.so",
-    "libgui.so"
+    "libgui.so",
+    "libremotedisplay.so"
   ],
   "INJECT_APEX_VENDOR_APPS": true,
   "REPLACE_AVB_KEYS": false,
