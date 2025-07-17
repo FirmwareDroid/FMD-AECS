@@ -878,7 +878,10 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
         target_dir_injection_path = target_partition_path
     else:
         # Adjust path for AOSP build directory structure
-        if file_extension == ".so" and POST_INJECTOR_CONFIG["USE_ISOLATED_NAMESPACE"] and "/lib" in source_file_path and filename in POST_INJECTOR_CONFIG["ISOLATED_NAMESPACE_LIST"]:
+        if (file_extension in [".so", ".1", ".2", ".3", ".4", ".5", ".6", ".7", ".8", ".9"]
+                and POST_INJECTOR_CONFIG["USE_ISOLATED_NAMESPACE"]
+                and "/lib" in source_file_path
+                and filename in POST_INJECTOR_CONFIG["ISOLATED_NAMESPACE_LIST"]):
             target_dir_injection_path = os.path.join(target_partition_path, "fmd")
         else:
             target_dir_injection_path = target_partition_path + str(os.path.join(*subfolder_list))

@@ -20,6 +20,7 @@
   ],
   "USE_ISOLATED_NAMESPACE": true,
   "ISOLATED_NAMESPACE_LIST": [
+    "linux-vdso.so.1",
     "liblog.so",
     "libbinder.so",
     "libc.so",
@@ -129,7 +130,7 @@
     "Bluetooth",
     "BluetoothMidiService"
   ],
-  "ALLOW_ONLY_EXTENSION_LIST": [".apk", ".jar", ".art", ".odex", ".oat", ".ttf", ".otf", ".ogg", ".so"],
+  "ALLOW_ONLY_EXTENSION_LIST": [".apk", ".jar", ".art", ".odex", ".oat", ".ttf", ".otf", ".ogg", ".so", ".1", ".2", ".3", ".4", ".5", ".6", ".7", ".8", ".9"],
   "SKIPPED_FILE_EXTENSION_LIST_GENERAL": [
   ],
   "EMULATOR_VNDK_VERSION": 32,
