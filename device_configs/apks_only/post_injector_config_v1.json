@@ -28,7 +28,7 @@
     "libui.so",
     "libgui.so",
     "libhidlbase.so",
-    "android.hardware.camera.common@1.0.so"
+    "android.hardware.camera.common@1.0.so",
     "android.hardware.camera.provider@2.4.so",
     "android.hardware.camera.provider@2.5.so",
     "android.hardware.camera.provider@2.6.so",
