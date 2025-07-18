@@ -104,7 +104,6 @@
   "DISABLE_BINARY_INJECTION": true,
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [
     "extservice",
-    "runtime",
     "ipsec",
     "mainline",
     "samsung"
