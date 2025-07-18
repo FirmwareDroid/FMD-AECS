@@ -862,6 +862,30 @@ def set_executable_permission(file_path):
         logging.warning(f"{e}")
         return False
 
+def check_shared_object_architecture(file_path):
+    """
+    Check if a shared object (.so) file is compiled for 32-bit or 64-bit.
+
+    :param file_path: str - Path to the .so file.
+    :return: str - '32-bit', '64-bit', or 'Unknown architecture'.
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            # Read the first 5 bytes of the file
+            header = f.read(5)
+            if len(header) < 5:
+                return 'Unknown architecture'
+
+            # Check the ELF magic number and class
+            if header[:4] == b'\x7fELF':
+                ei_class = header[4]
+                if ei_class == 1:
+                    return '32-bit'
+                elif ei_class == 2:
+                    return '64-bit'
+            return 'Unknown architecture'
+    except Exception as e:
+        return f"Error determining architecture: {str(e)}"
 
 def get_target_injection_path(source_file_path, partition_name, target_out_path):
     if partition_name == "super":
@@ -881,6 +905,7 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
         if (file_extension in [".so", ".1", ".2", ".3", ".4", ".5", ".6", ".7", ".8", ".9"]
                 and POST_INJECTOR_CONFIG["USE_ISOLATED_NAMESPACE"]
                 and "/lib" in source_file_path
+                and check_shared_object_architecture(source_file_path) == "64-bit"
                 and filename in POST_INJECTOR_CONFIG["ISOLATED_NAMESPACE_LIST"]):
             target_dir_injection_path = os.path.join(target_partition_path, "fmd")
         else:
