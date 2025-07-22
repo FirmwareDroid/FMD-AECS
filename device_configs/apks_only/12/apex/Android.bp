@@ -38,7 +38,7 @@ cc_prebuilt_library {
     srcs: [
         "./libc++.so",
     ],
-    stem: "libc++.so",
+    stem: "libc++",
     //relative_install_path: "lib64",
     installable: false,
     apex_available: [
@@ -52,7 +52,7 @@ cc_prebuilt_library {
 
 cc_prebuilt_library {
     name: "liblog_fmd_2static",
-    stem: "liblog.so",
+    stem: "liblog",
     srcs: [
         "./liblog.so",
     ],
