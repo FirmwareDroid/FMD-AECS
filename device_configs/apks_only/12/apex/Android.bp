@@ -1,0 +1,91 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+apex_key {
+    name: "com.android.fmd.key",
+    public_key: "com.android.fmd.avbpubkey",
+    private_key: "com.android.fmd.pem",
+}
+
+android_app_certificate {
+    name: "com.android.fmd.certificate",
+    certificate: "com.android.fmd",
+}
+
+cc_prebuilt_binary {
+    name: "app_process64_fmd2",
+    stem: "app_process64",
+    installable: false,
+    srcs: [
+        "app_process64",
+    ],
+    apex_available: [
+        "com.android.fmd",
+    ],
+    static_libs: [
+        "libc++_fmd_2static",
+        "liblog_fmd_2static",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+cc_prebuilt_library {
+    name: "libc++_fmd_2static",
+    srcs: [
+        "./libc++.so",
+    ],
+    stem: "libc++.so",
+    //relative_install_path: "lib64",
+    installable: false,
+    apex_available: [
+        "com.android.fmd",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+cc_prebuilt_library {
+    name: "liblog_fmd_2static",
+    stem: "liblog.so",
+    srcs: [
+        "./liblog.so",
+    ],
+    //relative_install_path: "lib64",
+    installable: false,
+    apex_available: [
+        "com.android.fmd",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+apex {
+    name: "com.android.fmd",
+    apex_name: "com.android.fmd",
+    manifest: "apex_manifest.json",
+    key: "com.android.fmd.key",
+    certificate: ":com.android.fmd.certificate",
+    //file_contexts: "system/sepolicy/apex/com.android.fmd-file_contexts",
+    use_vndk_as_stable: false,
+    updatable: false,
+    // Install the apex in /vendor/apex
+    soc_specific: false,
+    binaries: [
+        "app_process64_fmd2",
+    ],
+    native_shared_libs: [
+        "libc++_fmd_2static",
+        "liblog_fmd_2static",
+    ],
+    prebuilts: [
+    ],
+}
+
