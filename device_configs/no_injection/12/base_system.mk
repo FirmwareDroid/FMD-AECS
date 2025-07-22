@@ -23,8 +23,8 @@ PRODUCT_PACKAGES += \
     adbd_system_api \
     am \
     PackageInstaller \
-	NetworkStack \
-	SettingsProvider \
+    NetworkStack \
+    SettingsProvider \
     android.hidl.allocator@1.0-service \
     android.hidl.base-V1.0-java \
     android.hidl.manager-V1.0-java \
@@ -34,7 +34,6 @@ PRODUCT_PACKAGES += \
     android.test.base \
     android.test.mock \
     android.test.runner \
-    PackageInstaller \
     apexd \
     appops \
     app_process \
