@@ -18,6 +18,7 @@
 
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \
+    com.android.fmd \
     abx \
     adbd_system_api \
     am \
