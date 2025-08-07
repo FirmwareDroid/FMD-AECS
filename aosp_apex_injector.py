@@ -393,10 +393,12 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
 
     file_contexts_path = os.path.join(aosp_path, "system", "sepolicy", "apex", f"com.android.fmd.{filename}-file_contexts")
     ## Create the APEX container using apexer
-    if partition_name == "system":
-        apex_out_file = str(os.path.join(partition_root, "system", "apex", apex_file_name))
-    else:
-        apex_out_file = str(os.path.join(partition_root, "apex", apex_file_name))
+    # if partition_name == "system":
+    #     apex_out_file = str(os.path.join(partition_root, "system", "apex", apex_file_name))
+    # else:
+    #     apex_out_file = str(os.path.join(partition_root, "apex", apex_file_name))
+
+    apex_out_file = os.path.join(aosp_path, "out", "target", "product", lunch_target, partition_name, "apex", apex_file_name)
 
     is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
         = create_and_sign_apex_repack_container(apex_manifest_path_pb,
@@ -413,20 +415,6 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         logging.error(f"Error creating APEX container file {apex_file_name}: {log_message}")
         return False, log_message
     logging.info(f"APEX container file {apex_file_name} successfully created to: {apex_out_file}")
-
-    # dst_out_apex_path = ""
-    # try:
-
-    #     os.makedirs(os.path.dirname(dst_out_apex_path), exist_ok=True)
-    #     shutil.copyfile(apex_out_file, dst_out_apex_path)
-    #
-    #     #aosp_out_path = os.path.join(aosp_path, "out", "target", "product", lunch_target, partition_name, "apex",
-    #     #                             apex_file_name)
-    #     #shutil.copyfile(apex_out_file, aosp_out_path)
-    #     logging.info(f"Copied {apex_file_name} to {dst_out_apex_path} | {apex_file_name}")
-    # except Exception as e:
-    #     logging.error(f"Error copying APEX file {apex_file_name} to {dst_out_apex_path}: {e}")
-    #     return False, f"Error copying APEX file {apex_file_name}: {e}"
 
     return is_success, log_message
 
