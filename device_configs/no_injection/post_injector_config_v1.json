@@ -1,5 +1,5 @@
 {
-  "ENABLE_INJECTION": false,
+  "ENABLE_INJECTION": true,
   "DISABLE_MISC_INJECTION": true,
   "SHARED_USER_ID_MAPPING_DICT":{
     "media": ["android.media", "android.uid.media"],
