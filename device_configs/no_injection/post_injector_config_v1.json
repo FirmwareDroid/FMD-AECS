@@ -15,6 +15,7 @@
   "SKIPPED_APP_KEYWORDLIST": [],
   "USE_ISOLATED_NAMESPACE": false,
   "ISOLATED_NAMESPACE_LIST": [],
+  "APEX_BINARY_ISOLATED_NAMESPACE_LIST": [],
   "SKIPPED_APP_LIST": ["GooglePackageInstaller", "framework-res.apk", "framework-res", "SystemUIGoogle"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [],
