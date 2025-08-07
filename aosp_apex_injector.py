@@ -351,7 +351,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     apex_manifest_path = os.path.join(apex_root_path, apex_manifest_name)
     apex_file_name = f"com.android.fmd.{filename}.apex"
     apex_version = 1
-    apex_manifest = f"{{\n\"name\": \"{apex_file_name}\",\n\"version\": {apex_version}}}\n"
+    apex_manifest = f"{{\n\t\"name\": \"{apex_file_name}\",\n\t\"version\": {apex_version}\n}}\n"
     with open(apex_manifest_path, "w") as apex_manifest_file:
         apex_manifest_file.write(apex_manifest)
     logging.info(f"Created {apex_manifest_path} with content: {apex_manifest} for APEX file {apex_file_name}")
