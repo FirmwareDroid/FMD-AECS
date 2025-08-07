@@ -70,6 +70,15 @@ def Print(args):
         pb.ParseFromString(f.read())
     print(MessageToString(pb))
 
+
+def convert_manifest_from_json(manifest_file_path, out_file_path=None):
+    """
+    Converts APEX manifest from JSON to protobuf binary format.
+    """
+    args = argparse.Namespace(input=manifest_file_path, out=out_file_path)
+    Proto(args)
+
+
 def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
