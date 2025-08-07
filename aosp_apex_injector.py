@@ -272,7 +272,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         return False, log_message
 
     # Inject the binary file into the APEX in the extract temporary directory
-    bin_dir_path =  os.path.join(apex_extract_dir_path, "/bin")
+    bin_dir_path =  os.path.join(apex_extract_dir_path, "bin")
     os.makedirs(bin_dir_path, exist_ok=True)
     dst_file_path = os.path.join(bin_dir_path, filename)
     try:
