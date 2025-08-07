@@ -301,7 +301,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
 
     try:
         libs, libs_not_found = run_lddtree(binary_file_path, extra_env=env)
-        logging.info(f"Collected libraries from lddtree - {apex_file_name}: {libs}")
+        logging.info(f"Collected libraries from lddtree - {apex_file_name} libs found: {libs}")
+        logging.info(f"Collected libraries from lddtree - {apex_file_name} libs_not_found: {libs_not_found}")
     except Exception as e:
         logging.error(f"Error running lddtree on {binary_file_path} - {apex_file_name}: {e}")
         return False, f"Error running lddtree: {e}"
@@ -313,8 +314,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         logging.info(f"Adding APEX lib path - {apex_file_name}: {lib_path}")
         dst_lib_path = os.path.join(apex_lib64_path, os.path.basename(lib_path))
         try:
+            logging.info(f"Copying library {lib_path} to APEX {apex_file_name}: {dst_lib_path}")
             shutil.copyfile(lib_path, dst_lib_path)
-            logging.info(f"Copied library {lib_path} to APEX {apex_file_name}: {dst_lib_path}")
         except Exception as e:
             logging.error(f"Error copying library {lib_path} to APEX {apex_file_name}: {e}")
             return False, f"Error copying library {lib_path}: {e}"
