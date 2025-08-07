@@ -371,7 +371,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
 
     #Create new Manifest file
     apex_manifest_name_pb = "apex_manifest.pb"
-    apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
+    apex_manifest_path_pb = os.path.join(apex_extract_dir_path, apex_manifest_name_pb)
     logging.info(f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
     convert_manifest_from_json(apex_manifest_path, out_file_path=apex_manifest_path_pb)
     if not os.path.exists(apex_manifest_path_pb):
