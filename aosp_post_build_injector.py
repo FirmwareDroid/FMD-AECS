@@ -72,7 +72,7 @@ def start_post_build_injector(aosp_path,
                               target_out_path,
                               lunch_target,
                               firmware_id=None,
-                              pre_injector_package_list=None,
+                              pre_injector_package_list=[],
                               pre_injector_config_path=None,
                               post_injector_config_path=None):
     """
