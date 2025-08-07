@@ -300,21 +300,33 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     env = {"LD_LIBRARY_PATH": ":".join(extra_paths)} if extra_paths else None
 
     try:
-        libs = run_lddtree(binary_file_path, extra_env=env)
+        libs, libs_not_found = run_lddtree(binary_file_path, extra_env=env)
         logging.info(f"Collected libraries from lddtree - {apex_file_name}: {libs}")
     except Exception as e:
         logging.error(f"Error running lddtree on {binary_file_path} - {apex_file_name}: {e}")
         return False, f"Error running lddtree: {e}"
 
-    # Search for the native libraries in the AOSP source tree and copy them to the APEX directory
-    for lib_name in libs:
+    apex_lib64_path = os.path.join(apex_extract_dir_path, "lib64")
+    os.makedirs(os.path.dirname(apex_lib64_path), exist_ok=True)
+    # Copy libraries
+    for lib_path in libs:
+        logging.info(f"Adding APEX lib path - {apex_file_name}: {lib_path}")
+        dst_lib_path = os.path.join(apex_lib64_path, os.path.basename(lib_path))
+        try:
+            shutil.copyfile(lib_path, dst_lib_path)
+            logging.info(f"Copied library {lib_path} to APEX {apex_file_name}: {dst_lib_path}")
+        except Exception as e:
+            logging.error(f"Error copying library {lib_path} to APEX {apex_file_name}: {e}")
+            return False, f"Error copying library {lib_path}: {e}"
+
+    # Search for the native libraries in the AOSP source tree and copy them to the APEX directory if found
+    for lib_name in libs_not_found:
+        logging.info(f"Searching for library {lib_name} in partition root: {partition_root} for APEX {apex_file_name}")
         for root, dirs, files in os.walk(partition_root):
             if lib_name in files:
                 src_lib_path = os.path.join(root, lib_name)
                 if os.path.exists(src_lib_path):
                     if check_shared_object_architecture(src_lib_path) == "64-bit":
-                        apex_lib64_path = os.path.join(apex_extract_dir_path, "lib64")
-                        os.makedirs(os.path.dirname(apex_lib64_path), exist_ok=True)
                         dst_lib_path = os.path.join(apex_lib64_path, lib_name)
                         try:
                             shutil.copyfile(src_lib_path, dst_lib_path)

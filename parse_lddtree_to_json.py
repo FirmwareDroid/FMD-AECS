@@ -11,6 +11,7 @@ def parse_lddtree_output(lddtree_output: str):
     Parses the plain text output of lddtree and returns a list of native libraries used.
     """
     libs = set()
+    libs_not_found = set()
     pattern = re.compile(r'=>\s+(\S+)')  # matches '=> /path/to/lib.so'
 
     for line in lddtree_output.splitlines():
@@ -19,8 +20,10 @@ def parse_lddtree_output(lddtree_output: str):
             lib_path = match.group(1)
             if lib_path not in ('not', 'found') and not lib_path.startswith('('):
                 libs.add(lib_path)
+            else:
+                libs_not_found.add(lib_path)
 
-    return sorted(libs)
+    return sorted(libs), sorted(libs_not_found)
 
 
 def run_lddtree(binary_path: str, extra_env=None, cwd=None):
