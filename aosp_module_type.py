@@ -91,6 +91,8 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
     else:
         module_type = "MISC"
 
+    tmp_module_type = module_type
+
     if module_type == "APPS" and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_APP_KEYWORDLIST"]):
         module_type = "SKIPPED"
     if module_type == "APPS" and (file_name_no_ext in POST_INJECTOR_CONFIG["SKIPPED_APP_LIST"]
@@ -102,7 +104,6 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
     if module_type in ["EXECUTABLES", "ETC"] and POST_INJECTOR_CONFIG["DISABLE_BINARY_INJECTION"]:
         module_type = "SKIPPED"
 
-    tmp_module_type = module_type
     if (not is_file_path_allowed(source_file_path)
             or (file_extension not in ["", None] and not is_file_extension_allowed(file_extension))
             or not is_file_inject_allowed(file_name)):
@@ -129,7 +130,7 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
     # Override the module type if the file name or path contains specific keywords
     if (file_name in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS"]
             or any(keyword in source_file_path for keyword in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST"])):
-        logging.info(f"File {source_file_path} is allowed to be injected regardless of its type. ALLOW_FILE_INJECT_ALWAYS / ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST")
+        logging.info(f"File {source_file_path}|{tmp_module_type} is allowed to be injected regardless of its type. ALLOW_FILE_INJECT_ALWAYS / ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST")
         module_type = tmp_module_type
 
     logging.debug(f"File Extension: {file_extension} for {source_file_path} is module type {module_type}")
