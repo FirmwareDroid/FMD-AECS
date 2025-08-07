@@ -166,13 +166,14 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target):
 
 
 def create_and_sign_apex_repack_container(apex_manifest_path,
-                                    apex_extract_dir_path,
-                                    apex_root_path,
-                                    aosp_path,
-                                    apex_out_file,
-                                    lunch_target,
-                                    canned_fs_config,
-                                    apex_file_path=None):
+                                            apex_extract_dir_path,
+                                            apex_root_path,
+                                            aosp_path,
+                                            apex_out_file,
+                                            lunch_target,
+                                            canned_fs_config,
+                                            apex_file_path=None,
+                                            file_contexts_path=None):
     copy_android_prebuilt_jar(aosp_path, apex_root_path)
     is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
         = create_apex_container(apex_manifest_path,
@@ -182,7 +183,8 @@ def create_and_sign_apex_repack_container(apex_manifest_path,
                                 apex_out_file,
                                 lunch_target,
                                 canned_fs_config,
-                                is_repack=True)
+                                is_repack=True,
+                                file_contexts_path=file_contexts_path)
     if is_success:
         is_success, error_message = sign_apex_file(apex_out_file,
                                                    aosp_path,
@@ -384,6 +386,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         logging.error(f"Error copying SELinux file contexts: {e}")
         return False, f"Error copying SELinux file contexts: {e}"
 
+    file_contexts_path = os.path.join(aosp_path, "system", "sepolicy", "apex", f"com.android.fmd.{filename}-file_contexts")
     ## Create the APEX container using apexer
     is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
         = create_and_sign_apex_repack_container(apex_manifest_path,
@@ -392,7 +395,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                                                 aosp_path,
                                                 apex_out_file,
                                                 lunch_target,
-                                                canned_fs_config)
+                                                canned_fs_config,
+                                                file_contexts_path)
 
     # Copy the APEX file to the injection source directory for later direct injection
     if not is_success:
@@ -893,7 +897,7 @@ def get_existing_file_context(apex_file_name, aosp_path):
     return file_contexts_path
 
 
-def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config, is_repack=False):
+def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config, is_repack=False, file_contexts_path=None):
     success = False
     resign_apex_apk_files(aosp_path, apex_extract_dir_path)
     apexer_bin_path = os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer")
@@ -908,14 +912,16 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
         logging.info(f"Key material created for APEX: {temp_keys_dir}, "
                      f"{private_key_path},"
                      f"{priv_pem_file_path}, {pub_key_path}, {avb_pub_key_path}, {cert_apex_apk_path}")
-        file_contexts_path = FILE_CONTEXT_TEMPLATE_PATH
+        if not file_contexts_path:
+            file_contexts_path = FILE_CONTEXT_TEMPLATE_PATH
         if not is_success:
             logging.error(f"Error generating APEX keys: {log_message}")
             return False, f"Error generating APEX keys: {log_message}", None, None, None, None, None
     else:
         logging.info(f"Using default AVB keys for APEX: {apex_file_name}")
         private_key_path, priv_pem_file_path, avb_pub_key_path, cert_apex_apk_path = get_apex_default_keys(aosp_path, apex_file_name)
-        file_contexts_path = get_existing_file_context(apex_file_name, aosp_path)
+        if not file_contexts_path:
+            file_contexts_path = get_existing_file_context(apex_file_name, aosp_path)
 
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
               f"--key={priv_pem_file_path} " \
@@ -924,11 +930,8 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
               f"--file_contexts={file_contexts_path} " \
               f"--canned_fs_config={canned_fs_config.name} " \
               f"--include_build_info " \
-              f"--force "
-    #if apex_manifest_path.endswith(".pb"):
-    #    command += f"--manifest={apex_manifest_path} "
-
-    command += f"{apex_extract_dir_path} " \
+              f"--force " \
+              f"{apex_extract_dir_path} " \
               f"{output_file_path}"
     logging.info(f"Apexer Container creation command: {command}")
 
