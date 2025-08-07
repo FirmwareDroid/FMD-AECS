@@ -1,0 +1,16 @@
+cc_prebuilt_binary {
+    name: "${module_name}",
+    stem: "${stem_name}",
+    installable: false,
+    srcs: [
+        "${file_name}",
+    ],
+    apex_available: [
+        "${apex_module_name}",
+    ],
+    ${static_libs}
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}

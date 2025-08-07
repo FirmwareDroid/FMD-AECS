@@ -1,0 +1,36 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+apex_key {
+    name: "${module_name}.key",
+    public_key: "${module_name}.avbpubkey",
+    private_key: "${module_name}.pem",
+}
+
+android_app_certificate {
+    name: "${module_name}.certificate",
+    certificate: "${module_name}",
+}
+
+{%- for line in cc_prebuilt_library_list %}
+    {{ line }}
+{%- endfor %}
+
+{%- for line in cc_binary_list %}
+    {{ line }}
+{%- endfor %}
+
+apex {
+    name: "${module_name}",
+    apex_name: "${apex_name}",
+    manifest: "apex_manifest.json",
+    key: "${module_name}.key",
+    certificate: ":${module_name}.certificate",
+    use_vndk_as_stable: false,
+    updatable: false,
+    soc_specific: ${soc_specific},
+    ${binaries}
+    ${native_shared_libs}
+}
+

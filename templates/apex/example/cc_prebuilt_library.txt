@@ -1,0 +1,15 @@
+cc_prebuilt_library {
+    name: "${module_name}",
+    srcs: [
+        "./${file_name}",
+    ],
+    stem: "${stem_name}",
+    installable: false,
+    apex_available: [
+        "${apex_module_name}",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
