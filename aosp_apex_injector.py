@@ -308,13 +308,13 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         return False, f"Error running lddtree: {e}"
 
     apex_lib64_path = os.path.join(apex_extract_dir_path, "lib64")
-    os.makedirs(os.path.dirname(apex_lib64_path), exist_ok=True)
+    os.makedirs(apex_lib64_path, exist_ok=True)
     # Copy libraries
     for lib_path in libs:
         logging.info(f"Adding APEX lib path - {apex_file_name}: {lib_path}")
         dst_lib_path = os.path.join(apex_lib64_path, os.path.basename(lib_path))
         try:
-            logging.info(f"Copying library {lib_path} to APEX {apex_file_name}: {dst_lib_path}")
+            logging.info(f"Copying library {lib_path} to {dst_lib_path} : APEX {apex_file_name}")
             shutil.copyfile(lib_path, dst_lib_path)
         except Exception as e:
             logging.error(f"Error copying library {lib_path} to APEX {apex_file_name}: {e}")
