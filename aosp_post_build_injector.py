@@ -1032,7 +1032,10 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type):
             target_path = f"/apex/com.android.fmd.{filename}/bin/{filename}"
             logging.info(f"Add new dangling symlink: {original_file_path} -> {target_path}")
             os.remove(target_path)
-            subprocess.run(['ln', '-s', target_path, original_file_path], check=True)
+            #subprocess.run(['ln', '-s', target_path, original_file_path], check=True)
+            result = subprocess.run(['ln', '-s', target_path, original_file_path], capture_output=True, text=True)
+            logging.info(f"stdout: {result.stdout}")
+            logging.info(f"stderr: {result.stderr}")
             #os.symlink(target_path, original_file_path)
             is_injected = True
         else:
