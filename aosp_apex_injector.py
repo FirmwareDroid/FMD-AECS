@@ -279,13 +279,14 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         shutil.copyfile(binary_file_path, dst_file_path)
         logging.info(f"Copied binary file {binary_file_path} to APEX: {dst_file_path}")
     except Exception as e:
-        logging.error(f"Error copying binary file {binary_file_path} to APEX: {e}")
+        logging.error(f"Error copying binary file {binary_file_path} to APEX {apex_file_name}: {e}")
         return False, f"Error copying binary file: {e}"
 
     # Run lddtree on the binary file to collect all necessary native libraries
     partition_root = get_path_up_to_first_term(binary_file_path, partition_name)
+    logging.info(f"Partition root {apex_file_name}: {partition_root}")
     if not os.path.exists(partition_root):
-        logging.error(f"Partition root not found: {partition_root}. Cannot proceed with APEX creation.")
+        logging.error(f"Partition root not found: {partition_root}. Cannot proceed with APEX creation for {apex_file_name}.")
         return False, f"Partition root not found: {partition_root}"
 
     ## Construct LD_LIBRARY_PATH for lddtree
@@ -294,15 +295,15 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     if lib64_path_list:
         extra_paths.extend(lib64_path_list)
     else:
-        logging.warning(f"No 'lib64' folders found in partition root: {partition_root}. Using default paths.")
+        logging.warning(f"No 'lib64' folders found in partition root: {partition_root}. Using default paths. {apex_file_name}")
 
     env = {"LD_LIBRARY_PATH": ":".join(extra_paths)} if extra_paths else None
 
     try:
         libs = run_lddtree(binary_file_path, extra_env=env)
-        logging.info(f"Collected libraries from lddtree: {libs}")
+        logging.info(f"Collected libraries from lddtree - {apex_file_name}: {libs}")
     except Exception as e:
-        logging.error(f"Error running lddtree on {binary_file_path}: {e}")
+        logging.error(f"Error running lddtree on {binary_file_path} - {apex_file_name}: {e}")
         return False, f"Error running lddtree: {e}"
 
     # Search for the native libraries in the AOSP source tree and copy them to the APEX directory
@@ -317,15 +318,15 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                         dst_lib_path = os.path.join(apex_lib64_path, lib_name)
                         try:
                             shutil.copyfile(src_lib_path, dst_lib_path)
-                            logging.info(f"Copied 64-bit library {lib_name} to APEX: {dst_lib_path}")
+                            logging.info(f"Copied 64-bit library {lib_name} to APEX {apex_file_name}: {dst_lib_path}")
                             break  # Stop searching after finding the 64-bit version
                         except Exception as e:
-                            logging.error(f"Error copying library {lib_name} from {src_lib_path} to {dst_lib_path}: {e}")
+                            logging.error(f"Error copying library {lib_name} from {src_lib_path} to {dst_lib_path} for {apex_file_name}: {e}")
                             return False, f"Error copying library {lib_name}: {e}"
                     else:
-                        logging.info(f"Found 32-bit library {lib_name} in {src_lib_path}, skipping.")
+                        logging.info(f"Found 32-bit library {lib_name} in {src_lib_path}, skipping. {apex_file_name}")
                 else:
-                    logging.error(f"Library {lib_name} not found in {partition_root}. Skipping.")
+                    logging.error(f"Library {lib_name} not found in {partition_root}. Skipping. {apex_file_name}")
 
     # Create the new APEX file
     ## Create Canned FS config file
@@ -345,14 +346,14 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     """
     with open(apex_manifest_path, "w") as apex_manifest_file:
         apex_manifest_file.write(apex_manifest)
-    logging.info(f"Created {apex_manifest_path} with content: {apex_manifest}")
+    logging.info(f"Created {apex_manifest_path} with content: {apex_manifest} for APEX file {apex_file_name}")
 
     try:
         ## Create SELinux File Contexts for the new APEX file
         file_context_source_path = os.path.join(template_folder_abs_path, "file_contexts")
         file_context_dst_path = os.path.join(aosp_path, "system", "sepolicy", "apex", f"com.android.fmd.{filename}-file_contexts")
         shutil.copyfile(file_context_source_path, file_context_dst_path)
-        logging.info(f"Copied {file_context_source_path} to {file_context_dst_path}")
+        logging.info(f"Copied {file_context_source_path} to {file_context_dst_path} for APEX file {apex_file_name}")
     except Exception as e:
         logging.error(f"Error copying SELinux file contexts: {e}")
         return False, f"Error copying SELinux file contexts: {e}"
@@ -369,7 +370,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
 
     # Copy the APEX file to the injection source directory for later direct injection
     if not is_success:
-        logging.error(f"Error creating APEX container file: {log_message}")
+        logging.error(f"Error creating APEX container file {apex_file_name}: {log_message}")
         return False, log_message
 
     dst_out_apex_path = ""
@@ -385,10 +386,10 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         #aosp_out_path = os.path.join(aosp_path, "out", "target", "product", lunch_target, partition_name, "apex",
         #                             apex_file_name)
         #shutil.copyfile(apex_out_file, aosp_out_path)
-        logging.info(f"Copied {apex_file_name} to {dst_out_apex_path}")
+        logging.info(f"Copied {apex_file_name} to {dst_out_apex_path} | {apex_file_name}")
     except Exception as e:
-        logging.error(f"Error copying APEX file to {dst_out_apex_path}: {e}")
-        return False, f"Error copying APEX file: {e}"
+        logging.error(f"Error copying APEX file {apex_file_name} to {dst_out_apex_path}: {e}")
+        return False, f"Error copying APEX file {apex_file_name}: {e}"
 
     return is_success, log_message
 
