@@ -108,12 +108,13 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
             or not is_file_inject_allowed(file_name)):
         module_type = "SKIPPED"
 
-    for package_name in pre_injector_package_list:
-        stripped_package_name = package_name.replace("FMD_APEX", "").replace("fmd", "").strip()
-        if file_name == stripped_package_name or file_name_no_ext == stripped_package_name:
-            logging.info(f"Skipping {source_file_path} as it was already injected via pre-injector.")
-            module_type = "SKIPPED"
-            break
+    if module_type in ["SHARED_LIBRARIES", "ETC", "APPS"]:
+        for package_name in pre_injector_package_list:
+            stripped_package_name = package_name.replace("FMD_APEX", "").replace("fmd", "").strip()
+            if file_name == stripped_package_name or file_name_no_ext == stripped_package_name:
+                logging.info(f"Skipping {source_file_path} as it was already injected via pre-injector.")
+                module_type = "SKIPPED"
+                break
 
     if is_apex and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_APEX_KEYWORD_LIST"]):
         module_type = "SKIPPED"

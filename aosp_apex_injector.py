@@ -207,6 +207,16 @@ def get_path_up_to_term(path, term):
             return os.sep.join(parts[:i+1]) + os.sep
     return None  # term not found
 
+def get_path_up_to_first_term(path, term):
+    """
+    Returns the subpath up to and including the first occurrence of `term` in the path.
+    """
+    parts = path.split(os.sep)
+    for i, part in enumerate(parts):
+        if part == term:
+            return os.sep.join(parts[:i+1]) + os.sep
+    return None  # term not found
+
 def find_lib64_folders(root_dir):
     """
     Recursively finds all folders named 'lib64' under root_dir,
@@ -273,7 +283,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         return False, f"Error copying binary file: {e}"
 
     # Run lddtree on the binary file to collect all necessary native libraries
-    partition_root = get_path_up_to_term(binary_file_path, partition_name)
+    partition_root = get_path_up_to_first_term(binary_file_path, partition_name)
     if not os.path.exists(partition_root):
         logging.error(f"Partition root not found: {partition_root}. Cannot proceed with APEX creation.")
         return False, f"Partition root not found: {partition_root}"
