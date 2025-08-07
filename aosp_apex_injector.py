@@ -399,7 +399,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         apex_out_file = str(os.path.join(partition_root, "apex", apex_file_name))
 
     is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
-        = create_and_sign_apex_repack_container(apex_manifest_path,
+        = create_and_sign_apex_repack_container(apex_manifest_path_pb,
                                                 apex_extract_dir_path,
                                                 apex_root_path,
                                                 aosp_path,
