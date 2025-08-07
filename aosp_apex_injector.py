@@ -257,10 +257,10 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "apex")
     apex_template_file = os.path.join(template_folder_abs_path, "com.android.fmd.apex")
     tempdir = tempfile.TemporaryDirectory()
-    apex_out_file = str(os.path.join(tempdir.name, apex_file_name))
+    apex_in_file = str(os.path.join(tempdir.name, apex_file_name))
     try:
-        shutil.copyfile(apex_template_file, apex_out_file)
-        logging.info(f"Copied APEX template file: {apex_template_file} to {apex_out_file}")
+        shutil.copyfile(apex_template_file, apex_in_file)
+        logging.info(f"Copied APEX template file: {apex_template_file} to {apex_in_file}")
     except Exception as e:
         logging.error(f"Error copying APEX template file: {e}")
         return False, f"Error copying APEX template file: {e}"
@@ -268,7 +268,11 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     # Extract the APEX file to a temporary directory
     apex_root_path = tempfile.mkdtemp(suffix=f"_{filename}_apex_repack")
     apex_extract_dir_path = tempfile.mkdtemp(dir=apex_root_path, suffix=f"_{filename}_extract")
-    extract_success, log_message = extract_apex_file(aosp_path, apex_out_file, apex_extract_dir_path, lunch_target)
+    extract_success, log_message = extract_apex_file(aosp_path, apex_in_file, apex_extract_dir_path, lunch_target)
+    if os.path.exists(apex_in_file):
+        logging.info(f"APEX file {apex_in_file} still exists after extraction. Removing it.")
+        os.remove(apex_in_file)
+    apex_out_file = apex_in_file
 
     if not extract_success:
         logging.error(f"Error extracting APEX file: {log_message}")
