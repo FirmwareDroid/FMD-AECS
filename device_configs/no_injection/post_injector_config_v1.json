@@ -59,7 +59,7 @@
     "adb",
     "vndk"
   ],
-  "DISALLOW_APP_INJECTION": false,
+  "DISALLOW_APP_INJECTION": true,
   "ALLOWED_APP_INJECTION_KEYWORD": [
   ],
   "ALLOW_APEX_MERGE_KEYWORD_LIST": [
