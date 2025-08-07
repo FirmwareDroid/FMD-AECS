@@ -272,7 +272,6 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     if os.path.exists(apex_in_file):
         logging.info(f"APEX file {apex_in_file} still exists after extraction. Removing it.")
         os.remove(apex_in_file)
-    apex_out_file = apex_in_file
 
     if not extract_success:
         logging.error(f"Error extracting APEX file: {log_message}")
@@ -371,13 +370,15 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
 
     #Create new Manifest file
     apex_manifest_name_pb = "apex_manifest.pb"
-    apex_manifest_path_pb = os.path.join(apex_extract_dir_path, apex_manifest_name_pb)
+    apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
     logging.info(f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
     convert_manifest_from_json(apex_manifest_path, out_file_path=apex_manifest_path_pb)
     if not os.path.exists(apex_manifest_path_pb):
         logging.error(f"APEX manifest Protobuf file not created: {apex_manifest_path_pb} for APEX file {apex_file_name}")
         return False, f"APEX manifest Protobuf file not created: {apex_manifest_path_pb}"
     else:
+        logging.info(f"APEX manifest Protobuf file created: {apex_manifest_path_pb} for APEX file {apex_file_name}. "
+                     f"Removing old manifest file: {old_apex_manifest_path}")
         os.remove(apex_manifest_path)
 
     try:
@@ -392,6 +393,11 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
 
     file_contexts_path = os.path.join(aosp_path, "system", "sepolicy", "apex", f"com.android.fmd.{filename}-file_contexts")
     ## Create the APEX container using apexer
+    if partition_name == "system":
+        apex_out_file = str(os.path.join(partition_root, "system", "apex", apex_file_name))
+    else:
+        apex_out_file = str(os.path.join(partition_root, "apex", apex_file_name))
+
     is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
         = create_and_sign_apex_repack_container(apex_manifest_path,
                                                 apex_extract_dir_path,
@@ -400,29 +406,27 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                                                 apex_out_file,
                                                 lunch_target,
                                                 canned_fs_config,
-                                                file_contexts_path)
+                                                file_contexts_path=file_contexts_path)
 
     # Copy the APEX file to the injection source directory for later direct injection
     if not is_success:
         logging.error(f"Error creating APEX container file {apex_file_name}: {log_message}")
         return False, log_message
+    logging.info(f"APEX container file {apex_file_name} successfully created to: {apex_out_file}")
 
-    dst_out_apex_path = ""
-    try:
-        if partition_name == "system":
-            dst_out_apex_path = str(os.path.join(partition_root, "system", "apex", apex_file_name))
-        else:
-            dst_out_apex_path = str(os.path.join(partition_root, "apex", apex_file_name))
-        os.makedirs(os.path.dirname(dst_out_apex_path), exist_ok=True)
-        shutil.copyfile(apex_out_file, dst_out_apex_path)
+    # dst_out_apex_path = ""
+    # try:
 
-        #aosp_out_path = os.path.join(aosp_path, "out", "target", "product", lunch_target, partition_name, "apex",
-        #                             apex_file_name)
-        #shutil.copyfile(apex_out_file, aosp_out_path)
-        logging.info(f"Copied {apex_file_name} to {dst_out_apex_path} | {apex_file_name}")
-    except Exception as e:
-        logging.error(f"Error copying APEX file {apex_file_name} to {dst_out_apex_path}: {e}")
-        return False, f"Error copying APEX file {apex_file_name}: {e}"
+    #     os.makedirs(os.path.dirname(dst_out_apex_path), exist_ok=True)
+    #     shutil.copyfile(apex_out_file, dst_out_apex_path)
+    #
+    #     #aosp_out_path = os.path.join(aosp_path, "out", "target", "product", lunch_target, partition_name, "apex",
+    #     #                             apex_file_name)
+    #     #shutil.copyfile(apex_out_file, aosp_out_path)
+    #     logging.info(f"Copied {apex_file_name} to {dst_out_apex_path} | {apex_file_name}")
+    # except Exception as e:
+    #     logging.error(f"Error copying APEX file {apex_file_name} to {dst_out_apex_path}: {e}")
+    #     return False, f"Error copying APEX file {apex_file_name}: {e}"
 
     return is_success, log_message
 
