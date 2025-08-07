@@ -24,8 +24,19 @@ cc_prebuilt_binary {
         "com.android.fmd",
     ],
     static_libs: [
-        "libc++_fmd_2static",
-        "liblog_fmd_2static",
+        "libc++_fmd_static",
+        "liblog_fmd_static",
+        "libbinder_fmd_static",
+        "libc_fmd_static",
+        "libandroid_runtime_fmd_static",
+        "libcutils_fmd_static",
+        "libhidlbase_fmd_static",
+        "libnativeloader_fmd_static",
+        "libsigchain_fmd_static",
+        "libutils_fmd_static",
+        "libwilhelm_fmd_static",
+        "libm_fmd_static",
+        "libdl_fmd_static"
     ],
     visibility: [
         "//visibility:public",
@@ -34,7 +45,7 @@ cc_prebuilt_binary {
 }
 
 cc_prebuilt_library {
-    name: "libc++_fmd_2static",
+    name: "libc++_fmd_static",
     srcs: [
         "./libc++.so",
     ],
@@ -51,10 +62,197 @@ cc_prebuilt_library {
 }
 
 cc_prebuilt_library {
-    name: "liblog_fmd_2static",
+    name: "liblog_fmd_static",
     stem: "liblog",
     srcs: [
         "./liblog.so",
+    ],
+    //relative_install_path: "lib64",
+    installable: false,
+    apex_available: [
+        "com.android.fmd",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+cc_prebuilt_library {
+    name: "libbinder_fmd_static",
+    stem: "libbinder",
+    srcs: [
+        "./libbinder.so",
+    ],
+    //relative_install_path: "lib64",
+    installable: false,
+    apex_available: [
+        "com.android.fmd",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+cc_prebuilt_library {
+    name: "libc_fmd_static",
+    stem: "libc",
+    srcs: [
+        "./libc.so",
+    ],
+    //relative_install_path: "lib64",
+    installable: false,
+    apex_available: [
+        "com.android.fmd",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+cc_prebuilt_library {
+    name: "libandroid_runtime_fmd_static",
+    stem: "libandroid_runtime",
+    srcs: [
+        "./libandroid_runtime.so",
+    ],
+    //relative_install_path: "lib64",
+    installable: false,
+    apex_available: [
+        "com.android.fmd",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+cc_prebuilt_library {
+    name: "libcutils_fmd_static",
+    stem: "libcutils",
+    srcs: [
+        "./libcutils.so",
+    ],
+    //relative_install_path: "lib64",
+    installable: false,
+    apex_available: [
+        "com.android.fmd",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+cc_prebuilt_library {
+    name: "libhidlbase_fmd_static",
+    stem: "libhidlbase",
+    srcs: [
+        "./libhidlbase.so",
+    ],
+    //relative_install_path: "lib64",
+    installable: false,
+    apex_available: [
+        "com.android.fmd",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+cc_prebuilt_library {
+    name: "libnativeloader_fmd_static",
+    stem: "libnativeloader",
+    srcs: [
+        "./libnativeloader.so",
+    ],
+    //relative_install_path: "lib64",
+    installable: false,
+    apex_available: [
+        "com.android.fmd",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+cc_prebuilt_library {
+    name: "libsigchain_fmd_static",
+    stem: "libsigchain",
+    srcs: [
+        "./libsigchain.so",
+    ],
+    //relative_install_path: "lib64",
+    installable: false,
+    apex_available: [
+        "com.android.fmd",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+cc_prebuilt_library {
+    name: "libutils_fmd_static",
+    stem: "libutils",
+    srcs: [
+        "./libutils.so",
+    ],
+    //relative_install_path: "lib64",
+    installable: false,
+    apex_available: [
+        "com.android.fmd",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+cc_prebuilt_library {
+    name: "libwilhelm_fmd_static",
+    stem: "libwilhelm",
+    srcs: [
+        "./libwilhelm.so",
+    ],
+    //relative_install_path: "lib64",
+    installable: false,
+    apex_available: [
+        "com.android.fmd",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+cc_prebuilt_library {
+    name: "libm_fmd_static",
+    stem: "libm",
+    srcs: [
+        "./libm.so",
+    ],
+    //relative_install_path: "lib64",
+    installable: false,
+    apex_available: [
+        "com.android.fmd",
+    ],
+    visibility: [
+        "//visibility:public",
+    ],
+    vendor_available: true,
+}
+
+cc_prebuilt_library {
+    name: "libdl_fmd_static",
+    stem: "libdl",
+    srcs: [
+        "./libdl.so",
     ],
     //relative_install_path: "lib64",
     installable: false,
@@ -82,10 +280,19 @@ apex {
         "app_process64_fmd2",
     ],
     native_shared_libs: [
-        "libc++_fmd_2static",
-        "liblog_fmd_2static",
-    ],
-    prebuilts: [
+        "libc++_fmd_static",
+        "liblog_fmd_static",
+        "libbinder_fmd_static",
+        "libc_fmd_static",
+        "libandroid_runtime_fmd_static",
+        "libcutils_fmd_static",
+        "libhidlbase_fmd_static",
+        "libnativeloader_fmd_static",
+        "libsigchain_fmd_static",
+        "libutils_fmd_static",
+        "libwilhelm_fmd_static",
+        "libm_fmd_static",
+        "libdl_fmd_static"
     ],
 }
 

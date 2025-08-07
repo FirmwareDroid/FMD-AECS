@@ -9,7 +9,8 @@ from jinja2 import Environment, FileSystemLoader
 from ConfigManager import ConfigManager
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
     sign_apex_container_apksigner, sign_apex_container_signapk
-from common import extract_vendor_name, remove_vendor_name_from_filename
+from common import extract_vendor_name, remove_vendor_name_from_filename, check_shared_object_architecture
+from parse_lddtree_to_json import run_lddtree
 from shell_command import execute_shell_command
 from config_post_injector import *
 
@@ -146,34 +147,241 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target):
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             if apex_manifest_path:
-                copy_android_prebuilt_jar(aosp_path, apex_root_path)
-                is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
-                        = create_apex_container(apex_manifest_path,
-                                              apex_extract_dir_path,
-                                              apex_root_path,
-                                              aosp_path,
-                                              apex_out_file,
-                                              lunch_target,
-                                              canned_fs_config,
-                                              is_repack=True)
-                if is_success:
-                    is_success, error_message = sign_apex_file(apex_out_file,
-                                                               aosp_path,
-                                                               private_key_path,
-                                                               cert_apex_apk_path)
-                    if is_success:
-                        log_message = f"APEX signing success: {apex_out_file}"
-                        replace_org_apex_file(apex_file_path, apex_out_file)
-                    else:
-                        log_message = f"APEX signing failed: {apex_out_file} | {error_message}"
-                else:
-                    log_message = f"APEX repack creation failed. {apex_out_file} | {log_message}"
+                is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path = create_and_sign_apex_repack_container(apex_manifest_path,
+                                               apex_extract_dir_path,
+                                               apex_root_path,
+                                               aosp_path,
+                                               apex_out_file,
+                                               lunch_target,
+                                               canned_fs_config,
+                                               apex_file_path)
             else:
                 log_message = f"APEX manifest file not found after extraction: {apex_extract_dir_path} | apex_manifest_path: {apex_manifest_path}"
         else:
             log_message = f"APEX extraction failed. {apex_file_path} | {log_message}"
     except Exception as e:
         log_message = f"Error repackaging APEX file: {apex_file_path} | {str(e)}"
+    return is_success, log_message
+
+
+def create_and_sign_apex_repack_container(apex_manifest_path,
+                                    apex_extract_dir_path,
+                                    apex_root_path,
+                                    aosp_path,
+                                    apex_out_file,
+                                    lunch_target,
+                                    canned_fs_config,
+                                    apex_file_path=None):
+    copy_android_prebuilt_jar(aosp_path, apex_root_path)
+    is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
+        = create_apex_container(apex_manifest_path,
+                                apex_extract_dir_path,
+                                apex_root_path,
+                                aosp_path,
+                                apex_out_file,
+                                lunch_target,
+                                canned_fs_config,
+                                is_repack=True)
+    if is_success:
+        is_success, error_message = sign_apex_file(apex_out_file,
+                                                   aosp_path,
+                                                   private_key_path,
+                                                   cert_apex_apk_path)
+        if is_success and apex_file_path is not None:
+            log_message = f"APEX signing success: {apex_out_file}"
+            replace_org_apex_file(apex_file_path, apex_out_file)
+        else:
+            log_message = f"APEX signing failed: {apex_out_file} | {error_message}"
+    else:
+        log_message = f"APEX repack creation failed. {apex_out_file} | {log_message}"
+    return is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path
+
+
+def get_path_up_to_term(path, term):
+    """
+    Returns the subpath up to and including the last occurrence of `term` in the path.
+    """
+    parts = path.split(os.sep)
+    for i in range(len(parts) - 1, -1, -1):
+        if parts[i] == term:
+            return os.sep.join(parts[:i+1]) + os.sep
+    return None  # term not found
+
+def find_lib64_folders(root_dir):
+    """
+    Recursively finds all folders named 'lib64' under root_dir,
+    and adds all their subfolders to the result list as well.
+    """
+    lib64_paths = []
+    for dirpath, dirnames, _ in os.walk(root_dir):
+        if 'lib64' in dirnames:
+            lib64_dir = os.path.join(dirpath, 'lib64')
+            lib64_paths.append(lib64_dir)
+            # Add all subfolders of lib64
+            for subdir_root, subdir_names, _ in os.walk(lib64_dir):
+                for subdir in subdir_names:
+                    subfolder_path = os.path.join(subdir_root, subdir)
+                    lib64_paths.append(subfolder_path)
+    return lib64_paths
+
+
+def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name):
+    """
+    Creates a new APEX file with the given binary file path. Collects all necessary native libraries for the binary
+    by using lddtree, and adds them into the APEX file. The native libraries are searched within the source tree of the
+    vendor firmware, and copied into the APEX file.
+    """
+    global POST_INJECTOR_CONFIG
+    POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
+    if not POST_INJECTOR_CONFIG:
+        raise Exception("No POST_INJECTOR_CONFIG found")
+
+    logging.info(f"Adding new APEX file. Target Binary: {binary_file_path} | {aosp_path} | {lunch_target}")
+    filename = str(os.path.basename(binary_file_path))
+    apex_file_name = f"com.android.fmd.{filename}.apex"
+
+    # Copy the template APEX file to a temporary location
+    template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "apex")
+    apex_template_file = os.path.join(template_folder_abs_path, "com.android.fmd.apex")
+    tempdir = tempfile.TemporaryDirectory()
+    apex_out_file = str(os.path.join(tempdir.name, apex_file_name))
+    try:
+        shutil.copyfile(apex_template_file, apex_out_file)
+        logging.info(f"Copied APEX template file: {apex_template_file} to {apex_out_file}")
+    except Exception as e:
+        logging.error(f"Error copying APEX template file: {e}")
+        return False, f"Error copying APEX template file: {e}"
+
+    # Extract the APEX file to a temporary directory
+    apex_root_path = tempfile.mkdtemp(suffix=f"_{filename}_apex_repack")
+    apex_extract_dir_path = tempfile.mkdtemp(dir=apex_root_path, suffix=f"_{filename}_extract")
+    extract_success, log_message = extract_apex_file(aosp_path, apex_out_file, apex_extract_dir_path, lunch_target)
+
+    if not extract_success:
+        logging.error(f"Error extracting APEX file: {log_message}")
+        return False, log_message
+
+    # Inject the binary file into the APEX in the extract temporary directory
+    bin_dir_path =  os.path.join(apex_extract_dir_path, "/bin")
+    os.makedirs(bin_dir_path, exist_ok=True)
+    dst_file_path = os.path.join(bin_dir_path, filename)
+    try:
+        shutil.copyfile(binary_file_path, dst_file_path)
+        logging.info(f"Copied binary file {binary_file_path} to APEX: {dst_file_path}")
+    except Exception as e:
+        logging.error(f"Error copying binary file {binary_file_path} to APEX: {e}")
+        return False, f"Error copying binary file: {e}"
+
+    # Run lddtree on the binary file to collect all necessary native libraries
+    partition_root = get_path_up_to_term(binary_file_path, partition_name)
+    if not os.path.exists(partition_root):
+        logging.error(f"Partition root not found: {partition_root}. Cannot proceed with APEX creation.")
+        return False, f"Partition root not found: {partition_root}"
+
+    ## Construct LD_LIBRARY_PATH for lddtree
+    lib64_path_list = find_lib64_folders(partition_root)
+    extra_paths = []
+    if lib64_path_list:
+        extra_paths.extend(lib64_path_list)
+    else:
+        logging.warning(f"No 'lib64' folders found in partition root: {partition_root}. Using default paths.")
+
+    env = {"LD_LIBRARY_PATH": ":".join(extra_paths)} if extra_paths else None
+
+    try:
+        libs = run_lddtree(binary_file_path, extra_env=env)
+        logging.info(f"Collected libraries from lddtree: {libs}")
+    except Exception as e:
+        logging.error(f"Error running lddtree on {binary_file_path}: {e}")
+        return False, f"Error running lddtree: {e}"
+
+    # Search for the native libraries in the AOSP source tree and copy them to the APEX directory
+    for lib_name in libs:
+        for root, dirs, files in os.walk(partition_root):
+            if lib_name in files:
+                src_lib_path = os.path.join(root, lib_name)
+                if os.path.exists(src_lib_path):
+                    if check_shared_object_architecture(src_lib_path) == "64-bit":
+                        apex_lib64_path = os.path.join(apex_extract_dir_path, "lib64")
+                        os.makedirs(os.path.dirname(apex_lib64_path), exist_ok=True)
+                        dst_lib_path = os.path.join(apex_lib64_path, lib_name)
+                        try:
+                            shutil.copyfile(src_lib_path, dst_lib_path)
+                            logging.info(f"Copied 64-bit library {lib_name} to APEX: {dst_lib_path}")
+                            break  # Stop searching after finding the 64-bit version
+                        except Exception as e:
+                            logging.error(f"Error copying library {lib_name} from {src_lib_path} to {dst_lib_path}: {e}")
+                            return False, f"Error copying library {lib_name}: {e}"
+                    else:
+                        logging.info(f"Found 32-bit library {lib_name} in {src_lib_path}, skipping.")
+                else:
+                    logging.error(f"Library {lib_name} not found in {partition_root}. Skipping.")
+
+    # Create the new APEX file
+    ## Create Canned FS config file
+    with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
+        generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name, allow_filtering=False)
+
+    ## Create APEX Manifest file
+    apex_manifest_name = "apex_manifest.json"
+    apex_manifest_path = os.path.join(apex_root_path, apex_manifest_name)
+    apex_file_name = f"com.android.fmd.{filename}.apex"
+    apex_version = 1
+    apex_manifest = f"""
+    {{
+      "name": "{apex_file_name}",
+      "version": {apex_version}
+    }}
+    """
+    with open(apex_manifest_path, "w") as apex_manifest_file:
+        apex_manifest_file.write(apex_manifest)
+    logging.info(f"Created {apex_manifest_path} with content: {apex_manifest}")
+
+    try:
+        ## Create SELinux File Contexts for the new APEX file
+        file_context_source_path = os.path.join(template_folder_abs_path, "apex", "file_contexts")
+        file_context_dst_path = os.path.join(aosp_path, "system", "sepolicy", "apex", f"com.android.fmd.{filename}-file_contexts")
+        shutil.copyfile(file_context_source_path, file_context_dst_path)
+        logging.info(f"Copied {file_context_source_path} to {file_context_dst_path}")
+    except Exception as e:
+        logging.error(f"Error copying SELinux file contexts: {e}")
+        return False, f"Error copying SELinux file contexts: {e}"
+
+    ## Create the APEX container using apexer
+    is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
+        = create_and_sign_apex_repack_container(apex_manifest_path,
+                                                apex_extract_dir_path,
+                                                apex_root_path,
+                                                aosp_path,
+                                                apex_out_file,
+                                                lunch_target,
+                                                canned_fs_config)
+
+    # Copy the APEX file to the injection source directory for later direct injection
+    if not is_success:
+        logging.error(f"Error creating APEX container file: {log_message}")
+        return False, log_message
+
+    dst_out_apex_path = ""
+    try:
+        dst_out_apex_path = str(os.path.join(partition_root, "apex", apex_file_name))
+        shutil.copyfile(apex_out_file, dst_out_apex_path)
+        logging.info(f"Copied {apex_file_name} to {dst_out_apex_path}")
+    except Exception as e:
+        logging.error(f"Error copying APEX file to {dst_out_apex_path}: {e}")
+        return False, f"Error copying APEX file: {e}"
+
+    try:
+        # Copy the SELinux file contexts to the AOSP source tree for the apex file
+        file_context_source_path = os.path.join(template_folder_abs_path, "file_contexts")
+        file_context_name = f"com.android.fmd.{filename}-file_contexts"
+        file_context_dst_path = os.path.join(aosp_path, "system", "sepolicy", "apex", file_context_name)
+        shutil.copyfile(file_context_source_path, file_context_dst_path)
+        logging.info(f"Copied {file_context_name} to {dst_out_apex_path}")
+    except Exception as e:
+        logging.error(f"Error copying SELinux file contexts: {e}")
+        return False, f"Error copying SELinux file contexts: {e}"
+
     return is_success, log_message
 
 

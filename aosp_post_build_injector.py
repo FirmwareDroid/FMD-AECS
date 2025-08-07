@@ -18,10 +18,12 @@ import traceback
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 from filelock import FileLock
-from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file
+from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file, \
+    POST_INJECTOR_CONFIG, add_new_apex_file
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
-from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary
+from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
+    check_shared_object_architecture
 from config_post_injector import *
 from setup_logger import setup_logger
 from tqdm import tqdm
@@ -322,6 +324,17 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                             error_message = f"Error handling APEX file: {file_path}|{log_message}"
                         else:
                             error_message = None
+                elif module_type == "EXECUTABLES" and is_elf_binary(file_path):
+                    if filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
+                        is_apex_add_success, log_message = add_new_apex_file(aosp_path,
+                                                                             file_path,
+                                                                             lunch_target,
+                                                                             partition_name)
+                        if not is_apex_add_success:
+                            error_message = f"Error adding APEX file: {file_path}|{log_message}"
+                        else:
+                            error_message = None
+
                 if not error_message:
                     inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path)
                 else:
@@ -862,31 +875,6 @@ def set_executable_permission(file_path):
         logging.warning(f"{e}")
         return False
 
-def check_shared_object_architecture(file_path):
-    """
-    Check if a shared object (.so) file is compiled for 32-bit or 64-bit.
-
-    :param file_path: str - Path to the .so file.
-    :return: str - '32-bit', '64-bit', or 'Unknown architecture'.
-    """
-    try:
-        with open(file_path, 'rb') as f:
-            # Read the first 5 bytes of the file
-            header = f.read(5)
-            if len(header) < 5:
-                return 'Unknown architecture'
-
-            # Check the ELF magic number and class
-            if header[:4] == b'\x7fELF':
-                ei_class = header[4]
-                if ei_class == 1:
-                    return '32-bit'
-                elif ei_class == 2:
-                    return '64-bit'
-            return 'Unknown architecture'
-    except Exception as e:
-        return f"Error determining architecture: {str(e)}"
-
 def get_target_injection_path(source_file_path, partition_name, target_out_path):
     if partition_name == "super":
         partition_name = "system"
@@ -929,7 +917,9 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
 # Direct Injection
 def inject_file_into_partition(source_file_path, target_file_injection_path):
     if POST_INJECTOR_CONFIG["OVERWRITE_APP_PROCESS_32"]:
+        # TODO : Remove this workaround in the future -> This does not work for all cases.
         source_file_path = handle_special_matching(source_file_path)
+
 
     if os.path.exists(target_file_injection_path):
         if os.path.islink(target_file_injection_path):
@@ -1021,26 +1011,36 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type):
     """
     Injects a file into the AOSP source code directly without matching to existing files.
     """
-    is_injected = False
+    filename = os.path.basename(source_file_path)
     inj_md5 = compute_file_hash(source_file_path)
     org_md5 = compute_file_hash(original_file_path)
     logging.info(f"Overwriting Obj file: {source_file_path}:{inj_md5} into {original_file_path}:{org_md5}")
     file_name = os.path.basename(original_file_path)
-    if "/apex/" in original_file_path:
-        if module_type == "JAVA_LIBRARIES":
-            new_file_path = "/system/framework/" + file_name
-            logging.info(f"Injecting file from apex: {source_file_path} into {new_file_path}")
-        elif module_type == "BINARY":
-            new_file_path = "/bin/" + file_name
+    try:
+        if "/apex/" in original_file_path:
+            if module_type == "JAVA_LIBRARIES":
+                new_file_path = "/system/framework/" + file_name
+                logging.info(f"Injecting file from apex: {source_file_path} into {new_file_path}")
+            elif module_type == "BINARY":
+                new_file_path = "/bin/" + file_name
+            else:
+                new_file_path = "/etc/" + file_name
+            shutil.copyfile(source_file_path, new_file_path)
+            is_injected = True
+        elif filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
+            # Special case for isolated namespace binaries - Replacing Binary with symlink to apex binary
+            target_path = f"/apex/com.android.fmd.{filename}/bin/{filename}"
+            os.symlink(target_path, original_file_path)
+            logging.info(f"Dangling symlink created: {original_file_path} -> {target_path}")
+            is_injected = True
         else:
-            new_file_path = "/etc/" + file_name
-        shutil.copyfile(source_file_path, new_file_path)
-        is_injected = True
-    else:
-        shutil.copyfile(source_file_path, original_file_path)
-        is_injected = True
-        set_executable_permission(original_file_path)
-        #os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
+            shutil.copyfile(source_file_path, original_file_path)
+            is_injected = True
+            set_executable_permission(original_file_path)
+            #os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
+    except Exception as e:
+        logging.error(f"Error injecting file: {source_file_path} into {original_file_path} | {e}")
+        is_injected = False
     return is_injected
 
 def parse_arguments():
