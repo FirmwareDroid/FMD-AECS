@@ -1030,8 +1030,9 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type):
         elif filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
             # Special case for isolated namespace binaries - Replacing Binary with symlink to apex binary
             target_path = f"/apex/com.android.fmd.{filename}/bin/{filename}"
+            logging.info(f"Add new dangling symlink: {original_file_path} -> {target_path}")
+            os.remove(target_path)
             os.symlink(target_path, original_file_path)
-            logging.info(f"Dangling symlink created: {original_file_path} -> {target_path}")
             is_injected = True
         else:
             shutil.copyfile(source_file_path, original_file_path)
