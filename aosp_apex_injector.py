@@ -10,6 +10,7 @@ from ConfigManager import ConfigManager
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
     sign_apex_container_apksigner, sign_apex_container_signapk
 from common import extract_vendor_name, remove_vendor_name_from_filename, check_shared_object_architecture
+from conv_apex_manifest import convert_manifest_from_json
 from parse_lddtree_to_json import run_lddtree
 from shell_command import execute_shell_command
 from config_post_injector import *
@@ -355,6 +356,13 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     with open(apex_manifest_path, "w") as apex_manifest_file:
         apex_manifest_file.write(apex_manifest)
     logging.info(f"Created {apex_manifest_path} with content: {apex_manifest} for APEX file {apex_file_name}")
+    apex_manifest_name_pb = "apex_manifest.pb"
+    apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
+    logging.info(f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
+    convert_manifest_from_json(apex_manifest_path, out_file_path=apex_manifest_path_pb)
+    if not os.path.exists(apex_manifest_path_pb):
+        logging.error(f"APEX manifest Protobuf file not created: {apex_manifest_path_pb} for APEX file {apex_file_name}")
+        return False, f"APEX manifest Protobuf file not created: {apex_manifest_path_pb}"
 
     try:
         ## Create SELinux File Contexts for the new APEX file
@@ -907,8 +915,8 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
               f"--canned_fs_config={canned_fs_config.name} " \
               f"--include_build_info " \
               f"--force "
-    if apex_manifest_path.endswith(".json"):
-        command += f"--manifest={apex_manifest_path} "
+    #if apex_manifest_path.endswith(".pb"):
+    #    command += f"--manifest={apex_manifest_path} "
 
     command += f"{apex_extract_dir_path} " \
               f"{output_file_path}"
