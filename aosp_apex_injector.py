@@ -338,10 +338,10 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     apex_file_name = f"com.android.fmd.{filename}.apex"
     apex_version = 1
     apex_manifest = f"""
-    {{
-      "name": "{apex_file_name}",
+    {{\n
+      "name": "{apex_file_name}",\n
       "version": {apex_version}
-    }}
+    }}\n
     """
     with open(apex_manifest_path, "w") as apex_manifest_file:
         apex_manifest_file.write(apex_manifest)
@@ -349,7 +349,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
 
     try:
         ## Create SELinux File Contexts for the new APEX file
-        file_context_source_path = os.path.join(template_folder_abs_path, "apex", "file_contexts")
+        file_context_source_path = os.path.join(template_folder_abs_path, "file_contexts")
         file_context_dst_path = os.path.join(aosp_path, "system", "sepolicy", "apex", f"com.android.fmd.{filename}-file_contexts")
         shutil.copyfile(file_context_source_path, file_context_dst_path)
         logging.info(f"Copied {file_context_source_path} to {file_context_dst_path}")
@@ -380,17 +380,6 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     except Exception as e:
         logging.error(f"Error copying APEX file to {dst_out_apex_path}: {e}")
         return False, f"Error copying APEX file: {e}"
-
-    try:
-        # Copy the SELinux file contexts to the AOSP source tree for the apex file
-        file_context_source_path = os.path.join(template_folder_abs_path, "file_contexts")
-        file_context_name = f"com.android.fmd.{filename}-file_contexts"
-        file_context_dst_path = os.path.join(aosp_path, "system", "sepolicy", "apex", file_context_name)
-        shutil.copyfile(file_context_source_path, file_context_dst_path)
-        logging.info(f"Copied {file_context_name} to {dst_out_apex_path}")
-    except Exception as e:
-        logging.error(f"Error copying SELinux file contexts: {e}")
-        return False, f"Error copying SELinux file contexts: {e}"
 
     return is_success, log_message
 
