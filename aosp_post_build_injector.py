@@ -1031,13 +1031,14 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type):
             # Special case for isolated namespace binaries - Replacing Binary with symlink to apex binary
             target_path = f"/apex/com.android.fmd.{filename}/bin/{filename}"
             logging.info(f"Add new dangling symlink: {original_file_path} -> {target_path}")
-            os.remove(target_path)
+            if os.path.exists(original_file_path):
+                os.remove(original_file_path)
             #subprocess.run(['ln', '-s', target_path, original_file_path], check=True)
-            result = subprocess.run(['ln', '-s', target_path, original_file_path], capture_output=True, text=True)
+            result = subprocess.run(['ln', '-s', original_file_path, target_path], capture_output=True, text=True)
             logging.info(f"stdout: {result.stdout}")
             logging.info(f"stderr: {result.stderr}")
-            #os.symlink(target_path, original_file_path)
             is_injected = True
+            logging.info(f"Injected file as simlink: {source_file_path} -> {target_path}")
         else:
             shutil.copyfile(source_file_path, original_file_path)
             is_injected = True
