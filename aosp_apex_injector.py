@@ -360,8 +360,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         ## Create SELinux File Contexts for the new APEX file
         file_context_source_path = os.path.join(template_folder_abs_path, "file_contexts")
         file_context_dst_path = os.path.join(aosp_path, "system", "sepolicy", "apex", f"com.android.fmd.{filename}-file_contexts")
+        logging.info(f"Copying {file_context_source_path} to {file_context_dst_path} for APEX file {apex_file_name}")
         shutil.copyfile(file_context_source_path, file_context_dst_path)
-        logging.info(f"Copied {file_context_source_path} to {file_context_dst_path} for APEX file {apex_file_name}")
     except Exception as e:
         logging.error(f"Error copying SELinux file contexts: {e}")
         return False, f"Error copying SELinux file contexts: {e}"
@@ -383,7 +383,6 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
 
     dst_out_apex_path = ""
     try:
-
         if partition_name == "system":
             dst_out_apex_path = str(os.path.join(partition_root, "system", "apex", apex_file_name))
         else:
@@ -907,8 +906,11 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
               f"--file_contexts={file_contexts_path} " \
               f"--canned_fs_config={canned_fs_config.name} " \
               f"--include_build_info " \
-              f"--force " \
-              f"{apex_extract_dir_path} " \
+              f"--force "
+    if apex_manifest_path.endswith(".json"):
+        command += f"--manifest={apex_manifest_path} "
+
+    command += f"{apex_extract_dir_path} " \
               f"{output_file_path}"
     logging.info(f"Apexer Container creation command: {command}")
 
