@@ -356,6 +356,14 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     with open(apex_manifest_path, "w") as apex_manifest_file:
         apex_manifest_file.write(apex_manifest)
     logging.info(f"Created {apex_manifest_path} with content: {apex_manifest} for APEX file {apex_file_name}")
+
+    # Remove the old manifest file if it exists
+    is_manifest_found, old_apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
+    if os.path.exists(old_apex_manifest_path):
+        logging.info(f"Removing existing APEX manifest Protobuf file: {old_apex_manifest_path}")
+        os.remove(old_apex_manifest_path)
+
+    #Create new Manifest file
     apex_manifest_name_pb = "apex_manifest.pb"
     apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
     logging.info(f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
@@ -363,6 +371,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     if not os.path.exists(apex_manifest_path_pb):
         logging.error(f"APEX manifest Protobuf file not created: {apex_manifest_path_pb} for APEX file {apex_file_name}")
         return False, f"APEX manifest Protobuf file not created: {apex_manifest_path_pb}"
+    else:
+        os.remove(apex_manifest_path)
 
     try:
         ## Create SELinux File Contexts for the new APEX file
