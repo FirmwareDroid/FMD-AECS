@@ -374,7 +374,11 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
 
     dst_out_apex_path = ""
     try:
-        dst_out_apex_path = str(os.path.join(partition_root, "apex", apex_file_name))
+        if partition_name == "system":
+            dst_out_apex_path = str(os.path.join(partition_root, "system", "apex", apex_file_name))
+        else:
+            dst_out_apex_path = str(os.path.join(partition_root, "apex", apex_file_name))
+        os.makedirs(os.path.dirname(dst_out_apex_path), exist_ok=True)
         shutil.copyfile(apex_out_file, dst_out_apex_path)
         logging.info(f"Copied {apex_file_name} to {dst_out_apex_path}")
     except Exception as e:
