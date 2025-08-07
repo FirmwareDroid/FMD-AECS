@@ -960,7 +960,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
             log_message = f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info}"
             logging.error(f"{log_message}")
     else:
-        logging.error(f"Container Creation not started because of missing files:\n"
+        logging.error(f"Container Creation not started for {apex_file_name} because of missing files:\n"
                     f"APEX root path: {apex_root_path} | {os.path.exists(apex_root_path)}\n"
                     f"APEXer tool path: {apexer_bin_path} | {os.path.exists(apexer_bin_path)}\n"
                     f"APEX manifest path: {apex_manifest_path} | {os.path.exists(apex_manifest_path)}\n"
