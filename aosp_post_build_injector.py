@@ -1041,7 +1041,7 @@ def inject_apex_symlink_file(filename, original_file_path, aosp_path):
                     logging.info(f"Processing line: {line.strip()}")
                     if injection_marker in line:
                         logging.debug(f"Injection marker found in {goldfish_mk_file}, injecting commands.")
-                        f.write(f"{injection_marker}\n")
+                        f.write(f"\t{injection_marker}\n")
                         for command in inject_commands:
                             logging.debug(f"Injecting command to goldfish: {command}")
                             f.write(f"\t{command}\n")
