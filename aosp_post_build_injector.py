@@ -336,7 +336,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                             error_message = None
 
                 if not error_message:
-                    inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path)
+                    inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path, aosp_path)
                 else:
                     logging.info(f"File not further processed: {file_path} | {error_message}")
     except Exception as e:
@@ -410,7 +410,7 @@ def replace_capex_with_apex(file_path):
         file_path = extracted_apex_file_path
     return file_path
 
-def indirect_injection(target_file_injection_path, file_name, target_out_path, partition_name, module_type, file_path, inj_partition):
+def indirect_injection(target_file_injection_path, file_name, target_out_path, partition_name, module_type, file_path, inj_partition, aosp_path):
     file_ext = os.path.splitext(file_name)[1]
     if file_ext in POST_INJECTOR_CONFIG["SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION"]:
         logging.info(f"Skipped indirect injection for file: {file_path} with extension: {file_ext}")
@@ -446,10 +446,10 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
         if isinstance(original_file_path, list):
             original_file_path_list = original_file_path
             for original_file_path in original_file_path_list:
-                is_injected = inject_file_into_obj(file_path, original_file_path, module_type)
+                is_injected = inject_file_into_obj(file_path, original_file_path, module_type, aosp_path)
                 inj_obj = (file_path, original_file_path, module_type)
         else:
-            is_injected = inject_file_into_obj(file_path, original_file_path, module_type)
+            is_injected = inject_file_into_obj(file_path, original_file_path, module_type, aosp_path)
             inj_obj = (file_path, original_file_path, module_type)
     else:
         is_injected = False
@@ -460,7 +460,7 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
     return inj_obj, inj_partition, is_injected
 
 
-def search_and_inject(partition_name, module_type, file_path, target_out_path):
+def search_and_inject(partition_name, module_type, file_path, target_out_path, aosp_path):
     inj_partition = None
     inj_obj = None
     target_path = None
@@ -479,14 +479,14 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path):
             inj_partition = (file_path, target_path, module_type)
         else:
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
-                                                        partition_name, module_type, file_path, inj_partition)
+                                                        partition_name, module_type, file_path, inj_partition, aosp_path)
     elif not os.path.exists(target_file_injection_path):
         # Direct Injection
         target_path = inject_file_into_partition(file_path, target_file_injection_path)
         inj_partition = (file_path, target_path, module_type)
     else:
         inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
-                                                    partition_name, module_type, file_path, inj_partition)
+                                                    partition_name, module_type, file_path, inj_partition, aosp_path)
         if not is_injected and is_injected is not None:
             # Fallback to Direct Injection
             target_path = inject_file_into_partition(file_path, target_file_injection_path)
@@ -1007,7 +1007,7 @@ def handle_duplicated_permissions(target_out_path):
     find_and_remove_duplicates(permission_path_list)
 
 
-def inject_file_into_obj(source_file_path, original_file_path, module_type):
+def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp_path):
     """
     Injects a file into the AOSP source code directly without matching to existing files.
     """
@@ -1029,14 +1029,27 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type):
             is_injected = True
         elif filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
             # Special case for isolated namespace binaries - Replacing Binary with symlink to apex binary
-            target_path = f"/apex/com.android.fmd.{filename}/bin/{filename}"
-            logging.info(f"Add new dangling symlink: {original_file_path} -> {target_path}")
-            if os.path.exists(original_file_path):
-                os.remove(original_file_path)
+            target_path = f"/apex/com.android.fmd.{filename}.apex/bin/{filename}"
+            #logging.info(f"Add new dangling symlink: {original_file_path} -> {target_path}")
+            #if os.path.exists(original_file_path):
+            #    os.remove(original_file_path)
             #subprocess.run(['ln', '-s', target_path, original_file_path], check=True)
-            result = subprocess.run(['ln', '-s', target_path, original_file_path], capture_output=True, text=True)
-            logging.info(f"stdout: {result.stdout}")
-            logging.info(f"stderr: {result.stderr}")
+            #result = subprocess.run(['ln', '-s', target_path, original_file_path], capture_output=True, text=True)
+            #logging.info(f"stdout: {result.stdout}")
+            #logging.info(f"stderr: {result.stderr}")
+            #product_out_path = os.path.join(aosp_path, "out/target/product/emulator_arm64")
+            inject_commands = [f"rm -f {original_file_path}", f"ln -s {target_path} {original_file_path}"]
+            injection_marker = "####### FMD INJECTION MARKER #######"
+            goldfish_mk_file = os.path.join(aosp_path, "device/generic/goldfish/tools/Android.mk")
+            with open(goldfish_mk_file, "w") as f:
+                lines = f.readlines()
+                for line in lines:
+                    if injection_marker in line:
+                        f.write(f"{injection_marker}\n")
+                        for command in inject_commands:
+                            f.write(f"\t{command}\n")
+                    else:
+                        f.write(line)
             is_injected = True
             logging.info(f"Injected file as simlink: {source_file_path} -> {target_path}")
         else:
