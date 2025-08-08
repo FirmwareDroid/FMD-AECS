@@ -841,6 +841,15 @@ def clear_extracted_packages():
         logging.error(err)
 
 
+def reset_post_injection_files(aosp_path):
+    goldfish_mk_path = os.path.join(aosp_path, "device/generic/goldfish/tools/Android.mk")
+    template_goldfish_mk_path = os.path.join(TEMPLATE_FOLDER, "goldfish_tools/Android.mk")
+    logging.info(f"Resetting post injection files for {goldfish_mk_path} with {template_goldfish_mk_path}")
+    try:
+        shutil.copyfile(goldfish_mk_path, template_goldfish_mk_path)
+    except Exception as err:
+        logging.error(err)
+
 def clear_environment(aosp_path, aosp_packages_apps_path, aosp_version):
     """
     Reverts the build environment
