@@ -1023,20 +1023,26 @@ def inject_apex_symlink_file(filename, original_file_path, aosp_path):
     goldfish_mk_file = os.path.join(aosp_path, "device/generic/goldfish/tools/Android.mk")
     if os.path.exists(goldfish_mk_file):
         logging.info(f"Injecting file from Goldfish for {target_path}: {goldfish_mk_file}")
-        with open(goldfish_mk_file, "w") as f:
-            lines = f.readlines()
-            for line in lines:
-                logging.info(f"Processing line: {line.strip()}")
-                if injection_marker in line:
-                    logging.debug(f"Injection marker found in {goldfish_mk_file}, injecting commands.")
-                    f.write(f"{injection_marker}\n")
-                    for command in inject_commands:
-                        logging.debug(f"Injecting command to goldfish: {command}")
-                        f.write(f"\t{command}\n")
-                    is_injected = True
-                else:
-                    logging.info(f"Write line to goldfish: {line.strip()}")
-                    f.write(line)
+        try:
+            with open(goldfish_mk_file, "r") as f:
+                lines = f.readlines()
+
+            with open(goldfish_mk_file, "w") as f:
+                for line in lines:
+                    logging.info(f"Processing line: {line.strip()}")
+                    if injection_marker in line:
+                        logging.debug(f"Injection marker found in {goldfish_mk_file}, injecting commands.")
+                        f.write(f"{injection_marker}\n")
+                        for command in inject_commands:
+                            logging.debug(f"Injecting command to goldfish: {command}")
+                            f.write(f"\t{command}\n")
+                        is_injected = True
+                    else:
+                        logging.info(f"Write line to goldfish: {line.strip()}")
+                        f.write(line)
+        except Exception as e:
+            logging.error(f"Error injecting file into Goldfish: {goldfish_mk_file} | {e}")
+            is_injected = False
         #logging.info(f"Injected file as simlink: {source_file_path} -> {target_path}")
     return is_injected
 
