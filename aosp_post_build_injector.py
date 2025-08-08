@@ -1050,10 +1050,10 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
                     logging.info(f"Processing line: {line.strip()}")
                     if injection_marker in line:
                         logging.debug(f"Injection marker found in {build_image_file_path}, injecting commands.")
-                        f.write(f"\t{injection_marker}\n")
+                        f.write(f"{injection_marker}\n")
                         for command in inject_commands:
                             logging.debug(f"Injecting command to goldfish: {command}")
-                            f.write(f"\t{command}\n")
+                            f.write(f"    {command}\n")
                         is_injected = True
                     else:
                         logging.info(f"Write line to goldfish: {line.strip()}")
