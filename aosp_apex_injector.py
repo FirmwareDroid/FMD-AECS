@@ -290,6 +290,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         libs, libs_not_found = run_lddtree(binary_file_path, extra_env=env)
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs found: {libs}")
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs_not_found: {libs_not_found}")
+        # TODO Handle the case where a necessary libarary is not found
+        libs.append("/home/suth/FMD-AECS/out/extracted_packages/ALL_FILES/system/system/lib64/libandroid.so")
     except Exception as e:
         logging.error(f"Error running lddtree on {binary_file_path} - {apex_file_name}: {e}")
         return False, f"Error running lddtree: {e}"
@@ -369,7 +371,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         logging.info(f"Copying {file_context_source_path} to {file_context_dst_path} for APEX file {apex_file_name}")
         shutil.copyfile(file_context_source_path, file_context_dst_path)
         with open(file_context_dst_path, 'a') as file_contexts_file:
-            file_contexts_file.write(f"\n/bin/{filename}    u:r:init:s0\n")
+            # TODO Add SELinux context for the binary file dynamically
+            file_contexts_file.write(f"\n/bin/{filename}    u:object_r:zygote_exec:s0\n")
     except Exception as e:
         logging.error(f"Error copying SELinux file contexts: {e}")
         return False, f"Error copying SELinux file contexts: {e}"
