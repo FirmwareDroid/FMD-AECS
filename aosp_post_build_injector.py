@@ -1017,8 +1017,9 @@ def inject_apex_symlink_file(filename, original_file_path, aosp_path):
     # result = subprocess.run(['ln', '-s', target_path, original_file_path], capture_output=True, text=True)
     # logging.info(f"stdout: {result.stdout}")
     # logging.info(f"stderr: {result.stderr}")
-    # product_out_path = os.path.join(aosp_path, "out/target/product/emulator_arm64")
-    inject_commands = [f"rm -f {original_file_path}", f"ln -s {target_path} {original_file_path}"]
+    product_out_path = os.path.join(aosp_path, "out/target/product/emulator_arm64")
+    relative_original_file_path = original_file_path.replace(product_out_path, "")
+    inject_commands = [f"rm -f $(PRODUCT_OUT){relative_original_file_path}", f"ln -s {target_path} $(PRODUCT_OUT){relative_original_file_path}"]
     injection_marker = "####### FMD INJECTION MARKER #######"
     goldfish_mk_file = os.path.join(aosp_path, "device/generic/goldfish/tools/Android.mk")
     if os.path.exists(goldfish_mk_file):
