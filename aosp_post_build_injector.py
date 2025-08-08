@@ -475,21 +475,21 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                 and not any(keyword in os.path.basename(target_file_injection_path)
                             for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"])):
             # Direct Injection
-            target_path = inject_file_into_partition(file_path, target_file_injection_path)
+            target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path)
             inj_partition = (file_path, target_path, module_type)
         else:
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition, aosp_path)
     elif not os.path.exists(target_file_injection_path):
         # Direct Injection
-        target_path = inject_file_into_partition(file_path, target_file_injection_path)
+        target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path)
         inj_partition = (file_path, target_path, module_type)
     else:
         inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                     partition_name, module_type, file_path, inj_partition, aosp_path)
         if not is_injected and is_injected is not None:
             # Fallback to Direct Injection
-            target_path = inject_file_into_partition(file_path, target_file_injection_path)
+            target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path)
             inj_partition = (file_path, target_path, module_type)
 
     if target_path:
@@ -915,7 +915,7 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
 
 
 # Direct Injection
-def inject_file_into_partition(source_file_path, target_file_injection_path):
+def inject_file_into_partition(source_file_path, target_file_injection_path, aosp_path):
     if POST_INJECTOR_CONFIG["OVERWRITE_APP_PROCESS_32"]:
         # TODO : Remove this workaround in the future -> This does not work for all cases.
         source_file_path = handle_special_matching(source_file_path)
@@ -931,6 +931,14 @@ def inject_file_into_partition(source_file_path, target_file_injection_path):
         else:
             # Fîle should not already exists, but if it does, we overwrite it, but it is not recommended.
             try:
+                filename = os.path.basename(source_file_path)
+                if (filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in
+                        POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]):
+                    logging.info(f"Direct Injection via APEX symlink file: {filename} with path {source_file_path} into {target_file_injection_path}")
+                    is_injected = inject_apex_symlink_file(filename, target_file_injection_path, aosp_path)
+                    if not is_injected:
+                        logging.error(f"Error injecting APEX symlink file: {source_file_path} into {target_file_injection_path}")
+                        return target_file_injection_path
                 if os.path.isfile(source_file_path):
                     inj_md5 = compute_file_hash(source_file_path)
                     org_md5 = compute_file_hash(target_file_injection_path)
@@ -1069,6 +1077,7 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
             shutil.copyfile(source_file_path, new_file_path)
             is_injected = True
         elif filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
+            logging.info(f"Indirect Injection via APEX symlink file: {filename} with path {source_file_path} into {original_file_path}")
             is_injected = inject_apex_symlink_file(filename, original_file_path, aosp_path)
         else:
             shutil.copyfile(source_file_path, original_file_path)
