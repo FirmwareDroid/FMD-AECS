@@ -1033,12 +1033,12 @@ def inject_apex_symlink_file(filename, original_file_path, aosp_path):
                     for command in inject_commands:
                         logging.debug(f"Injecting command to goldfish: {command}")
                         f.write(f"\t{command}\n")
+                    is_injected = True
                 else:
                     logging.info(f"Write line to goldfish: {line.strip()}")
                     f.write(line)
-        is_injected = True
         #logging.info(f"Injected file as simlink: {source_file_path} -> {target_path}")
-
+    return is_injected
 
 
 def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp_path):
@@ -1062,7 +1062,7 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
             shutil.copyfile(source_file_path, new_file_path)
             is_injected = True
         elif filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
-            inject_symlink_file()
+            is_injected = inject_apex_symlink_file(filename, original_file_path, aosp_path)
         else:
             shutil.copyfile(source_file_path, original_file_path)
             is_injected = True
