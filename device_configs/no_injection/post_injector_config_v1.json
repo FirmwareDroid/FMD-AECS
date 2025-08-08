@@ -15,9 +15,8 @@
   "SKIPPED_APP_KEYWORDLIST": [],
   "USE_ISOLATED_NAMESPACE": false,
   "ISOLATED_NAMESPACE_LIST": [],
-  "APEX_BINARY_ISOLATED_NAMESPACE_LIST": ["ziptool", "app_process64"],
+  "APEX_BINARY_ISOLATED_NAMESPACE_LIST": ["app_process64"],
   "ALLOW_FILE_INJECT_ALWAYS": [
-    "ziptool",
     "app_process64"
   ],
   "SKIPPED_APP_LIST": ["GooglePackageInstaller", "framework-res.apk", "framework-res", "SystemUIGoogle"],
