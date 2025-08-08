@@ -263,6 +263,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     dst_file_path = os.path.join(bin_dir_path, filename)
     try:
         shutil.copyfile(binary_file_path, dst_file_path)
+        os.chmod(dst_file_path, 0o700)
         logging.info(f"Copied binary file {binary_file_path} to APEX: {dst_file_path}")
     except Exception as e:
         logging.error(f"Error copying binary file {binary_file_path} to APEX {apex_file_name}: {e}")
