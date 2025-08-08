@@ -1033,7 +1033,7 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
     root_path = get_path_up_to_first_term(source_file_path, partition_name)
     logging.info(f"{source_file_path} - Root path: {root_path}")
     relative_source_path = source_file_path.replace(root_path, "")
-    abs_source_path = os.path.join(aosp_path, relative_source_path)
+    abs_source_path = os.path.join(aosp_path, "out/target/product/emulator_arm64", relative_source_path)
     #inject_commands = [f"rm -f $(PRODUCT_OUT){relative_source_path}", f"ln -s {target_path} $(PRODUCT_OUT){relative_source_path}"]
     inject_commands = [f"os.remove('{abs_source_path}')",f"subprocess.call(['ln', '-s', {target_path}, {abs_source_path}])"]
     injection_marker = "####### FMD INJECTION MARKER #######"
