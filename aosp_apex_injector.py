@@ -9,7 +9,8 @@ from jinja2 import Environment, FileSystemLoader
 from ConfigManager import ConfigManager
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
     sign_apex_container_apksigner, sign_apex_container_signapk
-from common import extract_vendor_name, remove_vendor_name_from_filename, check_shared_object_architecture
+from common import extract_vendor_name, remove_vendor_name_from_filename, check_shared_object_architecture, \
+    get_path_up_to_first_term
 from conv_apex_manifest import convert_manifest_from_json
 from parse_lddtree_to_json import run_lddtree
 from shell_command import execute_shell_command
@@ -198,27 +199,6 @@ def create_and_sign_apex_repack_container(apex_manifest_path,
     else:
         log_message = f"APEX repack creation failed. {apex_out_file} | {log_message}"
     return is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path
-
-
-def get_path_up_to_term(path, term):
-    """
-    Returns the subpath up to and including the last occurrence of `term` in the path.
-    """
-    parts = path.split(os.sep)
-    for i in range(len(parts) - 1, -1, -1):
-        if parts[i] == term:
-            return os.sep.join(parts[:i+1]) + os.sep
-    return None  # term not found
-
-def get_path_up_to_first_term(path, term):
-    """
-    Returns the subpath up to and including the first occurrence of `term` in the path.
-    """
-    parts = path.split(os.sep)
-    for i, part in enumerate(parts):
-        if part == term:
-            return os.sep.join(parts[:i+1]) + os.sep
-    return None  # term not found
 
 def find_lib64_folders(root_dir):
     """

@@ -169,3 +169,24 @@ def check_shared_object_architecture(file_path):
             return 'Unknown architecture'
     except Exception as e:
         return f"Error determining architecture: {str(e)}"
+
+
+def get_path_up_to_term(path, term):
+    """
+    Returns the subpath up to and including the last occurrence of `term` in the path.
+    """
+    parts = path.split(os.sep)
+    for i in range(len(parts) - 1, -1, -1):
+        if parts[i] == term:
+            return os.sep.join(parts[:i+1]) + os.sep
+    return None  # term not found
+
+def get_path_up_to_first_term(path, term):
+    """
+    Returns the subpath up to and including the first occurrence of `term` in the path.
+    """
+    parts = path.split(os.sep)
+    for i, part in enumerate(parts):
+        if part == term:
+            return os.sep.join(parts[:i+1]) + os.sep
+    return None  # term not found

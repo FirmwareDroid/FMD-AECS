@@ -23,7 +23,7 @@ from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, 
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
-    check_shared_object_architecture
+    check_shared_object_architecture, get_path_up_to_first_term
 from config_post_injector import *
 from setup_logger import setup_logger
 from tqdm import tqdm
@@ -72,7 +72,7 @@ def start_post_build_injector(aosp_path,
                               target_out_path,
                               lunch_target,
                               firmware_id=None,
-                              pre_injector_package_list=[],
+                              pre_injector_package_list=None,
                               pre_injector_config_path=None,
                               post_injector_config_path=None):
     """
@@ -84,6 +84,8 @@ def start_post_build_injector(aosp_path,
     :param target_out_path: str - path to the AOSP target out folder.
     :param lunch_target: str - lunch target for the AOSP build.
     """
+    if pre_injector_package_list is None:
+        pre_injector_package_list = []
     logging.info(
         f"Starting post build injector with config:: {post_injector_config_path} | {pre_injector_config_path}")
     pre_injector_config, post_injector_config = load_configs(pre_injector_config_path, post_injector_config_path)
@@ -446,10 +448,10 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
         if isinstance(original_file_path, list):
             original_file_path_list = original_file_path
             for original_file_path in original_file_path_list:
-                is_injected = inject_file_into_obj(file_path, original_file_path, module_type, aosp_path)
+                is_injected = inject_file_into_obj(file_path, original_file_path, module_type, aosp_path, partition_name)
                 inj_obj = (file_path, original_file_path, module_type)
         else:
-            is_injected = inject_file_into_obj(file_path, original_file_path, module_type, aosp_path)
+            is_injected = inject_file_into_obj(file_path, original_file_path, module_type, aosp_path, partition_name)
             inj_obj = (file_path, original_file_path, module_type)
     else:
         is_injected = False
@@ -475,21 +477,21 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                 and not any(keyword in os.path.basename(target_file_injection_path)
                             for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"])):
             # Direct Injection
-            target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path)
+            target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name)
             inj_partition = (file_path, target_path, module_type)
         else:
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition, aosp_path)
     elif not os.path.exists(target_file_injection_path):
         # Direct Injection
-        target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path)
+        target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name)
         inj_partition = (file_path, target_path, module_type)
     else:
         inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                     partition_name, module_type, file_path, inj_partition, aosp_path)
         if not is_injected and is_injected is not None:
             # Fallback to Direct Injection
-            target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path)
+            target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name)
             inj_partition = (file_path, target_path, module_type)
 
     if target_path:
@@ -915,7 +917,7 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
 
 
 # Direct Injection
-def inject_file_into_partition(source_file_path, target_file_injection_path, aosp_path):
+def inject_file_into_partition(source_file_path, target_file_injection_path, aosp_path, partition_name):
     if POST_INJECTOR_CONFIG["OVERWRITE_APP_PROCESS_32"]:
         # TODO : Remove this workaround in the future -> This does not work for all cases.
         source_file_path = handle_special_matching(source_file_path)
@@ -935,7 +937,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
                 if (filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in
                         POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]):
                     logging.info(f"Direct Injection via APEX symlink file: {filename} with path {source_file_path} into {target_file_injection_path}")
-                    is_injected = inject_apex_symlink_file(filename, source_file_path, target_file_injection_path, aosp_path)
+                    is_injected = inject_apex_symlink_file(filename, source_file_path, target_file_injection_path, aosp_path, partition_name)
                     if not is_injected:
                         logging.error(f"Error injecting APEX symlink file: {source_file_path} into {target_file_injection_path}")
                         return target_file_injection_path
@@ -1015,7 +1017,7 @@ def handle_duplicated_permissions(target_out_path):
     find_and_remove_duplicates(permission_path_list)
 
 
-def inject_apex_symlink_file(filename, source_file_path, original_file_path, aosp_path):
+def inject_apex_symlink_file(filename, source_file_path, original_file_path, aosp_path, partition_name):
     # Special case for isolated namespace binaries - Replacing Binary with symlink to apex binary
     target_path = f"/apex/com.android.fmd.{filename}.apex/bin/{filename}"
     logging.info(f"Add new dangling symlink script: {original_file_path} -> {target_path}")
@@ -1025,22 +1027,27 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
     # result = subprocess.run(['ln', '-s', target_path, original_file_path], capture_output=True, text=True)
     # logging.info(f"stdout: {result.stdout}")
     # logging.info(f"stderr: {result.stderr}")
-    product_out_path = os.path.join(aosp_path, "out/target/product/emulator_arm64")
-    relative_source_path = source_file_path.replace("/home/suth/FMD-AECS/out/extracted_packages/ALL_FILES/system", "")
-    inject_commands = [f"rm -f $(PRODUCT_OUT){relative_source_path}", f"ln -s {target_path} $(PRODUCT_OUT){relative_source_path}"]
+    #product_out_path = os.path.join(aosp_path, "out/target/product/emulator_arm64")
+    root_path = get_path_up_to_first_term(source_file_path, partition_name)
+    logging.info(f"{source_file_path} - Root path: {root_path}")
+    relative_source_path = source_file_path.replace(root_path, "")
+    abs_source_path = os.path.join(aosp_path, relative_source_path)
+    #inject_commands = [f"rm -f $(PRODUCT_OUT){relative_source_path}", f"ln -s {target_path} $(PRODUCT_OUT){relative_source_path}"]
+    inject_commands = [f"os.remove('{abs_source_path}')",f"subprocess.call(['ln', '-s', {target_path}, {abs_source_path}])"]
     injection_marker = "####### FMD INJECTION MARKER #######"
-    goldfish_mk_file = os.path.join(aosp_path, "device/generic/goldfish/tools/Android.mk")
-    if os.path.exists(goldfish_mk_file):
-        logging.info(f"Injecting file from Goldfish for {target_path}: {goldfish_mk_file}")
+    #goldfish_mk_file = os.path.join(aosp_path, "device/generic/goldfish/tools/Android.mk")
+    build_image_file_path = os.path.join(aosp_path, "build/make/tools/releasetools/build_image.py")
+    if os.path.exists(build_image_file_path):
+        logging.info(f"Injecting file from Goldfish for {target_path}: {build_image_file_path}")
         try:
-            with open(goldfish_mk_file, "r") as f:
+            with open(build_image_file_path, "r") as f:
                 lines = f.readlines()
 
-            with open(goldfish_mk_file, "w") as f:
+            with open(build_image_file_path, "w") as f:
                 for line in lines:
                     logging.info(f"Processing line: {line.strip()}")
                     if injection_marker in line:
-                        logging.debug(f"Injection marker found in {goldfish_mk_file}, injecting commands.")
+                        logging.debug(f"Injection marker found in {build_image_file_path}, injecting commands.")
                         f.write(f"\t{injection_marker}\n")
                         for command in inject_commands:
                             logging.debug(f"Injecting command to goldfish: {command}")
@@ -1050,13 +1057,13 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
                         logging.info(f"Write line to goldfish: {line.strip()}")
                         f.write(line)
         except Exception as e:
-            logging.error(f"Error injecting file into Goldfish: {goldfish_mk_file} | {e}")
+            logging.error(f"Error injecting file into Goldfish: {build_image_file_path} | {e}")
             is_injected = False
         #logging.info(f"Injected file as simlink: {source_file_path} -> {target_path}")
     return is_injected
 
 
-def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp_path):
+def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp_path, partition_name):
     """
     Injects a file into the AOSP source code directly without matching to existing files.
     """
@@ -1078,7 +1085,7 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
             is_injected = True
         elif filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
             logging.info(f"Indirect Injection via APEX symlink file: {filename} with path {source_file_path} into {original_file_path}")
-            is_injected = inject_apex_symlink_file(filename, original_file_path, aosp_path)
+            is_injected = inject_apex_symlink_file(filename, source_file_path, original_file_path, aosp_path, partition_name)
         else:
             shutil.copyfile(source_file_path, original_file_path)
             is_injected = True
