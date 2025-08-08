@@ -922,8 +922,17 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
         # TODO : Remove this workaround in the future -> This does not work for all cases.
         source_file_path = handle_special_matching(source_file_path)
 
-
-    if os.path.exists(target_file_injection_path):
+    filename = os.path.basename(target_file_injection_path)
+    if (filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in
+            POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]):
+        logging.info(
+            f"Direct Injection via APEX symlink file: {filename} with path {source_file_path} into {target_file_injection_path}")
+        is_injected = inject_apex_symlink_file(filename, source_file_path, target_file_injection_path, aosp_path,
+                                               partition_name)
+        if not is_injected:
+            logging.error(f"Error injecting APEX symlink file: {source_file_path} into {target_file_injection_path}")
+            return target_file_injection_path
+    elif os.path.exists(target_file_injection_path):
         if os.path.islink(target_file_injection_path):
             try:
                 shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
@@ -933,14 +942,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
         else:
             # Fîle should not already exists, but if it does, we overwrite it, but it is not recommended.
             try:
-                filename = os.path.basename(source_file_path)
-                if (filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in
-                        POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]):
-                    logging.info(f"Direct Injection via APEX symlink file: {filename} with path {source_file_path} into {target_file_injection_path}")
-                    is_injected = inject_apex_symlink_file(filename, source_file_path, target_file_injection_path, aosp_path, partition_name)
-                    if not is_injected:
-                        logging.error(f"Error injecting APEX symlink file: {source_file_path} into {target_file_injection_path}")
-                        return target_file_injection_path
+
                 if os.path.isfile(source_file_path):
                     inj_md5 = compute_file_hash(source_file_path)
                     org_md5 = compute_file_hash(target_file_injection_path)
