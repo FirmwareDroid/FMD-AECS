@@ -368,6 +368,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         file_context_dst_path = os.path.join(aosp_path, "system", "sepolicy", "apex", f"com.android.fmd.{filename}-file_contexts")
         logging.info(f"Copying {file_context_source_path} to {file_context_dst_path} for APEX file {apex_file_name}")
         shutil.copyfile(file_context_source_path, file_context_dst_path)
+        with open(file_context_dst_path, 'a') as file_contexts_file:
+            file_contexts_file.write(f"\n/bin/{filename}    u:r:init:s0\n")
     except Exception as e:
         logging.error(f"Error copying SELinux file contexts: {e}")
         return False, f"Error copying SELinux file contexts: {e}"
