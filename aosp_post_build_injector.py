@@ -1007,6 +1007,40 @@ def handle_duplicated_permissions(target_out_path):
     find_and_remove_duplicates(permission_path_list)
 
 
+def inject_apex_symlink_file(filename, original_file_path, aosp_path):
+    # Special case for isolated namespace binaries - Replacing Binary with symlink to apex binary
+    target_path = f"/apex/com.android.fmd.{filename}.apex/bin/{filename}"
+    logging.info(f"Add new dangling symlink script: {original_file_path} -> {target_path}")
+    # if os.path.exists(original_file_path):
+    #    os.remove(original_file_path)
+    # subprocess.run(['ln', '-s', target_path, original_file_path], check=True)
+    # result = subprocess.run(['ln', '-s', target_path, original_file_path], capture_output=True, text=True)
+    # logging.info(f"stdout: {result.stdout}")
+    # logging.info(f"stderr: {result.stderr}")
+    # product_out_path = os.path.join(aosp_path, "out/target/product/emulator_arm64")
+    inject_commands = [f"rm -f {original_file_path}", f"ln -s {target_path} {original_file_path}"]
+    injection_marker = "####### FMD INJECTION MARKER #######"
+    goldfish_mk_file = os.path.join(aosp_path, "device/generic/goldfish/tools/Android.mk")
+    if os.path.exists(goldfish_mk_file):
+        logging.info(f"Injecting file from Goldfish for {target_path}: {goldfish_mk_file}")
+        with open(goldfish_mk_file, "w") as f:
+            lines = f.readlines()
+            for line in lines:
+                logging.info(f"Processing line: {line.strip()}")
+                if injection_marker in line:
+                    logging.debug(f"Injection marker found in {goldfish_mk_file}, injecting commands.")
+                    f.write(f"{injection_marker}\n")
+                    for command in inject_commands:
+                        logging.debug(f"Injecting command to goldfish: {command}")
+                        f.write(f"\t{command}\n")
+                else:
+                    logging.info(f"Write line to goldfish: {line.strip()}")
+                    f.write(line)
+        is_injected = True
+        #logging.info(f"Injected file as simlink: {source_file_path} -> {target_path}")
+
+
+
 def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp_path):
     """
     Injects a file into the AOSP source code directly without matching to existing files.
@@ -1028,34 +1062,7 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
             shutil.copyfile(source_file_path, new_file_path)
             is_injected = True
         elif filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
-            # Special case for isolated namespace binaries - Replacing Binary with symlink to apex binary
-            target_path = f"/apex/com.android.fmd.{filename}.apex/bin/{filename}"
-            logging.info(f"Add new dangling symlink script: {original_file_path} -> {target_path}")
-            #if os.path.exists(original_file_path):
-            #    os.remove(original_file_path)
-            #subprocess.run(['ln', '-s', target_path, original_file_path], check=True)
-            #result = subprocess.run(['ln', '-s', target_path, original_file_path], capture_output=True, text=True)
-            #logging.info(f"stdout: {result.stdout}")
-            #logging.info(f"stderr: {result.stderr}")
-            #product_out_path = os.path.join(aosp_path, "out/target/product/emulator_arm64")
-            inject_commands = [f"rm -f {original_file_path}", f"ln -s {target_path} {original_file_path}"]
-            injection_marker = "####### FMD INJECTION MARKER #######"
-            goldfish_mk_file = os.path.join(aosp_path, "device/generic/goldfish/tools/Android.mk")
-            if os.path.exists(goldfish_mk_file):
-                logging.info(f"Injecting file from Goldfish for {target_path}: {goldfish_mk_file}")
-                with open(goldfish_mk_file, "w") as f:
-                    lines = f.readlines()
-                    for line in lines:
-                        if injection_marker in line:
-                            logging.debug(f"Injection marker found in {goldfish_mk_file}, injecting commands.")
-                            f.write(f"{injection_marker}\n")
-                            for command in inject_commands:
-                                logging.debug(f"Injecting command to goldfish: {command}")
-                                f.write(f"\t{command}\n")
-                        else:
-                            f.write(line)
-                is_injected = True
-                logging.info(f"Injected file as simlink: {source_file_path} -> {target_path}")
+            inject_symlink_file()
         else:
             shutil.copyfile(source_file_path, original_file_path)
             is_injected = True
