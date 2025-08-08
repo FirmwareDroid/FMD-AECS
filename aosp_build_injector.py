@@ -842,11 +842,12 @@ def clear_extracted_packages():
 
 
 def reset_post_injection_files(aosp_path):
-    goldfish_mk_path = os.path.join(aosp_path, "device/generic/goldfish/tools/Android.mk")
+    # TODO: Implement reset of post injection files
+    build_image_file_path = os.path.join(aosp_path, "build/make/tools/releasetools/build_image.py")
     template_goldfish_mk_path = os.path.join(TEMPLATE_FOLDER, "goldfish_tools/Android.mk")
-    logging.info(f"Resetting post injection files for {goldfish_mk_path} with {template_goldfish_mk_path}")
+    logging.info(f"Resetting post injection files for {build_image_file_path} with {template_goldfish_mk_path}")
     try:
-        shutil.copyfile(goldfish_mk_path, template_goldfish_mk_path)
+        shutil.copyfile(build_image_file_path, template_goldfish_mk_path)
     except Exception as err:
         logging.error(err)
 
