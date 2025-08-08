@@ -935,7 +935,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
                 if (filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in
                         POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]):
                     logging.info(f"Direct Injection via APEX symlink file: {filename} with path {source_file_path} into {target_file_injection_path}")
-                    is_injected = inject_apex_symlink_file(filename, target_file_injection_path, aosp_path)
+                    is_injected = inject_apex_symlink_file(filename, source_file_path, target_file_injection_path, aosp_path)
                     if not is_injected:
                         logging.error(f"Error injecting APEX symlink file: {source_file_path} into {target_file_injection_path}")
                         return target_file_injection_path
@@ -1015,7 +1015,7 @@ def handle_duplicated_permissions(target_out_path):
     find_and_remove_duplicates(permission_path_list)
 
 
-def inject_apex_symlink_file(filename, original_file_path, aosp_path):
+def inject_apex_symlink_file(filename, source_file_path, original_file_path, aosp_path):
     # Special case for isolated namespace binaries - Replacing Binary with symlink to apex binary
     target_path = f"/apex/com.android.fmd.{filename}.apex/bin/{filename}"
     logging.info(f"Add new dangling symlink script: {original_file_path} -> {target_path}")
@@ -1026,8 +1026,8 @@ def inject_apex_symlink_file(filename, original_file_path, aosp_path):
     # logging.info(f"stdout: {result.stdout}")
     # logging.info(f"stderr: {result.stderr}")
     product_out_path = os.path.join(aosp_path, "out/target/product/emulator_arm64")
-    relative_original_file_path = original_file_path.replace(product_out_path, "")
-    inject_commands = [f"rm -f $(PRODUCT_OUT){relative_original_file_path}", f"ln -s {target_path} $(PRODUCT_OUT){relative_original_file_path}"]
+    relative_source_path = source_file_path.replace("/home/suth/FMD-AECS/out/extracted_packages/ALL_FILES/system", "")
+    inject_commands = [f"rm -f $(PRODUCT_OUT){relative_source_path}", f"ln -s {target_path} $(PRODUCT_OUT){relative_source_path}"]
     injection_marker = "####### FMD INJECTION MARKER #######"
     goldfish_mk_file = os.path.join(aosp_path, "device/generic/goldfish/tools/Android.mk")
     if os.path.exists(goldfish_mk_file):
