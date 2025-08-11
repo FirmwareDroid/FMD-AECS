@@ -281,6 +281,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     extra_paths = []
     if lib64_path_list:
         extra_paths.extend(lib64_path_list)
+        logging.info(f"Extra paths for lddtree: {extra_paths} for APEX {apex_file_name}")
     else:
         logging.warning(f"No 'lib64' folders found in partition root: {partition_root}. Using default paths. {apex_file_name}")
 
@@ -291,7 +292,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs found: {libs}")
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs_not_found: {libs_not_found}")
         # TODO Handle the case where a necessary libarary is not found
-        libs.append("/home/suth/FMD-AECS/out/extracted_packages/ALL_FILES/system/system/lib64/libandroid.so")
+        #libs.append("/home/suth/FMD-AECS/out/extracted_packages/ALL_FILES/system/system/lib64/libandroid.so")
+        libs_not_found.append("libandroid.so")
         libs_not_found.append("libsqlite.so")
     except Exception as e:
         logging.error(f"Error running lddtree on {binary_file_path} - {apex_file_name}: {e}")
