@@ -291,9 +291,6 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         libs, libs_not_found = run_lddtree(binary_file_path, extra_env=env)
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs found: {libs}")
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs_not_found: {libs_not_found}")
-        # TODO Handle the case where a necessary libarary is not found
-        #libs.append("/home/suth/FMD-AECS/out/extracted_packages/ALL_FILES/system/system/lib64/libandroid.so")
-        libs.append("/home/suth/FMD-AECS/out/extracted_packages/ALL_FILES/system/com_android_runtime_apex/com_android_runtime_apex/lib64/libandroid_runtime.so")
         libs_not_found.append("libandroid.so")
         libs_not_found.append("libsqlite.so")
     except Exception as e:
