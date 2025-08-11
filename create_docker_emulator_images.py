@@ -304,7 +304,8 @@ def clear_environment(local_repo_path):
 def parse_arguments():
     parser = argparse.ArgumentParser(
         prog="create_startup_scripts.py",
-        description="Downloads emulator images from the repository and builds docker images.",
+        description="Downloads emulator images from the repository and builds docker images. Examples:"
+                    "\nBuild emulator images from local files: python create_docker_emulator_images.py -l -i ./emulator_images",
         add_help=True)
     parser.add_argument("-l",
                         "--create_local",

@@ -209,12 +209,15 @@ def find_lib64_folders(root_dir):
     for dirpath, dirnames, _ in os.walk(root_dir):
         if 'lib64' in dirnames:
             lib64_dir = os.path.join(dirpath, 'lib64')
-            lib64_paths.append(lib64_dir)
-            # Add all subfolders of lib64
-            for subdir_root, subdir_names, _ in os.walk(lib64_dir):
-                for subdir in subdir_names:
-                    subfolder_path = os.path.join(subdir_root, subdir)
-                    lib64_paths.append(subfolder_path)
+            if "com_android_vndk_current_apex" not in lib64_dir:
+                lib64_paths.append(lib64_dir)
+                # Add all subfolders of lib64
+                for subdir_root, subdir_names, _ in os.walk(lib64_dir):
+                    for subdir in subdir_names:
+                        subfolder_path = os.path.join(subdir_root, subdir)
+                        lib64_paths.append(subfolder_path)
+            else:
+                logging.info(f"Skipped vndk lib64 folder: {lib64_dir}")
     return lib64_paths
 
 

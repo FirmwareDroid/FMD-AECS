@@ -24,7 +24,10 @@ def main():
     parser = argparse.ArgumentParser(
         prog="create_startup_scripts.py",
         description="Creates necessary files to startup the envoy proxy service. "
-                    "A new docker-compose YAML file will be written to the current working directory.",
+                    "A new docker-compose YAML file will be written to the current working directory. Examples:"
+                    "\n"
+                    "python create_docker_startup_scripts.py.py -c linux/arm64"
+                    "python create_docker_startup_scripts.py.py -g 8554 -a 5555 -s 2222 -c linux/arm64",
         add_help=True)
     parser.add_argument("-g",
                         "--grpc-start-port",
