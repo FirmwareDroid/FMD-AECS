@@ -309,8 +309,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         ]
         com_google_android_os_statsd_apex = ["libstats_jni.so", "libstatspull.so", "libstatssocket.so"]
 
-        libs_not_found.extend(com_google_android_art_apex_libs)
-        libs_not_found.extend(com_google_android_os_statsd_apex)
+        #libs_not_found.extend(com_google_android_art_apex_libs)
+        #libs_not_found.extend(com_google_android_os_statsd_apex)
     except Exception as e:
         logging.error(f"Error running lddtree on {binary_file_path} - {apex_file_name}: {e}")
         return False, f"Error running lddtree: {e}"
