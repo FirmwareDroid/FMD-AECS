@@ -362,7 +362,11 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                         if file.endswith(".so"):
                             src_lib_path = os.path.join(root, file)
                             dst_lib_path = os.path.join(apex_lib64_path, file)
-                            if check_shared_object_architecture(src_lib_path) == "64-bit" and not os.path.exists(apex_lib64_path):
+                            if check_shared_object_architecture(src_lib_path) == "64-bit":
+                                if os.path.exists(dst_lib_path):
+                                    logging.info(f"Library {src_lib_path} already exists in APEX {apex_file_name}, skipping copy.")
+                                    continue
+
                                 try:
                                     shutil.copyfile(src_lib_path, dst_lib_path)
                                     logging.info(f"Copied library {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
