@@ -324,7 +324,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                         dst_lib_path = os.path.join(apex_lib64_path, lib_name)
                         try:
                             shutil.copyfile(src_lib_path, dst_lib_path)
-                            logging.info(f"Copied 64-bit library {lib_name} to APEX {apex_file_name}: {dst_lib_path}")
+                            logging.info(f"Copied 64-bit library {lib_name} from {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
                             break  # Stop searching after finding the 64-bit version
                         except Exception as e:
                             logging.error(f"Error copying library {lib_name} from {src_lib_path} to {dst_lib_path} for {apex_file_name}: {e}")
