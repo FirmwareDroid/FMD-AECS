@@ -355,7 +355,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     add_all_apex_libraries = True
     if add_all_apex_libraries:
         for lib64_path in lib64_path_list:
-            if "apex" in lib64_path and not "vndk" in lib64_path:
+            if not "vndk" in lib64_path: # "apex" in lib64_path and
                 logging.info(f"Copying all libraries from {lib64_path} to APEX {apex_file_name}")
                 for root, dirs, files in os.walk(lib64_path):
                     for file in files:
