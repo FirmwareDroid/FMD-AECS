@@ -319,6 +319,9 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         for root, dirs, files in os.walk(partition_root):
             if lib_name in files:
                 src_lib_path = os.path.join(root, lib_name)
+                if "com_android_vndk_current_apex" in src_lib_path:
+                    logging.info(f"Skipping VNDK library {lib_name} in {src_lib_path} for APEX {apex_file_name}")
+                    continue
                 if os.path.exists(src_lib_path):
                     if check_shared_object_architecture(src_lib_path) == "64-bit":
                         dst_lib_path = os.path.join(apex_lib64_path, lib_name)
