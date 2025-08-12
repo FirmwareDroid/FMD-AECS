@@ -296,6 +296,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs_not_found: {libs_not_found}")
         libs_not_found.append("libandroid.so")
         libs_not_found.append("libsqlite.so")
+        libs_not_found.append("libnativehelper.so")
     except Exception as e:
         logging.error(f"Error running lddtree on {binary_file_path} - {apex_file_name}: {e}")
         return False, f"Error running lddtree: {e}"
