@@ -297,6 +297,17 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         libs_not_found.append("libandroid.so")
         libs_not_found.append("libsqlite.so")
         libs_not_found.append("libnativehelper.so")
+        libs_not_found.append("libart.so")
+        com_google_android_art_apex_libs = [
+            "libadbconnection.so", "libart-compiler.so", "libart-disassembler.so", "libartbase.so",
+            "libbacktrace.so", "libc++.so", "libdexfile.so", "libdt_socket.so", "libjavacore.so",
+            "liblz4.so", "libnativebridge.so", "libnativeloader.so", "libopenjdk.so", "libopenjdkjvmti.so",
+            "libprofile.so", "libunwindstack.so", "libandroidio.so", "libart-dexlayout.so", "libart.so",
+            "libartpalette.so", "libbase.so", "libcrypto.so", "libdt_fd_forward.so", "libexpat.so",
+            "libjdwp.so", "liblzma.so", "libnativehelper.so", "libnpt.so", "libopenjdkjvm.so",
+            "libperfetto_hprof.so", "libsigchain.so", "libziparchive.so"
+        ]
+        libs_not_found.extend(com_google_android_art_apex_libs)
     except Exception as e:
         logging.error(f"Error running lddtree on {binary_file_path} - {apex_file_name}: {e}")
         return False, f"Error running lddtree: {e}"
