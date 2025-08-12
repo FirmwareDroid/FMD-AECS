@@ -308,6 +308,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
             "libperfetto_hprof.so", "libsigchain.so", "libziparchive.so"
         ]
         com_google_android_os_statsd_apex = ["libstats_jni.so", "libstatspull.so", "libstatssocket.so"]
+
         libs_not_found.extend(com_google_android_art_apex_libs)
         libs_not_found.extend(com_google_android_os_statsd_apex)
     except Exception as e:
@@ -350,6 +351,24 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                         logging.info(f"Found 32-bit library {lib_name} in {src_lib_path}, skipping. {apex_file_name}")
                 else:
                     logging.error(f"Library {lib_name} not found in {partition_root}. Skipping. {apex_file_name}")
+
+    add_all_apex_libraries = True
+    if add_all_apex_libraries:
+        for lib64_path in lib64_path_list:
+            if "apex" in lib64_path and not "vndk" in lib64_path:
+                logging.info(f"Copying all libraries from {lib64_path} to APEX {apex_file_name}")
+                for root, dirs, files in os.walk(lib64_path):
+                    for file in files:
+                        if file.endswith(".so"):
+                            src_lib_path = os.path.join(root, file)
+                            dst_lib_path = os.path.join(apex_lib64_path, file)
+                            if check_shared_object_architecture(src_lib_path) == "64-bit" and not os.path.exists(apex_lib64_path):
+                                try:
+                                    shutil.copyfile(src_lib_path, dst_lib_path)
+                                    logging.info(f"Copied library {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
+                                except Exception as e:
+                                    logging.error(f"Error copying library {src_lib_path} to APEX {apex_file_name}: {e}")
+                                    return False, f"Error copying library {src_lib_path}: {e}"
 
     # Create the new APEX file
     ## Create Canned FS config file
