@@ -8,7 +8,7 @@
   },
   "INJECT_APEX_VENDOR_APPS": false,
   "REPLACE_AVB_KEYS": false,
-  "INJECT_APEX_VENDOR_FILES": false,
+  "INJECT_APEX_VENDOR_FILES": true,
   "ALLOW_MIXED_APEX_FILES": false,
   "ALLOW_APEX_INJECTION_MERGE": false,
   "DISABLE_BINARY_INJECTION": true,
@@ -17,7 +17,8 @@
   "ISOLATED_NAMESPACE_LIST": [],
   "APEX_BINARY_ISOLATED_NAMESPACE_LIST": ["app_process64"],
   "ALLOW_FILE_INJECT_ALWAYS": [
-    "app_process64"
+    "app_process64",
+    "com.google.android.art.apex"
   ],
   "SKIPPED_APP_LIST": ["GooglePackageInstaller", "framework-res.apk", "framework-res", "SystemUIGoogle"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
