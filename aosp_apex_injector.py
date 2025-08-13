@@ -354,6 +354,9 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                 logging.info(f"Copying all libraries from {lib64_path} to APEX {apex_file_name}")
                 for root, dirs, files in os.walk(lib64_path):
                     for file in files:
+                        if file in exclude_list:
+                            logging.info(f"Skipping excluded library {file} for APEX {apex_file_name}")
+                            continue
                         if file.endswith(".so"):
                             src_lib_path = os.path.join(root, file)
                             pre_path = get_path_up_to_first_term(root, "lib64")
