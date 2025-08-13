@@ -374,7 +374,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                         pre_path = get_path_up_to_first_term(root, "javalib")
                         post_path = str(src_lib_path.replace(pre_path, ""))
                         logging.info(f"Pre-path: {pre_path}, Post-path: {post_path} for javalib {file} in APEX {apex_file_name}, src_lib_path: {src_lib_path}")
-                        dst_lib_path = os.path.join(apex_extract_dir_path, post_path, file)
+                        dst_lib_path = os.path.join(apex_extract_dir_path, post_path)
                         if os.path.exists(dst_lib_path):
                             logging.info(f"Javalib {src_lib_path} already exists in APEX {apex_file_name}, skipping copy.")
                             continue
