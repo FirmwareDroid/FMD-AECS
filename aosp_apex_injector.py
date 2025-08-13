@@ -200,15 +200,15 @@ def create_and_sign_apex_repack_container(apex_manifest_path,
         log_message = f"APEX repack creation failed. {apex_out_file} | {log_message}"
     return is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path
 
-def find_lib64_folders(root_dir):
+def find_lib64_folders(root_dir, folder_name="lib64"):
     """
     Recursively finds all folders named 'lib64' under root_dir,
     and adds all their subfolders to the result list as well.
     """
     lib64_paths = []
     for dirpath, dirnames, _ in os.walk(root_dir):
-        if 'lib64' in dirnames:
-            lib64_dir = os.path.join(dirpath, 'lib64')
+        if folder_name in dirnames:
+            lib64_dir = os.path.join(dirpath, folder_name)
             if "com_android_vndk_current_apex" not in lib64_dir:
                 lib64_paths.append(lib64_dir)
                 # Add all subfolders of lib64
@@ -294,10 +294,10 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         libs, libs_not_found = run_lddtree(binary_file_path, extra_env=env)
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs found: {libs}")
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs_not_found: {libs_not_found}")
-        libs_not_found.append("libandroid.so")
-        libs_not_found.append("libsqlite.so")
-        libs_not_found.append("libnativehelper.so")
-        libs_not_found.append("libart.so")
+        #libs_not_found.append("libandroid.so")
+        #libs_not_found.append("libsqlite.so")
+        #libs_not_found.append("libnativehelper.so")
+        #libs_not_found.append("libart.so")
         com_google_android_art_apex_libs = [
             "libadbconnection.so", "libart-compiler.so", "libart-disassembler.so", "libartbase.so",
             "libbacktrace.so", "libc++.so", "libdexfile.so", "libdt_socket.so", "libjavacore.so",
@@ -366,13 +366,36 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                                 if os.path.exists(dst_lib_path):
                                     logging.info(f"Library {src_lib_path} already exists in APEX {apex_file_name}, skipping copy.")
                                     continue
-
                                 try:
                                     shutil.copyfile(src_lib_path, dst_lib_path)
                                     logging.info(f"Copied library {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
                                 except Exception as e:
                                     logging.error(f"Error copying library {src_lib_path} to APEX {apex_file_name}: {e}")
                                     return False, f"Error copying library {src_lib_path}: {e}"
+
+    javalib_folder_list = find_lib64_folders(partition_root, "javalib")
+    add_javalibs = True
+    if add_javalibs:
+        for javalib_path in javalib_folder_list:
+            if not "vndk" in javalib_path and "apex" in javalib_path and "art" in javalib_path:
+                logging.info(f"Copying all javalib libraries from {javalib_path} to APEX {apex_file_name}")
+                for root, dirs, files in os.walk(javalib_path):
+                    for file in files:
+                        #if file.endswith(".jar"):
+                        src_lib_path = os.path.join(root, file)
+                        dst_lib_path = os.path.join(apex_extract_dir_path, "javalib", file)
+                        if os.path.exists(dst_lib_path):
+                            logging.info(f"Javalib {src_lib_path} already exists in APEX {apex_file_name}, skipping copy.")
+                            continue
+                        try:
+                            os.makedirs(os.path.dirname(dst_lib_path), exist_ok=True)
+                            shutil.copyfile(src_lib_path, dst_lib_path)
+                            logging.info(f"Copied javalib {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
+                        except Exception as e:
+                            logging.error(f"Error copying javalib {src_lib_path} to APEX {apex_file_name}: {e}")
+                            return False, f"Error copying javalib {src_lib_path}: {e}"
+
+
 
     # Create the new APEX file
     ## Create Canned FS config file
