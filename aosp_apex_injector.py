@@ -313,8 +313,12 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
             logging.error(f"Error copying library {lib_path} to APEX {apex_file_name}: {e}")
             return False, f"Error copying library {lib_path}: {e}"
 
+    exclude_list = ["libandroid.so"]
     # Search for the native libraries in the AOSP source tree and copy them to the APEX directory if found
     for lib_name in libs_not_found:
+        if lib_name in exclude_list:
+            logging.info(f"Skipping excluded library {lib_name} for APEX {apex_file_name}")
+            continue
         logging.info(f"Searching for library {lib_name} in partition root: {partition_root} for APEX {apex_file_name}")
         for root, dirs, files in os.walk(partition_root):
             if lib_name in files:
