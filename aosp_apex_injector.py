@@ -302,8 +302,15 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
 
     apex_lib64_path = os.path.join(apex_extract_dir_path, "lib64")
     os.makedirs(apex_lib64_path, exist_ok=True)
+
+    # Exclude specific libraries from being copied
+    exclude_list = ["libandroid.so"]
     # Copy libraries
     for lib_path in libs:
+        lib_name = os.path.basename(lib_path)
+        if lib_name in exclude_list:
+            logging.info(f"Skipping excluded library {lib_name} for APEX {apex_file_name}")
+            continue
         logging.info(f"Adding APEX lib path - {apex_file_name}: {lib_path}")
         dst_lib_path = os.path.join(apex_lib64_path, os.path.basename(lib_path))
         try:
@@ -313,7 +320,6 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
             logging.error(f"Error copying library {lib_path} to APEX {apex_file_name}: {e}")
             return False, f"Error copying library {lib_path}: {e}"
 
-    exclude_list = ["libandroid.so"]
     # Search for the native libraries in the AOSP source tree and copy them to the APEX directory if found
     for lib_name in libs_not_found:
         if lib_name in exclude_list:
