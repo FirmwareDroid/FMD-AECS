@@ -304,7 +304,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     os.makedirs(apex_lib64_path, exist_ok=True)
 
     # Exclude specific libraries from being copied
-    exclude_list = ["libandroid.so"]
+    exclude_list = [] # "libandroid.so"
     # Copy libraries
     for lib_path in libs:
         lib_name = os.path.basename(lib_path)
