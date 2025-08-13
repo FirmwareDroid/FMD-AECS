@@ -200,22 +200,24 @@ def create_and_sign_apex_repack_container(apex_manifest_path,
         log_message = f"APEX repack creation failed. {apex_out_file} | {log_message}"
     return is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path
 
-def find_lib64_folders(root_dir, folder_name="lib64"):
+def find_lib64_folders(root_dir, folder_name="lib64", include_subfolders=True):
     """
     Recursively finds all folders named 'lib64' under root_dir,
     and adds all their subfolders to the result list as well.
     """
     lib64_paths = []
+
     for dirpath, dirnames, _ in os.walk(root_dir):
         if folder_name in dirnames:
             lib64_dir = os.path.join(dirpath, folder_name)
             if "com_android_vndk_current_apex" not in lib64_dir:
                 lib64_paths.append(lib64_dir)
                 # Add all subfolders of lib64
-                for subdir_root, subdir_names, _ in os.walk(lib64_dir):
-                    for subdir in subdir_names:
-                        subfolder_path = os.path.join(subdir_root, subdir)
-                        lib64_paths.append(subfolder_path)
+                if include_subfolders:
+                    for subdir_root, subdir_names, _ in os.walk(lib64_dir):
+                        for subdir in subdir_names:
+                            subfolder_path = os.path.join(subdir_root, subdir)
+                            lib64_paths.append(subfolder_path)
             else:
                 logging.info(f"Skipped vndk lib64 folder: {lib64_dir}")
     return lib64_paths
@@ -294,23 +296,6 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         libs, libs_not_found = run_lddtree(binary_file_path, extra_env=env)
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs found: {libs}")
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs_not_found: {libs_not_found}")
-        #libs_not_found.append("libandroid.so")
-        #libs_not_found.append("libsqlite.so")
-        #libs_not_found.append("libnativehelper.so")
-        #libs_not_found.append("libart.so")
-        com_google_android_art_apex_libs = [
-            "libadbconnection.so", "libart-compiler.so", "libart-disassembler.so", "libartbase.so",
-            "libbacktrace.so", "libc++.so", "libdexfile.so", "libdt_socket.so", "libjavacore.so",
-            "liblz4.so", "libnativebridge.so", "libnativeloader.so", "libopenjdk.so", "libopenjdkjvmti.so",
-            "libprofile.so", "libunwindstack.so", "libandroidio.so", "libart-dexlayout.so", "libart.so",
-            "libartpalette.so", "libbase.so", "libcrypto.so", "libdt_fd_forward.so", "libexpat.so",
-            "libjdwp.so", "liblzma.so", "libnativehelper.so", "libnpt.so", "libopenjdkjvm.so",
-            "libperfetto_hprof.so", "libsigchain.so", "libziparchive.so"
-        ]
-        com_google_android_os_statsd_apex = ["libstats_jni.so", "libstatspull.so", "libstatssocket.so"]
-
-        #libs_not_found.extend(com_google_android_art_apex_libs)
-        #libs_not_found.extend(com_google_android_os_statsd_apex)
     except Exception as e:
         logging.error(f"Error running lddtree on {binary_file_path} - {apex_file_name}: {e}")
         return False, f"Error running lddtree: {e}"
@@ -374,6 +359,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                                     return False, f"Error copying library {src_lib_path}: {e}"
 
     javalib_folder_list = find_lib64_folders(partition_root, "javalib")
+
+    logging.info(f"Javalib folders found: {javalib_folder_list} for APEX {apex_file_name}")
     add_javalibs = True
     if add_javalibs:
         for javalib_path in javalib_folder_list:
@@ -381,9 +368,13 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                 logging.info(f"Copying all javalib libraries from {javalib_path} to APEX {apex_file_name}")
                 for root, dirs, files in os.walk(javalib_path):
                     for file in files:
-                        #if file.endswith(".jar"):
+                        if file.endswith(".fmd-aecs-lock") or file.endswith(".fmd-aecs-processed"):
+                            continue
                         src_lib_path = os.path.join(root, file)
-                        dst_lib_path = os.path.join(apex_extract_dir_path, "javalib", file)
+                        pre_path = get_path_up_to_first_term(root, "javalib")
+                        post_path = str(src_lib_path.replace(pre_path, ""))
+                        logging.info(f"Pre-path: {pre_path}, Post-path: {post_path} for javalib {file} in APEX {apex_file_name}, src_lib_path: {src_lib_path}")
+                        dst_lib_path = os.path.join(apex_extract_dir_path, post_path, file)
                         if os.path.exists(dst_lib_path):
                             logging.info(f"Javalib {src_lib_path} already exists in APEX {apex_file_name}, skipping copy.")
                             continue
