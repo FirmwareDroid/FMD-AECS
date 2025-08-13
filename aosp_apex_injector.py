@@ -348,16 +348,17 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                             src_lib_path = os.path.join(root, file)
                             pre_path = get_path_up_to_first_term(root, "lib64")
                             post_path = str(src_lib_path.replace(pre_path, ""))
-                            logging.info(
-                                f"Pre-path: {pre_path}, Post-path: {post_path} for javalib {file} in APEX {apex_file_name}, src_lib_path: {src_lib_path}")
-                            dst_lib_path = os.path.join(apex_extract_dir_path, "javalib", post_path)
+                            logging.info(f"Pre-path: {pre_path}, Post-path: {post_path} for "
+                                         f"lib64 {file} in APEX {apex_file_name}, src_lib_path: {src_lib_path}")
+                            dst_lib_path = os.path.join(apex_extract_dir_path, "lib64", post_path)
                             if check_shared_object_architecture(src_lib_path) == "64-bit":
                                 if os.path.exists(dst_lib_path):
                                     logging.info(f"Library {src_lib_path} already exists in APEX {apex_file_name}, skipping copy.")
                                     continue
                                 try:
+                                    os.makedirs(os.path.dirname(dst_lib_path), exist_ok=True)
                                     shutil.copyfile(src_lib_path, dst_lib_path)
-                                    logging.info(f"Copied library {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
+                                    logging.info(f"Copied APEX library {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
                                 except Exception as e:
                                     logging.error(f"Error copying library {src_lib_path} to APEX {apex_file_name}: {e}")
                                     return False, f"Error copying library {src_lib_path}: {e}"
