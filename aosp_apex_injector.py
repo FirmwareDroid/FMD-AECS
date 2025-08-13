@@ -346,7 +346,11 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                     for file in files:
                         if file.endswith(".so"):
                             src_lib_path = os.path.join(root, file)
-                            dst_lib_path = os.path.join(apex_lib64_path, file)
+                            pre_path = get_path_up_to_first_term(root, "lib64")
+                            post_path = str(src_lib_path.replace(pre_path, ""))
+                            logging.info(
+                                f"Pre-path: {pre_path}, Post-path: {post_path} for javalib {file} in APEX {apex_file_name}, src_lib_path: {src_lib_path}")
+                            dst_lib_path = os.path.join(apex_extract_dir_path, "javalib", post_path)
                             if check_shared_object_architecture(src_lib_path) == "64-bit":
                                 if os.path.exists(dst_lib_path):
                                     logging.info(f"Library {src_lib_path} already exists in APEX {apex_file_name}, skipping copy.")
@@ -361,7 +365,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     javalib_folder_list = find_lib64_folders(partition_root, "javalib")
 
     logging.info(f"Javalib folders found: {javalib_folder_list} for APEX {apex_file_name}")
-    add_javalibs = True
+    add_javalibs = False
     if add_javalibs:
         for javalib_path in javalib_folder_list:
             if not "vndk" in javalib_path and "apex" in javalib_path and "art" in javalib_path:
