@@ -304,11 +304,12 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     os.makedirs(apex_lib64_path, exist_ok=True)
 
     # Exclude specific libraries from being copied
-    exclude_list = [] # "libandroid.so"
+    exclude_list = ["libandroid.so", "libc.so"] # "libandroid.so"
+    exclude_keyword = ["bionic"]
     # Copy libraries
     for lib_path in libs:
         lib_name = os.path.basename(lib_path)
-        if lib_name in exclude_list:
+        if lib_name in exclude_list or any(keyword in lib_path for keyword in exclude_keyword):
             logging.info(f"Skipping excluded library {lib_name} for APEX {apex_file_name}")
             continue
         logging.info(f"Adding APEX lib path - {apex_file_name}: {lib_path}")
@@ -322,7 +323,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
 
     # Search for the native libraries in the AOSP source tree and copy them to the APEX directory if found
     for lib_name in libs_not_found:
-        if lib_name in exclude_list:
+        if lib_name in exclude_list or any(keyword in lib_name for keyword in exclude_keyword):
             logging.info(f"Skipping excluded library {lib_name} for APEX {apex_file_name}")
             continue
         logging.info(f"Searching for library {lib_name} in partition root: {partition_root} for APEX {apex_file_name}")
@@ -331,6 +332,9 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                 src_lib_path = os.path.join(root, lib_name)
                 if "com_android_vndk_current_apex" in src_lib_path:
                     logging.info(f"Skipping VNDK library {lib_name} in {src_lib_path} for APEX {apex_file_name}")
+                    continue
+                if any(keyword in src_lib_path for keyword in exclude_keyword):
+                    logging.info(f"Skipping excluded library {lib_name} for APEX {apex_file_name}")
                     continue
                 if os.path.exists(src_lib_path):
                     if check_shared_object_architecture(src_lib_path) == "64-bit":
