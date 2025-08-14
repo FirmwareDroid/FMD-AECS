@@ -650,6 +650,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target)
     if extract_success:
         if POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_FILES"] and any(keyword in filename_input for keyword in POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_KEYWORD_LIST"]):
+            logging.info(f"APEX: CREATING MIXED APEX: {apex_emulator_folder} and vendor APEX: {input_apex}")
             shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
         else:
             manifest_path = os.path.join(apex_emulator_folder, "apex_manifest.pb")
@@ -801,7 +802,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 file_ext = os.path.splitext(file)[1]
 
                 if file_ext in ["", None] and POST_INJECTOR_CONFIG["DISABLE_APEX_BINARY_INJECTION"]:
-                    logging.error(f"SKIPPED APEX Binary Injection: DISABLE_APEX_BINARY_INJECTION is set to True")
+                    logging.error(f"SKIPPED APEX Binary Injection: DISABLE_APEX_BINARY_INJECTION is set to True: {file_path}")
                     continue
 
                 if file in POST_INJECTOR_CONFIG["DISALLOW_APEX_FILE_OVERWRITE"]:
