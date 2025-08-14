@@ -652,6 +652,8 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         if POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_FILES"] and any(keyword in filename_input for keyword in POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_KEYWORD_LIST"]):
             logging.info(f"APEX: CREATING MIXED APEX: {apex_emulator_folder} and vendor APEX: {input_apex}")
             shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
+            logging.info(f"Copied emulator APEX folder: {apex_emulator_folder} to {merged_apex_extract_dir_path}")
+            log_files_in_dir(merged_apex_extract_dir_path)
         else:
             manifest_path = os.path.join(apex_emulator_folder, "apex_manifest.pb")
             logging.info(f"Copy manifest from original APEX: {manifest_path}")
