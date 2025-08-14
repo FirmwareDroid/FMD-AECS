@@ -749,8 +749,8 @@ def search_original_file_in_obj(partition_name,
         root_folder_name_stripped = os.path.basename(root_folder_name_stripped)
         logging.debug(f"File Matcher: {module_name}:{file_name} - Root Folder Name stripped: {root_folder_name_stripped}")
 
-        if "vndk" in candidate_path and "vndk" not in file_path:
-            logging.debug(f"File Matcher: VNDK Rule enforced -> "
+        if ("vndk" in candidate_path and "vndk" not in file_path) or ("ndk" in candidate_path and "ndk" not in file_path):
+            logging.debug(f"File Matcher: VNDK/NDK Rule enforced -> "
                           f"Candidate: {candidate_path} has vndk but target not: {file_path}")
             continue
 
