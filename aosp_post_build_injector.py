@@ -470,7 +470,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     file_extension = os.path.splitext(file_name)[1]
 
     target_file_injection_path = get_target_injection_path(file_path, partition_name, target_out_path)
-
+    logging.info(f"Target file injection path: {target_file_injection_path} ")
     if file_extension == ".apex" or file_extension == ".capex":
         logging.info(f"APEX Injection Strategy Selection for file: {file_path}")
         if (not os.path.exists(target_file_injection_path)
