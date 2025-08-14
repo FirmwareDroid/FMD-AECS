@@ -347,7 +347,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                 else:
                     logging.error(f"Library {lib_name} not found in {partition_root}. Skipping. {apex_file_name}")
 
-    add_all_apex_libraries = True
+    add_all_apex_libraries = False
     if add_all_apex_libraries:
         for lib64_path in lib64_path_list:
             if not "vndk" in lib64_path: # "apex" in lib64_path and
