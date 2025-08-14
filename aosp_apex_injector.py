@@ -649,7 +649,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     apex_vendor_extract_dir_path = tempfile.mkdtemp(suffix=f"_{filename_input}_vendor")
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target)
     if extract_success:
-        if POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_FILES"]:
+        if POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_FILES"] and any(keyword in filename_input for keyword in POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_KEYWORD_LIST"]):
             shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
         else:
             manifest_path = os.path.join(apex_emulator_folder, "apex_manifest.pb")
