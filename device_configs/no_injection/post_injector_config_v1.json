@@ -36,10 +36,6 @@
     ".rc"
   ],
   "SKIPPED_FILE_ENDING_LIST": [
-    "adbd_compressed.apex",
-    "adbd.apex",
-    "adbd_trimmed_compressed.apex",
-    "adbd_trimmed.apex"
   ],
   "CHECK_VNDK_VERSION_MISMATCH": true,
   "OVERWRITE_APP_PROCESS_32": true,
@@ -135,6 +131,7 @@
     "tethering": "com.android.tethering",
     "vndk": "com.android.vndk.v32",
     "adb": "com.android.adbd",
+    "adbd": "com.android.adbd",
     "art": "com.android.art",
     "extservices": "com.android.extservices",
     "ipsec": "com.android.ipsec",
