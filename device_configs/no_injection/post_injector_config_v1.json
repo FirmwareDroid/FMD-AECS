@@ -92,7 +92,8 @@
     "media",
     "tzdata",
     "tzdata3",
-    "tzdata4"
+    "tzdata4",
+    "adbd"
   ],
   "APEX_DEFAULT_PATHS_DICT": {
     "sdkext": "packages/modules/SdkExtensions",
