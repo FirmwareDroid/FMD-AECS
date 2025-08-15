@@ -23,7 +23,6 @@
     "app_process64",
     "com.google.android.art.apex",
     "com.android.runtime.apex",
-    "com.google.android.adbd.apex",
     "libandroid.so"
   ],
   "SKIPPED_APP_LIST": ["GooglePackageInstaller", "framework-res.apk", "framework-res", "SystemUIGoogle"],
