@@ -105,6 +105,7 @@
     "ipsec": "packages/modules/IPsec/apex",
     "scheduling": "packages/modules/Scheduling/apex",
     "adb": "packages/modules/adb/apex",
+    "adbd": "packages/modules/adb/apex",
     "statsd": "packages/modules/StatsD/apex",
     "resolv": "packages/modules/DnsResolver/apex",
     "neuralnetworks": "packages/modules/NeuralNetworks/apex",
