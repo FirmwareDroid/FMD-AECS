@@ -808,7 +808,7 @@ def search_original_file_in_obj(partition_name,
 
 def check_file_compatibility(file_path, candidate_path, module_type):
     is_match = True
-
+    logging.debug(f"check_file_compatibility: {module_type}:{file_path}|{candidate_path}")
     if module_type in MODULE_TYPE_ABI_COMPATIBLE and is_elf_binary(file_path):
         logging.info(f"File Matcher: Checking compatibility for {file_path}|{candidate_path}")
         candidate_arch = check_shared_object_architecture(candidate_path)
