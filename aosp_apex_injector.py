@@ -307,6 +307,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     # Manually added libaries
     libs_not_found.append("heapprofd_client_api.so")
     libs_not_found.append("libandroid.so")
+    libs_not_found.append("libartpalette-system.so")
+
     # Exclude specific libraries from being copied
     exclude_list = ["libc.so"] # "libandroid.so"
     exclude_keyword = ["bionic"]
