@@ -754,6 +754,10 @@ def search_original_file_in_obj(partition_name,
                           f"Candidate: {candidate_path} has vndk but target not: {file_path}")
             continue
 
+        if not check_file_compatibility(file_path, candidate_path, module_type):
+            logging.debug(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
+            continue
+
         # Check if there is an exact match for the file name
         if candidate_file_name == file_name:
             logging.debug(f"File Matcher test exact match:{file_name} Found {candidate_path} in {root}")
@@ -761,9 +765,6 @@ def search_original_file_in_obj(partition_name,
             # Verify if it matches the partition criteria
             if not partition_name or partition_name in root:
                 logging.debug(f"File Matcher: Found file that matches partition: {file_name}, candidate_path: {candidate_path}")
-                if not check_file_compatibility(file_path, candidate_path, module_type):
-                    logging.debug(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
-                    continue
 
                 if "com.android" in candidate_path and "com.android" not in file_path:
                     logging.debug(f"File Matcher: com.android rule enforced -> "
@@ -782,9 +783,6 @@ def search_original_file_in_obj(partition_name,
 
             if file_extension_src.lower().strip() == file_extension_obj.lower().strip():
                 logging.debug(f"File Matcher: Found file: {file_name}, candidate_path: {candidate_path}")
-                if not check_file_compatibility(file_path, candidate_path, module_type):
-                    logging.debug(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
-                    continue
                 logging.debug(f"File Matcher: File found via module name: {file_path}|{candidate_path}")
                 result_file_path = candidate_path
                 result_file_path_list.append(result_file_path)
