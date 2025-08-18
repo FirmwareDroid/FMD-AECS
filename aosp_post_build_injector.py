@@ -727,6 +727,10 @@ def search_original_file_in_obj(partition_name,
     if exact_match_files:
         matches = [file_path_list[i] for i, name in enumerate(file_name_list) if name == file_name]
         if matches:
+            for matching_file in matches:
+                if not check_file_compatibility(file_path, matching_file, module_type):
+                    logging.debug(f"File Matcher: File not compatible: {file_path}|{matching_file}")
+                    matches.remove(matching_file)
             logging.debug(f"File Matcher: Found exact matches for {file_name}: {matches}")
             file_path_list = matches
         else:
@@ -807,6 +811,7 @@ def search_original_file_in_obj(partition_name,
 def check_file_compatibility(file_path, candidate_path, module_type):
     is_match = True
     logging.info(f"check_file_compatibility: {module_type}:{file_path}|{candidate_path}")
+
     if module_type in MODULE_TYPE_ABI_COMPATIBLE and is_elf_binary(file_path):
         logging.info(f"File Matcher: Checking compatibility for {file_path}|{candidate_path}")
         candidate_arch = check_shared_object_architecture(candidate_path)
