@@ -425,8 +425,11 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
     inj_obj = None
     # Indirect Injection
     if file_name in POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"].keys():
-        original_file_path = POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"][file_name]
-        original_file_path = os.path.join(target_out_path, original_file_path)
+        if not check_file_compatibility(file_path, target_file_injection_path, module_type):
+            logging.debug(f"Incompatible file for indirect injection: {file_path} | {file_name} | {module_type} | {target_file_injection_path}")
+        else:
+            original_file_path = POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"][file_name]
+            original_file_path = os.path.join(target_out_path, original_file_path)
     else:
         original_file_path = search_original_file_in_obj(partition_name,
                                                          module_type,
