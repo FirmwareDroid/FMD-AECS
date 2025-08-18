@@ -357,11 +357,40 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                 else:
                     logging.error(f"Library {lib_name} not found in {partition_root}. Skipping. {apex_file_name}")
 
+    add_all_lib64_libraries = True
+    if add_all_lib64_libraries:
+        for lib64_path in lib64_path_list:
+            if not "apex" in lib64_path and not "bootstrap" in lib64_path:
+                for root, dirs, files in os.walk(lib64_path):
+                    for file in files:
+                        if file in exclude_list:
+                            logging.info(f"Skipping excluded library {file} for APEX {apex_file_name}")
+                            continue
+                        if file.endswith(".so"):
+                            src_lib_path = os.path.join(root, file)
+                            pre_path = get_path_up_to_first_term(root, "lib64")
+                            post_path = str(src_lib_path.replace(pre_path, ""))
+                            logging.info(f"Pre-path: {pre_path}, Post-path: {post_path} for "
+                                         f"lib64 {file} in APEX {apex_file_name}, src_lib_path: {src_lib_path}")
+                            dst_lib_path = os.path.join(apex_extract_dir_path, "lib64", post_path)
+                            if check_shared_object_architecture(src_lib_path) == "64-bit":
+                                if os.path.exists(dst_lib_path):
+                                    logging.info(
+                                        f"Library {src_lib_path} already exists in APEX {apex_file_name}, skipping copy.")
+                                    continue
+                                try:
+                                    os.makedirs(os.path.dirname(dst_lib_path), exist_ok=True)
+                                    shutil.copyfile(src_lib_path, dst_lib_path)
+                                    logging.info(f"Copied library {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
+                                except Exception as e:
+                                    logging.error(f"Error copying library {src_lib_path} to APEX {apex_file_name}: {e}")
+                                    return False, f"Error copying library {src_lib_path}: {e}"
+
     add_all_apex_libraries = True
     if add_all_apex_libraries:
         for lib64_path in lib64_path_list:
             if not "vndk" in lib64_path: # "apex" in lib64_path and
-                if "adbd" in lib64_path or "art" in lib64_path or "runtime" in lib64_path:
+                if "apex" in lib64_path and ("adbd" in lib64_path or "art" in lib64_path or "runtime" in lib64_path):
                     logging.info(f"Copying all libraries from {lib64_path} to APEX {apex_file_name}")
                     for root, dirs, files in os.walk(lib64_path):
                         for file in files:
