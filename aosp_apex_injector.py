@@ -296,6 +296,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         libs, libs_not_found = run_lddtree(binary_file_path, extra_env=env)
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs found: {libs}")
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs_not_found: {libs_not_found}")
+
+        libs_not_found.append("heapprofd_client_api.so")
     except Exception as e:
         logging.error(f"Error running lddtree on {binary_file_path} - {apex_file_name}: {e}")
         return False, f"Error running lddtree: {e}"

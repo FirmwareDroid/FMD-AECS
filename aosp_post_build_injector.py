@@ -819,10 +819,11 @@ def check_file_compatibility(file_path, candidate_path, module_type):
         logging.info(f"File Matcher: Checking compatibility for {file_path}|{candidate_path}")
         candidate_arch = check_shared_object_architecture(candidate_path)
         file_arch = check_shared_object_architecture(file_path)
-        logging.info(f"File Matcher: ARCH {candidate_arch}|{file_arch}")
+        logging.info(f"File Matcher: ARCH {candidate_arch}|{file_arch} | {module_type}:{file_path}|{candidate_path}")
         if not is_abi_compatible(candidate_path, file_path):
             logging.info(f"File Matcher: ABI not compatible: {file_path}|{candidate_path}")
             is_match = False
+
         if not check_shared_object_architecture(candidate_path) == check_shared_object_architecture(file_path):
             logging.info(f"File Matcher: Shared object architecture not the same: {file_path}|{candidate_path}")
             is_match = False
