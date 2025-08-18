@@ -297,7 +297,6 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs found: {libs}")
         logging.info(f"Collected libraries from lddtree - {apex_file_name} libs_not_found: {libs_not_found}")
 
-        libs_not_found.append("heapprofd_client_api.so")
     except Exception as e:
         logging.error(f"Error running lddtree on {binary_file_path} - {apex_file_name}: {e}")
         return False, f"Error running lddtree: {e}"
@@ -305,8 +304,11 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     apex_lib64_path = os.path.join(apex_extract_dir_path, "lib64")
     os.makedirs(apex_lib64_path, exist_ok=True)
 
+    # Manually added libaries
+    libs_not_found.append("heapprofd_client_api.so")
+    libs_not_found.append("libandroid.so")
     # Exclude specific libraries from being copied
-    exclude_list = ["libandroid.so", "libc.so"] # "libandroid.so"
+    exclude_list = ["libc.so"] # "libandroid.so"
     exclude_keyword = ["bionic"]
     # Copy libraries
     for lib_path in libs:
@@ -357,7 +359,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     if add_all_apex_libraries:
         for lib64_path in lib64_path_list:
             if not "vndk" in lib64_path: # "apex" in lib64_path and
-                if "adbd" in lib64_path:
+                if "adbd" in lib64_path or "art" in lib64_path or "runtime" in lib64_path:
                     logging.info(f"Copying all libraries from {lib64_path} to APEX {apex_file_name}")
                     for root, dirs, files in os.walk(lib64_path):
                         for file in files:
