@@ -360,7 +360,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
     add_all_lib64_libraries = True
     if add_all_lib64_libraries:
         for lib64_path in lib64_path_list:
-            if not "apex" in lib64_path and not "bootstrap" in lib64_path:
+            if not "apex" in lib64_path:
                 for root, dirs, files in os.walk(lib64_path):
                     for file in files:
                         if file in exclude_list:
