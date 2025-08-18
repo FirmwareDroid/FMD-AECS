@@ -811,6 +811,9 @@ def check_file_compatibility(file_path, candidate_path, module_type):
 
     if module_type in MODULE_TYPE_ABI_COMPATIBLE and is_elf_binary(file_path):
         logging.info(f"File Matcher: Checking compatibility for {file_path}|{candidate_path}")
+        candidate_arch = check_shared_object_architecture(candidate_path)
+        file_arch = check_shared_object_architecture(file_path)
+        logging.info(f"File Matcher: ARCH {candidate_arch}|{file_arch}")
         if not is_abi_compatible(candidate_path, file_path):
             logging.info(f"File Matcher: ABI not compatible: {file_path}|{candidate_path}")
             is_match = False
