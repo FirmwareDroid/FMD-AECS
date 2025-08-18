@@ -779,6 +779,7 @@ def search_original_file_in_obj(partition_name,
             file_extension_src = os.path.splitext(file_name)[1]
             file_extension_obj = os.path.splitext(file)[1]
 
+
             if file_extension_src.lower().strip() == file_extension_obj.lower().strip():
                 logging.debug(f"File Matcher: Found file: {file_name}, candidate_path: {candidate_path}")
                 if not check_file_compatibility(file_path, candidate_path, module_type):
@@ -811,6 +812,9 @@ def check_file_compatibility(file_path, candidate_path, module_type):
     if is_elf_binary(file_path) and module_type in MODULE_TYPE_ABI_COMPATIBLE:
         if not is_abi_compatible(candidate_path, file_path):
             logging.debug(f"File Matcher: ABI not compatible: {file_path}|{candidate_path}")
+            is_match = False
+        if not check_shared_object_architecture(candidate_path) == check_shared_object_architecture(file_path):
+            logging.debug(f"File Matcher: Shared object architecture not the same: {file_path}|{candidate_path}")
             is_match = False
 
     if "arm" in file_path:
