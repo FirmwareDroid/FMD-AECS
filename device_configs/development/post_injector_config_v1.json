@@ -24,7 +24,7 @@
     "com.google.android.art.apex",
     "com.android.runtime.apex"
   ],
-  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": ["framework"],
+  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": ["system/framework"],
   "SKIPPED_APP_LIST": ["GooglePackageInstaller", "framework-res.apk", "framework-res", "SystemUIGoogle"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [],
