@@ -22,7 +22,9 @@
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
     "com.google.android.art.apex",
-    "com.android.runtime.apex"
+    "com.android.runtime.apex",
+    "com.google.android.os.statsd.apex",
+    "com.android.os.statsd.apex"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": ["system/framework"],
   "SKIPPED_APP_LIST": ["GooglePackageInstaller", "framework-res.apk", "framework-res", "SystemUIGoogle"],
