@@ -24,7 +24,8 @@
     "com.google.android.art.apex",
     "com.android.runtime.apex",
     "com.google.android.os.statsd.apex",
-    "com.android.os.statsd.apex"
+    "com.android.os.statsd.apex",
+    "com.google.android.tzdata3.apex"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": ["system/framework"],
   "SKIPPED_APP_LIST": ["GooglePackageInstaller", "framework-res.apk", "framework-res", "SystemUIGoogle"],
