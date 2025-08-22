@@ -1056,7 +1056,7 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
     injection_marker = "####### FMD INJECTION MARKER #######"
     #goldfish_mk_file = os.path.join(aosp_path, "device/generic/goldfish/tools/Android.mk")
     build_image_file_path = os.path.join(aosp_path, "build/make/tools/releasetools/build_image.py")
-    test = False
+    test = True
     if test:
         if os.path.exists(build_image_file_path):
             logging.info(f"Injecting file from Goldfish for {target_path}: {build_image_file_path}")
