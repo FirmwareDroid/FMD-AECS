@@ -4,4 +4,4 @@ docker~=7.0.0
 werkzeug~=3.0.1
 tqdm~=4.66.1
 filelock~=3.16.1
-protobuf
+protobuf==3.19.0
