@@ -304,14 +304,15 @@ def fetch_app_manifest(graphql_url, cookies, firmware_id, filename):
                 raise RuntimeError(f"Could not fetch app manifest. Status code: {response.status_code};"
                                    f"response: {response.text}")
             resp_dict = response.json()
-            logging.info(f"APP Manifest Response: {resp_dict}")
+            logging.info(f"APP Manifest Response - firmware id {firmware_id} and filename {filename}: {resp_dict}")
             android_manifest_str = resp_dict["data"]["android_app_list"][0]["androidManifestDict"]
             android_manifest_dict = json.loads(android_manifest_str)
             if not android_manifest_dict:
                 raise RuntimeError("Could not fetch app manifest.")
-        logging.info(f"Fetched app manifest for firmware id {firmware_id} and md5 {md5}.")
+        logging.info(f"Fetched app manifest for firmware id {firmware_id} and filename {filename}.")
     except Exception as e:
-        logging.error(f"Error fetching manifest for {firmware_id}:{md5} - {e}")
+        logging.error(f"Error fetching manifest for {firmware_id}:{filename} - {e}")
         return None
+
     return android_manifest_dict
 
