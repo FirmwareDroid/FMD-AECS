@@ -1189,7 +1189,7 @@ def main():
 
     fmd_username = args.fmd_username
     fmd_url = post_injector_config["FMD_URL"]
-    graphql_url = post_injector_config["GRAPHQL_URL"]
+    graphql_url = post_injector_config["GRAPHQL_API_URL"]
     csrf_cookie = get_csrf_token(fmd_url)
     fmd_cookies = authenticate_fmd(graphql_url, fmd_username, fmd_password, csrf_cookie)
 
