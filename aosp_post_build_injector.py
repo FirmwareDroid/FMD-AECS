@@ -1157,6 +1157,8 @@ def parse_arguments():
                         default="./device_configs/development/post_injector_config_v1.json", )
     parser.add_argument("-u", "--fmd-username", type=str, default=None, required=True,
                         help="Username for the authentication to the fmd service.")
+    parser.add_argument("-f", "--firmware-id", type=str, default=None, required=True,
+                        help="ID of the firmware used in the pre-injector.")
     args = parser.parse_args()
 
     return args
@@ -1192,6 +1194,9 @@ def main():
     graphql_url = post_injector_config["GRAPHQL_API_URL"]
     csrf_cookie = get_csrf_token(fmd_url)
     fmd_cookies = authenticate_fmd(graphql_url, fmd_username, fmd_password, csrf_cookie)
+    if not args.firmware_id:
+        raise RuntimeError("Please provide a firmware ID argument.")
+    firmware_id = args.firmware_id
 
     start_post_build_injector(aosp_path=aosp_path,
                               source_folder_path=source_folder_path,
@@ -1199,6 +1204,7 @@ def main():
                               lunch_target=lunch_target,
                               pre_injector_config_path=args.pre_injector_config,
                               post_injector_config_path=args.post_injector_config,
+                              firmware_id=firmware_id,
                               cookies=fmd_cookies)
 
     logging.info("=======================AOSP POST BUILD INJECTOR EXIT=======================")
