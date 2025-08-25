@@ -277,7 +277,7 @@ def fetch_emulator_image_list(repository_url, repository_name="emulator-images")
     return assets
 
 
-def fetch_app_manifest(graphql_url, cookies, firmware_id, md5):
+def fetch_app_manifest(graphql_url, cookies, firmware_id, filename):
     """
     Fetches the Android app manifest for the given firmware id and md5 hash.
 
@@ -289,10 +289,10 @@ def fetch_app_manifest(graphql_url, cookies, firmware_id, md5):
     :returns: dict - dictionary of the android manifest.
 
     """
-    logging.info(f"Fetching app manifest for firmware id {firmware_id} and md5 {md5}...")
+    logging.info(f"Fetching app manifest for firmware id {firmware_id} and filename {filename}...")
     headers = {"X-CSRFToken": cookies["csrftoken"], "Referer": graphql_url}
     temp_obj = Template(FMD_APP_MANIFEST_QUERY_TEMPLATE)
-    params = temp_obj.substitute(firmware_id=firmware_id, md5=md5)
+    params = temp_obj.substitute(firmware_id=firmware_id, filename=filename)
     params = json.loads(params)
     try:
         with requests.post(graphql_url,
