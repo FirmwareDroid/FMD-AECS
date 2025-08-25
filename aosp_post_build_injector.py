@@ -821,22 +821,22 @@ def search_original_file_in_obj(partition_name,
 
 def check_file_compatibility(file_path, candidate_path, module_type):
     is_match = True
-    logging.info(f"check_file_compatibility: {module_type}:{file_path}|{candidate_path}")
+    logging.debug(f"check_file_compatibility: {module_type}:{file_path}|{candidate_path}")
 
     if module_type in MODULE_TYPE_ABI_COMPATIBLE and is_elf_binary(file_path):
-        logging.info(f"File Matcher: Checking compatibility for {file_path}|{candidate_path}")
+        logging.debug(f"File Matcher: Checking compatibility for {file_path}|{candidate_path}")
         candidate_arch = check_shared_object_architecture(candidate_path)
         file_arch = check_shared_object_architecture(file_path)
-        logging.info(f"File Matcher: ARCH {candidate_arch}|{file_arch} | {module_type}:{file_path}|{candidate_path}")
+        logging.debug(f"File Matcher: ARCH {candidate_arch}|{file_arch} | {module_type}:{file_path}|{candidate_path}")
         if not is_abi_compatible(candidate_path, file_path):
-            logging.info(f"File Matcher: ABI not compatible: {file_path}|{candidate_path}")
+            logging.debug(f"File Matcher: ABI not compatible: {file_path}|{candidate_path}")
             is_match = False
 
         if not check_shared_object_architecture(candidate_path) == check_shared_object_architecture(file_path):
-            logging.info(f"File Matcher: Shared object architecture not the same: {file_path}|{candidate_path}")
+            logging.debug(f"File Matcher: Shared object architecture not the same: {file_path}|{candidate_path}")
             is_match = False
         else:
-            logging.info(f"File Matcher: Shared object architecture is the same: {file_path}|{candidate_path}")
+            logging.debug(f"File Matcher: Shared object architecture is the same: {file_path}|{candidate_path}")
 
     if "arm" in file_path:
         if not is_parent_dir_arm_and_target_arm(file_path, candidate_path):
