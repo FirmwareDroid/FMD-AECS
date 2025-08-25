@@ -891,6 +891,7 @@ def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder)
             is_successful = True
         except Exception as err:
             logging.error(f"Error fetching firmware build files: {err}")
+            exit(-1)
     logging.debug(f"Completed firmware build file download to {extract_destination_folder}")
 
 
