@@ -1185,7 +1185,7 @@ def main():
     logging.info(f"Lunch target: {lunch_target}")
     logging.info(f"Pre Injector Config: {args.pre_injector_config}")
     logging.info(f"Post Injector Config: {args.post_injector_config}")
-    pre_injector_config, post_injector_config = load_configs(args.pre_injector_config_path, args.post_injector_config_path)
+    pre_injector_config, post_injector_config = load_configs(args.pre_injector_config, args.post_injector_config)
 
     fmd_username = args.fmd_username
     fmd_url = post_injector_config["FMD_URL"]
