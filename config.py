@@ -45,6 +45,7 @@ FMD_AUTH_QUERY_TEMPLATE = '{"query": "query Auth ' \
                           '{tokenAuth(password: \\\"${password}\\\", username: \\\"${username}\\\") {token}}",' \
                           '"operationName": "Auth"}'
 FMD_APP_MANIFEST_QUERY_TEMPLATE = '{"query": "query GetManifest {android_app_list(fieldFilter: {filename: \\\"${filename}\\\", firmware_id_reference: \\\"${firmware_id}\\\"}) {androidManifestDict}}", "operationName": "GetManifest"}'
+
 FMD_AECS_FIRMWARE_QUERY_TEMPLATE = ('{"query": "query GetFirmwareIdList '
                                     '{aecs_job_list {pk, arch, firmwareIdList { '
                                     'edges {'

@@ -294,6 +294,7 @@ def fetch_app_manifest(graphql_url, cookies, firmware_id, filename):
     temp_obj = Template(FMD_APP_MANIFEST_QUERY_TEMPLATE)
     params = temp_obj.substitute(firmware_id=firmware_id, filename=filename)
     params = json.loads(params)
+    logging.info(f"Parsed params: {params}")
     try:
         with requests.post(graphql_url,
                            cookies=cookies,
@@ -305,6 +306,13 @@ def fetch_app_manifest(graphql_url, cookies, firmware_id, filename):
                                    f"response: {response.text}")
             resp_dict = response.json()
             logging.info(f"APP Manifest Response - firmware id {firmware_id} and filename {filename}: {resp_dict}")
+            if not resp_dict or "data" not in resp_dict or "android_app_list" not in resp_dict["data"] or \
+                    not resp_dict["data"]["android_app_list"]:
+                raise RuntimeError(f"Could not fetch app manifest - no data found for firmware id {firmware_id} and filename {filename}.")
+            if len(resp_dict["data"]["android_app_list"]) > 1:
+                raise RuntimeError(f"More than one app manifest found for firmware id {firmware_id} and filename {filename}.")
+            if "androidManifestDict" not in resp_dict["data"]["android_app_list"][0]:
+                raise RuntimeError(f"Could not fetch app manifest for firmware id {firmware_id} and filename {filename}.")
             android_manifest_str = resp_dict["data"]["android_app_list"][0]["androidManifestDict"]
             android_manifest_dict = json.loads(android_manifest_str)
             if not android_manifest_dict:
