@@ -1,4 +1,6 @@
 {
+  "FMD_URL": "https://firmwaredroid.cloudlab.zhaw.ch",
+  "GRAPHQL_API_URL": "https://firmwaredroid.cloudlab.zhaw.ch/graphql",
   "DISABLE_MISC_INJECTION": false,
   "SHARED_USER_ID_MAPPING_DICT":{
     "media": ["android.media", "android.uid.media"],
