@@ -127,10 +127,13 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
     """
     temp_obj = Template(FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE)
     download_url = temp_obj.substitute(url=fmd_url)
-    logging.info(f"Downloading {download_url} with cookies: {cookies.get_dict()}")
+    #logging.info(f"Downloading {download_url} with cookies: {cookies.get_dict()}")
     headers = {"X-CSRFToken": cookies["csrftoken"],
                "Referer": fmd_url,
                "Content-Type": "application/json"}
+    if cookies and "jwt-session" in cookies.keys():
+        headers["Authorization"] = f"Bearer {cookies['jwt-session']}"
+
     request_body = {"object_id_list": [firmware_id]}
     request_body = json.dumps(request_body)
 
