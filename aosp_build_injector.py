@@ -170,22 +170,6 @@ def get_emulator_image_path(aosp_path, lunch_target):
     return image_source_path
 
 
-def extract_emulator_image(aosp_path, lunch_target):
-    """
-    Extracts the aosp emulator images to the image artefacts folder for further usage.
-    """
-    image_source_path = get_emulator_image_path(aosp_path, lunch_target)
-    extract_dir = os.path.join(ROOT_PATH, IMAGE_ARTEFACTS_PATH)
-
-    logging.debug(f"Extract image_source_path: {image_source_path} to {extract_dir}")
-    if os.path.exists(image_source_path):
-        if not os.path.exists(extract_dir):
-            os.makedirs(extract_dir, exist_ok=True)
-        extract_zip(image_source_path, extract_dir)
-    else:
-        raise RuntimeError(f"Could not find image zip file: {image_source_path}")
-
-
 def get_base_filename(meta_build_filename):
     """
     Returns the base filename of the aosp build file based on the meta_build_filename.

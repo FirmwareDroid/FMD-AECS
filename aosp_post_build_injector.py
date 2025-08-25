@@ -17,6 +17,8 @@ import stat
 import traceback
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
+from http import cookies
+
 from filelock import FileLock
 from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file, \
     POST_INJECTOR_CONFIG, add_new_apex_file
@@ -25,6 +27,7 @@ from aosp_post_build_app_injector import handle_apk_signing
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
     check_shared_object_architecture, get_path_up_to_first_term
 from config_post_injector import *
+from fmd_backend_requests import get_csrf_token, authenticate_fmd
 from setup_logger import setup_logger
 from tqdm import tqdm
 
@@ -1152,6 +1155,11 @@ def parse_arguments():
     parser.add_argument("-i", "--post_injector_config",
                         type=str,
                         default="./device_configs/development/post_injector_config_v1.json", )
+    parser.add_argument("-u", "--fmd-username", type=str, default=None, required=True,
+                        help="Username for the authentication to the fmd service.")
+    parser.add_argument("-f", "--fmd-url", type=str, default=None, required=True,
+                        help="HTTP/HTTPS url to the FMD instance to grab the packages."
+                             "Example: https://firmwaredroid.cloudlab.zhaw.ch")
     args = parser.parse_args()
 
     return args
@@ -1169,6 +1177,10 @@ def main():
     aosp_path = args.aosp_root_path
     if not aosp_path.endswith("/"):
         aosp_path += "/"
+    fmd_password = os.getenv('FMD_PASSWORD')
+    if not fmd_password or not args.fmd_username:
+        raise RuntimeError(f"Please enter your FMD username/password ({args.fmd_username}): ")
+
     lunch_target = "sdk_phone_arm64-userdebug"
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")
@@ -1176,7 +1188,21 @@ def main():
     logging.info(f"Lunch target: {lunch_target}")
     logging.info(f"Pre Injector Config: {args.pre_injector_config}")
     logging.info(f"Post Injector Config: {args.post_injector_config}")
-    start_post_build_injector(aosp_path=aosp_path, source_folder_path=source_folder_path, target_out_path=target_out_path, lunch_target=lunch_target, pre_injector_config_path=args.pre_injector_config, post_injector_config_path=args.post_injector_config)
+    pre_injector_config, post_injector_config = load_configs(args.pre_injector_config_path, args.post_injector_config_path)
+
+    fmd_username = args.fmd_username
+    fmd_url = post_injector_config["FMD_URL"]
+    graphql_url = post_injector_config["GRAPHQL_URL"]
+    csrf_cookie = get_csrf_token(fmd_url)
+    fmd_cookies = authenticate_fmd(graphql_url, fmd_username, fmd_password, csrf_cookie)
+
+    start_post_build_injector(aosp_path=aosp_path,
+                              source_folder_path=source_folder_path,
+                              target_out_path=target_out_path,
+                              lunch_target=lunch_target,
+                              pre_injector_config_path=args.pre_injector_config,
+                              post_injector_config_path=args.post_injector_config,
+                              cookies=fmd_cookies)
 
     logging.info("=======================AOSP POST BUILD INJECTOR EXIT=======================")
 
