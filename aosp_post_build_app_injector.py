@@ -40,11 +40,19 @@ def handle_apk_signing(file_path, aosp_path, firmware_id, cookies):
 def get_shared_user_from_manifest(firmware_id, android_apk_file_path, cookies):
     md5 = get_md5_from_file(android_apk_file_path)
     graphql_url = POST_INJECTOR_CONFIG['GRAPHQL_API_URL']
-    manifest = fetch_app_manifest(graphql_url, cookies, firmware_id, md5)
+    try:
+        manifest = fetch_app_manifest(graphql_url, cookies, firmware_id, md5)
+    except Exception as e:
+        logging.error(f"Error fetching manifest for {android_apk_file_path} - {e}")
+        return None
+    if manifest:
+        logging.info(f"Found manifest for {android_apk_file_path} - {manifest}")
     if manifest and '@ns0:sharedUserId' in manifest:
         shared_user_id = manifest['@ns0:sharedUserId']
         logging.info(f"Shared User ID from manifest for {android_apk_file_path}: {shared_user_id}")
         return shared_user_id
+    else:
+        logging.warning(f"Shared User ID not found in manifest for {android_apk_file_path}")
     return None
 
 
