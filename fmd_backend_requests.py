@@ -8,7 +8,8 @@ from werkzeug.utils import secure_filename
 from string import Template
 from tqdm import tqdm
 from config import FMD_AUTH_QUERY_TEMPLATE, VERIFY_SSL, FMD_CSRF_URL_TEMPLATE, FMD_AECS_FIRMWARE_QUERY_TEMPLATE, \
-    FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE, FMD_GRAPHQL_URL_TEMPLATE, NEXUS_SERVICE_ENDPOINT
+    FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE, FMD_GRAPHQL_URL_TEMPLATE, NEXUS_SERVICE_ENDPOINT, \
+    FMD_APP_MANIFEST_QUERY_TEMPLATE
 
 
 def authenticate_fmd(graphql_url, username, password, csrf_cookie):
@@ -275,4 +276,37 @@ def fetch_emulator_image_list(repository_url, repository_name="emulator-images")
 
     return assets
 
+
+def fetch_app_manifest(graphql_url, cookies, firmware_id, md5):
+    """
+    Fetches the Android app manifest for the given firmware id and md5 hash.
+
+    :param graphql_url: str - fmd api url for graphql.
+    :param cookies: str - cookies jar for requests.
+    :param firmware_id: str - id of the firmware to fetch the Android apps from.
+    :param md5: str - md5 hash of the Android app to fetch.
+
+    :returns: dict - dictionary of the android manifest.
+
+    """
+    logging.info(f"Fetching app manifest for firmware id {firmware_id} and md5 {md5}...")
+    headers = {"X-CSRFToken": cookies["csrftoken"], "Referer": graphql_url}
+    temp_obj = Template(FMD_APP_MANIFEST_QUERY_TEMPLATE)
+    params = temp_obj.substitute(firmware_id=firmware_id, md5=md5)
+    params = json.loads(params)
+    with requests.post(graphql_url,
+                       cookies=cookies,
+                       params=params,
+                       headers=headers,
+                       verify=VERIFY_SSL) as response:
+        if response.status_code != 200:
+            raise RuntimeError(f"Could not fetch app manifest. Status code: {response.status_code};"
+                               f"response: {response.text}")
+        resp_dict = response.json()
+        android_manifest_str = resp_dict["data"]["android_app_list"][0]["androidManifestDict"]
+        android_manifest_dict = json.loads(android_manifest_str)
+        if not android_manifest_dict:
+            raise RuntimeError("Could not fetch app manifest.")
+    logging.info(f"Fetched app manifest for firmware id {firmware_id} and md5 {md5}.")
+    return android_manifest_dict
 
