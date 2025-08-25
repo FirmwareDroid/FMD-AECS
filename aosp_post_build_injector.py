@@ -1157,9 +1157,6 @@ def parse_arguments():
                         default="./device_configs/development/post_injector_config_v1.json", )
     parser.add_argument("-u", "--fmd-username", type=str, default=None, required=True,
                         help="Username for the authentication to the fmd service.")
-    parser.add_argument("-f", "--fmd-url", type=str, default=None, required=True,
-                        help="HTTP/HTTPS url to the FMD instance to grab the packages."
-                             "Example: https://firmwaredroid.cloudlab.zhaw.ch")
     args = parser.parse_args()
 
     return args
