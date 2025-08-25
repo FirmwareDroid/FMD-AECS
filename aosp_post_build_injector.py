@@ -74,7 +74,8 @@ def start_post_build_injector(aosp_path,
                               firmware_id=None,
                               pre_injector_package_list=None,
                               pre_injector_config_path=None,
-                              post_injector_config_path=None):
+                              post_injector_config_path=None,
+                              cookies=None):
     """
     Start the post build injector. Replaces the original objects in the AOSP source code with the vendor flavoured
     objects.
@@ -109,7 +110,7 @@ def start_post_build_injector(aosp_path,
 
     if POST_INJECTOR_CONFIG["ENABLE_INJECTION"]:
         with Executor() as executor:
-            inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list)
+            inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list, cookies)
     else:
         logging.info(f"Post-Injection is disabled by configuration: {POST_INJECTOR_CONFIG['ENABLE_INJECTION']}")
         logging.info(f"Skipping post build injection for {source_folder_path} into {target_out_path}")
@@ -169,7 +170,7 @@ def count_number_of_extracted_files(source_folder_path):
     return file_count_per_partition
 
 
-def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list):
+def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list, cookies):
     start_time = time.time()
     logging.info(f"Injection started at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
     error_list, inj_obj_list, inj_partition_list = process_partitions(aosp_path,
@@ -177,7 +178,9 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
                                                                       target_out_path,
                                                                       executor,
                                                                       lunch_target,
-                                                                      pre_injector_package_list)
+                                                                      pre_injector_package_list,
+                                                                      firmware_id,
+                                                                      cookies)
     end_time = time.time()
     logging.info(f"Injection ended at {end_time}")
     execution_time = end_time - start_time
@@ -250,7 +253,7 @@ def get_folders(directory_path):
     return folders
 
 
-def process_partitions(aosp_path, source_folder_path, target_out_path, executor, lunch_target, pre_injector_package_list):
+def process_partitions(aosp_path, source_folder_path, target_out_path, executor, lunch_target, pre_injector_package_list, firmware_id, cookies):
     folder_path_list = get_folders(source_folder_path)
     logging.info(f"Folder path list: {folder_path_list}")
     combined_error_list = []
@@ -263,7 +266,9 @@ def process_partitions(aosp_path, source_folder_path, target_out_path, executor,
                                                                                target_out_path,
                                                                                executor,
                                                                                lunch_target,
-                                                                               pre_injector_package_list)
+                                                                               pre_injector_package_list,
+                                                                               firmware_id,
+                                                                               cookies)
         combined_error_list.extend(error_list)
         combined_inj_obj_list.extend(inj_obj_list)
         combined_inj_partition_list.extend(inj_partition_list)
@@ -271,7 +276,7 @@ def process_partitions(aosp_path, source_folder_path, target_out_path, executor,
     return combined_error_list, combined_inj_obj_list, combined_inj_partition_list
 
 
-def process_file_concurrently(aosp_path, file_path, partition_name, target_out_path, lunch_target, pre_injector_package_list):
+def process_file_concurrently(aosp_path, file_path, partition_name, target_out_path, lunch_target, pre_injector_package_list, firmware_id, cookies):
     inj_obj = None
     inj_partition = None
     error_message = None
@@ -303,7 +308,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 filename = os.path.basename(file_path)
                 file_extension = os.path.splitext(file_path)[1]
                 if module_type == "APPS" and file_extension.lower() == ".apk":
-                    error_message = handle_app_modules(file_path, aosp_path)
+                    error_message = handle_app_modules(file_path, aosp_path, firmware_id, cookies)
                 elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
                     if file_path.endswith(".capex"):
                         file_path = replace_capex_with_apex(file_path)
@@ -388,12 +393,12 @@ def check_file_is_really_injected(file_path, aosp_path):
     logging.warning(f"Maybe file was not correctly injected. Filename not found in AOSP out folders: {file_path}")
     return False
 
-def handle_app_modules(file_path, aosp_path):
+def handle_app_modules(file_path, aosp_path, firmware_id, cookies):
     error_message = None
     if POST_INJECTOR_CONFIG["DISALLOW_APP_INJECTION"]:
         error_message = f"App injection is disallowed by configuration: {file_path}"
 
-    signing_success, output, subprocess_error_message = handle_apk_signing(file_path, aosp_path)
+    signing_success, output, subprocess_error_message = handle_apk_signing(file_path, aosp_path, firmware_id, cookies)
     if not signing_success:
         error_message = f"Error signing APK file: {file_path}|{subprocess_error_message}"
     return error_message
@@ -535,7 +540,7 @@ def cleanup_files(directory):
                     logging.error(f"Error removing file {file_path}: {e}")
 
 
-def process_partition_files(aosp_path, folder_path, target_out_path, executor, lunch_target, pre_injector_package_list):
+def process_partition_files(aosp_path, folder_path, target_out_path, executor, lunch_target, pre_injector_package_list, firmware_id, cookies):
     logging.info(f"Processing {folder_path} into {target_out_path}")
     logging.info(f"AOSP Path: {aosp_path} "
                   f"| Target Out Path: {target_out_path} "
@@ -565,7 +570,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
 
         logging.info(f"Submitting file for injection: {file_path} | Partition: {partition_name} "
                      f"| Target Out Path: {target_out_path} | Lunch Target: {lunch_target} | Length of pre_injector_package_list: {len(pre_injector_package_list)}")
-        future = executor.submit(process_file_concurrently, aosp_path, file_path, partition_name, target_out_path, lunch_target, pre_injector_package_list)
+        future = executor.submit(process_file_concurrently, aosp_path, file_path, partition_name, target_out_path, lunch_target, pre_injector_package_list, firmware_id, cookies)
         future_dict[future] = file_path
 
     logging.info(f"Finished processing {len(processed_files)}/{len(file_paths)} files in partition: {partition_name}. "

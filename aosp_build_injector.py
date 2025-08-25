@@ -43,7 +43,7 @@ def delete_files(dir_path):
         os.remove(f)
 
 
-def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering):
+def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering, cookies):
     """
     Wrapper method to start the firmware injection and build process.
 
@@ -118,7 +118,8 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
                                       firmware_id=firmware_id,
                                       pre_injector_package_list=included_package_statistics["apps"],
                                       pre_injector_config_path=PRE_INJECTOR_CONFIG_PATH,
-                                      post_injector_config_path=POST_INJECTOR_CONFIG_PATH
+                                      post_injector_config_path=POST_INJECTOR_CONFIG_PATH,
+                                      cookies=cookies
                                       )
             logging.info(f"Summary Pre-Injector: {included_package_statistics}")
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target)

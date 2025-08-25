@@ -4,6 +4,7 @@ import re
 import zipfile
 from ConfigManager import ConfigManager
 from config import VENDOR_NAMES
+import hashlib
 
 
 def extract_zip(file_path, destination):
@@ -190,3 +191,11 @@ def get_path_up_to_first_term(path, term):
         if part == term:
             return os.sep.join(parts[:i+1]) + os.sep
     return None  # term not found
+
+
+def get_md5_from_file(file_path):
+    hash_md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()

@@ -2,14 +2,20 @@ import logging
 import os
 import shutil
 import traceback
+
+from ConfigManager import ConfigManager
+from common import get_md5_from_file
+from fmd_backend_requests import fetch_app_manifest
 from shell_command import execute_command
 from config_post_injector import *
 
-def handle_apk_signing(file_path, aosp_path):
+def handle_apk_signing(file_path, aosp_path, firmware_id, cookies):
+    global POST_INJECTOR_CONFIG
+    POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
     error_message = None
     output = None
     is_success = False
-    signing_key = get_signing_key_from_module(file_path)
+    signing_key = get_signing_key_from_module(file_path, firmware_id, cookies)
 
     if not signing_key:
         error_message = f"Signing key name not found for {file_path}"
@@ -30,7 +36,20 @@ def handle_apk_signing(file_path, aosp_path):
 
     return is_success, output, (error_message, file_path, signing_key, signing_key_path)
 
-def get_signing_key_from_module(android_apk_file_path):
+
+def get_shared_user_from_manifest(firmware_id, android_apk_file_path, cookies):
+    md5 = get_md5_from_file(android_apk_file_path)
+    graphql_url = POST_INJECTOR_CONFIG['GRAPHQL_API_URL']
+    manifest = fetch_app_manifest(graphql_url, cookies, firmware_id, md5)
+    if manifest and '@ns0:sharedUserId' in manifest:
+        shared_user_id = manifest['@ns0:sharedUserId']
+        logging.info(f"Shared User ID from manifest for {android_apk_file_path}: {shared_user_id}")
+        return shared_user_id
+    return None
+
+
+
+def get_signing_key_from_module(android_apk_file_path, firmware_id, cookies):
     file_name = os.path.basename(android_apk_file_path)
     module_name = file_name.split(".")[0]
     android_mk_file_path = os.path.join(EXTRACTED_PACKAGES_PATH, module_name, "Android.mk")
@@ -51,7 +70,17 @@ def get_signing_key_from_module(android_apk_file_path):
                     return signing_key.lower()
     else:
         logging.warning(f"Android.mk/Android.bp Module not found: {module_name} path {android_mk_file_path}."
-                        f"File {android_apk_file_path} - using platform key.")
+                        f"File {android_apk_file_path} - fallback to FMD API.")
+        shared_user_id = get_shared_user_from_manifest(firmware_id, android_apk_file_path, cookies)
+        if shared_user_id in POST_INJECTOR_CONFIG["SHARED_USER_ID_MAPPING_DICT"].values():
+            logging.info(f"Shared User ID from FMD API for {android_apk_file_path}: {shared_user_id}")
+            for key, value in POST_INJECTOR_CONFIG["SHARED_USER_ID_MAPPING_DICT"].items():
+                if value == shared_user_id:
+                    signing_key = key
+                    return signing_key.lower()
+        else:
+            logging.error(f"APK SIGNING ERROR: Shared User ID not found or not mapped for {android_apk_file_path}: {shared_user_id}. "
+                         f"Fallback to default signing key 'platform'.")
     return "platform"
 
 
