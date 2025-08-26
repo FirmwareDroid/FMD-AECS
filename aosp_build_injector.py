@@ -1067,7 +1067,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                                                     firmware_id=firmware_id,
                                                     lunch_target=lunch_target,
                                                     aosp_version=args.version,
-                                                    skip_filtering=args.skip_filtering)
+                                                    skip_filtering=args.skip_filtering,
+                                                    cookies=cookies)
                 end_time = time.time()
                 duration = end_time - start_time
 
