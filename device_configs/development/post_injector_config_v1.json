@@ -35,7 +35,7 @@
     "com.google.android.telephony.apex",
     "libhbmsvmanager_jni.so"
   ],
-  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": ["system/framework"],
+  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": ["system/framework", "system_ext/framework", "vendor/framework", "product/framework"],
   "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [],
