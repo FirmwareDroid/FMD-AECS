@@ -33,7 +33,7 @@
     "com.google.android.sdkext.apex"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": ["system/framework"],
-  "SKIPPED_APP_LIST": ["GooglePackageInstaller", "framework-res.apk", "framework-res", "SystemUIGoogle"],
+  "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [],
   "SKIPPED_FILE_EXTENSION_LIST_GENERAL": [
