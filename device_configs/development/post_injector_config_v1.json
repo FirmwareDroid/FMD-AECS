@@ -9,7 +9,7 @@
     "networkstack": ["android.networkstack", "android.uid.networkstack"]
   },
   "DISALLOW_APP_INJECTION": false,
-  "INJECT_APEX_VENDOR_APPS": false,
+  "INJECT_APEX_VENDOR_APPS": true,
   "REPLACE_AVB_KEYS": false,
   "INJECT_APEX_VENDOR_FILES": true,
   "ALLOW_MIXED_APEX_FILES": true,
@@ -30,7 +30,8 @@
     "com.android.os.statsd.apex",
     "com.google.android.tzdata3.apex",
     "com.google.android.extservices.apex",
-    "com.google.android.sdkext.apex"
+    "com.google.android.sdkext.apex",
+    "com.google.mainline.primary.libs.apex"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": ["system/framework"],
   "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
