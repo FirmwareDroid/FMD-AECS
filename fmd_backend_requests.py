@@ -204,6 +204,10 @@ def upload_image_as_raw(repo_url, username, password, file_path, filename):
 
     """
     is_successful = False
+
+    if repo_url is None:
+        raise ValueError("Repository URL is None.")
+
     if not repo_url.endswith('/'):
         repo_url = f'{repo_url}/'
 
