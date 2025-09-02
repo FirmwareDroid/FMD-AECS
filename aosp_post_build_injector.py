@@ -294,7 +294,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         with lock:
             if os.path.exists(processed_marker):
                 return f"File already processed: {file_path}", None, None
-            module_type = get_module_type(file_path,
+            module_type, tmp_module_type = get_module_type(file_path,
                                           pre_injector_package_list=pre_injector_package_list,
                                           post_injector_config=POST_INJECTOR_CONFIG)
 
@@ -426,10 +426,14 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
         logging.info(f"Skipped indirect injection for file: {file_path} with extension: {file_ext}")
         return None, inj_partition, None
 
+    if POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"] and module_type == "SHARED_LIBRARIES":
+        module_type = get_module_type(file_path, pre_injector_package_list=None, post_injector_config=None, file_exists=True)
+        if module_type == "SKIPPED":
+            logging.info(f"Skipped indirect injection for file: {file_path} with module type: {module_type} because ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS: true")
+            return None, inj_partition, None
+
     logging.info(f"File exists in target path: {target_file_injection_path} "
                  f"- skipping direct injection. Continue with indirect injection.")
-
-
     inj_obj = None
     # Indirect Injection
     if file_name in POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"].keys():
