@@ -60,7 +60,7 @@ def is_app_already_injected(file_name, pre_injector_package_list):
     return False
 
 
-def get_module_type(source_file_path, pre_injector_package_list=None, post_injector_config=None):
+def get_module_type(source_file_path, pre_injector_package_list=None, post_injector_config=None, file_exists=False):
     """
     Determines the module type of the source file.
     """
@@ -93,6 +93,8 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
 
     tmp_module_type = module_type
 
+
+
     if module_type == "APPS" and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_APP_KEYWORDLIST"]):
         module_type = "SKIPPED"
     if module_type == "APPS" and (file_name_no_ext in POST_INJECTOR_CONFIG["SKIPPED_APP_LIST"]
@@ -117,12 +119,24 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
                 module_type = "SKIPPED"
                 break
 
+    if POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"] and module_type == "SHARED_LIBRARIES":
+        if file_exists:
+            module_type = "SKIPPED"
+        else:
+            module_type = tmp_module_type
+
     if is_apex and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_APEX_KEYWORD_LIST"]):
         module_type = "SKIPPED"
+
+    if POST_INJECTOR_CONFIG["ENABLE_ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST"]:
+        if is_apex and any(keyword not in file_name
+                           for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST"]):
+            module_type = "ETC"
 
     if is_apex and any(keyword in file_name
                        for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST"]):
         module_type = "ETC"
+
 
     if module_type == "MISC" and POST_INJECTOR_CONFIG["DISABLE_MISC_INJECTION"]:
         module_type = "SKIPPED"
@@ -135,4 +149,4 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
 
     logging.debug(f"File Extension: {file_extension} for {source_file_path} is module type {module_type}")
 
-    return module_type
+    return module_type, tmp_module_type
