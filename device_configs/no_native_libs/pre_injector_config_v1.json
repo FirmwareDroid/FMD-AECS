@@ -172,7 +172,8 @@
     "CarrierDefaultApp",
     "ANGLE",
     "OsuLogin",
-    "ServiceWifiResources"
+    "ServiceWifiResources",
+    "ServiceConnectivityResources"
   ],
   "BLACKLISTED_KEYWORDS": [
     "Overlay",
