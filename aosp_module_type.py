@@ -129,8 +129,8 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
         module_type = "SKIPPED"
 
     if POST_INJECTOR_CONFIG["ENABLE_ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST"]:
-        if is_apex and any(keyword not in file_name
-                           for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST"]):
+        if is_apex and all(keyword not in file_name for keyword in
+                           POST_INJECTOR_CONFIG["ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST"]):
             module_type = "ETC"
 
     if is_apex and any(keyword in file_name
