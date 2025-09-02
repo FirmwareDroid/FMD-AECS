@@ -189,7 +189,9 @@
     "ModuleMetadata",
     "ExtServices",
     "CarrierDefaultApp",
-    "ANGLE"
+    "ANGLE",
+    "OsuLogin",
+    "ServiceWifiResources"
   ],
   "BLACKLISTED_KEYWORDS": [
     "Overlay",
