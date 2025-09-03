@@ -4,7 +4,16 @@
   "ALLOW_APEX_REPACKING_IN_PRE_INJECTOR": false,
   "DISABLE_NATIVE_LIBRARY_INJECTION": true,
   "DISALLOWED_APK_KEYWORDS": [],
-  "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
+  "DISALLOWED_APK_PACKAGES": [
+    "MicrosoftOneDrive",
+    "OsuLogin",
+    "ServiceWifiResources",
+    "ServiceConnectivityResources",
+    "InProcessTethering",
+    "MediaProvider",
+    "PermissionController",
+    "ExtServices"
+  ],
   "SHARED_USER_ID_MAPPING_DICT": {
     "media": [
       "android.media",
@@ -171,14 +180,7 @@
     "ModuleMetadata",
     "ExtServices",
     "CarrierDefaultApp",
-    "ANGLE",
-    "OsuLogin",
-    "ServiceWifiResources",
-    "ServiceConnectivityResources",
-    "InProcessTethering",
-    "MediaProvider",
-    "PermissionController",
-    "ExtServices"
+    "ANGLE"
   ],
   "BLACKLISTED_KEYWORDS": [
     "Overlay",
