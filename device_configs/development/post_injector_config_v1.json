@@ -62,7 +62,8 @@
     "swcodec",
     "tzdata",
     "tzdata3",
-    "tzdata4"
+    "tzdata4",
+    "cellbroadcast"
   ],
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [
     "art",
