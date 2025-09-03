@@ -177,7 +177,11 @@
     "ANGLE",
     "OsuLogin",
     "ServiceWifiResources",
-    "ServiceConnectivityResources"
+    "ServiceConnectivityResources",
+    "InProcessTethering",
+    "MediaProvider",
+    "PermissionController",
+    "ExtServices"
   ],
   "BLACKLISTED_KEYWORDS": [
     "Overlay",
