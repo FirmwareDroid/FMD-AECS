@@ -221,7 +221,7 @@ def upload_image_as_raw(repo_url, username, password, file_path, filename):
         is_successful = True
     else:
         logging.error(f'Failed to upload file: {response.text}')
-    return is_successful, repo_url
+    return is_successful, url
 
 
 def download_file(url, destination):
