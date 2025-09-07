@@ -902,7 +902,7 @@ def upload_build_artefact(repo_url, username, password, artefact_path, filename)
     while not is_upload_success and max_attempts > 0:
         logging.debug(f"Uploading image {filename} to repo {repo_url}.")
         try:
-            is_upload_success, repo_url = upload_image_as_raw(repo_url,
+            is_upload_success, download_url = upload_image_as_raw(repo_url,
                                                     username,
                                                     password,
                                                     artefact_path,
@@ -912,7 +912,7 @@ def upload_build_artefact(repo_url, username, password, artefact_path, filename)
         max_attempts -= 1
         if not is_upload_success:
             logging.error(f"Failed to upload image {filename} to repo. Retrying...{max_attempts}")
-    return is_upload_success, repo_url
+    return is_upload_success, download_url
 
 def setup_firmware_logger(firmware_id):
     """
@@ -1016,7 +1016,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                 logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
                 emulator_image_zip_path = get_emulator_image_path(args.aosp_path, lunch_target)
                 filename = f"{firmware_id}_v{args.version}_{lunch_target}.zip".replace('-', '_')
-                is_upload_success, repo_url = upload_build_artefact(args.docker_repo_url,
+                is_upload_success, download_url = upload_build_artefact(args.docker_repo_url,
                                                           args.docker_repo_username,
                                                           docker_repo_password,
                                                           emulator_image_zip_path,
@@ -1026,7 +1026,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                     with open("docker_images.txt", "a") as file:
                         file.write(f"{filename.replace('.zip', '')}\n")
                     succeed_firmware_ids.append(firmware_id)
-                    download_url_list.append(repo_url)
+                    download_url_list.append(download_url)
                 else:
                     raise RuntimeError(f"Upload process for firmware-id: {firmware_id} failed.")
             else:

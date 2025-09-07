@@ -435,6 +435,7 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
     logging.info(f"File exists in target path: {target_file_injection_path} "
                  f"- skipping direct injection. Continue with indirect injection.")
     inj_obj = None
+    original_file_path = None
     # Indirect Injection
     if file_name in POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"].keys():
         if not check_file_compatibility(file_path, target_file_injection_path, module_type):
@@ -481,6 +482,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     inj_partition = None
     inj_obj = None
     target_path = None
+    is_injected = False
     file_name = os.path.basename(file_path)
     file_extension = os.path.splitext(file_name)[1]
 
@@ -947,6 +949,7 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
 
 # Direct Injection
 def inject_file_into_partition(source_file_path, target_file_injection_path, aosp_path, partition_name):
+    is_injected = False
     if POST_INJECTOR_CONFIG["OVERWRITE_APP_PROCESS_32"]:
         # TODO : Remove this workaround in the future -> This does not work for all cases.
         source_file_path = handle_special_matching(source_file_path)
@@ -1069,6 +1072,7 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
     #goldfish_mk_file = os.path.join(aosp_path, "device/generic/goldfish/tools/Android.mk")
     build_image_file_path = os.path.join(aosp_path, "build/make/tools/releasetools/build_image.py")
     test = False
+    is_injected = True # Testing Mode
     if test:
         if os.path.exists(build_image_file_path):
             logging.info(f"Injecting file from Goldfish for {target_path}: {build_image_file_path}")
