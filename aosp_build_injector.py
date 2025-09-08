@@ -975,8 +975,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
     for firmware_id in tqdm(firmware_id_list):
         try:
-
-            logging.debug(f"Start fetching for build files for firmware-id: {firmware_id}")
+            logging.info(f"Start fetching build files for firmware-id: {firmware_id}")
             fetch_build_files(firmware_id, cookies, args.fmd_url, BUILD_OUT_PATH)
             logging.debug(f"Start emulator image build process for firmware-id: {firmware_id}")
 
