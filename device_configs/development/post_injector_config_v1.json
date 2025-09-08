@@ -40,8 +40,6 @@
     "com.android.telephony.apex",
     "com.google.android.permission.apex",
     "com.android.permission.apex",
-    "com.google.android.wifi.apex",
-    "com.android.wifi.apex",
     "libhbmsvmanager_jni.so",
     "libbluetooth_jni.so"
   ],
