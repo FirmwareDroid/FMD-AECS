@@ -278,6 +278,6 @@
     "libandroid.so": "obj/SHARED_LIBRARIES/libandroid_intermediates/libandroid.so"
   },
   "DIRECT_INJECTION_TARGET_PATH_OVERWRITE": {
-    "PixelWifiOverlay2021.apk": "system/overlay/WifiOverlay/PixelWifiOverlay2021.apk"
+    "PixelWifiOverlay2021.apk": "system/priv-app/WifiOverlay/PixelWifiOverlay2021.apk"
   }
 }
