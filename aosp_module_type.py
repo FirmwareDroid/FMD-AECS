@@ -60,7 +60,7 @@ def is_app_already_injected(file_name, pre_injector_package_list):
     return False
 
 
-def get_module_type(source_file_path, pre_injector_package_list=None, post_injector_config=None, file_exists=False):
+def get_module_type(source_file_path, pre_injector_package_list=None, post_injector_config=None):
     """
     Determines the module type of the source file.
     """
@@ -119,11 +119,10 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
                 module_type = "SKIPPED"
                 break
 
-    if POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"] and module_type == "SHARED_LIBRARIES":
-        if file_exists:
-            module_type = "SKIPPED"
-        else:
-            module_type = tmp_module_type
+    if POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"] and file_extension in [".so"]:
+        logging.info(f"File {source_file_path} does not exist in the system. Enabling injection as "
+                     f"ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS is set. Module type remains {tmp_module_type}.")
+        module_type = tmp_module_type
 
     if is_apex and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_APEX_KEYWORD_LIST"]):
         module_type = "SKIPPED"

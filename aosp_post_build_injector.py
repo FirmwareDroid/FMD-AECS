@@ -427,10 +427,9 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
         return None, inj_partition, None
 
     if POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"] and file_ext == ".so":
-        module_type = get_module_type(file_path, pre_injector_package_list=None, post_injector_config=None, file_exists=True)
-        if module_type == "SKIPPED":
-            logging.info(f"Skipped indirect injection for file: {file_path} with module type: {module_type} because ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS: true")
-            return None, inj_partition, None
+        logging.info(f"Skipped indirect injection for shared library file: {file_path} as "
+                     f"ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS is set.")
+        return None, inj_partition, None
 
     logging.info(f"File exists in target path: {target_file_injection_path} "
                  f"- skipping direct injection. Continue with indirect injection.")
