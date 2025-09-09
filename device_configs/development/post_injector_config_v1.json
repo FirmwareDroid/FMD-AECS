@@ -276,5 +276,8 @@
     "com.google.android.tzdata4.apex": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
     "framework-res.apk": "obj/APPS/framework-res_intermediates/package.apk",
     "libandroid.so": "obj/SHARED_LIBRARIES/libandroid_intermediates/libandroid.so"
+  },
+  "DIRECT_INJECTION_TARGET_PATH_OVERWRITE": {
+    "PixelWifiOverlay2021.apk": "system/overlay/WifiOverlay/PixelWifiOverlay2021.apk"
   }
 }
