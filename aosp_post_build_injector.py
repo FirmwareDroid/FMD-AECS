@@ -950,11 +950,16 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
 # Direct Injection
 def inject_file_into_partition(source_file_path, target_file_injection_path, aosp_path, partition_name):
     is_injected = False
+    filename = os.path.basename(target_file_injection_path)
     if POST_INJECTOR_CONFIG["OVERWRITE_APP_PROCESS_32"]:
         # TODO : Remove this workaround in the future -> This does not work for all cases.
         source_file_path = handle_special_matching(source_file_path)
 
-    filename = os.path.basename(target_file_injection_path)
+    if filename in POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"]:
+        target_file_injection_path = os.path.join(aosp_path, "out/target/product/emulator_arm64", POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"][filename])
+        logging.info(f"Direct Injection via specific target path overwrite for file: {filename} into {target_file_injection_path}")
+
+
     if (filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in
             POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]):
         logging.info(
@@ -974,7 +979,6 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
         else:
             # Fîle should not already exists, but if it does, we overwrite it, but it is not recommended.
             try:
-
                 if os.path.isfile(source_file_path):
                     inj_md5 = compute_file_hash(source_file_path)
                     org_md5 = compute_file_hash(target_file_injection_path)
