@@ -3,10 +3,14 @@
   "DISABLE_APEX_APP_INJECTION": true,
   "ALLOW_APEX_REPACKING_IN_PRE_INJECTOR": false,
   "DISABLE_NATIVE_LIBRARY_INJECTION": true,
-  "DISALLOWED_APK_KEYWORDS": ["PermissionController", "ServiceWifiResources",
+  "DISALLOWED_APK_KEYWORDS": ["PermissionController", "GooglePermissionControllerOverlay","ServiceWifiResources",
     "PixelLiveWallpaper", "WallpapersBReel", "WallpaperPickerGoogle",
     "TetheringGoogle", "MediaProviderGoogle", "NetworkStackGoogle",
-    "NetworkPermissionConfigGoogle","CaptivePortalLoginGoogle", "NetworkStackOverlay"],
+    "NetworkPermissionConfigGoogle","CaptivePortalLoginGoogle", "NetworkStackOverlay",
+    "CaptivePortalLoginOverlay", "Iwlan", "ONS", "PacProcessor", "VpnDialogs",
+    "TetheringEntitlement", "ShannonQualifiedNetworksService",
+    "ShannonIms", "TeleService", "Telecom", "TelephonyProvider",
+    "PixelConnectivityOverlay2021", "VpnDialogs"],
   "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
   "SHARED_USER_ID_MAPPING_DICT": {
     "media": [
