@@ -10,7 +10,7 @@
     "CaptivePortalLoginOverlay", "Iwlan", "ONS", "PacProcessor", "VpnDialogs",
     "TetheringEntitlement", "ShannonQualifiedNetworksService",
     "ShannonIms", "TeleService", "Telecom", "TelephonyProvider",
-    "PixelConnectivityOverlay2021", "VpnDialogs"],
+    "PixelConnectivityOverlay2021", "VpnDialogs", "CellBroadcast"],
   "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
   "SHARED_USER_ID_MAPPING_DICT": {
     "media": [
