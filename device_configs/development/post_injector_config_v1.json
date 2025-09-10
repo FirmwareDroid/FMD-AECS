@@ -18,7 +18,7 @@
   "SKIPPED_APP_KEYWORDLIST": ["ServiceWifiResources", "PixelLiveWallpaper", "WallpapersBReel",
     "ServiceWifiResources", "TetheringGoogle", "MediaProviderGoogle",
     "NetworkStackGoogle", "NetworkPermissionConfigGoogle",
-    "CaptivePortalLoginGoogle"],
+    "CaptivePortalLoginGoogle", "NetworkStackOverlay"],
   "USE_ISOLATED_NAMESPACE": false,
   "ISOLATED_NAMESPACE_LIST": [],
   "APEX_BINARY_ISOLATED_NAMESPACE_LIST": ["app_process64"],

@@ -6,7 +6,7 @@
   "DISALLOWED_APK_KEYWORDS": ["PermissionController", "ServiceWifiResources",
     "PixelLiveWallpaper", "WallpapersBReel", "WallpaperPickerGoogle",
     "TetheringGoogle", "MediaProviderGoogle", "NetworkStackGoogle",
-    "NetworkPermissionConfigGoogle","CaptivePortalLoginGoogle"],
+    "NetworkPermissionConfigGoogle","CaptivePortalLoginGoogle", "NetworkStackOverlay"],
   "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
   "SHARED_USER_ID_MAPPING_DICT": {
     "media": [
