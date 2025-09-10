@@ -22,7 +22,7 @@
     "CaptivePortalLoginOverlay", "Iwlan", "ONS", "PacProcessor", "VpnDialogs",
     "TetheringEntitlement", "ShannonQualifiedNetworksService",
     "ShannonIms", "TeleService", "Telecom", "TelephonyProvider",
-    "PixelConnectivityOverlay2021", "VpnDialogs"],
+    "PixelConnectivityOverlay2021", "VpnDialogs", "CellBroadcast"],
   "USE_ISOLATED_NAMESPACE": false,
   "ISOLATED_NAMESPACE_LIST": [],
   "APEX_BINARY_ISOLATED_NAMESPACE_LIST": ["app_process64"],
