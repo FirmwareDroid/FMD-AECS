@@ -20,6 +20,7 @@
 
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \
+	NetworkStack \
     abx \
     adbd_system_api \
     am \
