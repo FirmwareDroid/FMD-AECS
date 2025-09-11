@@ -398,9 +398,6 @@ def check_file_is_really_injected(file_path, aosp_path):
 
 def handle_app_modules(file_path, aosp_path, firmware_id, cookies):
     error_message = None
-    if POST_INJECTOR_CONFIG["DISALLOW_APP_INJECTION"]:
-        error_message = f"App injection is disallowed by configuration: {file_path}"
-
     signing_success, output, subprocess_error_message = handle_apk_signing(file_path, aosp_path, firmware_id, cookies)
     if not signing_success:
         error_message = f"Error signing APK file: {file_path}|{subprocess_error_message}"
