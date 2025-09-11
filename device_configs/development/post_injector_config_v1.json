@@ -49,8 +49,8 @@
     "com.android.permission.apex",
     "libhbmsvmanager_jni.so",
     "libbluetooth_jni.so",
-    "GoogleExtServices",
-    "GoogleExtShared"
+    "GoogleExtServices.apk",
+    "GoogleExtShared.apk"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": ["system/framework", "system_ext/framework", "vendor/framework", "product/framework"],
   "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
