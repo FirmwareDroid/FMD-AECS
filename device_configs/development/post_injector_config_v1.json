@@ -30,6 +30,7 @@
   "ALLOW_MIXED_APEX_KEYWORD_LIST": ["runtime"],
   "DISABLE_APEX_BINARY_INJECTION": false,
   "ALLOW_FILE_INJECT_ALWAYS": [
+    "app_process64",
     "com.google.android.art.apex",
     "com.android.art.apex",
     "com.android.runtime.apex",
