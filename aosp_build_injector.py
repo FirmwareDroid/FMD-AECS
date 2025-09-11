@@ -463,17 +463,18 @@ def is_package_skipped(dir_name, package_path):
     if dir_name_cleaned in SKIPPED_MODULE_NAMES or any(keyword in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["BLACKLISTED_KEYWORDS"]):
         return True
     elif check_file_extension(package_path, [".apk"]):
-        if any(keyword in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["ALLOW_APP_KEYWORD_ALWAYS_LIST"]):
-            logging.info(f"Injecting APK package due to always allow keyword: {dir_name_cleaned}")
-            return False
+        if not "_FMD_APEX" in dir_name:
+            if any(keyword in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["ALLOW_APP_KEYWORD_ALWAYS_LIST"]):
+                logging.info(f"Injecting APK package due to always allow keyword: {dir_name_cleaned}")
+                return False
 
-        if PRE_INJECTOR_CONFIG["DISABLE_APP_INJECTION"]:
-            logging.info(f"Skipping APK package due to disabled app injection: {dir_name_cleaned}")
-            return True
+            if PRE_INJECTOR_CONFIG["DISABLE_APP_INJECTION"]:
+                logging.info(f"Skipping APK package due to disabled app injection: {dir_name_cleaned}")
+                return True
 
-        if any(keyword in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["DISALLOWED_APK_KEYWORDS"]):
-            logging.info(f"Skipping APK package due to disallowed keyword: {dir_name_cleaned}")
-            return True
+            if any(keyword in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["DISALLOWED_APK_KEYWORDS"]):
+                logging.info(f"Skipping APK package due to disallowed keyword: {dir_name_cleaned}")
+                return True
 
     if "_FMD_APEX" in dir_name:
         if not PRE_INJECTOR_CONFIG["DISABLE_APEX_APP_INJECTION"]:
