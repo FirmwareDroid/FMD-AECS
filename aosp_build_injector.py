@@ -465,7 +465,7 @@ def is_package_skipped(dir_name, package_path):
     elif check_file_extension(package_path, [".apk"]):
         if any(keyword in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["ALLOW_APP_KEYWORD_ALWAYS_LIST"]):
             logging.info(f"Injecting APK package due to always allow keyword: {dir_name_cleaned}")
-            return True
+            return False
 
         if PRE_INJECTOR_CONFIG["DISABLE_APP_INJECTION"]:
             logging.info(f"Skipping APK package due to disabled app injection: {dir_name_cleaned}")
