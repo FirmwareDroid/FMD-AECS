@@ -625,7 +625,7 @@ def get_aosp_build_command(lunch_target, aosp_version, aosp_root):
     else:
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
-                  "&& m "
+                  "&& m '"
     return command
 
 
