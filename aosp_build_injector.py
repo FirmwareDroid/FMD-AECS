@@ -617,7 +617,7 @@ def get_aosp_build_command(lunch_target, aosp_version, aosp_root):
     if lunch_target not in SUPPORTED_LUNCH_TARGETS:
         raise RuntimeError("Unsupported build CPU architecture specified.")
 
-    if aosp_version in ["12", "13", "14"]:
+    if aosp_version in ["12"]:
         command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
                   "&& m " \
