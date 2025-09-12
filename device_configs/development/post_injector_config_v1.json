@@ -59,7 +59,8 @@
     "vendor/framework",
     "product/framework",
     "ConfigOverlay.apk",
-    "ExtServices.apk"
+    "ExtServices.apk",
+    "Overlay"
   ],
   "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
