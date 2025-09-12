@@ -244,13 +244,19 @@ def get_template_folder_path(aosp_version):
     base_dir = os.path.dirname(config_path)
     if aosp_version == "12":
         template_folder_abs_path = os.path.join(base_dir, "12/")
-        if not os.path.isabs(template_folder_abs_path):
-            template_folder_abs_path = os.path.join(ROOT_PATH, template_folder_abs_path)
-            template_folder_abs_path = os.path.normpath(template_folder_abs_path)
-        if not os.path.isdir(template_folder_abs_path):
-            raise OSError(f"Could not find AOSP template folder: {template_folder_abs_path}")
+    elif aosp_version == "13":
+        template_folder_abs_path = os.path.join(base_dir, "13/")
+    elif aosp_version == "14":
+        template_folder_abs_path = os.path.join(base_dir, "14/")
     else:
         raise RuntimeError(f"Unsupported aosp version: {aosp_version}")
+
+    if not os.path.isabs(template_folder_abs_path):
+        template_folder_abs_path = os.path.join(ROOT_PATH, template_folder_abs_path)
+        template_folder_abs_path = os.path.normpath(template_folder_abs_path)
+    if not os.path.isdir(template_folder_abs_path):
+        raise OSError(f"Could not find AOSP template folder: {template_folder_abs_path}")
+
     return template_folder_abs_path
 
 
