@@ -151,7 +151,7 @@ def get_target_out_path(aosp_path, lunch_target):
         raise RuntimeError(f"Unsupported build architecture: {lunch_target}")
 
 
-def get_emulator_image_path(aosp_path, lunch_target):
+def get_emulator_image_path(aosp_path, lunch_target, aosp_version):
     """
     Returns the path to the emulator image zip file based on the lunch target.
 
@@ -164,7 +164,14 @@ def get_emulator_image_path(aosp_path, lunch_target):
     if lunch_target == SUPPORTED_LUNCH_TARGETS[0]:
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME)
     elif lunch_target == SUPPORTED_LUNCH_TARGETS[1] or lunch_target == SUPPORTED_LUNCH_TARGETS[2]:
-        image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME)
+        test = os.environ.get("FMD_PHONE64_TEST_BUILD") == "True"
+        if aosp_version == "12":
+            if test:
+                image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_EMU_ZIP_FILENAME)
+            else:
+                image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME)
+        else:
+            image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_EMU_ZIP_FILENAME)
     else:
         raise RuntimeError(f"Unsupported build architecture: {lunch_target}")
     return image_source_path
@@ -1038,7 +1045,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
 
             if is_build_success:
                 logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
-                emulator_image_zip_path = get_emulator_image_path(args.aosp_path, lunch_target)
+                emulator_image_zip_path = get_emulator_image_path(args.aosp_path, lunch_target, args.version)
                 filename = f"{firmware_id}_v{args.version}_{lunch_target}.zip".replace('-', '_')
                 is_upload_success, download_url = upload_build_artefact(args.docker_repo_url,
                                                           args.docker_repo_username,
