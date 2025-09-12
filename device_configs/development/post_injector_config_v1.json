@@ -53,7 +53,14 @@
     "GoogleExtShared.apk",
     "GoogleConfigOverlay.apk"
   ],
-  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": ["system/framework", "system_ext/framework", "vendor/framework", "product/framework"],
+  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
+    "system/framework",
+    "system_ext/framework",
+    "vendor/framework",
+    "product/framework",
+    "ConfigOverlay.apk",
+    "ExtServices.apk"
+  ],
   "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
   "ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS": true,
