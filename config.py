@@ -19,6 +19,7 @@ BASE_SYSTEM_EXT_FILE_NAME = "base_system_ext.mk"
 BASE_FILENAMES = [BASE_PRODUCT_FILE_NAME, BASE_SYSTEM_FILE_NAME, BASE_VENDOR_FILE_NAME, BASE_SYSTEM_EXT_FILE_NAME]
 BUILD_OUT_PATH = os.path.join(ROOT_PATH, "out/")
 AOSP_BUILD_OUT_SDK_ARM64_PATH = "out/target/product/emulator_arm64/"
+AOSP_BUILD_OUT_SDK_ARM64_x64_PATH = "out/target/product/emulator64_arm64/"
 AOSP_BUILD_OUT_SDK_x86_64_PATH = "out/target/product/emulator_x86_64/"
 AOSP_EMU_ZIP_FILENAME = f"sdk-repo-linux-system-images-eng.{os.getlogin()}.zip"
 NEXUS_SERVICE_ENDPOINT = "service/extdirect"
