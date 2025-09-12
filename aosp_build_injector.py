@@ -144,8 +144,10 @@ def get_target_out_path(aosp_path, lunch_target):
     """
     if lunch_target == SUPPORTED_LUNCH_TARGETS[0]:
         return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_x86_64_PATH)
-    elif lunch_target == SUPPORTED_LUNCH_TARGETS[1] or lunch_target == SUPPORTED_LUNCH_TARGETS[2]:
+    elif lunch_target == SUPPORTED_LUNCH_TARGETS[1]:
         return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH)
+    elif lunch_target == SUPPORTED_LUNCH_TARGETS[2]:
+        return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH)
     else:
         logging.error(f"Unknown lunch target: {lunch_target}")
         raise RuntimeError(f"Unsupported build architecture: {lunch_target}")
