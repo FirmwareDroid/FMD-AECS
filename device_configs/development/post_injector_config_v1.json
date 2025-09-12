@@ -43,8 +43,6 @@
     "com.google.android.sdkext.apex",
     "com.android.sdkext.apex",
     "com.google.mainline.primary.libs.apex",
-    "com.google.android.telephony.apex",
-    "com.android.telephony.apex",
     "com.google.android.permission.apex",
     "com.android.permission.apex",
     "libhbmsvmanager_jni.so",
@@ -91,7 +89,8 @@
     "tzdata",
     "tzdata3",
     "tzdata4",
-    "cellbroadcast"
+    "cellbroadcast",
+    "telephony"
   ],
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [
     "art",
