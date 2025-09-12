@@ -988,7 +988,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
         if aosp_version == "12":
             lunch_target = SUPPORTED_LUNCH_TARGETS[1]
             if test:
-                lunch_target = SUPPORTED_LUNCH_TARGETS[3]
+                lunch_target = SUPPORTED_LUNCH_TARGETS[2]
         elif aosp_version in ["13", "14"]:
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]
         else:
