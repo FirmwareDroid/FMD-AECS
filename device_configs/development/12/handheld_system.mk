@@ -27,7 +27,7 @@ $(call inherit-product-if-exists, frameworks/webview/chromium/chromium.mk)
 # Disabled Packages:
     #BasicDreams \
     #BlockedNumberProvider \
-    #BluetoothMidiService \
+    #
     #BookmarkProvider \
     #BuiltInPrintService \
     #CalendarProvider \
@@ -65,6 +65,7 @@ PRODUCT_PACKAGES += \
     VpnDialogs \
     vr \
     Bluetooth \
+    BluetoothMidiService \
     UserDictionaryProvider \
     SimAppDialog \
 
