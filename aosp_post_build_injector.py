@@ -1212,7 +1212,11 @@ def main():
     if aosp_version not in ["12", "13", "14"]:
         raise RuntimeError("Please provide a valid AOSP version argument (12, 13, 14).")
     if aosp_version == "12":
-        lunch_target = "sdk_phone_arm64-userdebug"
+        test = os.environ.get("FMD_PHONE64_TEST_BUILD") == "True"
+        if test:
+            lunch_target = "sdk_phone64_arm64-userdebug"
+        else:
+            lunch_target = "sdk_phone_arm64-userdebug"
     else:
         lunch_target = "sdk_phone64_arm64-userdebug"
     logging.info(f"Source folder path: {source_folder_path}")
