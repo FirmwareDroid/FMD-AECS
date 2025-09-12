@@ -190,6 +190,7 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     execution_time_minutes = execution_time / 60
     logging.info(f"Objects injected:")
     app_list = []
+    skipped_app_list = []
     if PRINT_ALL_LOGS:
         for obj in inj_obj_list:
             logging.info(f"Indirect Inject via obj: {obj}")
@@ -207,6 +208,15 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
         logging.info(f"Errors:")
         for obj in error_list:
             logging.info(f"Error: {obj}")
+            if ".apk" in obj:
+                try:
+                    match = re.search(r"Error.*?(\S+\.apk)", obj)
+                    if match:
+                        file_name = os.path.basename(match.group(1))
+                        skipped_app_list.append(file_name)
+                except Exception as e:
+                    continue
+
     logging.info(f"Execution time: {execution_time_minutes} minutes")
     number_of_files = count_number_of_extracted_files(source_folder_path)
     logging.info(f"Number of File in ALL_FILES: {number_of_files}")
