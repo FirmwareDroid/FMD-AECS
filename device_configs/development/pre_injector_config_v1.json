@@ -13,7 +13,7 @@
     "ShannonIms", "TeleService", "Telecom", "TelephonyProvider",
     "PixelConnectivityOverlay2021", "VpnDialogs", "CellBroadcast"],
   "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
-  "ALLOW_APP_KEYWORD_ALWAYS_LIST": ["GoogleExtServices", "GoogleExtShared", "AndroidPlatformServices", "GoogleServicesFramework"],
+  "ALLOW_APP_KEYWORD_ALWAYS_LIST": ["ExtServices", "ExtShared", "AndroidPlatformServices", "ServicesFramework"],
   "SHARED_USER_ID_MAPPING_DICT": {
     "media": [
       "android.media",
