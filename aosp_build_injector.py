@@ -1008,6 +1008,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     succeed_firmware_ids = []
     download_url_list = []
     clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
+    logging.info(f"Building for lunch target: {lunch_target} with aosp version: {aosp_version}")
     for firmware_id in tqdm(firmware_id_list):
         try:
             logging.info(f"Start fetching build files for firmware-id: {firmware_id}")
