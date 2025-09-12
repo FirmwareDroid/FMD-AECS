@@ -122,7 +122,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
                                       cookies=cookies
                                       )
             logging.info(f"Summary Pre-Injector: {included_package_statistics}")
-            package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target)
+            package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target, aosp_version)
             execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path)
             is_successful = True
         except Exception as err:
@@ -604,21 +604,28 @@ def get_aosp_build_command(lunch_target, aosp_version, aosp_root):
     if lunch_target not in SUPPORTED_LUNCH_TARGETS:
         raise RuntimeError("Unsupported build CPU architecture specified.")
 
-    if aosp_version not in ["12", "13"]:
-        raise RuntimeError(f"Unsupported Android version: {aosp_version}")
-
-    command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
-              f"&& lunch {lunch_target} " \
-              "&& m " \
-              "&& m sdk'"
+    if aosp_version in ["12", "13", "14"]:
+        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+                  f"&& lunch {lunch_target} " \
+                  "&& m " \
+                  "&& m sdk'"
+    else:
+        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+                  f"&& lunch {lunch_target} " \
+                  "&& m "
     return command
 
 
-def get_aosp_repo_build_command(aosp_root, lunch_target):
-    command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
-              f"&& lunch {lunch_target} " \
-              "&& m sdk_repo " \
-              "&& m emu_img_zip'"
+def get_aosp_repo_build_command(aosp_root, lunch_target, aosp_version):
+    if aosp_version in ["12"]:
+        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+                  f"&& lunch {lunch_target} " \
+                  "&& m sdk_repo " \
+                  "&& m emu_img_zip'"
+    else:
+        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+                  f"&& lunch {lunch_target} " \
+                  "&& m emu_img_zip'"
     return command
 
 
@@ -973,7 +980,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     else:
         if aosp_version == "12":
             lunch_target = SUPPORTED_LUNCH_TARGETS[1]
-        elif aosp_version == "13":
+        elif aosp_version in ["13", "14"]:
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]
         else:
             raise RuntimeError(f"Unsupported Android version: {args.version}")
@@ -1083,6 +1090,7 @@ def main():
             or not os.path.exists(args.pre_injector_config)
             or not os.path.exists(args.post_injector_config)):
         raise RuntimeError(f"Files or directories do not exist")
+
 
     pre_injector_config, post_injector_config = load_configs(args.pre_injector_config, args.post_injector_config)
     global PRE_INJECTOR_CONFIG

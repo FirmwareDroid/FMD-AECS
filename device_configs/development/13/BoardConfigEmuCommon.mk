@@ -1,4 +1,4 @@
-# BoardConfigEmuCommon.mk
+# c
 #
 # Common compile-time definitions for emulator
 #

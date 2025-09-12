@@ -24,47 +24,49 @@ $(call inherit-product-if-exists, external/hyphenation-patterns/patterns.mk)
 $(call inherit-product-if-exists, frameworks/base/data/keyboards/keyboards.mk)
 $(call inherit-product-if-exists, frameworks/webview/chromium/chromium.mk)
 
-PRODUCT_PACKAGES += \
+# Disabled Packages:
     #BasicDreams \
     #BlockedNumberProvider \
-    #Bluetooth \
     #BluetoothMidiService \
     #BookmarkProvider \
     #BuiltInPrintService \
     #CalendarProvider \
-    cameraserver \
-    CameraExtensionsProxy \
     #CaptivePortalLogin \
-    CertInstaller \
-    clatd \
     #DocumentsUI \
     #DownloadProviderUi \
     #EasterEgg \
     #ExternalStorageProvider \
-    FusedLocation \
-    InputDevices \
-    KeyChain \
-    librs_jni \
     #ManagedProvisioning \
-    MmsService \
-    MtpService \
     #MusicFX \
     #NfcNci \
     #PacProcessor \
     #PrintRecommendationService \
     #PrintSpooler \
+
+PRODUCT_PACKAGES += \
+    cameraserver \
+    CameraExtensionsProxy \
+    CertInstaller \
+    clatd \
+    FusedLocation \
+    InputDevices \
+    KeyChain \
+    librs_jni \
+    MmsService \
+    MtpService \
     ProxyHandler \
     screenrecord \
     SecureElement \
     SharedStorageBackup \
-    #SimAppDialog \
     Telecom \
-    #TelephonyProvider \
+    TelephonyProvider \
     TeleService \
     Traceur \
-    #UserDictionaryProvider \
     VpnDialogs \
     vr \
+    Bluetooth \
+    UserDictionaryProvider \
+    SimAppDialog \
 
 
 PRODUCT_SYSTEM_SERVER_APPS += \
