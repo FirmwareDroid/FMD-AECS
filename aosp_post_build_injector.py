@@ -1164,6 +1164,7 @@ def parse_arguments():
     parser.add_argument("-i", "--post_injector_config",
                         type=str,
                         default="./device_configs/development/post_injector_config_v1.json", )
+    parser.add_argument("-e", "--aosp-version", type=str, default="12",)
     parser.add_argument("-u", "--fmd-username", type=str, default=None, required=True,
                         help="Username for the authentication to the fmd service.")
     parser.add_argument("-f", "--firmware-id", type=str, default=None, required=True,
@@ -1189,7 +1190,13 @@ def main():
     if not fmd_password or not args.fmd_username:
         raise RuntimeError(f"Please enter your FMD username/password ({args.fmd_username}): ")
 
-    lunch_target = "sdk_phone_arm64-userdebug"
+    aosp_version = args.aosp_version
+    if aosp_version not in ["12", "13", "14"]:
+        raise RuntimeError("Please provide a valid AOSP version argument (12, 13, 14).")
+    if aosp_version == "12":
+        lunch_target = "sdk_phone_arm64-userdebug"
+    else:
+        lunch_target = "sdk_phone64_arm64-userdebug"
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")
     logging.info(f"AOSP root path: {aosp_path}")
