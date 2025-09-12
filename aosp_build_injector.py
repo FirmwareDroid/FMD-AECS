@@ -410,7 +410,7 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
     """
     out_dir = os.path.join(aosp_path, MODULE_BASE_INJECT_DIR)
     os.makedirs(out_dir, exist_ok=True)
-    included_package_statistics = {"apps": [], "libs": [], "apex": [], "count": 0}
+    included_package_statistics = {"apps": [], "libs": [], "apex": [], "count": 0, "skipped_apps": [], "skipped_libs": [], "skipped_apex": []}
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
         if os.path.isdir(package_path):
@@ -440,6 +440,9 @@ def process_package(package_path, dir_name, aosp_path, out_dir, included_package
     uuid_dir = str(uuid.uuid4())
     if is_package_skipped(dir_name, package_path):
         logging.info(f"Skipping package: {dir_name}")
+        included_package_statistics["skipped_apps" if check_file_extension(package_path, [".apk"]) else
+                                    "skipped_libs" if check_file_extension(package_path, [".so", ".1", ".2", ".3", ".4", ".5", ".6", ".7", ".8", ".9"]) else
+                                    "skipped_apex"].append(dir_name)
         return included_package_statistics
 
     if check_file_extension(package_path, [".so", ".1", ".2", ".3", ".4", ".5", ".6", ".7", ".8", ".9"]):
