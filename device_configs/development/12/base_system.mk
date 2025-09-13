@@ -417,3 +417,8 @@ PRODUCT_COPY_FILES += $(call add-to-product-copy-files-if-exists,\
     frameworks/base/config/dirty-image-objects:system/etc/dirty-image-objects)
 
 $(call inherit-product, $(SRC_TARGET_DIR)/product/runtime_libart.mk)
+
+TARGET_SUPPORTS_32_BIT_APPS := false
+TARGET_SUPPORTS_64_BIT_APPS := true
+PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions?=log
+MODULE_BUILD_FROM_SOURCE := true
