@@ -82,3 +82,9 @@ PRODUCT_VENDOR_PROPERTIES += \
     ro.carrier?=unknown \
     ro.config.notification_sound?=OnTheHunt.ogg \
     ro.config.alarm_alert?=Alarm_Classic.ogg
+
+
+TARGET_SUPPORTS_32_BIT_APPS := false
+TARGET_SUPPORTS_64_BIT_APPS := true
+PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions?=log
+MODULE_BUILD_FROM_SOURCE := true
