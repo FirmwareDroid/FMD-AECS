@@ -90,3 +90,9 @@ BOARD_FLASH_BLOCK_SIZE := 512
 DEVICE_MATRIX_FILE   := device/generic/goldfish/compatibility_matrix.xml
 
 BOARD_SEPOLICY_DIRS += device/generic/goldfish/sepolicy/common
+
+
+TARGET_SUPPORTS_32_BIT_APPS := false
+TARGET_SUPPORTS_64_BIT_APPS := true
+PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions?=log
+MODULE_BUILD_FROM_SOURCE := true
