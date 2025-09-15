@@ -955,7 +955,10 @@ def get_apex_default_keys(aosp_path, apex_file_name):
             priv_key_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pk8")
             avb_pub_key_path = os.path.join(module_path, apex_file_name_no_extension + ".avbpubkey")
             if not os.path.exists(avb_pub_key_path):
-                extract_avb_public_key(aosp_path, priv_pem_file_path, avb_pub_key_path)
+                is_success = extract_avb_public_key(aosp_path, priv_pem_file_path, avb_pub_key_path)
+                if not is_success:
+                    raise ValueError(f"Error extracting AVB public key for APEX: {apex_file_name}. "
+                                     f"Private PEM file: {priv_pem_file_path} to {avb_pub_key_path}")
             cert_apex_apk_path = os.path.join(module_path, apex_file_name_no_extension + ".x509.pem")
 
             if (os.path.exists(priv_key_file_path)
@@ -1435,7 +1438,12 @@ def generate_apex_keys(aosp_path, apex_file_name):
         log_message += result_x509.stdout
         is_success = True
 
-    extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
+    is_success = extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
+    if not is_success:
+        log_message += f"\nError extracting AVB public key for APEX: {apex_file_name}. Private key file: {priv_key_path} to {avb_pub_key_path}"
+        logging.error(log_message)
+    else:
+        logging.info(f"AVB public key extracted successfully: {avb_pub_key_path}")
 
     return is_success, log_message, temp_keys_dir, priv_key_path, priv_pem_file_path, pub_key_path, avb_pub_key_path, apex_apk_cert
 
@@ -1489,10 +1497,16 @@ def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
     :param aosp_path: str - log message to return in case of an error.
 
     """
-    avbtool_path = os.path.join(aosp_path, "out/host/linux-x86/bin/avbtool")
-    avb_extract_command = [avbtool_path, 'extract_public_key', "--key", key, "--output", avb_pub_out_path]
-    subprocess.run(avb_extract_command, check=True)
-    logging.info(f"AVB public key extracted at: {avb_pub_out_path}")
+    is_success = True
+    try:
+        avbtool_path = os.path.join(aosp_path, "out/host/linux-x86/bin/avbtool")
+        avb_extract_command = [avbtool_path, 'extract_public_key', "--key", key, "--output", avb_pub_out_path]
+        subprocess.run(avb_extract_command, check=True)
+        logging.info(f"AVB public key extracted at: {avb_pub_out_path}")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Error extracting AVB public key: {e}")
+        is_success = False
+    return is_success
 
 
 def inject_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path):
