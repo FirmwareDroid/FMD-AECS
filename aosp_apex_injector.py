@@ -1249,8 +1249,16 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
 
     """
     logging.info(f"Extracting APEX file: {apex_file_path}")
-    #deapexer_tool_path = f"{aosp_path}out/host/linux-x86/bin/deapexer"
-    deapexer_tool_path = f"{aosp_path}out/soong/host/linux-x86/bin/deapexer"
+    deapexer_candidates = [
+        os.path.join(aosp_path, "out/soong/host/linux-x86/bin/deapexer"),
+        os.path.join(aosp_path, "out/host/linux-x86/bin/deapexer"),
+    ]
+    deapexer_tool_path = next((p for p in deapexer_candidates if os.path.exists(p)), None)
+    if not deapexer_tool_path:
+        message = "APEX extract_apex_file failed: Deapexer tool not found in any known location."
+        logging.info(message)
+        return False, {f"{message}"}
+
     info = f"APEX: Deapexer tool path: {deapexer_tool_path}|{lunch_target}|{apex_file_path}|{output_dir_path}"
     logging.info(info)
     command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
