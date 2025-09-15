@@ -1010,7 +1010,17 @@ def get_existing_file_context(apex_file_name, aosp_path):
 def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config, is_repack=False, file_contexts_path=None):
     success = False
     resign_apex_apk_files(aosp_path, apex_extract_dir_path)
-    apexer_bin_path = os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer")
+
+    apexer_bin_candidates = [
+        os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer"),
+        os.path.join(aosp_path, "out/host/linux-x86/bin/apexer"),
+    ]
+    apexer_bin_path = next((p for p in apexer_bin_candidates if os.path.exists(p)), None)
+    if not apexer_bin_path:
+        message = "APEX create_apex_container failed: Apexer tool not found in any known location."
+        logging.info(message)
+        return False, f"{message}", None, None, None, None, None
+
     apex_file_name = os.path.basename(output_file_path)
     info = f"APEX: Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
     logging.info(info)
@@ -1062,15 +1072,16 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
             log_message = f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info}"
             logging.error(f"{log_message}")
     else:
-        logging.error(f"Container Creation not started for {apex_file_name} because of missing files:\n"
-                    f"APEX root path: {apex_root_path} | {os.path.exists(apex_root_path)}\n"
-                    f"APEXer tool path: {apexer_bin_path} | {os.path.exists(apexer_bin_path)}\n"
-                    f"APEX manifest path: {apex_manifest_path} | {os.path.exists(apex_manifest_path)}\n"
-                    f"APEX extract dir path: {apex_extract_dir_path} | {os.path.exists(apex_extract_dir_path)}\n"
-                    f"Canned fs config path: {canned_fs_config.name} | {os.path.exists(canned_fs_config.name)}\n"
-                    f"File contexts path: {file_contexts_path} | {os.path.exists(file_contexts_path)}\n"
-                    f"AVB public key path: {avb_pub_key_path} | {os.path.exists(avb_pub_key_path)}\n"
-                    f"Private PEM file path: {priv_pem_file_path} | {os.path.exists(priv_pem_file_path)}\n")
+        info = f"Container Creation not started for {apex_file_name} because of missing files:\n" \
+                    f"APEX root path: {apex_root_path} | {os.path.exists(apex_root_path)}\n" \
+                    f"APEXer tool path: {apexer_bin_path} | {os.path.exists(apexer_bin_path)}\n" \
+                    f"APEX manifest path: {apex_manifest_path} | {os.path.exists(apex_manifest_path)}\n" \
+                    f"APEX extract dir path: {apex_extract_dir_path} | {os.path.exists(apex_extract_dir_path)}\n" \
+                    f"Canned fs config path: {canned_fs_config.name} | {os.path.exists(canned_fs_config.name)}\n" \
+                    f"File contexts path: {file_contexts_path} | {os.path.exists(file_contexts_path)}\n" \
+                    f"AVB public key path: {avb_pub_key_path} | {os.path.exists(avb_pub_key_path)}\n" \
+                    f"Private PEM file path: {priv_pem_file_path} | {os.path.exists(priv_pem_file_path)}\n"
+        logging.error(info)
         log_message = f"APEX create_apex_container failed. Error-Info: Missing files. Debug INFO: {info}"
 
     return success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path
