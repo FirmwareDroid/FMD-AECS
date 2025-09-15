@@ -982,12 +982,17 @@ def write_json_output(result, output_file):
             data = json.load(file)
     except FileNotFoundError:
         data = []
+    except Exception as err:
+        logging.error(f"Error writing to file: {err}")
+        data = []
 
     data.append(result)
-
-    with open(output_file, "w") as file:
-        json.dump(data, file, indent=4)
-        file.write("\n")  # Add a newline
+    try:
+        with open(output_file, "w") as file:
+            json.dump(data, file, indent=4)
+            file.write("\n")  # Add a newline
+    except Exception as err:
+        logging.error(f"Error writing to file: {err}")
 
 
 def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
