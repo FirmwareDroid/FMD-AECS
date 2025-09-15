@@ -1503,7 +1503,7 @@ def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
         avb_extract_command = [avbtool_path, 'extract_public_key', "--key", key, "--output", avb_pub_out_path]
         subprocess.run(avb_extract_command, check=True)
         logging.info(f"AVB public key extracted at: {avb_pub_out_path}")
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         logging.error(f"Error extracting AVB public key: {e}")
         is_success = False
     return is_success
