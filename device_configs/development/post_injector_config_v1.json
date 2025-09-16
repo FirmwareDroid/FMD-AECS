@@ -245,7 +245,7 @@
     "ondevicepersonalization": "packages/modules/OnDevicePersonalization/apex",
     "adservices": "packages/modules/AdServices/apex",
     "uwb": "packages/modules/Uwb/apex",
-    "sepolicy": "packages/modules/sepolicy/apex",
+    "sepolicy": "packages/modules/SEPolicy/apex",
     "geotz": "packages/modules/GeoTZ/apex/com.android.geotz",
     "virtualization": "packages/modules/Virtualization/apex"
   },
