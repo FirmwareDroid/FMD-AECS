@@ -212,7 +212,8 @@
     "tzdata",
     "tzdata3",
     "tzdata4",
-    "adbd"
+    "adbd",
+    "ondevicepersonalization"
   ],
   "APEX_DEFAULT_PATHS_DICT": {
     "sdkext": "packages/modules/SdkExtensions",
@@ -240,7 +241,8 @@
     "media": "frameworks/av/apex",
     "tzdata": "system/timezone/apex/",
     "tzdata3": "system/timezone/apex/",
-    "tzdata4": "system/timezone/apex/"
+    "tzdata4": "system/timezone/apex/",
+    "ondevicepersonalization": "packages/modules/OnDevicePersonalization/apex"
   },
   "APEX_DEFAULT_EMULATOR_PATHS_DICT": {
     "appsearch": "com.android.appsearch",
@@ -264,7 +266,8 @@
     "runtime": "com.android.runtime",
     "sdkext": "com.android.sdkext",
     "tzdata": "com.android.tzdata",
-    "wifi": "com.android.wifi"
+    "wifi": "com.android.wifi",
+    "ondevicepersonalization": "com.android.ondevicepersonalization"
   },
   "LIST_SINGLETON_APPS": [
     "PackageInstaller.apk",
