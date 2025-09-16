@@ -242,7 +242,12 @@
     "tzdata": "system/timezone/apex/",
     "tzdata3": "system/timezone/apex/",
     "tzdata4": "system/timezone/apex/",
-    "ondevicepersonalization": "packages/modules/OnDevicePersonalization/apex"
+    "ondevicepersonalization": "packages/modules/OnDevicePersonalization/apex",
+    "adservices": "packages/modules/AdServices/apex",
+    "uwb": "packages/modules/Uwb/apex",
+    "sepolicy": "packages/modules/sepolicy/apex",
+    "geotz": "packages/modules/GeoTZ/apex/com.android.geotz",
+    "virtualization": "packages/modules/Virtualization/apex"
   },
   "APEX_DEFAULT_EMULATOR_PATHS_DICT": {
     "appsearch": "com.android.appsearch",
@@ -267,7 +272,12 @@
     "sdkext": "com.android.sdkext",
     "tzdata": "com.android.tzdata",
     "wifi": "com.android.wifi",
-    "ondevicepersonalization": "com.android.ondevicepersonalization"
+    "ondevicepersonalization": "com.android.ondevicepersonalization",
+    "adservices": "com.android.adservices",
+    "uwb": "com.android.uwb",
+    "sepolicy": "com.android.sepolicy",
+    "geotz": "com.android.geotz",
+    "virtualization": "com.android.virt"
   },
   "LIST_SINGLETON_APPS": [
     "PackageInstaller.apk",
