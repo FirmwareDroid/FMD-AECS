@@ -191,6 +191,7 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     logging.info(f"Objects injected:")
     app_list = []
     skipped_app_list = []
+    skipped_apex_list = []
     if PRINT_ALL_LOGS:
         for obj in inj_obj_list:
             logging.info(f"Indirect Inject via obj: {obj}")
@@ -210,6 +211,8 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
             logging.info(f"Error: {obj}")
             if ".apk" in obj:
                 skipped_app_list.append(obj)
+            if ".apex" in obj:
+                skipped_apex_list.append(obj)
 
     logging.info(f"Execution time: {execution_time_minutes} minutes")
     number_of_files = count_number_of_extracted_files(source_folder_path)
@@ -220,6 +223,7 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     logging.info(f"Number of files processed: {len(error_list) + len(inj_obj_list) + len(inj_partition_list)}")
     logging.info(f"Post-Injection Apps injected: {app_list}")
     logging.info(f"Post-Injection Apps skipped: {skipped_app_list}")
+    logging.info(f"Post-Injection APEX skipped: {skipped_apex_list}")
 
     grouped_errors = group_errors_by_prefix(error_list)
 
