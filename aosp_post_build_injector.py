@@ -209,13 +209,7 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
         for obj in error_list:
             logging.info(f"Error: {obj}")
             if ".apk" in obj:
-                try:
-                    match = re.search(r"Error.*?(\S+\.apk)", obj)
-                    if match:
-                        file_name = os.path.basename(match.group(1))
-                        skipped_app_list.append(file_name)
-                except Exception as e:
-                    continue
+                skipped_app_list.append(obj)
 
     logging.info(f"Execution time: {execution_time_minutes} minutes")
     number_of_files = count_number_of_extracted_files(source_folder_path)
