@@ -254,7 +254,7 @@ def render_template(template_folder_abs_path, base_filename, package_name_list):
 def get_template_folder_path():
     config_path = PRE_INJECTOR_CONFIG["PRE_INJECTOR_CONFIG_PATH"]
     base_dir = os.path.dirname(config_path)
-    template_folder_abs_path = os.path.join(base_dir, "12/")
+    template_folder_abs_path = os.path.join(base_dir)
     if not os.path.isabs(template_folder_abs_path):
         template_folder_abs_path = os.path.join(ROOT_PATH, template_folder_abs_path)
         template_folder_abs_path = os.path.normpath(template_folder_abs_path)
@@ -836,7 +836,7 @@ def parse_arguments():
     """
     parser = argparse.ArgumentParser(prog='fmd_build_injector',
                                      description="A cli tool to download and store build files from FirmwareDroid.")
-    parser.add_argument("-s", "--aosp-path", type=str, default="/home/ubuntu/aosp_12/",
+    parser.add_argument("-s", "--aosp-path", type=str, default="/home/ubuntu/aosp/aosp12/",
                         help="Specifies the path to the root of the aosp source code.")
     parser.add_argument("-f", "--fmd-url", type=str, default=None, required=True,
                         help="HTTP/HTTPS url to the FMD instance to grab the packages."
