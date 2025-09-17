@@ -264,7 +264,6 @@
     "usb": "hardware/interfaces/usb/1.0/default/apex",
     "btservices": "packages/modules/Bluetooth/apex",
     "vibrator": "hardware/interfaces/vibrator/aidl/default/apex",
-    "cellbroadcast": "packages/apps/CellBroadcastReceiver/apex"
   },
   "APEX_DEFAULT_EMULATOR_PATHS_DICT": {
     "appsearch": "com.android.appsearch",
