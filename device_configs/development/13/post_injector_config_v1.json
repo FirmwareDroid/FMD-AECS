@@ -90,7 +90,19 @@
     "tzdata3",
     "tzdata4",
     "cellbroadcast",
-    "telephony"
+    "telephony",
+    "ondevicepersonalization",
+    "adservices",
+    "uwb",
+    "sepolicy",
+    "geotz",
+    "virtualization",
+    "power",
+    "thermal",
+    "usb",
+    "btservices",
+    "vibrator",
+    "cellbroadcast"
   ],
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [
     "art",
