@@ -210,7 +210,7 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version, packa
     :returns: str - rendered AOSP build file template.
     """
     package_line_list = extract_package_names(meta_build_path, package_name_list)
-    template_folder_abs_path = get_template_folder_path(aosp_version)
+    template_folder_abs_path = get_template_folder_path()
     return render_template(template_folder_abs_path, base_filename, package_line_list)
 
 
@@ -251,18 +251,10 @@ def render_template(template_folder_abs_path, base_filename, package_name_list):
     template = environment.get_template(base_filename)
     return template.render(package_name_list=package_name_list)
 
-def get_template_folder_path(aosp_version):
+def get_template_folder_path():
     config_path = PRE_INJECTOR_CONFIG["PRE_INJECTOR_CONFIG_PATH"]
     base_dir = os.path.dirname(config_path)
-    if aosp_version == "12":
-        template_folder_abs_path = os.path.join(base_dir, "12/")
-    elif aosp_version == "13":
-        template_folder_abs_path = os.path.join(base_dir, "13/")
-    elif aosp_version == "14":
-        template_folder_abs_path = os.path.join(base_dir, "14/")
-    else:
-        raise RuntimeError(f"Unsupported aosp version: {aosp_version}")
-
+    template_folder_abs_path = os.path.join(base_dir, "12/")
     if not os.path.isabs(template_folder_abs_path):
         template_folder_abs_path = os.path.join(ROOT_PATH, template_folder_abs_path)
         template_folder_abs_path = os.path.normpath(template_folder_abs_path)
@@ -748,7 +740,7 @@ def clear_base_files(aosp_path, aosp_version):
             logging.debug(f"Clearing base file: {base_filename} for version {aosp_version}")
             aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
             if os.path.exists(aosp_base_file_path):
-                template_folder_abs_path = get_template_folder_path(aosp_version)
+                template_folder_abs_path = get_template_folder_path()
                 environment = Environment(loader=FileSystemLoader(str(template_folder_abs_path)))
                 template = environment.get_template(base_filename)
                 base_file_content = template.render(package_name_list=[])
