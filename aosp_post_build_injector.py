@@ -208,11 +208,14 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     if PRINT_ERROR_LOGS:
         logging.info(f"Errors:")
         for obj in error_list:
-            logging.info(f"Error: {obj}")
-            if ".apk" in obj:
-                skipped_app_list.append(obj)
-            if ".apex" in obj:
-                skipped_apex_list.append(obj)
+            match = re.search(r":\s*(/[^|]+)\s*\|", obj)
+            if match:
+                file_path = match.group(1).strip()
+                file_name = os.path.basename(file_path)
+                if ".apk" in obj:
+                    skipped_app_list.append(file_name)
+                if ".apex" in obj:
+                    skipped_apex_list.append(file_name)
 
     logging.info(f"Execution time: {execution_time_minutes} minutes")
     number_of_files = count_number_of_extracted_files(source_folder_path)
