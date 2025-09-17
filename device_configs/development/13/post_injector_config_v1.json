@@ -49,7 +49,18 @@
     "libbluetooth_jni.so",
     "GoogleExtServices.apk",
     "GoogleExtShared.apk",
-    "GoogleConfigOverlay.apk"
+    "GoogleConfigOverlay.apk",
+    "BuildManifest.apk",
+    "IntentResolver.apk",
+    "PrebuiltGmsCoreSc_GoogleCertificates.apk",
+    "DynamicSystemInstallationService.apk",
+    "SettingsGoogle.apk",
+    "GooglePackageInstaller.apk",
+    "GCS.apk",
+    "NgaResources.apk",
+    "ModuleMetadataGoogle.apk",
+    "MarkupGoogle.apk",
+    "PlayAutoInstallConfig"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
