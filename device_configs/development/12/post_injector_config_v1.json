@@ -264,7 +264,7 @@
     "runtime": "com.android.runtime",
     "sdkext": "com.android.sdkext",
     "tzdata": "com.android.tzdata",
-    "wifi": "com.android.wifi",
+    "wifi": "com.android.wifi"
   },
   "LIST_SINGLETON_APPS": [
     "PackageInstaller.apk",
