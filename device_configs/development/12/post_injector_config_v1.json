@@ -212,7 +212,7 @@
     "tzdata",
     "tzdata3",
     "tzdata4",
-    "adbd",
+    "adbd"
   ],
   "APEX_DEFAULT_PATHS_DICT": {
     "sdkext": "packages/modules/SdkExtensions",
