@@ -2398,7 +2398,13 @@
     "neuralnetworks",
     "media",
     "tethering",
-    "permission"
+    "permission",
+    "ondevicepersonalization",
+    "adservices",
+    "uwb",
+    "sepolicy",
+    "geotz",
+    "virtualization"
   ],
   "SKIPPED_LIBRARIES": [
     "libgatekeeper.so",
