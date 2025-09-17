@@ -263,7 +263,7 @@
     "thermal": "hardware/interfaces/thermal/2.0/default/apex",
     "usb": "hardware/interfaces/usb/1.0/default/apex",
     "btservices": "packages/modules/Bluetooth/apex",
-    "vibrator": "hardware/interfaces/vibrator/aidl/default/apex",
+    "vibrator": "hardware/interfaces/vibrator/aidl/default/apex"
   },
   "APEX_DEFAULT_EMULATOR_PATHS_DICT": {
     "appsearch": "com.android.appsearch",
