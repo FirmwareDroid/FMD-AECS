@@ -240,7 +240,7 @@
     "media": "frameworks/av/apex",
     "tzdata": "system/timezone/apex/",
     "tzdata3": "system/timezone/apex/",
-    "tzdata4": "system/timezone/apex/",
+    "tzdata4": "system/timezone/apex/"
   },
   "APEX_DEFAULT_EMULATOR_PATHS_DICT": {
     "appsearch": "com.android.appsearch",
