@@ -60,7 +60,7 @@
     "NgaResources.apk",
     "ModuleMetadataGoogle.apk",
     "MarkupGoogle.apk",
-    "PlayAutoInstallConfig"
+    "PlayAutoInstallConfig.apk"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
