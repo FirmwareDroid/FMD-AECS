@@ -247,7 +247,7 @@
     "runtime": "bionic/apex/",
     "art": "art/build/apex",
     "conscrypt": "external/conscrypt/apex",
-    "appsearch": "frameworks/base/apex/appsearch/",
+    "appsearch": "packages/modules/AppSearch/",
     "swcodec": "frameworks/av/apex",
     "media": "frameworks/av/apex",
     "tzdata": "system/timezone/apex/",
