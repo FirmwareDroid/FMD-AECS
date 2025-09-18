@@ -83,7 +83,8 @@
     "GmsCoreSc",
     "virtualmachine",
     "AndroidPlatformServices",
-    "DevicePolicy"
+    "DevicePolicy",
+    "Prebuilt"
   ],
   "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
