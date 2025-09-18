@@ -64,7 +64,6 @@
     "NgaResources.apk",
     "ModuleMetadataGoogle.apk",
     "MarkupGoogle.apk",
-    "IntentResolver.apk",
     "MiLauncherGlobal",
     "GoogleServicesFramework.apk",
     "Shell.apk",
@@ -87,7 +86,8 @@
     "DevicePolicy",
     "Prebuilt",
     "Chrome",
-    "Provider"
+    "Provider",
+    "IntentResolver"
   ],
   "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
