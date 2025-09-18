@@ -69,7 +69,8 @@
     "GoogleServicesFramework.apk",
     "Shell.apk",
     "DownloadProviderUi.apk",
-    "DownloadProvider.apk"
+    "DownloadProvider.apk",
+    "HardwareInfo.apk"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
@@ -84,7 +85,9 @@
     "virtualmachine",
     "AndroidPlatformServices",
     "DevicePolicy",
-    "Prebuilt"
+    "Prebuilt",
+    "Chrome",
+    "Provider"
   ],
   "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
