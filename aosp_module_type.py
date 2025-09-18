@@ -93,8 +93,6 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
 
     tmp_module_type = module_type
 
-
-
     if module_type == "APPS" and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_APP_KEYWORDLIST"]):
         module_type = "SKIPPED"
     if module_type == "APPS" and (file_name_no_ext in POST_INJECTOR_CONFIG["SKIPPED_APP_LIST"]
