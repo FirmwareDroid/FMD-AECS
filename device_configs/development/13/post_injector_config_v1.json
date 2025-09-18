@@ -8,6 +8,8 @@
     "shared":["android.shared", "android.uid.shared"],
     "networkstack": ["android.networkstack", "android.uid.networkstack"]
   },
+  "DISABLE_JAVA_LIBRARIES_INJECTION":false,
+  "ALLOW_ALL_JAVA_LIBRARIES_INJECTION":true,
   "DISALLOW_APP_INJECTION": true,
   "INJECT_APEX_VENDOR_APPS": true,
   "REPLACE_AVB_KEYS": false,
