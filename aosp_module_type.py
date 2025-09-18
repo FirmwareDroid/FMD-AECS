@@ -141,6 +141,12 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
         logging.error(f"App injection is disallowed by configuration: {source_file_path}")
         module_type = "SKIPPED"
 
+    if module_type == "JAVA_LIBRARIES" and POST_INJECTOR_CONFIG["DISABLE_JAVA_LIBRARIES_INJECTION"]:
+        logging.error(f"Java library injection is disallowed by configuration: {source_file_path}")
+        module_type = "SKIPPED"
+    elif module_type == "JAVA_LIBRARIES" and POST_INJECTOR_CONFIG["ALLOW_ALL_JAVA_LIBRARIES_INJECTION"]:
+        module_type = tmp_module_type
+
     if module_type == "MISC" and POST_INJECTOR_CONFIG["DISABLE_MISC_INJECTION"]:
         module_type = "SKIPPED"
 
