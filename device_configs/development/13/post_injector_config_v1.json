@@ -68,7 +68,10 @@
     "IntentResolver",
     "Manager",
     "__auto_generated_rro_product",
-    "Installer"
+    "Installer",
+    "DocumentsUI",
+    "miuix",
+    "Miuix"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
