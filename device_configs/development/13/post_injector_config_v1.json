@@ -6,7 +6,8 @@
   "SHARED_USER_ID_MAPPING_DICT":{
     "media": ["android.media", "android.uid.media"],
     "shared":["android.shared", "android.uid.shared"],
-    "networkstack": ["android.networkstack", "android.uid.networkstack"]
+    "networkstack": ["android.networkstack", "android.uid.networkstack"],
+    "bluetooth": ["android.bluetooth", "android.uid.bluetooth"]
   },
   "DISABLE_JAVA_LIBRARIES_INJECTION":false,
   "ALLOW_ALL_JAVA_LIBRARIES_INJECTION":true,
