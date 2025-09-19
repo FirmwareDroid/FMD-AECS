@@ -64,7 +64,9 @@
     "Prebuilt",
     "Chrome",
     "Provider",
-    "IntentResolver"
+    "IntentResolver",
+    "Manager",
+    "__auto_generated_rro_product"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
