@@ -68,7 +68,10 @@
     "Installer",
     "DocumentsUI",
     "miuix",
-    "Miuix"
+    "Miuix",
+    "framework-res",
+    "framework",
+    "Framework"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
