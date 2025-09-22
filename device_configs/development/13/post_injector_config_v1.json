@@ -54,8 +54,8 @@
     "libbluetooth_jni.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
-    "ConfigOverlay.apk",
-    "ExtServices.apk",
+    "ConfigOverlay",
+    "ExtServices",
     "Overlay",
     "DevicePersonalization",
     "GmsCoreSc",
