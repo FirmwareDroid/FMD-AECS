@@ -81,7 +81,8 @@
     "HTMLViewer",
     "Music",
     "MDMConfig",
-    "StatementService"
+    "StatementService",
+    "mediatek-res"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
