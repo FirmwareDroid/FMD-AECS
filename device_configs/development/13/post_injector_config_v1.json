@@ -85,7 +85,8 @@
     "mediatek-res",
     "Debug",
     "Telephony",
-    "Mtk"
+    "Mtk",
+    "MIUI"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
