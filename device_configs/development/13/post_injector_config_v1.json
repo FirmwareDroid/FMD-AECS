@@ -75,7 +75,8 @@
     "framework-res",
     "framework",
     "Framework",
-    "WebView"
+    "WebView",
+    "Launcher"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
