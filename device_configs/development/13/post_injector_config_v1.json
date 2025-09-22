@@ -82,7 +82,8 @@
     "Music",
     "MDMConfig",
     "StatementService",
-    "mediatek-res"
+    "mediatek-res",
+    "Debug"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
