@@ -84,7 +84,8 @@
     "StatementService",
     "mediatek-res",
     "Debug",
-    "Telephony"
+    "Telephony",
+    "Mtk"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
