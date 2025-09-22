@@ -77,7 +77,11 @@
     "Framework",
     "WebView",
     "Launcher",
-    "SystemUI"
+    "SystemUI",
+    "HTMLViewer",
+    "Music",
+    "MDMConfig",
+    "StatementService"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
@@ -100,7 +104,10 @@
     "Shell.apk",
     "DownloadProviderUi.apk",
     "DownloadProvider.apk",
-    "HardwareInfo.apk"
+    "HardwareInfo.apk",
+    "EngineerMode.apk",
+    "BatteryWarning.apk",
+    "DebugLoggerUI.apk"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
