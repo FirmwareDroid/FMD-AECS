@@ -108,7 +108,8 @@
     "HardwareInfo.apk",
     "EngineerMode.apk",
     "BatteryWarning.apk",
-    "DebugLoggerUI.apk"
+    "DebugLoggerUI.apk",
+    "XiaomiModemDebugService.apk"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
