@@ -48,7 +48,10 @@
     "com.google.android.adservices.apex",
     "com.android.adservices.apex",
     "libhbmsvmanager_jni.so",
-    "libbluetooth_jni.so"
+    "libbluetooth_jni.so",
+    "libgui.so",
+    "libui.so",
+    "libutils.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay.apk",
