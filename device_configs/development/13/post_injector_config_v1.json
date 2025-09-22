@@ -83,7 +83,8 @@
     "MDMConfig",
     "StatementService",
     "mediatek-res",
-    "Debug"
+    "Debug",
+    "Telephony"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
@@ -110,7 +111,8 @@
     "EngineerMode.apk",
     "BatteryWarning.apk",
     "DebugLoggerUI.apk",
-    "XiaomiModemDebugService.apk"
+    "XiaomiModemDebugService.apk",
+    "EasterEgg.apk"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
