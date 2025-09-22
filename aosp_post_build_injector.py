@@ -192,8 +192,11 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     execution_time_minutes = execution_time / 60
     logging.info(f"Objects injected:")
     app_list = []
+    apex_list = []
+    libs_list = []
     skipped_app_list = []
     skipped_apex_list = []
+    skipped_libs_list = []
     if PRINT_ALL_LOGS:
         for obj in inj_obj_list:
             logging.info(f"Indirect Inject via obj: {obj}")
@@ -207,6 +210,12 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
             if isinstance(obj, tuple) and any(".apk" in str(element) for element in obj):
                 file_name = os.path.basename(obj[0])
                 app_list.append(file_name)
+            elif isinstance(obj, tuple) and any(".apex" in str(element) for element in obj):
+                file_name = os.path.basename(obj[0])
+                apex_list.append(file_name)
+            elif isinstance(obj, tuple) and any(".so" in str(element) for element in obj):
+                file_name = os.path.basename(obj[0])
+                libs_list.append(file_name)
     if PRINT_ERROR_LOGS:
         logging.info(f"Errors:")
         for obj in error_list:
@@ -218,6 +227,8 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
                     skipped_app_list.append(file_name)
                 if ".apex" in obj:
                     skipped_apex_list.append(file_name)
+                if ".so" in obj:
+                    skipped_libs_list.append(file_name)
 
     logging.info(f"Execution time: {execution_time_minutes} minutes")
     number_of_files = count_number_of_extracted_files(source_folder_path)
@@ -226,7 +237,12 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     logging.info(f"Number of objects injected: {len(inj_obj_list)}")
     logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
     logging.info(f"Number of files processed: {len(error_list) + len(inj_obj_list) + len(inj_partition_list)}")
+
+    logging.info(f"\n\nInjected Apps/APEX/Libraries Summary:")
     logging.info(f"Post-Injection Apps injected: {app_list}")
+    logging.info(f"Post-Injection APEX injected: {apex_list}")
+    logging.info(f"Post-Injection Libraries injected: {libs_list}")
+    logging.info(f"\nSkipped Apps/APEX/Libraries Summary:")
     logging.info(f"Post-Injection Apps skipped: {skipped_app_list}")
     logging.info(f"Post-Injection APEX skipped: {skipped_apex_list}")
 
