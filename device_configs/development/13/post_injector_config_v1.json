@@ -76,7 +76,8 @@
     "framework",
     "Framework",
     "WebView",
-    "Launcher"
+    "Launcher",
+    "SystemUI"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
