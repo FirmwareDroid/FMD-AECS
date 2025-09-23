@@ -50,7 +50,8 @@
     "libbluetooth_jni.so",
     "libgui.so",
     "libui.so",
-    "libutils.so"
+    "libutils.so",
+    "libhwui.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay.apk",
