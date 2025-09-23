@@ -63,7 +63,14 @@
     "SafetyRegulatoryInfo.apk",
     "WfcActivation.apk",
     "TurboAdapter.apk",
-    "Stk.apk"
+    "Stk.apk",
+    "arcore.apk",
+    "CbrsNetworkMonitor.apk",
+    "YouTube.apk",
+    "LLKAgent.apk",
+    "CompOSPayloadApp.apk",
+    "BuiltInPrintService.apk",
+    "BasicDreams.apk",
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay",
@@ -109,7 +116,15 @@
     "Camera",
     "Video",
     "BackupRestoreConfirmation",
-    "Tag"
+    "Tag",
+    "Bluetooth",
+    "Streaming",
+    "SMS",
+    "HotwordEnrollment",
+    "Stub",
+    "Lib",
+    "Sound",
+    "Wallet"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
