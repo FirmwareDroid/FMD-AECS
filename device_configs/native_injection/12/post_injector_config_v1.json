@@ -14,6 +14,7 @@
   "INJECT_APEX_VENDOR_FILES": true,
   "ALLOW_MIXED_APEX_FILES": true,
   "ALLOW_APEX_INJECTION_MERGE": true,
+  "ALLOW_DIRECT_INJECTION_LIB_OVERWRITE": true,
   "DISABLE_BINARY_INJECTION": true,
   "SKIPPED_APP_KEYWORDLIST": ["ServiceWifiResources", "PixelLiveWallpaper", "WallpapersBReel",
     "ServiceWifiResources", "TetheringGoogle", "MediaProviderGoogle",

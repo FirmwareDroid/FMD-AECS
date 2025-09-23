@@ -381,7 +381,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                             error_message = None
 
                 if not error_message:
-                    inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path, aosp_path, lunch_target)
+                    inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path, aosp_path, lunch_target, aosp_version)
                 else:
                     logging.info(f"File not further processed: {file_path} | {error_message}")
     except Exception as e:
@@ -510,7 +510,7 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
     return inj_obj, inj_partition, is_injected
 
 
-def search_and_inject(partition_name, module_type, file_path, target_out_path, aosp_path, lunch_target):
+def search_and_inject(partition_name, module_type, file_path, target_out_path, aosp_path, lunch_target, aosp_version):
     inj_partition = None
     inj_obj = None
     target_path = None
@@ -526,21 +526,21 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                 and not any(keyword in os.path.basename(target_file_injection_path)
                             for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"])):
             # Direct Injection
-            target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target)
+            target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
             inj_partition = (file_path, target_path, module_type)
         else:
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target)
     elif not os.path.exists(target_file_injection_path):
         # Direct Injection
-        target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target)
+        target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
         inj_partition = (file_path, target_path, module_type)
     else:
         inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                     partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target)
         if not is_injected and is_injected is not None:
             # Fallback to Direct Injection
-            target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target)
+            target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
             inj_partition = (file_path, target_path, module_type)
 
     if target_path:
@@ -980,12 +980,17 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
 
 
 # Direct Injection
-def inject_file_into_partition(source_file_path, target_file_injection_path, aosp_path, partition_name, lunch_target):
+def inject_file_into_partition(source_file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version):
     is_injected = False
     filename = os.path.basename(target_file_injection_path)
     if POST_INJECTOR_CONFIG["OVERWRITE_APP_PROCESS_32"]:
         # TODO : Remove this workaround in the future -> This does not work for all cases.
         source_file_path = handle_special_matching(source_file_path)
+
+    if aosp_version and int(aosp_version) == 12 and POST_INJECTOR_CONFIG["ALLOW_DIRECT_INJECTION_LIB_OVERWRITE"]:
+        if "/lib/" in target_file_injection_path:
+            target_file_injection_path = target_file_injection_path.replace("/lib/", "/lib64/hw/")
+            logging.info(f"AOSP 12 lib adjustment for file: {filename} into {target_file_injection_path}")
 
     if filename in POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"]:
         if "phone64" in  lunch_target:
@@ -1013,7 +1018,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
             except Exception as e:
                 logging.error(f"Error copying file link: {source_file_path} -> {target_file_injection_path} | {e}")
         else:
-            # Fîle should not already exists, but if it does, we overwrite it, but it is not recommended.
+            # Fîle should not already exist, but if it does, we overwrite it, but it is not recommended.
             try:
                 if os.path.isfile(source_file_path):
                     inj_md5 = compute_file_hash(source_file_path)
