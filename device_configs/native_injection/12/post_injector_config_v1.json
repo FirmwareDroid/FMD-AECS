@@ -53,7 +53,8 @@
     "libutils.so",
     "libhwui.so",
     "libcameraservice.so",
-    "libcamera_client.so"
+    "libcamera_client.so",
+    "libandroid_runtime.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay.apk",
@@ -88,7 +89,9 @@
     "Debug",
     "Telephony",
     "Mtk",
-    "MIUI"
+    "MIUI",
+    "Miui",
+    "MI"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
@@ -116,7 +119,13 @@
     "BatteryWarning.apk",
     "DebugLoggerUI.apk",
     "XiaomiModemDebugService.apk",
-    "EasterEgg.apk"
+    "EasterEgg.apk",
+    "GmsCore.apk",
+    "Velvet.apk",
+    "Messages.apk",
+    "Chrome.apk",
+    "TrichromeLibrary.apk",
+    "WebViewGoogle.apk"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
