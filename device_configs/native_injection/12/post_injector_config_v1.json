@@ -46,8 +46,6 @@
     "com.google.mainline.primary.libs.apex",
     "com.google.android.permission.apex",
     "com.android.permission.apex",
-    "com.google.android.adservices.apex",
-    "com.android.adservices.apex",
     "libhbmsvmanager_jni.so",
     "libbluetooth_jni.so",
     "libgui.so",

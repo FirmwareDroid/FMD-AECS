@@ -203,6 +203,12 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
             if isinstance(obj, tuple) and any(".apk" in str(element) for element in obj):
                 file_name = os.path.basename(obj[0])
                 app_list.append(file_name)
+            elif isinstance(obj, tuple) and any(".apex" in str(element) for element in obj):
+                file_name = os.path.basename(obj[0])
+                apex_list.append(file_name)
+            elif isinstance(obj, tuple) and any(".so" in str(element) for element in obj):
+                file_name = os.path.basename(obj[0])
+                libs_list.append(file_name)
 
         logging.info(f"Partition files injected:")
         for obj in inj_partition_list:
