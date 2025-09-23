@@ -51,7 +51,9 @@
     "libgui.so",
     "libui.so",
     "libutils.so",
-    "libhwui.so"
+    "libhwui.so",
+    "libcameraservice.so",
+    "libcamera_client.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay.apk",
@@ -120,7 +122,8 @@
     "system/framework",
     "system_ext/framework",
     "vendor/framework",
-    "product/framework"
+    "product/framework",
+    "camera"
   ],
   "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
