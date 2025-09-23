@@ -52,7 +52,18 @@
     "com.google.android.adservices.apex",
     "com.android.adservices.apex",
     "libhbmsvmanager_jni.so",
-    "libbluetooth_jni.so"
+    "libbluetooth_jni.so",
+    "Showcase.apk",
+    "BetterBugStub.apk",
+    "ANGLE.apk",
+    "TrichromeLibrary.apk.gz",
+    "Chrome.apk.gz",
+    "SCONE.apk",
+    "EuiccGoogle.apk",
+    "SafetyRegulatoryInfo.apk",
+    "WfcActivation.apk",
+    "TurboAdapter.apk",
+    "Stk.apk"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay",
@@ -87,7 +98,18 @@
     "Debug",
     "Telephony",
     "Mtk",
-    "MIUI"
+    "MIUI",
+    "android.uwb.apex",
+    "Verizon",
+    "Config",
+    "Maps",
+    "Nfc",
+    "Feedback",
+    "Contacts",
+    "Camera",
+    "Video",
+    "BackupRestoreConfirmation",
+    "Tag"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
