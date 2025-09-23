@@ -88,6 +88,10 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
         module_type = "ETC"
     elif file_extension in [".apex", ".capex"]:
         module_type = "ETC"
+        if "_compressed" in file_name:
+            file_name = file_name.replace("_compressed", "")
+        elif "_trimmed" in file_name:
+            file_name = file_name.replace("_trimmed", "")
     else:
         module_type = "MISC"
 
