@@ -70,7 +70,7 @@
     "LLKAgent.apk",
     "CompOSPayloadApp.apk",
     "BuiltInPrintService.apk",
-    "BasicDreams.apk",
+    "BasicDreams.apk"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay",
