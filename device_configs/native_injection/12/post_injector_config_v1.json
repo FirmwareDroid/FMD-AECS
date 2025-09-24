@@ -53,8 +53,7 @@
     "libutils.so",
     "libhwui.so",
     "libcameraservice.so",
-    "libcamera_client.so",
-    "libandroid_runtime.so"
+    "libcamera_client.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay.apk",
@@ -91,7 +90,8 @@
     "Mtk",
     "MIUI",
     "Miui",
-    "MI"
+    "MI",
+    "Audio"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
