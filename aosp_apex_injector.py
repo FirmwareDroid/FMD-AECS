@@ -18,7 +18,7 @@ from config_post_injector import *
 
 POST_INJECTOR_CONFIG = {}
 
-def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
+def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aosp_version):
     """
     Merges two APEX files into one. Overwrites the vendor's APEX for later injection.
     """
@@ -35,7 +35,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path):
         apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path)
         if apex_emulator_folder and os.path.exists(apex_emulator_folder):
             logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
-            is_merge_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path)
+            is_merge_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path, aosp_version)
             if os.path.exists(apex_out_file):
                 try:
                     replace_org_apex_file(file_path, apex_out_file)
@@ -156,7 +156,8 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target):
                                                apex_out_file,
                                                lunch_target,
                                                canned_fs_config,
-                                               apex_file_path)
+                                               apex_file_path,
+                                               aosp_version)
             else:
                 log_message = f"APEX manifest file not found after extraction: {apex_extract_dir_path} | apex_manifest_path: {apex_manifest_path}"
         else:
@@ -174,7 +175,8 @@ def create_and_sign_apex_repack_container(apex_manifest_path,
                                             lunch_target,
                                             canned_fs_config,
                                             apex_file_path=None,
-                                            file_contexts_path=None):
+                                            file_contexts_path=None,
+                                            aosp_version=None):
     copy_android_prebuilt_jar(aosp_path, apex_root_path)
     is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
         = create_apex_container(apex_manifest_path,
@@ -185,7 +187,8 @@ def create_and_sign_apex_repack_container(apex_manifest_path,
                                 lunch_target,
                                 canned_fs_config,
                                 is_repack=True,
-                                file_contexts_path=file_contexts_path)
+                                file_contexts_path=file_contexts_path,
+                                aosp_version=aosp_version)
     if is_success:
         is_success, error_message = sign_apex_file(apex_out_file,
                                                    aosp_path,
@@ -223,7 +226,7 @@ def find_lib64_folders(root_dir, folder_name="lib64", include_subfolders=True):
     return lib64_paths
 
 
-def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name):
+def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name, aosp_version):
     """
     Creates a new APEX file with the given binary file path. Collects all necessary native libraries for the binary
     by using lddtree, and adds them into the APEX file. The native libraries are searched within the source tree of the
@@ -515,7 +518,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name)
                                                 apex_out_file,
                                                 lunch_target,
                                                 canned_fs_config,
-                                                file_contexts_path=file_contexts_path)
+                                                file_contexts_path=file_contexts_path,
+                                                aosp_version=aosp_version)
 
     # Copy the APEX file to the injection source directory for later direct injection
     if not is_success:
@@ -674,7 +678,7 @@ def allow_vndk_merge(apex_path, apex_filename):
 
 # Keep the structure of the original apex
 # Inject additional files into the apex
-def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_target, aosp_path, target_out_path):
+def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_target, aosp_path, target_out_path, aosp_version):
     """
     Merges the emulator APEX file with a vendor apex in case they have the same name.
     Keeps the structure of the emulator apex and injects additional files into the apex.
@@ -739,7 +743,8 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                                   aosp_path,
                                                                                   apex_out_file,
                                                                                   lunch_target,
-                                                                                  canned_fs_config)
+                                                                                  canned_fs_config,
+                                                                                  aosp_version)
                 if is_success:
                     is_success, error_message = sign_apex_file(apex_out_file,
                                                                aosp_path,
@@ -1007,9 +1012,9 @@ def get_existing_file_context(apex_file_name, aosp_path):
     return file_contexts_path
 
 
-def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config, is_repack=False, file_contexts_path=None):
+def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_path, aosp_path, output_file_path, lunch_target, canned_fs_config, is_repack=False, file_contexts_path=None, aosp_version=None):
     success = False
-    resign_apex_apk_files(aosp_path, apex_extract_dir_path)
+    resign_apex_apk_files(aosp_path, apex_extract_dir_path, aosp_version)
 
     apexer_bin_candidates = [
         os.path.join(aosp_path, "out/soong/host/linux-x86/bin/apexer"),
@@ -1349,7 +1354,7 @@ def get_signing_key_from_manifest(apk_file):
                 break
     return signing_key
 
-def get_signing_key_from_filename(apk_file):
+def get_signing_key_from_filename(apk_file, aosp_version):
     file_name = os.path.basename(apk_file).lower()
     if "media" in file_name:
         key = "media"
@@ -1357,10 +1362,14 @@ def get_signing_key_from_filename(apk_file):
         key = "networkstack"
     else:
         key = "platform"
+
+    if aosp_version and int(aosp_version) >= 13 and "bluetooth" in file_name:
+        key = "bluetooth"
+
     return key
 
 
-def resign_apex_apk_files(aosp_path, apex_extract_dir_path):
+def resign_apex_apk_files(aosp_path, apex_extract_dir_path, aosp_version):
     """
     Searches for apk files within the apex extract directory. Signs all the apk files of the apex file.
 
@@ -1374,7 +1383,7 @@ def resign_apex_apk_files(aosp_path, apex_extract_dir_path):
                 apk_file_path = os.path.join(root, file)
                 signing_key = get_signing_key_from_manifest(apk_file_path)
                 if signing_key is None:
-                    signing_key = get_signing_key_from_filename(apk_file_path)
+                    signing_key = get_signing_key_from_filename(apk_file_path, aosp_version)
                     logging.info(f"Signing key not found in APK manifest. Using filename to determine key: {apk_file_path} | {signing_key}")
                 else:
                     logging.info(f"Signing key found in APK manifest: {apk_file_path}. Using manifest to determine key: {signing_key}")
