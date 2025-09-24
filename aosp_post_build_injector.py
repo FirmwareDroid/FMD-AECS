@@ -370,7 +370,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                         else:
                             error_message = None
                     else:
-                        is_repack_success, log_message = repackage_apex_file(aosp_path, file_path, lunch_target)
+                        is_repack_success, log_message = repackage_apex_file(aosp_path, file_path, lunch_target, aosp_version)
                         if not is_repack_success:
                             error_message = f"Error handling APEX file: {file_path}|{log_message}"
                         else:
