@@ -363,7 +363,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                     if POST_INJECTOR_CONFIG["ALLOW_APEX_INJECTION_MERGE"] \
                         and any(keyword in filename for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"]):
                         logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
-                        is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path)
+                        is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aosp_version)
                         if not is_merge_success:
                             error_message = f"Error handling APEX file: {file_path}|{log_message}"
                             raise Exception(error_message)
@@ -380,7 +380,8 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                         is_apex_add_success, log_message = add_new_apex_file(aosp_path,
                                                                              file_path,
                                                                              lunch_target,
-                                                                             partition_name)
+                                                                             partition_name,
+                                                                             aosp_version)
                         if not is_apex_add_success:
                             error_message = f"Error adding APEX file: {file_path}|{log_message}"
                         else:
