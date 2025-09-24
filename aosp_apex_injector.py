@@ -119,7 +119,7 @@ def prepare_capex(file_path, output_dir, output_filename):
     return None
 
 
-def repackage_apex_file(aosp_path, apex_file_path, lunch_target):
+def repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version):
     """
     Extracts the APEX file using deapexer, repackages it using apexer, and signs all the APK files in the APEX using apksigner.
 

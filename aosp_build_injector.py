@@ -70,7 +70,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     try:
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
         if PRE_INJECTOR_CONFIG["ENABLE_INJECTION"]:
-            included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target)
+            included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target, aosp_version)
         else:
             logging.info("Skipping package injection as ENABLE_INJECTION is set to False.")
             included_package_statistics = {"apps": [], "libs": [], "apex": [], "count": 0}
@@ -396,7 +396,7 @@ def get_apex_file(directory_path):
     return None
 
 
-def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
+def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target, aosp_version):
     """
     Moves the prebuilt packages to the AOSP source code.
 
@@ -412,7 +412,7 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
         if os.path.isdir(package_path):
-            included_package_statistics = process_package(package_path, dir_name, aosp_path, out_dir, included_package_statistics, lunch_target)
+            included_package_statistics = process_package(package_path, dir_name, aosp_path, out_dir, included_package_statistics, lunch_target, aosp_version)
 
     included_package_statistics["count"] = len(included_package_statistics["apps"]) + \
                                            len(included_package_statistics["libs"]) + \
@@ -424,7 +424,7 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target):
     return included_package_statistics
 
 
-def process_package(package_path, dir_name, aosp_path, out_dir, included_package_statistics, lunch_target):
+def process_package(package_path, dir_name, aosp_path, out_dir, included_package_statistics, lunch_target, aosp_version):
     """
     Processes a single package directory and moves it to the appropriate location.
 
@@ -446,7 +446,7 @@ def process_package(package_path, dir_name, aosp_path, out_dir, included_package
     if check_file_extension(package_path, [".so", ".1", ".2", ".3", ".4", ".5", ".6", ".7", ".8", ".9"]):
         included_package_statistics = handle_library_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics)
     elif check_file_extension(package_path, [".apex", ".capex"]):
-        included_package_statistics = handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics, lunch_target)
+        included_package_statistics = handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics, lunch_target, aosp_version)
     elif check_file_extension(package_path, [".apk"]):
         included_package_statistics = handle_app_package(package_path, dir_name, uuid_dir, out_dir, included_package_statistics)
     else:
@@ -526,7 +526,7 @@ def handle_library_package(package_path, dir_name, uuid_dir, aosp_path, out_dir,
     return included_package_statistics
 
 
-def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics, lunch_target):
+def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, included_package_statistics, lunch_target, aosp_version):
     """
     Handles the injection of APEX packages.
 
@@ -544,7 +544,7 @@ def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, in
     logging.info(f"Copying APEX package: {package_path} to {modules_path}")
     shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
     if PRE_INJECTOR_CONFIG["ALLOW_APEX_REPACKING_IN_PRE_INJECTOR"]:
-        is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, lunch_target)
+        is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version)
         if is_success:
             logging.info(f"Repackaged APEX package: {apex_file_path} successfully.")
             included_package_statistics["apex"].append(dir_name)
