@@ -185,7 +185,7 @@ def create_and_sign_apex_repack_container(apex_manifest_path,
                                 aosp_path,
                                 apex_out_file,
                                 lunch_target,
-                                canned_fs_config,
+                                canned_fs_config=canned_fs_config,
                                 is_repack=True,
                                 file_contexts_path=file_contexts_path,
                                 aosp_version=aosp_version)
@@ -743,8 +743,10 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                                   aosp_path,
                                                                                   apex_out_file,
                                                                                   lunch_target,
-                                                                                  canned_fs_config,
-                                                                                  aosp_version)
+                                                                                  is_repack=False,
+                                                                                  canned_fs_config=canned_fs_config,
+                                                                                  file_contexts_path=None,
+                                                                                  aosp_version=aosp_version)
                 if is_success:
                     is_success, error_message = sign_apex_file(apex_out_file,
                                                                aosp_path,
