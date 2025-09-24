@@ -44,6 +44,7 @@ def get_shared_user_from_manifest(firmware_id, android_apk_file_path, cookies):
     manifest = fetch_app_manifest(graphql_url, cookies, firmware_id, filename)
     if manifest:
         logging.info(f"Found manifest for {android_apk_file_path} - {manifest}")
+
     if manifest and '@ns0:sharedUserId' in manifest:
         shared_user_id = manifest['@ns0:sharedUserId']
         logging.info(f"Shared User ID from manifest for {android_apk_file_path}: {shared_user_id}")
