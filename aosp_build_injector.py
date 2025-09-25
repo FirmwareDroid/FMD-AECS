@@ -808,7 +808,8 @@ def clear_environment(aosp_path, aosp_packages_apps_path, aosp_version):
     clear_intermediate_files(aosp_path)
     clear_extracted_packages()
     clear_base_files(aosp_path, aosp_version)
-    replace_build_image_file(aosp_path)
+    if aosp_version and int(aosp_version) == 12:
+        replace_build_image_file(aosp_path)
 
 
 def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder):
