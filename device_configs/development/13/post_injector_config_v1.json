@@ -35,6 +35,7 @@
   "DISABLE_APEX_BINARY_INJECTION": false,
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
+    "app_process32",
     "libhbmsvmanager_jni.so",
     "libbluetooth_jni.so",
     "TrichromeLibrary.apk.gz",
@@ -90,7 +91,9 @@
     "Stub",
     "Lib",
     "Sound",
-    "Wallet"
+    "Wallet",
+    "Carrier",
+    "Pixel"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
@@ -151,7 +154,7 @@
     "android.permission.apex",
     "android.adservices.apex"
   ],
-  "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
+  "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
   "ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS": true,
   "SKIPPED_SHARED_LIBRARIES_EVEN_IF_NOT_EXISTS_LIST": [],
@@ -229,7 +232,7 @@
   "SKIPPED_FILE_ENDING_LIST": [
   ],
   "CHECK_VNDK_VERSION_MISMATCH": true,
-  "OVERWRITE_APP_PROCESS_32": true,
+  "OVERWRITE_APP_PROCESS_32": false,
   "DEFAULT_EMULATOR_BINARIES": [
     "blockdev", "cksum", "disable-verity", "fgrep", "head", "input", "keystore2", "logwrapper", "mkfs.ext3", "nohup",
     "procrank", "runcon", "sha512sum", "swapon", "toybox", "unshare", "whoami", "abb", "bmgr", "clean_scratch_files",
