@@ -149,15 +149,18 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version):
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             if apex_manifest_path:
-                is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path = create_and_sign_apex_repack_container(apex_manifest_path,
-                                               apex_extract_dir_path,
-                                               apex_root_path,
-                                               aosp_path,
-                                               apex_out_file,
-                                               lunch_target,
-                                               canned_fs_config,
-                                               apex_file_path,
-                                               aosp_version)
+                is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path = create_and_sign_apex_repack_container(
+                        apex_manifest_path=apex_manifest_path,
+                        apex_extract_dir_path=apex_extract_dir_path,
+                        apex_root_path=apex_root_path,
+                        aosp_path=aosp_path,
+                        apex_out_file=apex_out_file,
+                        lunch_target=lunch_target,
+                        canned_fs_config=canned_fs_config,
+                        apex_file_path=apex_file_path,
+                        file_contexts_path=None,
+                        aosp_version=aosp_version
+                    )
             else:
                 log_message = f"APEX manifest file not found after extraction: {apex_extract_dir_path} | apex_manifest_path: {apex_manifest_path}"
         else:
@@ -179,12 +182,12 @@ def create_and_sign_apex_repack_container(apex_manifest_path,
                                             aosp_version=None):
     copy_android_prebuilt_jar(aosp_path, apex_root_path)
     is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
-        = create_apex_container(apex_manifest_path,
-                                apex_extract_dir_path,
-                                apex_root_path,
-                                aosp_path,
-                                apex_out_file,
-                                lunch_target,
+        = create_apex_container(apex_manifest_path=apex_manifest_path,
+                                apex_extract_dir_path=apex_extract_dir_path,
+                                apex_root_path=apex_root_path,
+                                aosp_path=aosp_path,
+                                output_file_path=apex_out_file,
+                                lunch_target=lunch_target,
                                 canned_fs_config=canned_fs_config,
                                 is_repack=True,
                                 file_contexts_path=file_contexts_path,
@@ -194,9 +197,10 @@ def create_and_sign_apex_repack_container(apex_manifest_path,
                                                    aosp_path,
                                                    private_key_path,
                                                    cert_apex_apk_path)
-        if is_success and apex_file_path is not None:
+        if is_success:
             log_message = f"APEX signing success: {apex_out_file}"
-            replace_org_apex_file(apex_file_path, apex_out_file)
+            if apex_file_path is not None:
+                replace_org_apex_file(apex_file_path, apex_out_file)
         else:
             log_message = f"APEX signing failed: {apex_out_file} | {error_message}"
     else:
@@ -511,16 +515,16 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
 
 
     is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
-        = create_and_sign_apex_repack_container(apex_manifest_path_pb,
-                                                apex_extract_dir_path,
-                                                apex_root_path,
-                                                aosp_path,
-                                                apex_out_file,
-                                                lunch_target,
-                                                canned_fs_config,
+        = create_and_sign_apex_repack_container(apex_manifest_path=apex_manifest_path_pb,
+                                                apex_extract_dir_path=apex_extract_dir_path,
+                                                apex_root_path=apex_root_path,
+                                                aosp_path=aosp_path,
+                                                apex_out_file=apex_out_file,
+                                                lunch_target=lunch_target,
+                                                canned_fs_config=canned_fs_config,
                                                 file_contexts_path=file_contexts_path,
-                                                aosp_version=aosp_version)
-
+                                                aosp_version=aosp_version,
+                                                apex_file_path=None)
     # Copy the APEX file to the injection source directory for later direct injection
     if not is_success:
         logging.error(f"Error creating APEX container file {apex_file_name}: {log_message}")
@@ -737,12 +741,12 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
                 logging.info(f"APEX manifest file found: {apex_manifest_path}...start container creation")
-                is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path = create_apex_container(apex_manifest_path,
-                                                                                  merged_apex_extract_dir_path,
-                                                                                  apex_root_path,
-                                                                                  aosp_path,
-                                                                                  apex_out_file,
-                                                                                  lunch_target,
+                is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path = create_apex_container(apex_manifest_path=apex_manifest_path,
+                                                                                  apex_extract_dir_path=merged_apex_extract_dir_path,
+                                                                                  apex_root_path=apex_root_path,
+                                                                                  aosp_path=aosp_path,
+                                                                                  output_file_path=apex_out_file,
+                                                                                  lunch_target=lunch_target,
                                                                                   is_repack=False,
                                                                                   canned_fs_config=canned_fs_config,
                                                                                   file_contexts_path=None,
