@@ -32,6 +32,7 @@
   "DISABLE_APEX_BINARY_INJECTION": false,
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
+    "app_process32",
     "com.google.android.art.apex",
     "com.android.art.apex",
     "com.android.runtime.apex",
@@ -186,7 +187,7 @@
   "SKIPPED_FILE_ENDING_LIST": [
   ],
   "CHECK_VNDK_VERSION_MISMATCH": true,
-  "OVERWRITE_APP_PROCESS_32": true,
+  "OVERWRITE_APP_PROCESS_32": false,
   "DEFAULT_EMULATOR_BINARIES": [
     "blockdev", "cksum", "disable-verity", "fgrep", "head", "input", "keystore2", "logwrapper", "mkfs.ext3", "nohup",
     "procrank", "runcon", "sha512sum", "swapon", "toybox", "unshare", "whoami", "abb", "bmgr", "clean_scratch_files",

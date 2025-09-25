@@ -966,7 +966,8 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
                 and POST_INJECTOR_CONFIG["USE_ISOLATED_NAMESPACE"]
                 and "/lib" in source_file_path
                 and check_shared_object_architecture(source_file_path) == "64-bit"
-                and filename in POST_INJECTOR_CONFIG["ISOLATED_NAMESPACE_LIST"]):
+                and filename in POST_INJECTOR_CONFIG["ISOLATED_NAMESPACE_NATIVE_LIBRARY_LIST"]):
+            logging.info(f"File uses isolated namespace: {filename}|{source_file_path}")
             target_dir_injection_path = os.path.join(target_partition_path, "fmd")
         else:
             target_dir_injection_path = target_partition_path + str(os.path.join(*subfolder_list))
@@ -1107,13 +1108,6 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
     # Special case for isolated namespace binaries - Replacing Binary with symlink to apex binary
     target_path = f"/apex/com.android.fmd.{filename}.apex/bin/{filename}"
     logging.info(f"Add new dangling symlink script: {original_file_path} -> {target_path}")
-    # if os.path.exists(original_file_path):
-    #    os.remove(original_file_path)
-    # subprocess.run(['ln', '-s', target_path, original_file_path], check=True)
-    # result = subprocess.run(['ln', '-s', target_path, original_file_path], capture_output=True, text=True)
-    # logging.info(f"stdout: {result.stdout}")
-    # logging.info(f"stderr: {result.stderr}")
-    #product_out_path = os.path.join(aosp_path, "out/target/product/emulator_arm64")
     root_path = get_path_up_to_first_term(source_file_path, partition_name)
     logging.info(f"{source_file_path} - Root path: {root_path}")
     relative_source_path = source_file_path.replace(root_path, "")
@@ -1121,14 +1115,12 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
         abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64", relative_source_path)
     else:
         abs_source_path = os.path.join(aosp_path, "out/target/product/emulator_arm64", relative_source_path)
-    #inject_commands = [f"rm -f $(PRODUCT_OUT){relative_source_path}", f"ln -s {target_path} $(PRODUCT_OUT){relative_source_path}"]
     inject_commands = [f"os.remove('{abs_source_path}')",f"subprocess.call(['ln', '-s', '{target_path}', '{abs_source_path}'])"]
     injection_marker = "####### FMD INJECTION MARKER #######"
-    #goldfish_mk_file = os.path.join(aosp_path, "device/generic/goldfish/tools/Android.mk")
     build_image_file_path = os.path.join(aosp_path, "build/make/tools/releasetools/build_image.py")
-    test = False
-    is_injected = True # Testing Mode
-    if test:
+    enable_isolated_namespace = POST_INJECTOR_CONFIG["USE_ISOLATED_NAMESPACE"]
+    is_injected = True
+    if enable_isolated_namespace:
         if os.path.exists(build_image_file_path):
             logging.info(f"Injecting file from Goldfish for {target_path}: {build_image_file_path}")
         try:
@@ -1145,13 +1137,13 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
                             logging.debug(f"Injecting command to goldfish: {command}")
                             f.write(f"    {command}\n")
                         is_injected = True
+                        logging.info(f"Injected file as simlink: {source_file_path} -> {target_path}")
                     else:
                         logging.info(f"Write line to goldfish: {line.strip()}")
                         f.write(line)
         except Exception as e:
             logging.error(f"Error injecting file into Goldfish: {build_image_file_path} | {e}")
             is_injected = False
-        #logging.info(f"Injected file as simlink: {source_file_path} -> {target_path}")
     return is_injected
 
 
