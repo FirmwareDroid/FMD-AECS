@@ -884,10 +884,10 @@ def GlobalDictFromImageProp(image_prop, mount_point):
 
 def create_fmd_symlink():
   try:
-      print("Python Execute FMD Injection")
+    print("Python Execute FMD Injection")
 ####### FMD INJECTION MARKER #######
   except Exception as e:
-    print e
+    print(e)
 
 
 def main(argv):
