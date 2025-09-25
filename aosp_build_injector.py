@@ -787,6 +787,16 @@ def reset_post_injection_files(aosp_path):
     except Exception as err:
         logging.error(err)
 
+
+def replace_build_image_file(aosp_path):
+    build_image_file_path = os.path.join(aosp_path, "build/make/tools/releasetools/build_image.py")
+    template_build_image_path = os.path.join(TEMPLATE_FOLDER, "build_image.py")
+    logging.info(f"Restore build image file {build_image_file_path} with {template_build_image_path}")
+    try:
+        shutil.copyfile(template_build_image_path, build_image_file_path)
+    except Exception as err:
+        logging.error(err)
+
 def clear_environment(aosp_path, aosp_packages_apps_path, aosp_version):
     """
     Reverts the build environment
@@ -798,6 +808,7 @@ def clear_environment(aosp_path, aosp_packages_apps_path, aosp_version):
     clear_intermediate_files(aosp_path)
     clear_extracted_packages()
     clear_base_files(aosp_path, aosp_version)
+    replace_build_image_file(aosp_path)
 
 
 def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder):
