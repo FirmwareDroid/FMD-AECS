@@ -42,22 +42,9 @@
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
     "app_process32",
-    "com.google.android.art.apex",
-    "com.android.art.apex",
-    "com.android.runtime.apex",
-    "com.google.android.os.statsd.apex",
-    "com.android.os.statsd.apex",
-    "com.google.android.tzdata3.apex",
-    "com.android.tzdata3.apex",
-    "com.google.android.extservices.apex",
-    "com.android.extservices.apex",
-    "com.google.android.sdkext.apex",
-    "com.android.sdkext.apex",
-    "com.google.mainline.primary.libs.apex",
-    "com.google.android.permission.apex",
-    "com.android.permission.apex",
     "libhbmsvmanager_jni.so",
-    "libbluetooth_jni.so"
+    "libbluetooth_jni.so",
+    "libz.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay.apk",
@@ -136,7 +123,13 @@
     "system_ext/framework",
     "vendor/framework",
     "product/framework",
-    "camera"
+    "android.art.apex",
+    "android.runtime.apex",
+    "android.os.statsd.apex",
+    "android.tzdata3.apex",
+    "android.extservices.apex",
+    "android.sdkext.apex",
+    "android.permission.apex"
   ],
   "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],

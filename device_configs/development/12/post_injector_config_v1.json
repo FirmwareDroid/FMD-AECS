@@ -27,33 +27,18 @@
   "USE_ISOLATED_NAMESPACE": false,
   "ISOLATED_NAMESPACE_LIST": [],
   "APEX_BINARY_ISOLATED_NAMESPACE_LIST": [""],
-  "DISALLOW_APEX_FILE_OVERWRITE": [],
-  "ALLOW_MIXED_APEX_KEYWORD_LIST": [],
+  "DISALLOW_APEX_FILE_OVERWRITE": ["crash_dump64"],
+  "ALLOW_MIXED_APEX_KEYWORD_LIST": ["runtime"],
   "DISABLE_APEX_BINARY_INJECTION": false,
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
     "app_process32",
-    "com.google.android.art.apex",
-    "com.android.art.apex",
-    "com.android.runtime.apex",
-    "com.google.android.os.statsd.apex",
-    "com.android.os.statsd.apex",
-    "com.google.android.tzdata3.apex",
-    "com.android.tzdata3.apex",
-    "com.google.android.extservices.apex",
-    "com.android.extservices.apex",
-    "com.google.android.sdkext.apex",
-    "com.android.sdkext.apex",
-    "com.google.mainline.primary.libs.apex",
-    "com.google.android.permission.apex",
-    "com.android.permission.apex",
-    "com.google.android.adservices.apex",
-    "com.android.adservices.apex",
     "libhbmsvmanager_jni.so",
     "libbluetooth_jni.so",
     "libhwui.so",
     "libgui.so",
-    "libgui_vendor.so"
+    "libgui_vendor.so",
+    "libz.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay.apk",
@@ -88,7 +73,10 @@
     "Debug",
     "Telephony",
     "Mtk",
-    "MIUI"
+    "MIUI",
+    "Miui",
+    "MI",
+    "Audio"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
@@ -116,13 +104,26 @@
     "BatteryWarning.apk",
     "DebugLoggerUI.apk",
     "XiaomiModemDebugService.apk",
-    "EasterEgg.apk"
+    "EasterEgg.apk",
+    "GmsCore.apk",
+    "Velvet.apk",
+    "Messages.apk",
+    "Chrome.apk",
+    "TrichromeLibrary.apk",
+    "WebViewGoogle.apk"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
     "system_ext/framework",
     "vendor/framework",
-    "product/framework"
+    "product/framework",
+    "android.art.apex",
+    "android.runtime.apex",
+    "android.os.statsd.apex",
+    "android.tzdata3.apex",
+    "android.extservices.apex",
+    "android.sdkext.apex",
+    "android.permission.apex"
   ],
   "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
