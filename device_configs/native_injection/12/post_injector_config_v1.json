@@ -135,6 +135,9 @@
     "android.permission.apex",
     "android.vndk.current.apex"
   ],
+  "SKIPPED_APEX_KEYWORD_LIST": [
+    "adb",
+  ],
   "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
   "ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS": true,
@@ -255,10 +258,6 @@
     "_apex",
     "_capex"
   ],
-  "SKIPPED_APEX_KEYWORD_LIST": [
-    "adb",
-    "vndk"
-  ],
   "ALLOWED_FILE_OVERWRITE_EXTENSION_LIST": [
   ],
   "ALLOWED_APP_INJECTION_KEYWORD": [
@@ -327,7 +326,7 @@
     "resolv": "com.android.resolv",
     "scheduling": "com.android.scheduling",
     "tethering": "com.android.tethering",
-    "vndk": "com.android.vndk.v32",
+    "vndk": "com.android.vndk.v31",
     "adb": "com.android.adbd",
     "adbd": "com.android.adbd",
     "art": "com.android.art",
