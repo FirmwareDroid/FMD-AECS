@@ -20,10 +20,8 @@
   "ALLOW_DIRECT_INJECTION_LIB_OVERWRITE": false,
   "DISABLE_BINARY_INJECTION": true,
   "SKIPPED_APP_KEYWORDLIST": [
-    "ServiceWifiResources",
     "PixelLiveWallpaper",
     "WallpapersBReel",
-    "ServiceWifiResources",
     "TetheringGoogle",
     "MediaProvider",
     "CaptivePortalLoginOverlay",
@@ -56,6 +54,7 @@
     "Chrome.apk.gz"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
+    "ServiceWifiResources",
     "NetworkStack",
     "NetworkPermissionConfigGoogle",
     "CaptivePortalLoginGoogle",
@@ -181,7 +180,10 @@
     "android.sdkext.apex",
     "mainline.primary.libs.apex",
     "android.permission.apex",
-    "android.adservices.apex"
+    "android.adservices.apex",
+    "android.scheduling.apex",
+    "android.resolv.apex",
+    "android.i18n.apex"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
