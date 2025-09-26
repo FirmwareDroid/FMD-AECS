@@ -68,7 +68,7 @@ PRODUCT_PACKAGES += \
     UserDictionaryProvider \
     SimAppDialog \
     DocumentsUI \
-
+{% for line in package_name_list -%}{{ line }}{%- endfor %}
 
 PRODUCT_SYSTEM_SERVER_APPS += \
     FusedLocation \

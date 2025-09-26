@@ -29,3 +29,4 @@ PRODUCT_PACKAGES += \
     StorageManager \
     SystemUI \
     WallpaperCropper \
+{% for line in package_name_list -%}{{ line }}{%- endfor %}

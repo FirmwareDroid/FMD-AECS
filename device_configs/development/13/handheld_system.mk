@@ -67,7 +67,7 @@ PRODUCT_PACKAGES += \
     Bluetooth \
     UserDictionaryProvider \
     SimAppDialog \
-
+{% for line in package_name_list -%}{{ line }}{%- endfor %}
 
 PRODUCT_SYSTEM_SERVER_APPS += \
     FusedLocation \
