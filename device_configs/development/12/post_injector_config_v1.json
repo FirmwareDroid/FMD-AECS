@@ -98,8 +98,7 @@
     "MI",
     "Audio",
     "Music",
-    "Settings",
-    "Framework"
+    "Settings"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
