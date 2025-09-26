@@ -10,8 +10,16 @@ META_BUILD_PRODUCT_FILENAME = "meta_build_product.txt"
 META_BUILD_SYSTEM_EXT_FILENAME = "meta_build_system_ext.txt"
 META_BUILD_HANDHELD_SYSTEM_FILENAME = "meta_handheld_system_ext.txt"
 META_BUILD_HANDHELD_SYSTEM_EXT_FILENAME = "meta_handheld_system.txt"
-META_BUILD_FILENAMES = [META_BUILD_SYSTEM_FILENAME, META_BUILD_VENDOR_FILENAME, META_BUILD_PRODUCT_FILENAME,
-                        META_BUILD_SYSTEM_EXT_FILENAME]
+META_BUILD_HANDHELD_VENDOR_FILENAME = "meta_handheld_vendor.txt"
+META_BUILD_HANDHELD_PRODUCT_FILENAME = "meta_handheld_product.txt"
+META_BUILD_FILENAMES = [META_BUILD_SYSTEM_FILENAME,
+                        META_BUILD_SYSTEM_EXT_FILENAME,
+                        META_BUILD_VENDOR_FILENAME,
+                        META_BUILD_PRODUCT_FILENAME,
+                        META_BUILD_HANDHELD_SYSTEM_FILENAME,
+                        META_BUILD_HANDHELD_SYSTEM_EXT_FILENAME,
+                        META_BUILD_HANDHELD_VENDOR_FILENAME,
+                        META_BUILD_HANDHELD_PRODUCT_FILENAME]
 TEMPLATE_FOLDER = "templates/"
 BASE_PATH = "build/make/target/product/"
 BASE_PRODUCT_FILE_NAME = "base_product.mk"
@@ -21,13 +29,15 @@ BASE_SYSTEM_EXT_FILE_NAME = "base_system_ext.mk"
 BASE_HANDHELD_SYSTEM_FILE_NAME = "handheld_system.mk"
 BASE_HANDHELD_SYSTEM_EXE_FILE_NAME = "handheld_system_ext.mk"
 BASE_HANDHELD_PRODUCT_FILE_NAME = "handheld_product.mk"
-BASE_HANDHELD_VENDOR_EXE_FILE_NAME = "handheld_vendor.mk"
+BASE_HANDHELD_VENDOR_FILE_NAME = "handheld_vendor.mk"
 BASE_FILENAMES = [BASE_PRODUCT_FILE_NAME,
                   BASE_SYSTEM_FILE_NAME,
-                  BASE_VENDOR_FILE_NAME,
                   BASE_SYSTEM_EXT_FILE_NAME,
+                  BASE_VENDOR_FILE_NAME,
                   BASE_HANDHELD_SYSTEM_FILE_NAME,
-                  BASE_HANDHELD_SYSTEM_EXE_FILE_NAME]
+                  BASE_HANDHELD_SYSTEM_EXE_FILE_NAME,
+                  BASE_HANDHELD_PRODUCT_FILE_NAME,
+                  BASE_HANDHELD_VENDOR_FILE_NAME]
 BUILD_OUT_PATH = os.path.join(ROOT_PATH, "out/")
 AOSP_BUILD_OUT_SDK_ARM64_PATH = "out/target/product/emulator_arm64/"
 AOSP_BUILD_OUT_SDK_ARM64_x64_PATH = "out/target/product/emulator64_arm64/"
