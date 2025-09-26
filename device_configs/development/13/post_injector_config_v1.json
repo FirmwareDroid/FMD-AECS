@@ -99,7 +99,8 @@
     "Emergency",
     "Photos",
     "Camera",
-    "Dialogs"
+    "Dialogs",
+    "Telephony"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "Drive.apk",

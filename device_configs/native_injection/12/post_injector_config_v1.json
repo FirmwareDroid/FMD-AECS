@@ -44,6 +44,9 @@
     "app_process32",
     "libhbmsvmanager_jni.so",
     "libbluetooth_jni.so",
+    "libhwui.so",
+    "libgui.so",
+    "libgui_vendor.so",
     "libz.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
