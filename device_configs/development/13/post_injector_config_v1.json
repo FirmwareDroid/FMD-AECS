@@ -93,9 +93,17 @@
     "Sound",
     "Wallet",
     "Carrier",
-    "Pixel"
+    "Pixel",
+    "CtsShim",
+    "Print",
+    "Emergency",
+    "Photos",
+    "Camera",
+    "Dialogs"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
+    "Drive.apk",
+    "GoogleOneTimeInitializer.apk",
     "GoogleExtServices.apk",
     "GoogleExtShared.apk",
     "GoogleConfigOverlay.apk",
