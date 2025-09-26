@@ -150,7 +150,7 @@ def get_target_out_path(aosp_path, lunch_target):
         return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_x86_64_PATH)
     elif lunch_target == SUPPORTED_LUNCH_TARGETS[1]:
         return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH)
-    elif lunch_target == SUPPORTED_LUNCH_TARGETS[2]:
+    elif lunch_target == SUPPORTED_LUNCH_TARGETS[2] or lunch_target == SUPPORTED_LUNCH_TARGETS[3]:
         return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH)
     else:
         logging.error(f"Unknown lunch target: {lunch_target}")
