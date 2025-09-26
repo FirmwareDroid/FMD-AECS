@@ -20,6 +20,22 @@
   "ALLOW_DIRECT_INJECTION_LIB_OVERWRITE": false,
   "DISABLE_BINARY_INJECTION": true,
   "SKIPPED_APP_KEYWORDLIST": [
+  ],
+  "USE_ISOLATED_NAMESPACE": false,
+  "ISOLATED_NAMESPACE_LIST": [],
+  "APEX_BINARY_ISOLATED_NAMESPACE_LIST": [],
+  "DISALLOW_APEX_FILE_OVERWRITE": [],
+  "ALLOW_MIXED_APEX_KEYWORD_LIST": [],
+  "DISABLE_APEX_BINARY_INJECTION": false,
+  "ALLOW_FILE_INJECT_ALWAYS": [
+    "app_process64",
+    "app_process32",
+    "libhbmsvmanager_jni.so",
+    "libbluetooth_jni.so",
+    "TrichromeLibrary.apk.gz",
+    "Chrome.apk.gz"
+  ],
+  "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
     "WallpapersBReel",
     "TetheringGoogle",
@@ -37,23 +53,7 @@
     "TelephonyProvider",
     "PixelConnectivityOverlay2021",
     "VpnDialogs",
-    "CellBroadcast"
-  ],
-  "USE_ISOLATED_NAMESPACE": false,
-  "ISOLATED_NAMESPACE_LIST": [],
-  "APEX_BINARY_ISOLATED_NAMESPACE_LIST": [],
-  "DISALLOW_APEX_FILE_OVERWRITE": [],
-  "ALLOW_MIXED_APEX_KEYWORD_LIST": [],
-  "DISABLE_APEX_BINARY_INJECTION": false,
-  "ALLOW_FILE_INJECT_ALWAYS": [
-    "app_process64",
-    "app_process32",
-    "libhbmsvmanager_jni.so",
-    "libbluetooth_jni.so",
-    "TrichromeLibrary.apk.gz",
-    "Chrome.apk.gz"
-  ],
-  "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
+    "CellBroadcast",
     "ServiceWifiResources",
     "NetworkStack",
     "NetworkPermissionConfigGoogle",
