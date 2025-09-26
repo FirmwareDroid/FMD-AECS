@@ -142,7 +142,8 @@
     "android.extservices.apex",
     "android.sdkext.apex",
     "android.permission.apex",
-    "camera"
+    "camera",
+    "Camera"
   ],
   "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
