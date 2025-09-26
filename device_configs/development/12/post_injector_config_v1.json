@@ -94,7 +94,9 @@
     "MIUI",
     "Miui",
     "MI",
-    "Audio"
+    "Audio",
+    "Music",
+    "Settings"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
