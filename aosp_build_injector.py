@@ -195,14 +195,18 @@ def get_base_filename(meta_build_filename):
         return BASE_PRODUCT_FILE_NAME
     elif "build_vendor" in meta_build_filename:
         return BASE_VENDOR_FILE_NAME
-    elif "build_system_ext.mk" in meta_build_filename:
+    elif "build_system_ext" in meta_build_filename:
         return BASE_SYSTEM_EXT_FILE_NAME
-    elif "build_system.mk" in meta_build_filename:
+    elif "build_system" in meta_build_filename:
         return BASE_SYSTEM_FILE_NAME
     elif "handheld_system" in meta_build_filename:
         return BASE_HANDHELD_SYSTEM_FILE_NAME
-    elif "handheld_system_exe" in meta_build_filename:
+    elif "handheld_system_ext" in meta_build_filename:
         return BASE_HANDHELD_SYSTEM_EXE_FILE_NAME
+    elif "handheld_vendor" in meta_build_filename:
+        return BASE_HANDHELD_VENDOR_FILE_NAME
+    elif "handheld_product" in meta_build_filename:
+        return BASE_HANDHELD_PRODUCT_FILE_NAME
     else:
         raise RuntimeError(f"Unsupported build architecture: {meta_build_filename}")
 
