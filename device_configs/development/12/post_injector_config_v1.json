@@ -73,6 +73,8 @@
     "IntentResolver",
     "Manager",
     "__auto_generated_rro_product",
+    "__auto_generated_rro_vendor",
+    "__auto_generated_rro_system",
     "Installer",
     "DocumentsUI",
     "miuix",
