@@ -191,14 +191,20 @@ def get_base_filename(meta_build_filename):
 
     :returns: str - base filename of the aosp build file.
     """
-    if "product" in meta_build_filename:
+    if "build_product" in meta_build_filename:
         return BASE_PRODUCT_FILE_NAME
-    elif "vendor" in meta_build_filename:
+    elif "build_vendor" in meta_build_filename:
         return BASE_VENDOR_FILE_NAME
-    elif "system_ext" in meta_build_filename:
+    elif "build_system_ext.mk" in meta_build_filename:
         return BASE_SYSTEM_EXT_FILE_NAME
-    else:
+    elif "build_system.mk" in meta_build_filename:
         return BASE_SYSTEM_FILE_NAME
+    elif "handheld_system" in meta_build_filename:
+        return BASE_HANDHELD_SYSTEM_FILE_NAME
+    elif "handheld_system_exe" in meta_build_filename:
+        return BASE_HANDHELD_SYSTEM_EXE_FILE_NAME
+    else:
+        raise RuntimeError(f"Unsupported build architecture: {meta_build_filename}")
 
 def read_and_render_template(meta_build_path, base_filename, aosp_version, package_name_list):
     """
@@ -210,7 +216,10 @@ def read_and_render_template(meta_build_path, base_filename, aosp_version, packa
 
     :returns: str - rendered AOSP build file template.
     """
-    package_line_list = extract_package_names(meta_build_path, package_name_list)
+    if os.path.exists(meta_build_path):
+        package_line_list = extract_package_names(meta_build_path, package_name_list)
+    else:
+        package_line_list = []
     template_folder_abs_path = get_template_folder_path()
     return render_template(template_folder_abs_path, base_filename, package_line_list)
 
@@ -586,12 +595,8 @@ def inject_meta_files(aosp_path, aosp_version, package_name_list):
     for meta_build_filename in META_BUILD_FILENAMES:
         meta_build_path = os.path.join(BUILD_OUT_PATH, meta_build_filename)
         if not os.path.exists(meta_build_path):
-            # Some meta files are optional. If they are not found, we skip them.
             if meta_build_filename == META_BUILD_SYSTEM_FILENAME:
-                # If the system file is missing, we need to stop the build process.
-                raise RuntimeError(f"Could not find file: {meta_build_filename} from {meta_build_path}")
-            else:
-                continue
+                raise RuntimeError(f"Could not find file: {meta_build_filename} from {meta_build_path}. Somethings wrong.")
         base_filename = get_base_filename(meta_build_filename)
         content = read_and_render_template(meta_build_path, base_filename, aosp_version, package_name_list)
         aosp_base_file_path = os.path.join(aosp_path, BASE_PATH, base_filename)
