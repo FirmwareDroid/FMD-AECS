@@ -24,7 +24,7 @@
     "TetheringEntitlement", "ShannonQualifiedNetworksService",
     "ShannonIms", "TeleService", "Telecom", "TelephonyProvider",
     "PixelConnectivityOverlay2021", "VpnDialogs", "CellBroadcast"],
-  "USE_ISOLATED_NAMESPACE": true,
+  "USE_ISOLATED_NAMESPACE": false,
   "ISOLATED_NAMESPACE_NATIVE_LIBRARY_LIST": [
     "libgui.so",
     "libui.so",
