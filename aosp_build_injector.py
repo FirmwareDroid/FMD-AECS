@@ -150,8 +150,10 @@ def get_target_out_path(aosp_path, lunch_target):
         return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_x86_64_PATH)
     elif lunch_target == SUPPORTED_LUNCH_TARGETS[1]:
         return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH)
-    elif lunch_target == SUPPORTED_LUNCH_TARGETS[2] or lunch_target == SUPPORTED_LUNCH_TARGETS[3]:
+    elif lunch_target == SUPPORTED_LUNCH_TARGETS[2]:
         return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH)
+    elif lunch_target == SUPPORTED_LUNCH_TARGETS[3]:
+        return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14)
     else:
         logging.error(f"Unknown lunch target: {lunch_target}")
         raise RuntimeError(f"Unsupported build architecture: {lunch_target}")
@@ -167,19 +169,21 @@ def get_emulator_image_path(aosp_path, lunch_target, aosp_version):
     :returns: str - path to the emulator image zip file.
 
     """
-    if lunch_target == SUPPORTED_LUNCH_TARGETS[0]:
-        image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_x86_64_PATH, AOSP_EMU_ZIP_FILENAME)
-    elif lunch_target == SUPPORTED_LUNCH_TARGETS[1] or lunch_target == SUPPORTED_LUNCH_TARGETS[2]:
-        test = os.environ.get("FMD_PHONE64_TEST_BUILD") == "True"
-        if aosp_version == "12":
-            if test:
-                image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_EMU_ZIP_FILENAME)
-            else:
-                image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME)
+    image_source_path = None
+    is_phone_64 = "phone64" in lunch_target
+    if aosp_version == "12":
+        if is_phone_64:
+            image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
         else:
-            image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_EMU_ZIP_FILENAME)
-    else:
-        raise RuntimeError(f"Unsupported build architecture: {lunch_target}")
+            image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
+    elif aosp_version == "13":
+        image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
+    elif aosp_version in ["14", "15"]:
+        image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14, AOSP_EMU_ZIP_FILENAME)
+
+    if not os.path.exists(image_source_path):
+        raise RuntimeError(f"Could not find image zip file: {image_source_path}. Something went wrong.")
+
     return image_source_path
 
 
