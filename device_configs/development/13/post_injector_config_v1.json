@@ -222,7 +222,7 @@
     "system/framework",
     "system_ext/framework",
     "vendor/framework",
-    "product/framework",
+    "product/framework"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
