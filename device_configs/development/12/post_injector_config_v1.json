@@ -149,7 +149,8 @@
     "android.sdkext.apex",
     "android.permission.apex",
     "camera",
-    "Camera"
+    "Camera",
+    "system_ext/com.android.vndk.v30.apex"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [],
