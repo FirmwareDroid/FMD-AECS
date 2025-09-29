@@ -782,6 +782,12 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                     and os.path.exists(file_path) \
                     and os.path.isfile(file_path):
                 extract_dir = root.replace(apex_vendor_extract_dir_path,"").replace("//", "/")
+                parent_dir = os.path.basename(extract_dir)
+                if "@" in parent_dir:
+                    parent_dir = os.path.basename(extract_dir)
+                    get_before_split = parent_dir.split('@', 1)[0]
+                    extract_dir = extract_dir.replace(parent_dir, get_before_split)
+
                 if not extract_dir.endswith("/"):
                     extract_dir += "/"
 
