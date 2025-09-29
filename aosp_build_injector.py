@@ -1037,8 +1037,10 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             lunch_target = SUPPORTED_LUNCH_TARGETS[1]
             if test:
                 lunch_target = SUPPORTED_LUNCH_TARGETS[2]
-        elif aosp_version in ["13", "14"]:
+        elif aosp_version in ["13"]:
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]
+        elif aosp_version in ["14"]:
+            lunch_target = SUPPORTED_LUNCH_TARGETS[3]
         else:
             raise RuntimeError(f"Unsupported Android version: {args.version}")
     logging.debug(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
