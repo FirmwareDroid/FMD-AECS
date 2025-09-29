@@ -782,18 +782,22 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                     and os.path.exists(file_path) \
                     and os.path.isfile(file_path):
                 extract_dir = root.replace(apex_vendor_extract_dir_path,"").replace("//", "/")
-                parent_dir = os.path.basename(extract_dir)
-                if "@" in parent_dir:
-                    parent_dir = os.path.basename(extract_dir)
-                    get_before_split = parent_dir.split('@', 1)[0]
-                    extract_dir = extract_dir.replace(parent_dir, get_before_split)
-
                 if not extract_dir.endswith("/"):
                     extract_dir += "/"
 
                 dst_file_path = (merged_apex_extract_dir_path
                                  + extract_dir
                                  + file)
+                parent_dir = os.path.basename(dst_file_path)
+                if "@" in parent_dir:
+                    logging.info(f"Found TAG in APEX vendor app path: {dst_file_path}. Removing TAG.")
+                    parent_dir = os.path.basename(extract_dir)
+                    get_before_split = parent_dir.split('@', 1)[0]
+                    extract_dir = extract_dir.replace(parent_dir, get_before_split)
+                    dst_file_path = (merged_apex_extract_dir_path
+                                     + extract_dir
+                                     + file)
+                    logging.info(f"APEX extract dir after TAG removal: {extract_dir} | {dst_file_path}")
                 current_username = os.getlogin()
                 command = (f'sudo mkdir -p "$(dirname {dst_file_path})" 2>/dev/null '
                            f'&& sudo cp {file_path} {dst_file_path} '
