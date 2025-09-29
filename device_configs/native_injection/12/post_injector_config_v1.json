@@ -33,12 +33,14 @@
     "libutils.so",
     "libhwui.so",
     "libgui_vendor.so",
+    "libandroid_runtime.so",
+    "libmediandk.so",
     "libcameraservice.so",
     "libcamera_client.so"
   ],
-  "APEX_BINARY_ISOLATED_NAMESPACE_LIST": [],
-  "DISALLOW_APEX_FILE_OVERWRITE": [],
-  "ALLOW_MIXED_APEX_KEYWORD_LIST": [],
+  "APEX_BINARY_ISOLATED_NAMESPACE_LIST": ["mediaserver"],
+  "DISALLOW_APEX_FILE_OVERWRITE": ["linkerconfig"],
+  "ALLOW_MIXED_APEX_KEYWORD_LIST": ["runtime"],
   "DISABLE_APEX_BINARY_INJECTION": false,
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
