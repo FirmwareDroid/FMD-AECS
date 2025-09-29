@@ -33,7 +33,6 @@
     "libutils.so",
     "libhwui.so",
     "libgui_vendor.so",
-    "libandroid_runtime.so",
     "libcameraservice.so",
     "libcamera_client.so"
   ],
