@@ -32,35 +32,37 @@ $(call inherit-product-if-exists, external/hyphenation-patterns/patterns.mk)
 $(call inherit-product-if-exists, frameworks/base/data/keyboards/keyboards.mk)
 $(call inherit-product-if-exists, frameworks/webview/chromium/chromium.mk)
 
+# Disabled Packages:
+    #BasicDreams \
+    #BlockedNumberProvider \
+    #BluetoothMidiService \
+    #BookmarkProvider \
+    #BuiltInPrintService \
+    #CalendarProvider \
+    #CaptivePortalLogin \
+    #DocumentsUI \
+    #DownloadProviderUi \
+    #EasterEgg \
+    #ExternalStorageProvider \
+    #ManagedProvisioning \
+    #MusicFX \
+    #PacProcessor \
+    #PrintRecommendationService \
+    #PrintSpooler \
+
 PRODUCT_PACKAGES += \
-    BasicDreams \
-    BlockedNumberProvider \
-    BluetoothMidiService \
-    BookmarkProvider \
-    BuiltInPrintService \
-    CalendarProvider \
     cameraserver \
     CameraExtensionsProxy \
-    CaptivePortalLogin \
     CertInstaller \
     CredentialManager \
     DeviceAsWebcam \
-    DocumentsUI \
-    DownloadProviderUi \
-    EasterEgg \
-    ExternalStorageProvider \
     FusedLocation \
     InputDevices \
     KeyChain \
     librs_jni \
-    ManagedProvisioning \
     MmsService \
     MtpService \
-    MusicFX \
-    PacProcessor \
     preinstalled-packages-platform-handheld-system.xml \
-    PrintRecommendationService \
-    PrintSpooler \
     ProxyHandler \
     screenrecord \
     SecureElement \
