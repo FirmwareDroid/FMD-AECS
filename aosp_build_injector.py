@@ -60,7 +60,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     """
     is_successful = False
     logging.info(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
-    overwrite_partition_size(aosp_path, aosp_packages_path)
+    overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version)
     if aosp_version in ["12"]:
         blueprint_build_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static'"
     else:
@@ -350,7 +350,7 @@ def get_minimal_partition_size(aosp_path, aosp_packages_path):
     return default_size
 
 
-def overwrite_partition_size(aosp_path, aosp_packages_path):
+def overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version):
     """
     Overwrites the partition size in the aosp source code.
 
@@ -361,17 +361,27 @@ def overwrite_partition_size(aosp_path, aosp_packages_path):
     minimal_partition_size = get_minimal_partition_size(aosp_path, aosp_packages_path)
     super_partition_size = minimal_partition_size + 8388608  # 8MB
     dynamic_partition_size = minimal_partition_size
-    board_config_file_path = os.path.join(aosp_path, "build/make/target/board/BoardConfigEmuCommon.mk")
-    logging.debug(f"Overwriting partition size to: {minimal_partition_size} in {board_config_file_path}")
-    with open(board_config_file_path, 'r') as base_file:
-        lines = base_file.readlines()
-    for i, line in enumerate(lines):
-        if "BOARD_SUPER_PARTITION_SIZE" in line:
-            lines[i] = f"  BOARD_SUPER_PARTITION_SIZE := {super_partition_size}\n"
-        if "BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE" in line:
-            lines[i] = f"  BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
-    with open(board_config_file_path, 'w') as base_file:
-        base_file.writelines(lines)
+    if aosp_version and int(aosp_version) >= 14:
+        board_config_file_path = os.path.join(aosp_path, "build/make/target/board/BoardConfigGsiCommon.mk")
+        with open(board_config_file_path, 'r') as base_file:
+            lines = base_file.readlines()
+        for i, line in enumerate(lines):
+            if "BOARD_SUPER_PARTITION_SIZE" in line:
+                lines[i] = f"  BOARD_SUPER_PARTITION_SIZE := {super_partition_size}\n"
+            if "BOARD_GSI_DYNAMIC_PARTITIONS_SIZE" in line:
+                lines[i] = f"  BOARD_GSI_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
+    else:
+        board_config_file_path = os.path.join(aosp_path, "build/make/target/board/BoardConfigEmuCommon.mk")
+        logging.debug(f"Overwriting partition size to: {minimal_partition_size} in {board_config_file_path}")
+        with open(board_config_file_path, 'r') as base_file:
+            lines = base_file.readlines()
+        for i, line in enumerate(lines):
+            if "BOARD_SUPER_PARTITION_SIZE" in line:
+                lines[i] = f"  BOARD_SUPER_PARTITION_SIZE := {super_partition_size}\n"
+            if "BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE" in line:
+                lines[i] = f"  BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
+        with open(board_config_file_path, 'w') as base_file:
+            base_file.writelines(lines)
 
 
 def move_txt_files(source_directory, destination_directory):

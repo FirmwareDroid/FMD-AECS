@@ -14,15 +14,21 @@
 # limitations under the License.
 #
 
-# Base modules and settings for the system_ext partition.
+# This makefile contains the system_ext partition contents for
+# a generic phone or tablet device. Only add something here if
+# it definitely doesn't belong on other types of devices (if it
+# does, use base_system_ext.mk).
+$(call inherit-product, $(SRC_TARGET_DIR)/product/media_system_ext.mk)
+
+# /system_ext packages
 PRODUCT_PACKAGES += \
-    fs_config_dirs_system_ext \
-    fs_config_files_system_ext \
-    group_system_ext \
-    passwd_system_ext \
-    SatelliteClient \
-    selinux_policy_system_ext \
-    system_ext_manifest.xml \
+    AccessibilityMenu \
+    Launcher3QuickStep \
+    Provision \
+    Settings \
+    StorageManager \
+    SystemUI \
+    WallpaperCropper \
 {% for line in package_name_list -%}{{ line }}{%- endfor %}
 
 # Base modules when shipping api level is less than or equal to 34
