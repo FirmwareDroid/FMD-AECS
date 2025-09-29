@@ -13,6 +13,8 @@
   "REPLACE_AVB_KEYS": false,
   "INJECT_APEX_VENDOR_FILES": true,
   "ALLOW_MIXED_APEX_FILES": true,
+  "DISABLE_JAVA_LIBRARIES_INJECTION": false,
+  "ALLOW_ALL_JAVA_LIBRARIES_INJECTION":true,
   "ALLOW_APEX_INJECTION_MERGE": true,
   "ALLOW_DIRECT_INJECTION_LIB_OVERWRITE": false,
   "DISABLE_BINARY_INJECTION": true,
@@ -138,7 +140,7 @@
   "SKIPPED_APEX_KEYWORD_LIST": [
     "adb"
   ],
-  "SKIPPED_APP_LIST": ["framework-res.apk", "framework-res"],
+  "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
   "ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS": true,
   "SKIPPED_SHARED_LIBRARIES_EVEN_IF_NOT_EXISTS_LIST": [],
@@ -256,7 +258,8 @@
     "exfat",
     "secureboot",
     "_apex",
-    "_capex"
+    "_capex",
+    "camerax-vendor-extensions"
   ],
   "ALLOWED_FILE_OVERWRITE_EXTENSION_LIST": [
   ],

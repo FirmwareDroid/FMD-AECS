@@ -9,8 +9,8 @@
     "networkstack": ["android.networkstack", "android.uid.networkstack"],
     "bluetooth": ["android.bluetooth", "android.uid.bluetooth"]
   },
-  "DISABLE_JAVA_LIBRARIES_INJECTION":false,
   "ALLOW_ALL_JAVA_LIBRARIES_INJECTION":true,
+  "DISABLE_JAVA_LIBRARIES_INJECTION": false,
   "DISALLOW_APP_INJECTION": true,
   "INJECT_APEX_VENDOR_APPS": true,
   "REPLACE_AVB_KEYS": false,
