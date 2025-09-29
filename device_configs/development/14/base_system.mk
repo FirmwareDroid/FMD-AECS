@@ -14,6 +14,10 @@
 # limitations under the License.
 #
 
+# PackageInstaller \
+# NetworkStack \
+# SettingsProvider \
+
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \
     abx \
@@ -233,11 +237,9 @@ PRODUCT_PACKAGES += \
     mtectrl \
     ndc \
     netd \
-    NetworkStack \
     odsign \
     org.apache.http.legacy \
     otacerts \
-    PackageInstaller \
     package-shareduid-allowlist.xml \
     passwd_system \
     perfetto \
@@ -268,7 +270,6 @@ PRODUCT_PACKAGES += \
     servicemanager \
     services \
     settings \
-    SettingsProvider \
     sfdo \
     sgdisk \
     Shell \
