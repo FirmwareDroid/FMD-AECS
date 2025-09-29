@@ -34,7 +34,6 @@
     "libhwui.so",
     "libgui_vendor.so",
     "libandroid_runtime.so",
-    "libmediandk.so",
     "libcameraservice.so",
     "libcamera_client.so"
   ],
