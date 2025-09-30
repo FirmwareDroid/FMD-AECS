@@ -686,9 +686,9 @@ def allow_vndk_merge(apex_path, apex_filename):
 
 def get_matching_apex_key(filename, config):
     """
-    Returns the first key from APEX_DEFAULT_PATHS_DICT that matches a substring in the filename.
+    Returns the first key from config that matches a substring in the filename.
     """
-    for key in config["APEX_DEFAULT_PATHS_DICT"]:
+    for key in config:
         if key in filename:
             return key
     return None
@@ -730,6 +730,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                     traceback.print_stack()
                     exit(-1)
             else:
+                logging.info(f"Load Manifest from AOSP source tree for APEX: {filename_input}")
                 apex_manifest_name_pb = "apex_manifest.pb"
                 apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
                 apex_keyword = get_matching_apex_key(filename_input, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"])
@@ -737,7 +738,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                     logging.error(f"APEX: No matching keyword found in APEX_DEFAULT_PATHS_DICT for {filename_input}. EXIT PROGRAM!")
                     traceback.print_stack()
                     exit(-1)
-
+                logging.info(f"APEX Keyword: {apex_keyword} found for apex: {filename_input}")
                 apex_module_path = str(os.path.join(aosp_path, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"][apex_keyword]))
                 if os.path.exists(os.path.join(apex_module_path, "apex_manifest.json")):
                     apex_manifest_path = str(os.path.join(apex_module_path, "apex_manifest.json"))
