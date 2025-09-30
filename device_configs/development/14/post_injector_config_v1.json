@@ -465,7 +465,14 @@
     "usb": "hardware/interfaces/usb/1.0/default/apex",
     "btservices": "packages/modules/Bluetooth/apex",
     "bluetooth": "packages/modules/Bluetooth/apex",
-    "vibrator": "hardware/interfaces/vibrator/aidl/default/apex"
+    "vibrator": "hardware/interfaces/vibrator/aidl/default/apex",
+    "rkpd": "com.android.rkpd",
+    "healthfitness": "com.android.healthfitness",
+    "authsecret": "com.android.hardware.authsecret",
+    "configinfrastructure": "com.android.configinfrastructure",
+    "devicelock": "com.android.devicelock",
+    "rebootescrow": "com.android.hardware.rebootescrow",
+    "cas": "com.android.hardware.cas"
   },
   "APEX_DEFAULT_EMULATOR_PATHS_DICT": {
     "appsearch": "com.android.appsearch",
@@ -484,7 +491,7 @@
     "extservices": "com.android.extservices",
     "ipsec": "com.android.ipsec",
     "swcodec": "com.android.media.swcodec",
-    "neuralnetworks": "com.android.neuralnetworks",
+    "neuralnetworks": "com.android.hardware.neuralnetworks",
     "permission": "com.android.permission",
     "runtime": "com.android.runtime",
     "sdkext": "com.android.sdkext",
@@ -496,13 +503,21 @@
     "sepolicy": "com.android.sepolicy",
     "geotz": "com.android.geotz",
     "virtualization": "com.android.virt",
+    "virt": "com.android.virt",
     "power": "com.android.hardware.power",
     "thermal": "com.android.hardware.thermal.mock",
     "usb": "com.android.hardware.usb",
     "btservices": "com.android.btservices",
     "bluetooth": "com.android.btservices",
     "vibrator": "com.android.hardware.vibrator",
-    "cellbroadcast": "com.android.cellbroadcast"
+    "cellbroadcast": "com.android.cellbroadcast",
+    "rkpd": "com.android.rkpd",
+    "healthfitness": "com.android.healthfitness",
+    "authsecret": "com.android.hardware.authsecret",
+    "configinfrastructure": "com.android.configinfrastructure",
+    "devicelock": "com.android.devicelock",
+    "rebootescrow": "com.android.hardware.rebootescrow",
+    "cas": "com.android.hardware.cas"
   },
   "LIST_SINGLETON_APPS": [
     "PackageInstaller.apk",
