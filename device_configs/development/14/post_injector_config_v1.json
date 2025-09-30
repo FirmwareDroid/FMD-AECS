@@ -466,13 +466,13 @@
     "btservices": "packages/modules/Bluetooth/apex",
     "bluetooth": "packages/modules/Bluetooth/apex",
     "vibrator": "hardware/interfaces/vibrator/aidl/default/apex",
-    "rkpd": "com.android.rkpd",
-    "healthfitness": "com.android.healthfitness",
-    "authsecret": "com.android.hardware.authsecret",
-    "configinfrastructure": "com.android.configinfrastructure",
-    "devicelock": "com.android.devicelock",
-    "rebootescrow": "com.android.hardware.rebootescrow",
-    "cas": "com.android.hardware.cas"
+    "rkpd": "packages/modules/RemoteKeyProvisioning/apex",
+    "healthfitness": "packages/modules/HealthFitness/apex",
+    "configinfrastructure": "packages/modules/ConfigInfrastructure/apex",
+    "devicelock": "packages/modules/DeviceLock/apex",
+    "crashrecovery": "packages/modules/CrashRecovery/apex",
+    "profiling": "packages/modules/Profiling/apex",
+    "threadnetwork": "packages/modules/ThreadNetwork/apex"
   },
   "APEX_DEFAULT_EMULATOR_PATHS_DICT": {
     "appsearch": "com.android.appsearch",
