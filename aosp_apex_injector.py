@@ -1218,16 +1218,6 @@ def prepare_apex_out_file(file_path):
     return str(os.path.join(apex_dir_path, apex_filename_new))
 
 
-def get_apex_signing_key_from_filename(file_path):
-    file_name = os.path.basename(file_path)
-    if "media" in file_name:
-        return "media"
-    elif any(keyword in file_name for keyword in ["network", "tethering", "wifi", "bluetooth", "cellbroadcast"]):
-        return "networkstack"
-    else:
-        return "platform"
-
-
 def generate_canned_fs_config(apex_extract_dir_path, output_file, apk_name_list=None, allow_filtering=True):
     """
     Generates a canned_fs_config file for the given directory. The config contains the file paths and their
@@ -1368,7 +1358,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
                     logging.info(f"Found APEX manifest file: {file_path} to delete")
                     shutil.move(file_path, manifest_dst)
                 else:
-                    logging.info(f"No APEX manifest found in {apex_extract_dir_path} | {file_path}")
+                    logging.error(f"No APEX manifest found in {apex_extract_dir_path} | {file_path}")
                     exit(1)
                 #manifest_json_file_path = get_apex_manifest_from_aosp(aosp_path, apex_file_name)
                 #convert_apex_manifest_json_to_pb(manifest_json_file_path, manifest_dst)
@@ -1377,8 +1367,6 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
                     is_apex_manifest_file_found = True
                     logging.info(f"APEX manifest file found: {manifest_dst}")
                 break
-    if not is_apex_manifest_file_found:
-        logging.error(f"APEX manifest file not found in APEX extract dir: {apex_extract_dir_path}")
     return is_apex_manifest_file_found, str(manifest_dst)
 
 def convert_apex_manifest_json_to_pb(apex_manifest_path, output_file_path):
