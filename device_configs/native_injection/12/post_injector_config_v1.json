@@ -42,6 +42,7 @@
   "ALLOW_MIXED_APEX_KEYWORD_LIST": ["runtime"],
   "DISABLE_APEX_BINARY_INJECTION": false,
   "ALLOW_FILE_INJECT_ALWAYS": [
+    "mediaserver",
     "app_process64",
     "app_process32",
     "libhbmsvmanager_jni.so",
