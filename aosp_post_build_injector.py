@@ -435,7 +435,7 @@ def check_file_is_really_injected(file_path, aosp_path):
                 for file_name in file:
                     if file_name == os.path.basename(file_path):
                         return True
-    logging.warning(f"Maybe file was not correctly injected. Filename not found in AOSP out folders: {file_path}")
+    logging.debug(f"Maybe file was not correctly injected. Filename not found in AOSP out folders: {file_path}")
     return False
 
 def handle_app_modules(file_path, aosp_path, firmware_id, cookies):

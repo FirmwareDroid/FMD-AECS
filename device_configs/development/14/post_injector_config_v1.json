@@ -470,6 +470,9 @@
     "healthfitness": "packages/modules/HealthFitness/apex",
     "configinfrastructure": "packages/modules/ConfigInfrastructure/apex",
     "devicelock": "packages/modules/DeviceLock/apex",
+    "authsecret": "com.android.hardware.authsecret",
+    "rebootescrow": "com.android.hardware.rebootescrow",
+    "cas": "com.android.hardware.cas",
     "crashrecovery": "packages/modules/CrashRecovery/apex",
     "profiling": "packages/modules/Profiling/apex",
     "threadnetwork": "packages/modules/ThreadNetwork/apex"
