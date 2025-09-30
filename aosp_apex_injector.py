@@ -197,7 +197,8 @@ def create_and_sign_apex_repack_container(apex_manifest_path,
         is_success, error_message = sign_apex_file(apex_out_file,
                                                    aosp_path,
                                                    private_key_path,
-                                                   cert_apex_apk_path)
+                                                   cert_apex_apk_path,
+                                                   lunch_target)
         if is_success:
             log_message = f"APEX signing success: {apex_out_file}"
             if apex_file_path is not None:
@@ -756,7 +757,8 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                     is_success, error_message = sign_apex_file(apex_out_file,
                                                                aosp_path,
                                                                private_key_path,
-                                                               cert_apex_apk_path)
+                                                               cert_apex_apk_path,
+                                                               lunch_target)
                     logging.info(f"Completed APEX merge successfully: {apex_out_file}")
                     if POST_INJECTOR_CONFIG["REPLACE_AVB_KEYS"]:
                         logging.info(f"Overwriting AVB keys for APEX: {apex_out_file}")
@@ -1117,7 +1119,7 @@ def log_files_in_dir(dir_path):
     logging.info(f"APEX: Files and directories in {dir_path}: {files_and_dirs}")
 
 
-def sign_apex_file(file_path, aosp_path, priv_key_apex_apk_path, apex_apk_certificate_path):
+def sign_apex_file(file_path, aosp_path, priv_key_apex_apk_path, apex_apk_certificate_path, lunch_target):
     error_message = None
     #signing_key_path = get_signing_key_path(aosp_path, "platform")
     use_apksigner = False
@@ -1129,7 +1131,9 @@ def sign_apex_file(file_path, aosp_path, priv_key_apex_apk_path, apex_apk_certif
         is_success, log_message = sign_apex_container_signapk(file_path,
                         priv_key_apex_apk_path,
                         apex_apk_certificate_path,
-                        aosp_path)
+                        aosp_path,
+                        lunch_target)
+
     if is_success:
         logging.info(f"APEX file signed: {file_path} with key: {priv_key_apex_apk_path}")
         success, log_message = verify_apk_file(file_path)

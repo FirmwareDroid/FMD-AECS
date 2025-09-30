@@ -175,7 +175,8 @@ def sign_apex_container_apksigner(apex_file_path,
 def sign_apex_container_signapk(apex_file_path,
                         signing_key_path,
                         signing_key_certificate_path,
-                        aosp_path):
+                        aosp_path,
+                        lunch_target):
     """
     java \
       -Djava.library.path=$(dirname out/host/linux-x86/lib64/libconscrypt_openjdk_jni.so)\
@@ -199,7 +200,7 @@ def sign_apex_container_signapk(apex_file_path,
 
     try:
         apex_out_file_path = f"{apex_file_path}.signed"
-        env_setup_command = f"bash -c 'cd {aosp_path} && source {aosp_path}build/envsetup.sh && lunch sdk_phone_arm64-userdebug && "
+        env_setup_command = f"bash -c 'cd {aosp_path} && source {aosp_path}build/envsetup.sh && lunch {lunch_target} && "
         sign_command = env_setup_command +  f"java -Djava.library.path={aosp_path}out/host/linux-x86/lib64/ " \
                                             f"-jar out/host/linux-x86/framework/signapk.jar " \
                                             f"--min-sdk-version 28 " \
