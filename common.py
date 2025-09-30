@@ -90,12 +90,12 @@ def get_vendor_words(file_path=None, filename=None):
             name.replace("..", ".")
             words_to_replace.append(f".{name.lower()}")
             words_to_replace.append(f".{name.capitalize()}")
-    logging.info(f"Vendor words to replace: {'|'.join(words_to_replace)}")
+    logging.debug(f"Vendor words to replace: {'|'.join(words_to_replace)}")
     return words_to_replace
 
 
 def remove_vendor_name_from_path(file_path):
-    logging.info(f"Filepath before removing vendor specific words: {file_path}")
+    logging.debug(f"Filepath before removing vendor specific words: {file_path}")
     words_to_replace = get_vendor_words(file_path)
     file_path_vendor_replaced = file_path
     base_path = os.path.dirname(file_path)

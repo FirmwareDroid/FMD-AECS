@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import traceback
 import zipfile
 from jinja2 import Environment, FileSystemLoader
 from ConfigManager import ConfigManager
@@ -682,6 +683,16 @@ def allow_vndk_merge(apex_path, apex_filename):
             return False
     return True
 
+
+def get_matching_apex_key(filename, config):
+    """
+    Returns the first key from APEX_DEFAULT_PATHS_DICT that matches a substring in the filename.
+    """
+    for key in config["APEX_DEFAULT_PATHS_DICT"]:
+        if key in filename:
+            return key
+    return None
+
 # Keep the structure of the original apex
 # Inject additional files into the apex
 def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_target, aosp_path, target_out_path, aosp_version):
@@ -716,10 +727,34 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                 shutil.copy2(manifest_path, merged_apex_extract_dir_path)
                 if not os.path.exists(merged_apex_extract_dir_path):
                     logging.error(f"ERROR: APEX Manifest was not copied to: {merged_apex_extract_dir_path}. EXIT PROGRAM!")
+                    traceback.print_stack()
                     exit(-1)
             else:
-                logging.error("APEX Manifest path is invalid. EXIT PROGRAM!")
-                exit(-1)
+                apex_manifest_name_pb = "apex_manifest.pb"
+                apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
+
+                apex_keyword = get_matching_apex_key(filename_input, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"])
+                if not apex_keyword:
+                    logging.error(f"APEX: No matching keyword found in APEX_DEFAULT_PATHS_DICT for {filename_input}. EXIT PROGRAM!")
+                    traceback.print_stack()
+                    exit(-1)
+                apex_module_path = str(os.path.join(aosp_path, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"][apex_keyword]))
+                if os.path.exists(os.path.join(apex_module_path, "apex_manifest.json")):
+                    apex_manifest_path = str(os.path.join(apex_module_path, "apex_manifest.json"))
+                elif os.path.exists(os.path.join(apex_module_path, "manifest.json")):
+                    apex_manifest_path = str(os.path.join(apex_module_path, "manifest.json"))
+                else:
+                    logging.error(f"APEX: No manifest file found in APEX module path: {apex_module_path}. EXIT PROGRAM!")
+                    traceback.print_stack()
+                    exit(-1)
+
+                if os.path.exists(apex_manifest_path):
+                    logging.info(f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
+                    convert_manifest_from_json(apex_manifest_path, out_file_path=apex_manifest_path_pb)
+                else:
+                    logging.error("APEX Manifest path is invalid. EXIT PROGRAM!")
+                    traceback.print_stack()
+                    exit(-1)
 
         apk_name_list = []
         if POST_INJECTOR_CONFIG["INJECT_APEX_VENDOR_FILES"]:
