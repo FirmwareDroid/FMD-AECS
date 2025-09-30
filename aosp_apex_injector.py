@@ -504,11 +504,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
         return False, f"Error copying SELinux file contexts: {e}"
 
     file_contexts_path = os.path.join(aosp_path, "system", "sepolicy", "apex", f"com.android.fmd.{filename}-file_contexts")
-    ## Create the APEX container using apexer
-    # if partition_name == "system":
-    #     apex_out_file = str(os.path.join(partition_root, "system", "apex", apex_file_name))
-    # else:
-    #     apex_out_file = str(os.path.join(partition_root, "apex", apex_file_name))
+
     if aosp_version and int(aosp_version) == 13:
         apex_out_file = os.path.join(aosp_path, "out", "target", "product", "emulator64_arm64", partition_name, "apex",
                                      apex_file_name)
@@ -726,8 +722,8 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             log_files_in_dir(merged_apex_extract_dir_path)
         else:
             manifest_path = os.path.join(apex_emulator_folder, "apex_manifest.pb")
-            logging.info(f"Copy manifest from original APEX: {manifest_path}")
             if os.path.exists(manifest_path):
+                logging.info(f"Copy manifest from original APEX: {manifest_path}")
                 shutil.copy2(manifest_path, merged_apex_extract_dir_path)
                 if not os.path.exists(merged_apex_extract_dir_path):
                     logging.error(f"ERROR: APEX Manifest was not copied to: {merged_apex_extract_dir_path}. EXIT PROGRAM!")
@@ -736,7 +732,6 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             else:
                 apex_manifest_name_pb = "apex_manifest.pb"
                 apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
-
                 apex_keyword = get_matching_apex_key(filename_input, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"])
                 if not apex_keyword:
                     logging.error(f"APEX: No matching keyword found in APEX_DEFAULT_PATHS_DICT for {filename_input}. EXIT PROGRAM!")
@@ -751,7 +746,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                     logging.error(f"APEX: No manifest file found in APEX module path: {apex_module_path}. EXIT PROGRAM!")
                     traceback.print_stack()
                     exit(-1)
-
+                logging.info(f"APEX manifest path used: {apex_manifest_path}")
                 if os.path.exists(apex_manifest_path):
                     logging.info(f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
                     convert_manifest_from_json(apex_manifest_path, out_file_path=apex_manifest_path_pb)
