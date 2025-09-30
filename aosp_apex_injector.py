@@ -740,14 +740,21 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                     exit(-1)
                 logging.info(f"APEX Keyword: {apex_keyword} found for apex: {filename_input}")
                 apex_module_path = str(os.path.join(aosp_path, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"][apex_keyword]))
-                if os.path.exists(os.path.join(apex_module_path, "apex_manifest.json")):
-                    apex_manifest_path = str(os.path.join(apex_module_path, "apex_manifest.json"))
-                elif os.path.exists(os.path.join(apex_module_path, "manifest.json")):
-                    apex_manifest_path = str(os.path.join(apex_module_path, "manifest.json"))
-                else:
-                    logging.error(f"APEX: No manifest file found in APEX module path: {apex_module_path}. EXIT PROGRAM!")
+
+                candidate_file_names = ["apex_manifest.json", "manifest.json", "manifest-art.json"]
+                manifest_path = None
+
+                for fname in candidate_file_names:
+                    candidate_path = os.path.join(apex_module_path, fname)
+                    if os.path.exists(candidate_path):
+                        manifest_path = candidate_path
+                        break
+                if manifest_path is None:
+                    logging.error(
+                        f"APEX: No manifest file found in APEX module path: {apex_module_path}. EXIT PROGRAM!")
                     traceback.print_stack()
                     exit(-1)
+
                 logging.info(f"APEX manifest path used: {apex_manifest_path}")
                 if os.path.exists(apex_manifest_path):
                     logging.info(f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
