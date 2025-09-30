@@ -1360,6 +1360,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
     manifest_dst = None
     for root, dirs, files in os.walk(apex_extract_dir_path):
         for file in files:
+            logging.info(f"Scanning for APEX manifest file: {file}")
             if file == "apex_manifest.pb":
                 file_path = str(os.path.join(root, file))
                 manifest_dst = os.path.join(output_dir_path, "apex_manifest.pb")
