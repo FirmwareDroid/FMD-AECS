@@ -509,12 +509,16 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     #     apex_out_file = str(os.path.join(partition_root, "system", "apex", apex_file_name))
     # else:
     #     apex_out_file = str(os.path.join(partition_root, "apex", apex_file_name))
-    if "phone64" in lunch_target:
+    if aosp_version and int(aosp_version) == 13:
         apex_out_file = os.path.join(aosp_path, "out", "target", "product", "emulator64_arm64", partition_name, "apex",
+                                     apex_file_name)
+    elif aosp_version and int(aosp_version) == 14:
+        apex_out_file = os.path.join(aosp_path, "out", "target", "product", "emu64a", partition_name, "apex",
                                      apex_file_name)
     else:
         apex_out_file = os.path.join(aosp_path, "out", "target", "product", "emulator_arm64", partition_name, "apex",
                                      apex_file_name)
+
 
 
     is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
@@ -1351,7 +1355,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
     :return: bool - True if the APEX manifest file was found and moved, False otherwise.
 
     """
-    logging.info(f"Copying APEX manifest file.")
+    logging.debug(f"Copying APEX manifest file.")
     is_apex_manifest_file_found = False
     manifest_dst = None
     for root, dirs, files in os.walk(apex_extract_dir_path):
@@ -1372,6 +1376,8 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
                     is_apex_manifest_file_found = True
                     logging.info(f"APEX manifest file found: {manifest_dst}")
                 break
+    if not is_apex_manifest_file_found:
+        logging.error(f"APEX manifest file not found in APEX extract dir: {apex_extract_dir_path}")
     return is_apex_manifest_file_found, str(manifest_dst)
 
 def convert_apex_manifest_json_to_pb(apex_manifest_path, output_file_path):
