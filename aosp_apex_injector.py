@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import os.path
 import re
 import shutil
 import subprocess
@@ -788,10 +789,9 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                 dst_file_path = (merged_apex_extract_dir_path
                                  + extract_dir
                                  + file)
-                parent_dir = os.path.basename(dst_file_path)
+                parent_dir = os.path.dirname(dst_file_path)
                 if "@" in parent_dir:
                     logging.info(f"Found TAG in APEX vendor app path: {dst_file_path}. Removing TAG.")
-                    parent_dir = os.path.basename(extract_dir)
                     get_before_split = parent_dir.split('@', 1)[0]
                     extract_dir = extract_dir.replace(parent_dir, get_before_split)
                     dst_file_path = (merged_apex_extract_dir_path
