@@ -344,7 +344,7 @@
     "resolv": "com.android.resolv",
     "scheduling": "com.android.scheduling",
     "tethering": "com.android.tethering",
-    "vndk": "com.android.vndk.v32",
+    "vndk": "com.android.vndk.v31",
     "adb": "com.android.adbd",
     "adbd": "com.android.adbd",
     "art": "com.android.art",
