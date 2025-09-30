@@ -316,7 +316,7 @@
     ".extfextract",
     ".raw"
   ],
-  "EMULATOR_VNDK_VERSION": 32,
+  "EMULATOR_VNDK_VERSION": 34,
   "SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION": [
     ".rc"
   ],
@@ -494,7 +494,7 @@
     "resolv": "com.android.resolv",
     "scheduling": "com.android.scheduling",
     "tethering": "com.android.tethering",
-    "vndk": "com.android.vndk.v33",
+    "vndk": "com.android.vndk.v34",
     "adb": "com.android.adbd",
     "adbd": "com.android.adbd",
     "art": "com.android.art",
