@@ -316,7 +316,7 @@
     ".extfextract",
     ".raw"
   ],
-  "EMULATOR_VNDK_VERSION": 32,
+  "EMULATOR_VNDK_VERSION": 33,
   "SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION": [
     ".rc"
   ],
