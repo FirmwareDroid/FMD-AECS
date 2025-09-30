@@ -737,6 +737,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                     logging.error(f"APEX: No matching keyword found in APEX_DEFAULT_PATHS_DICT for {filename_input}. EXIT PROGRAM!")
                     traceback.print_stack()
                     exit(-1)
+
                 apex_module_path = str(os.path.join(aosp_path, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"][apex_keyword]))
                 if os.path.exists(os.path.join(apex_module_path, "apex_manifest.json")):
                     apex_manifest_path = str(os.path.join(apex_module_path, "apex_manifest.json"))
