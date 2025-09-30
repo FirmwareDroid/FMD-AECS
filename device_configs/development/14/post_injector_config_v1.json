@@ -425,7 +425,14 @@
     "btservices",
     "vibrator",
     "cellbroadcast",
-    "bluetooth"
+    "bluetooth",
+    "rkpd",
+    "healthfitness",
+    "authsecret",
+    "configinfrastructure",
+    "devicelock",
+    "rebootescrow",
+    "cas"
   ],
   "APEX_DEFAULT_PATHS_DICT": {
     "sdkext": "packages/modules/SdkExtensions",
