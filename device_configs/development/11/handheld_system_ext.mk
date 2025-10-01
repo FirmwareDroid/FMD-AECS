@@ -20,11 +20,10 @@
 # does, use base_system_ext.mk).
 $(call inherit-product, $(SRC_TARGET_DIR)/product/media_system_ext.mk)
 
-# Provision \
-
 # /system_ext packages
 PRODUCT_PACKAGES += \
     Launcher3QuickStep \
+    Provision \
     Settings \
     StorageManager \
     SystemUI \

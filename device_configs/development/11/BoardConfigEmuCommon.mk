@@ -33,8 +33,8 @@ ifeq ($(PRODUCT_USE_DYNAMIC_PARTITIONS),true)
   # emulator needs super.img
   BOARD_BUILD_SUPER_IMAGE_BY_DEFAULT := true
 
-  # 12G + 24M
-  BOARD_SUPER_PARTITION_SIZE := 17213423616
+  # 3G + header
+  BOARD_SUPER_PARTITION_SIZE := 73022832640
   BOARD_SUPER_PARTITION_GROUPS := emulator_dynamic_partitions
 
   ifeq ($(QEMU_USE_SYSTEM_EXT_PARTITIONS),true)
@@ -56,8 +56,8 @@ ifeq ($(PRODUCT_USE_DYNAMIC_PARTITIONS),true)
         vendor
   endif
 
-  # 4G
-  BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE := 8606711808
+  # 3G
+  BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE := 73014444032
 
   # in build environment to speed up make -j
   ifeq ($(QEMU_DISABLE_AVB),true)
@@ -73,11 +73,11 @@ else
 endif
 
 #vendor boot
+TARGET_NO_VENDOR_BOOT := false
 BOARD_INCLUDE_DTB_IN_BOOTIMG := false
-BOARD_BOOT_HEADER_VERSION := 4
+BOARD_BOOT_HEADER_VERSION := 3
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
 BOARD_VENDOR_BOOTIMAGE_PARTITION_SIZE := 0x06000000
-BOARD_RAMDISK_USE_LZ4 := true
 
 # Enable chain partition for system.
 BOARD_AVB_SYSTEM_KEY_PATH := external/avb/test/data/testkey_rsa2048.pem
@@ -90,9 +90,3 @@ BOARD_FLASH_BLOCK_SIZE := 512
 DEVICE_MATRIX_FILE   := device/generic/goldfish/compatibility_matrix.xml
 
 BOARD_SEPOLICY_DIRS += device/generic/goldfish/sepolicy/common
-
-
-TARGET_SUPPORTS_32_BIT_APPS := false
-TARGET_SUPPORTS_64_BIT_APPS := true
-PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions?=log
-MODULE_BUILD_FROM_SOURCE := true
