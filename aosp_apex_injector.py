@@ -840,7 +840,7 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                     dst_file_path = (merged_apex_extract_dir_path
                                      + extract_dir
                                      + file)
-                    dst_file_path = dst_file_path.replace(get_after_split, "")
+                    dst_file_path = dst_file_path.replace(get_after_split, "").replace("@", "")
                     logging.info(f"APEX extract dir after TAG removal: {extract_dir} | {dst_file_path}")
                 current_username = os.getlogin()
                 command = (f'sudo mkdir -p "$(dirname {dst_file_path})" 2>/dev/null '
