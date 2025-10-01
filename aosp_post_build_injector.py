@@ -364,25 +364,37 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                         and any(keyword in filename for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"]
                                 and "/system/" in file_path):
                         logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
-                        is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aosp_version)
+                        try:
+                            is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aosp_version)
+                        except Exception as e:
+                            is_merge_success = False
+                            log_message = f"Exception occurred: {e}:{traceback.format_exc()}"
                         if not is_merge_success:
                             error_message = f"Error handling APEX file: {file_path}|{log_message}"
                             raise Exception(error_message)
                         else:
                             error_message = None
                     else:
-                        is_repack_success, log_message = repackage_apex_file(aosp_path, file_path, lunch_target, aosp_version)
+                        try:
+                            is_repack_success, log_message = repackage_apex_file(aosp_path, file_path, lunch_target, aosp_version)
+                        except Exception as e:
+                            error_message = f"Exception occurred: {e}:{traceback.format_exc()}"
+                            is_repack_success = False
                         if not is_repack_success:
                             error_message = f"Error handling APEX file: {file_path}|{log_message}"
                         else:
                             error_message = None
                 elif module_type == "EXECUTABLES" and is_elf_binary(file_path):
                     if filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
-                        is_apex_add_success, log_message = add_new_apex_file(aosp_path,
-                                                                             file_path,
-                                                                             lunch_target,
-                                                                             partition_name,
-                                                                             aosp_version)
+                        try:
+                            is_apex_add_success, log_message = add_new_apex_file(aosp_path,
+                                                                                 file_path,
+                                                                                 lunch_target,
+                                                                                 partition_name,
+                                                                                 aosp_version)
+                        except Exception as e:
+                            is_apex_add_success = False
+                            log_message = f"Exception occurred: {e}:{traceback.format_exc()}"
                         if not is_apex_add_success:
                             error_message = f"Error adding APEX file: {file_path}|{log_message}"
                         else:
