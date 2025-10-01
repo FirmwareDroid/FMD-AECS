@@ -61,7 +61,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     is_successful = False
     logging.debug(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version)
-    if aosp_version in ["12"]:
+    if aosp_version in ["11", "12"]:
         blueprint_build_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static'"
     else:
         blueprint_build_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static apexer deapexer avbtool'"
@@ -171,11 +171,15 @@ def get_emulator_image_path(aosp_path, lunch_target, aosp_version):
     """
     image_source_path = None
     is_phone_64 = "phone64" in lunch_target
-    if aosp_version == "12":
+    if aosp_version in ["11", "12"]:
         if is_phone_64:
             image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
         else:
-            image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
+            if aosp_version == "11":
+                image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH,
+                                                 AOSP_EMU_ZIP_FILENAME_A11)
+            else:
+                image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
     elif aosp_version == "13":
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
     elif aosp_version in ["14", "15"]:
