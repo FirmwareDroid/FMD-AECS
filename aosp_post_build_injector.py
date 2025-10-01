@@ -372,22 +372,24 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                             is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aosp_version)
                         except Exception as e:
                             is_merge_success = False
-                            log_message = f"Exception occurred: {e}:{traceback.format_exc()}"
+                            log_message = f"Exception occurred: {e}:{traceback.format_exc()}\n{traceback.print_stack()}"
+
                         if not is_merge_success:
-                            error_message = f"Error handling APEX file: {file_path}|{log_message}"
+                            error_message = f"Error handling merge APEX file: {file_path}|{log_message}"
                             raise Exception(error_message)
                         else:
                             error_message = None
                     else:
                         try:
                             is_repack_success, log_message = repackage_apex_file(aosp_path, file_path, lunch_target, aosp_version)
+                            if not is_repack_success:
+                                error_message = f"Error handling repack APEX file: {file_path}|{log_message}"
+                            else:
+                                error_message = None
                         except Exception as e:
-                            error_message = f"Exception occurred: {e}:{traceback.format_exc()}"
+
+                            error_message = f"Exception occurred: {e}:{traceback.format_exc()}\n{traceback.print_stack()}"
                             is_repack_success = False
-                        if not is_repack_success:
-                            error_message = f"Error handling APEX file: {file_path}|{log_message}"
-                        else:
-                            error_message = None
                 elif module_type == "EXECUTABLES" and is_elf_binary(file_path):
                     if filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
                         try:

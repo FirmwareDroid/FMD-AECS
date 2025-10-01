@@ -26,6 +26,9 @@ To change property value
 import argparse
 import collections
 import json
+import logging
+import tempfile
+
 import apex_manifest_pb2
 from google.protobuf.descriptor import FieldDescriptor
 from google.protobuf.json_format import ParseDict, ParseError
@@ -71,13 +74,30 @@ def Print(args):
     print(MessageToString(pb))
 
 
+def clean_json_file(input_path, output_path):
+    with open(input_path, 'r') as f:
+        lines = f.readlines()
+    cleaned_lines = [
+        line for line in lines
+        if "// Placeholder module version to be replaced during build." not in line
+        and "// Do not change!" not in line
+    ]
+    with open(output_path, 'w') as f:
+        f.writelines(cleaned_lines)
+    with open(output_path, 'r') as f:
+        json.load(f)
+
 def convert_manifest_from_json(manifest_file_path, out_file_path=None):
     """
     Converts APEX manifest from JSON to protobuf binary format.
     """
-    args = argparse.Namespace(input=manifest_file_path, out=out_file_path)
-    Proto(args)
-
+    try:
+        with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as tmp:
+            clean_json_file(manifest_file_path, tmp.name)
+            args = argparse.Namespace(input=tmp.name, out=out_file_path)
+            Proto(args)
+    except Exception as e:
+        logging.error(f"Error converting manifest: {e}")
 
 def main():
     parser = argparse.ArgumentParser()
