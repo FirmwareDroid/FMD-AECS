@@ -590,8 +590,8 @@ def cleanup_files(directory):
 
 
 def process_partition_files(aosp_path, folder_path, target_out_path, executor, lunch_target, pre_injector_package_list, firmware_id, cookies, aosp_version):
-    logging.info(f"Processing {folder_path} into {target_out_path}")
-    logging.info(f"AOSP Path: {aosp_path} "
+    logging.debug(f"Processing {folder_path} into {target_out_path}")
+    logging.debug(f"AOSP Path: {aosp_path} "
                   f"| Target Out Path: {target_out_path} "
                   f"| Lunch Target: {lunch_target} "
                   f"| Folder Path: {folder_path} "
@@ -603,7 +603,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     partition_name = os.path.basename(folder_path)
     file_paths = list(set(os.path.join(root, file_name.strip()) for root, _, file_name_list in scandir_walk(folder_path)
                           for file_name in file_name_list))
-    logging.info(f"Found {len(file_paths)} files in {folder_path} for post-injection...")
+    logging.debug(f"Found {len(file_paths)} files in {folder_path} for post-injection...")
 
     # Initialize tqdm progress bar
     progress_bar = tqdm(total=len(file_paths), desc=f"Processing files in partition: {partition_name}")
@@ -617,12 +617,12 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
                 continue
             processed_files.add(file_path)
 
-        logging.info(f"Submitting file for injection: {file_path} | Partition: {partition_name} "
+        logging.debug(f"Submitting file for injection: {file_path} | Partition: {partition_name} "
                      f"| Target Out Path: {target_out_path} | Lunch Target: {lunch_target} | Length of pre_injector_package_list: {len(pre_injector_package_list)}")
         future = executor.submit(process_file_concurrently, aosp_path, file_path, partition_name, target_out_path, lunch_target, pre_injector_package_list, firmware_id, cookies, aosp_version)
         future_dict[future] = file_path
 
-    logging.info(f"Finished processing {len(processed_files)}/{len(file_paths)} files in partition: {partition_name}. "
+    logging.debug(f"Finished processing {len(processed_files)}/{len(file_paths)} files in partition: {partition_name}. "
                  f"Skipped {skip_counter} files that were already processed.")
 
     for future in as_completed(future_dict):
