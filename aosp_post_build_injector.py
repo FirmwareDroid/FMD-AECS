@@ -18,7 +18,6 @@ import traceback
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 from http import cookies
-from tkinter.scrolledtext import example
 
 from filelock import FileLock
 from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file, \
