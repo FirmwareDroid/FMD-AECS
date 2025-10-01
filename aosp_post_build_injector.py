@@ -18,6 +18,7 @@ import traceback
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
 from http import cookies
+from tkinter.scrolledtext import example
 
 from filelock import FileLock
 from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file, \
@@ -130,16 +131,19 @@ def group_errors_by_prefix(error_list):
     :return: dict - Grouped errors with counts.
     """
     error_groups = defaultdict(int)
+    error_sample_list = {}
     for error in error_list:
         # Extract the first three words
         match = re.match(r"(\S+\s+\S+\s+\S+)", error)
         if match:
             prefix = match.group(1)
             error_groups[prefix] += 1
+            if prefix not in error_sample_list:
+                error_sample_list[prefix] = error
         else:
             # If no match, group under "Unknown Errors"
             error_groups["Unknown Errors"] += 1
-    return error_groups
+    return error_groups, error_sample_list
 
 def extract_file_type_frequencies(error_list):
     """
@@ -252,11 +256,14 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     logging.info(f"Post-Injection Apps skipped: {skipped_app_list}")
     logging.info(f"Post-Injection APEX skipped: {skipped_apex_list}")
 
-    grouped_errors = group_errors_by_prefix(error_list)
+    grouped_errors, error_sample_list = group_errors_by_prefix(error_list)
 
     logging.info(f"Grouped Errors:")
     for prefix, count in grouped_errors.items():
         logging.info(f"{prefix} {count} occurrences")
+
+    for prefix, sample in error_sample_list.items():
+        logging.info(f"Sample Error for {prefix}: {sample}")
 
     file_type_frequencies = extract_file_type_frequencies(error_list)
 

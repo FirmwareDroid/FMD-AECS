@@ -742,14 +742,13 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                 apex_module_path = str(os.path.join(aosp_path, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"][apex_keyword]))
 
                 candidate_file_names = ["apex_manifest.json", "manifest.json", "manifest-art.json"]
-                manifest_path = None
-
+                apex_manifest_path = None
                 for fname in candidate_file_names:
                     candidate_path = os.path.join(apex_module_path, fname)
                     if os.path.exists(candidate_path):
-                        manifest_path = candidate_path
+                        apex_manifest_path = candidate_path
                         break
-                if manifest_path is None:
+                if apex_manifest_path is None:
                     logging.error(
                         f"APEX: No manifest file found in APEX module path: {apex_module_path}. EXIT PROGRAM!")
                     traceback.print_stack()
