@@ -1012,10 +1012,11 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
         # TODO : Remove this workaround in the future -> This does not work for all cases.
         source_file_path = handle_special_matching(source_file_path)
 
-    if aosp_version and int(aosp_version) == 12 and POST_INJECTOR_CONFIG["ALLOW_DIRECT_INJECTION_LIB_OVERWRITE"]:
-        if "/lib/" in target_file_injection_path:
-            target_file_injection_path = target_file_injection_path.replace("/lib/", "/lib64/hw/")
-            logging.info(f"AOSP 12 lib adjustment for file: {filename} into {target_file_injection_path}")
+    # TODO : Remove this workaround in the future -> This does not work for all cases.
+    #if aosp_version and int(aosp_version) == 12 and POST_INJECTOR_CONFIG["ALLOW_DIRECT_INJECTION_LIB_OVERWRITE"]:
+    #    if "/lib/" in target_file_injection_path:
+    #       target_file_injection_path = target_file_injection_path.replace("/lib/", "/lib64/hw/")
+    #        logging.info(f"AOSP 12 lib adjustment for file: {filename} into {target_file_injection_path}")
 
     if filename in POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"]:
         if "phone64" in  lunch_target:
@@ -1262,12 +1263,12 @@ def main():
         raise RuntimeError(f"Please enter your FMD username/password ({args.fmd_username}): ")
 
     aosp_version = args.aosp_version
-    if aosp_version not in ["12", "13", "14"]:
-        raise RuntimeError("Please provide a valid AOSP version argument (12, 13, 14).")
+    if aosp_version not in ["11", "12", "13", "14"]:
+        raise RuntimeError("Please provide a valid AOSP version argument (11, 12, 13, 14).")
 
-    if aosp_version == "12":
+    if aosp_version in ["11", "12"]:
         test = os.environ.get("FMD_PHONE64_TEST_BUILD") == "True"
-        if test:
+        if test and aosp_version == "12":
             lunch_target = "sdk_phone64_arm64-userdebug"
         else:
             lunch_target = "sdk_phone_arm64-userdebug"
