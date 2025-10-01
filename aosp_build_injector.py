@@ -241,15 +241,15 @@ def extract_package_names(meta_build_path, package_name_list):
     :returns: list - list of package names.
 
     """
-    logging.info(f"Package names to filter against: {package_name_list}")
+    logging.debug(f"Package names to filter against: {package_name_list}")
     package_line_list = []
     with open(meta_build_path, 'r') as meta_build_file:
         for line in meta_build_file:
             stripped_line = clean_package_name(line)
             if stripped_line not in package_name_list:
-                logging.info(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
+                logging.debug(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
             else:
-                logging.info(f"Allowing module meta in build: {line}")
+                logging.debug(f"Allowing module meta in build: {line}")
                 package_line_list.append(line)
     return package_line_list
 
