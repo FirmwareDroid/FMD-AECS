@@ -52,7 +52,7 @@ DOCKER_PLATFORM_X86_64 = "linux/amd64"
 DOCKER_PLATFORM_ARM64 = "linux/arm64"
 FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE = "${url}/download/android_app/build_files"
 SUPPORTED_ARCHITECTURES = ["x86_64", "arm64"]
-SUPPORTED_LUNCH_TARGETS = ["sdk_phone_x86_64-userdebug",  # Android 12 / 13 "sdk_x86_64-userdebug"
+SUPPORTED_LUNCH_TARGETS = ["sdk_phone_x86_64-userdebug",  # Android 11 / 12 / 13 "sdk_x86_64-userdebug"
                            "sdk_phone_arm64-userdebug",  # Android 12 -> Works
                            "sdk_phone64_arm64-userdebug",  # Android 13 "sdk_arm64-userdebug"
                            "sdk_phone64_arm64-ap2a-userdebug"
