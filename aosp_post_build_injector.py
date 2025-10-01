@@ -366,7 +366,8 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                             new_name = filename.replace("bluetooth", "btservices")
                             file_path = rename_file(file_path, new_name)
 
-                    if (POST_INJECTOR_CONFIG["ALLOW_APEX_INJECTION_MERGE"] and any(keyword in filename for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"]) and "/system/" in file_path):    logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
+                    if POST_INJECTOR_CONFIG["ALLOW_APEX_INJECTION_MERGE"] and any(keyword in filename for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"]) and "/system/" in file_path:
+                        logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
                         try:
                             is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aosp_version)
                         except Exception as e:
