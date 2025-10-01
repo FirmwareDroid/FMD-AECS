@@ -62,7 +62,7 @@ def get_signing_key_from_module(android_apk_file_path, firmware_id, cookies):
     if not os.path.exists(android_mk_file_path):
         android_mk_file_path = os.path.join(EXTRACTED_PACKAGES_PATH, module_name, "Android.bp")
 
-    logging.info(f"Android.mk/Android.bp file path: {android_mk_file_path}")
+    logging.debug(f"Android.mk/Android.bp file path: {android_mk_file_path}")
 
     signing_key = None
     if os.path.exists(android_mk_file_path):
@@ -79,7 +79,7 @@ def get_signing_key_from_module(android_apk_file_path, firmware_id, cookies):
                         f"File {android_apk_file_path} - fallback to FMD API.")
         shared_user_id = get_shared_user_from_manifest(firmware_id, android_apk_file_path, cookies)
         if shared_user_id in POST_INJECTOR_CONFIG["SHARED_USER_ID_MAPPING_DICT"].values():
-            logging.info(f"Shared User ID from FMD API for {android_apk_file_path}: {shared_user_id}")
+            logging.debug(f"Shared User ID from FMD API for {android_apk_file_path}: {shared_user_id}")
             for key, value in POST_INJECTOR_CONFIG["SHARED_USER_ID_MAPPING_DICT"].items():
                 if value == shared_user_id:
                     signing_key = key
