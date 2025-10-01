@@ -1,3 +1,10 @@
+#
+# Copyright (C) 2018 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
 #      http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -24,49 +31,47 @@ $(call inherit-product-if-exists, external/hyphenation-patterns/patterns.mk)
 $(call inherit-product-if-exists, frameworks/base/data/keyboards/keyboards.mk)
 $(call inherit-product-if-exists, frameworks/webview/chromium/chromium.mk)
 
-# Disabled Packages:
-    #BasicDreams \
-    #BlockedNumberProvider \
-    #BluetoothMidiService \
-    #BookmarkProvider \
-    #BuiltInPrintService \
-    #CalendarProvider \
-    #CaptivePortalLogin \
-    #DownloadProviderUi \
-    #EasterEgg \
-    #ExternalStorageProvider \
-    #ManagedProvisioning \
-    #MusicFX \
-    #NfcNci \
-    #PacProcessor \
-    #PrintRecommendationService \
-    #PrintSpooler \
-
 PRODUCT_PACKAGES += \
+    BasicDreams \
+    BlockedNumberProvider \
+    Bluetooth \
+    BluetoothMidiService \
+    BookmarkProvider \
+    BuiltInPrintService \
+    CalendarProvider \
     cameraserver \
-    CameraExtensionsProxy \
+    CaptivePortalLogin \
     CertInstaller \
     clatd \
+    clatd.conf \
+    DocumentsUI \
+    DownloadProviderUi \
+    EasterEgg \
+    ExternalStorageProvider \
     FusedLocation \
     InputDevices \
     KeyChain \
     librs_jni \
+    ManagedProvisioning \
     MmsService \
     MtpService \
+    MusicFX \
+    NfcNci \
+    PacProcessor \
+    PrintRecommendationService \
+    PrintSpooler \
     ProxyHandler \
     screenrecord \
     SecureElement \
     SharedStorageBackup \
+    SimAppDialog \
     Telecom \
     TelephonyProvider \
     TeleService \
     Traceur \
+    UserDictionaryProvider \
     VpnDialogs \
     vr \
-    Bluetooth \
-    UserDictionaryProvider \
-    SimAppDialog \
-    DocumentsUI \
 {% for line in package_name_list -%}{{ line }}{%- endfor %}
 
 PRODUCT_SYSTEM_SERVER_APPS += \
@@ -78,12 +83,7 @@ PRODUCT_SYSTEM_SERVER_APPS += \
 PRODUCT_COPY_FILES += \
     frameworks/av/media/libeffects/data/audio_effects.conf:system/etc/audio_effects.conf
 
-PRODUCT_VENDOR_PROPERTIES += \
-    ro.carrier?=unknown \
-    ro.config.notification_sound?=OnTheHunt.ogg \
-    ro.config.alarm_alert?=Alarm_Classic.ogg
-
-TARGET_SUPPORTS_32_BIT_APPS := false
-TARGET_SUPPORTS_64_BIT_APPS := true
-PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions?=log
-MODULE_BUILD_FROM_SOURCE := true
+PRODUCT_PROPERTY_OVERRIDES += \
+    ro.carrier=unknown \
+    ro.config.notification_sound=OnTheHunt.ogg \
+    ro.config.alarm_alert=Alarm_Classic.ogg
