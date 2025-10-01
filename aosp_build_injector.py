@@ -1042,7 +1042,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
         lunch_target = SUPPORTED_LUNCH_TARGETS[0]
     else:
         test = os.environ.get("FMD_PHONE64_TEST_BUILD") == "True"
-        if aosp_version == "12":
+        if aosp_version in ["11", "12"]:
             lunch_target = SUPPORTED_LUNCH_TARGETS[1]
             if test:
                 lunch_target = SUPPORTED_LUNCH_TARGETS[2]
