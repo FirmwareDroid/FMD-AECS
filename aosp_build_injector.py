@@ -592,7 +592,7 @@ def handle_app_package(package_path, dir_name, uuid_dir, out_dir, included_packa
     :param included_package_statistics: dict - statistics of included packages.
     """
     app_modules_path = os.path.join(out_dir, "apps", f"{dir_name}_{uuid_dir}")
-    logging.info(f"Moving app package: {dir_name} from {package_path} to {app_modules_path}")
+    logging.debug(f"Moving app package: {dir_name} from {package_path} to {app_modules_path}")
     shutil.copytree(package_path, app_modules_path, dirs_exist_ok=True)
     included_package_statistics["apps"].append(dir_name)
     return included_package_statistics

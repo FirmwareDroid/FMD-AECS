@@ -942,7 +942,7 @@ def set_executable_permission(file_path):
             and os.path.isfile(file_path) \
             and (file_extension is None or file_extension == ".so"):
                 os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
-        logging.info(f"Set executable permission for file: {file_path}")
+        logging.debug(f"Set executable permission for file: {file_path}")
         return True
     except Exception as e:
         logging.warning(f"{e}")
