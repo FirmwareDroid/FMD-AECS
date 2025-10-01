@@ -143,7 +143,7 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version):
     try:
         apex_root_path = tempfile.mkdtemp(suffix=f"_{filename}_apex_repack")
         apex_extract_dir_path = tempfile.mkdtemp(dir=apex_root_path, suffix=f"_{filename}_extract")
-        extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target)
+        extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target, aosp_version)
         if extract_success:
             logging.info(f"APEX extracted: {apex_file_path} to {apex_extract_dir_path}")
             with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
@@ -263,7 +263,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     # Extract the APEX file to a temporary directory
     apex_root_path = tempfile.mkdtemp(suffix=f"_{filename}_apex_repack")
     apex_extract_dir_path = tempfile.mkdtemp(dir=apex_root_path, suffix=f"_{filename}_extract")
-    extract_success, log_message = extract_apex_file(aosp_path, apex_in_file, apex_extract_dir_path, lunch_target)
+    extract_success, log_message = extract_apex_file(aosp_path, apex_in_file, apex_extract_dir_path, lunch_target, aosp_version)
     if os.path.exists(apex_in_file):
         logging.info(f"APEX file {apex_in_file} still exists after extraction. Removing it.")
         os.remove(apex_in_file)
@@ -713,7 +713,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     apex_root_path = tempfile.mkdtemp(suffix=f"_{filename_input}_merged")
     merged_apex_extract_dir_path = tempfile.mkdtemp(suffix=f"extract", dir=apex_root_path)
     apex_vendor_extract_dir_path = tempfile.mkdtemp(suffix=f"_{filename_input}_vendor")
-    extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target)
+    extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target, aosp_version)
     if extract_success:
         if POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_FILES"] and any(keyword in filename_input for keyword in POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_KEYWORD_LIST"]):
             logging.info(f"APEX: CREATING MIXED APEX: {apex_emulator_folder} and vendor APEX: {input_apex}")
@@ -1293,7 +1293,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file, apk_name_list=
                 #     file_inserted_entries.append(f"/{relative_file_path} {user_id} {group_id} {mode}")
     logging.info(f"APEX: Canned FS Config file created: {output_file} | {file_inserted_entries}")
 
-def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
+def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target, aosp_version):
     """
     Extracts the APEX file using deapexer.
 
@@ -1318,11 +1318,15 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target):
 
     info = f"APEX: Deapexer tool path: {deapexer_tool_path}|{lunch_target}|{apex_file_path}|{output_dir_path}"
     logging.info(info)
-    command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
-               f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}'"
+    if aosp_version in ["11", "12", "13"]:
+        command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
+                   f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}'"
+    else:
+        command = f"{deapexer_tool_path} extract {apex_file_path} {output_dir_path}"
+
     is_success, log = execute_shell_command(command, aosp_path)
     logging.info(f"APEX: Deapexer extraction command: {command} | {is_success} | {log}")
-    return is_success, {f"{log}|{info}"}
+    return is_success, {f"ERROR: {log}| More infos: {info}"}
 
 
 def create_apex_manifest_file(apex_extract_dir_path, apex_package_name):
