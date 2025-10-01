@@ -59,20 +59,20 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
 
     """
     is_successful = False
-    logging.info(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
+    logging.debug(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version)
     if aosp_version in ["12"]:
         blueprint_build_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static'"
     else:
         blueprint_build_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static apexer deapexer avbtool'"
     execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path)
-    logging.info(f"Environment setup for {lunch_target} completed. Moving packages to aosp source code next.")
+    logging.debug(f"Environment setup for {lunch_target} completed. Moving packages to aosp source code next.")
     try:
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
         if PRE_INJECTOR_CONFIG["ENABLE_INJECTION"]:
             included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target, aosp_version)
         else:
-            logging.info("Skipping package injection as ENABLE_INJECTION is set to False.")
+            logging.debug("Skipping package injection as ENABLE_INJECTION is set to False.")
             included_package_statistics = {"apps": [], "libs": [], "apex": [], "count": 0}
     except Exception as e:
         logging.error(f"Error moving packages to aosp source code: {e}. EXIT PROGRAM!")
