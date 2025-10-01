@@ -99,7 +99,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         package_name_list.extend(included_package_statistics["libs"])
         package_name_list.extend(included_package_statistics["apex"])
         inject_meta_files(aosp_path, aosp_version, package_name_list)
-        logging.info(f"Injected meta files into aosp source code: {aosp_path}")
+        logging.debug(f"Injected meta files into aosp source code: {aosp_path}")
     except Exception as err:
         logging.error(f"Error injecting meta files: {err}")
         traceback.print_exc()
