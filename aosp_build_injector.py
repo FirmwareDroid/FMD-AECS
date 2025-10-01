@@ -545,11 +545,11 @@ def handle_library_package(package_path, dir_name, uuid_dir, aosp_path, out_dir,
     """
     if not PRE_INJECTOR_CONFIG["DISABLE_NATIVE_LIBRARY_INJECTION"]:
         framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", f"{dir_name}_{uuid_dir}")
-        logging.info(f"Copying library package: {package_path} to {framework_lib_path}")
+        logging.debug(f"Copying library package: {package_path} to {framework_lib_path}")
         shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
         included_package_statistics["libs"].append(dir_name)
     else:
-        logging.info(f"Native library injection disabled for package: {dir_name}")
+        logging.debug(f"Native library injection disabled for package: {dir_name}")
     return included_package_statistics
 
 
@@ -568,12 +568,12 @@ def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, in
     apex_file_path = get_apex_file(package_path)
     package_dir_name = str(os.path.basename(package_path).lower())
     modules_path = str(os.path.join(aosp_path, f"{out_dir}apex/", package_dir_name, uuid_dir))
-    logging.info(f"Copying APEX package: {package_path} to {modules_path}")
+    logging.debug(f"Copying APEX package: {package_path} to {modules_path}")
     shutil.copytree(package_path, modules_path, dirs_exist_ok=True)
     if PRE_INJECTOR_CONFIG["ALLOW_APEX_REPACKING_IN_PRE_INJECTOR"]:
         is_success, log_message = repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version)
         if is_success:
-            logging.info(f"Repackaged APEX package: {apex_file_path} successfully.")
+            logging.debug(f"Repackaged APEX package: {apex_file_path} successfully.")
             included_package_statistics["apex"].append(dir_name)
         else:
             logging.error(f"APEX repacking error: {log_message}. Exiting.")
