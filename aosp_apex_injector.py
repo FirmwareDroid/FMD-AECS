@@ -699,6 +699,62 @@ def get_matching_apex_key(filename, config):
             return key
     return None
 
+
+def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_path, filename_input, aosp_path, apex_root_path):
+    apex_manifest_path_pb = os.path.join(apex_emulator_folder, "apex_manifest.pb")
+    logging.info(f"Checking for existing APEX manifest in emulator APEX: {apex_manifest_path_pb}")
+    if os.path.exists(apex_manifest_path_pb):
+        logging.info(f"Copy manifest from original APEX: {apex_manifest_path_pb}")
+        shutil.copy2(apex_manifest_path_pb, merged_apex_extract_dir_path)
+        if not os.path.exists(merged_apex_extract_dir_path):
+            logging.error(f"ERROR: APEX Manifest was not copied to: {merged_apex_extract_dir_path}. EXIT PROGRAM!")
+            traceback.print_stack()
+            exit(-1)
+    else:
+        logging.info(f"Load Manifest from AOSP source tree for APEX: {filename_input}")
+        apex_manifest_name_pb = "apex_manifest.pb"
+        apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
+        apex_keyword = get_matching_apex_key(filename_input, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"])
+        if not apex_keyword:
+            logging.error(
+                f"APEX: No matching keyword found in APEX_DEFAULT_PATHS_DICT for {filename_input}. EXIT PROGRAM!")
+            traceback.print_stack()
+            exit(-1)
+        logging.info(f"APEX Keyword: {apex_keyword} found for apex: {filename_input}")
+        apex_module_path = str(os.path.join(aosp_path, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"][apex_keyword]))
+
+        candidate_file_names = ["apex_manifest.json", "manifest.json", "manifest-art.json"]
+        apex_manifest_path = None
+        for fname in candidate_file_names:
+            candidate_path = os.path.join(apex_module_path, fname)
+            if os.path.exists(candidate_path):
+                apex_manifest_path = candidate_path
+                break
+        if apex_manifest_path is None:
+            logging.error(
+                f"APEX: No manifest file found in APEX module path: {apex_module_path}. EXIT PROGRAM!")
+            traceback.print_stack()
+            exit(-1)
+
+        logging.info(f"APEX manifest path used: {apex_manifest_path}")
+        if os.path.exists(apex_manifest_path):
+            logging.info(
+                f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
+            convert_manifest_from_json(apex_manifest_path, out_file_path=apex_manifest_path_pb)
+            if not os.path.exists(apex_manifest_path_pb):
+                logging.error(f"APEX manifest Protobuf file not created: {apex_manifest_path_pb}. EXIT PROGRAM!")
+                traceback.print_stack()
+                exit(-1)
+            else:
+                logging.info(f"APEX manifest Protobuf file created: {apex_manifest_path_pb}")
+                shutil.copy2(apex_manifest_path_pb, merged_apex_extract_dir_path)
+                logging.info(f"APEX manifest Protobuf file copied {apex_manifest_path_pb} to: {merged_apex_extract_dir_path}")
+        else:
+            logging.error("APEX Manifest path is invalid. EXIT PROGRAM!")
+            traceback.print_stack()
+            exit(-1)
+    return apex_manifest_path_pb
+
 # Keep the structure of the original apex
 # Inject additional files into the apex
 def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_target, aosp_path, target_out_path, aosp_version):
@@ -727,51 +783,11 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
             logging.info(f"Copied emulator APEX folder: {apex_emulator_folder} to {merged_apex_extract_dir_path}")
             log_files_in_dir(merged_apex_extract_dir_path)
         else:
-            manifest_path = os.path.join(apex_emulator_folder, "apex_manifest.pb")
-            if os.path.exists(manifest_path):
-                logging.info(f"Copy manifest from original APEX: {manifest_path}")
-                shutil.copy2(manifest_path, merged_apex_extract_dir_path)
-                if not os.path.exists(merged_apex_extract_dir_path):
-                    logging.error(f"ERROR: APEX Manifest was not copied to: {merged_apex_extract_dir_path}. EXIT PROGRAM!")
-                    traceback.print_stack()
-                    exit(-1)
-            else:
-                logging.info(f"Load Manifest from AOSP source tree for APEX: {filename_input}")
-                apex_manifest_name_pb = "apex_manifest.pb"
-                apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
-                apex_keyword = get_matching_apex_key(filename_input, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"])
-                if not apex_keyword:
-                    logging.error(f"APEX: No matching keyword found in APEX_DEFAULT_PATHS_DICT for {filename_input}. EXIT PROGRAM!")
-                    traceback.print_stack()
-                    exit(-1)
-                logging.info(f"APEX Keyword: {apex_keyword} found for apex: {filename_input}")
-                apex_module_path = str(os.path.join(aosp_path, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"][apex_keyword]))
-
-                candidate_file_names = ["apex_manifest.json", "manifest.json", "manifest-art.json"]
-                apex_manifest_path = None
-                for fname in candidate_file_names:
-                    candidate_path = os.path.join(apex_module_path, fname)
-                    if os.path.exists(candidate_path):
-                        apex_manifest_path = candidate_path
-                        break
-                if apex_manifest_path is None:
-                    logging.error(
-                        f"APEX: No manifest file found in APEX module path: {apex_module_path}. EXIT PROGRAM!")
-                    traceback.print_stack()
-                    exit(-1)
-
-                logging.info(f"APEX manifest path used: {apex_manifest_path}")
-                if os.path.exists(apex_manifest_path):
-                    logging.info(f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
-                    convert_manifest_from_json(apex_manifest_path, out_file_path=apex_manifest_path_pb)
-                    if not os.path.exists(apex_manifest_path_pb):
-                        logging.error(f"APEX manifest Protobuf file not created: {apex_manifest_path_pb}. EXIT PROGRAM!")
-                        traceback.print_stack()
-                        exit(-1)
-                else:
-                    logging.error("APEX Manifest path is invalid. EXIT PROGRAM!")
-                    traceback.print_stack()
-                    exit(-1)
+            load_apex_manifest_from_aosp(apex_emulator_folder,
+                                         merged_apex_extract_dir_path,
+                                         filename_input,
+                                         aosp_path,
+                                        apex_root_path)
 
         apk_name_list = []
         if POST_INJECTOR_CONFIG["INJECT_APEX_VENDOR_FILES"]:
