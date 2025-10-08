@@ -27,6 +27,7 @@ import argparse
 import collections
 import json
 import logging
+import os
 import tempfile
 
 import apex_manifest_pb2
@@ -87,15 +88,17 @@ def clean_json_file(input_path, output_path):
     with open(output_path, 'r') as f:
         json.load(f)
 
-def convert_manifest_from_json(manifest_file_path, out_file_path=None):
+def convert_manifest_from_json(manifest_file_path, out_file_path):
     """
     Converts APEX manifest from JSON to protobuf binary format.
     """
     try:
-        with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as tmp:
-            clean_json_file(manifest_file_path, tmp.name)
-            args = argparse.Namespace(input=tmp.name, out=out_file_path)
-            Proto(args)
+        base_dir = os.path.dirname(manifest_file_path)
+        cleaned_manifest = os.path.join(base_dir, "apex_manifest_cleaned.json")
+        clean_json_file(manifest_file_path, cleaned_manifest)
+        args = argparse.Namespace(input=cleaned_manifest, out=out_file_path)
+        Proto(args)
+        logging.info(f"Converted {manifest_file_path} to {out_file_path}")
     except Exception as e:
         logging.error(f"Error converting manifest: {e}")
 
