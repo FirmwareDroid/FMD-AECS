@@ -150,6 +150,7 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version):
                 generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name, allow_filtering=False)
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
+            logging.info(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
             if apex_manifest_path:
                 is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path = create_and_sign_apex_repack_container(
                         apex_manifest_path=apex_manifest_path,
@@ -473,6 +474,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
 
     # Remove the old manifest file if it exists
     is_manifest_found, old_apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
+    logging.info(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
     if os.path.exists(old_apex_manifest_path):
         logging.info(f"Removing existing APEX manifest Protobuf file: {old_apex_manifest_path}")
         os.remove(old_apex_manifest_path)
@@ -781,6 +783,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
 
         is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path,
                                                                         apex_root_path)
+        logging.info(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
         if is_manifest_found and os.path.exists(apex_manifest_path):
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
@@ -1355,25 +1358,31 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
     logging.debug(f"Copying APEX manifest file.")
     is_apex_manifest_file_found = False
     manifest_dst = None
-    for root, dirs, files in os.walk(apex_extract_dir_path):
-        for file in files:
-            logging.info(f"Scanning for APEX manifest file: {file}")
-            if file == "apex_manifest.pb":
-                file_path = str(os.path.join(root, file))
-                manifest_dst = os.path.join(output_dir_path, "apex_manifest.pb")
-                if os.path.exists(file_path):
-                    logging.info(f"Found APEX manifest file: {file_path} to delete")
-                    shutil.move(file_path, manifest_dst)
-                else:
-                    logging.error(f"No APEX manifest found in {apex_extract_dir_path} | {file_path}")
-                    exit(1)
-                #manifest_json_file_path = get_apex_manifest_from_aosp(aosp_path, apex_file_name)
-                #convert_apex_manifest_json_to_pb(manifest_json_file_path, manifest_dst)
-                logging.info(f"Copied APEX manifest file: {file_path} to {manifest_dst}.")
-                if os.path.exists(manifest_dst):
-                    is_apex_manifest_file_found = True
-                    logging.info(f"APEX manifest file found: {manifest_dst}")
-                break
+    try:
+        for root, dirs, files in os.walk(apex_extract_dir_path):
+            for file in files:
+                logging.info(f"Scanning for APEX manifest file: {file}")
+                if file == "apex_manifest.pb":
+                    file_path = str(os.path.join(root, file))
+                    manifest_dst = os.path.join(output_dir_path, "apex_manifest.pb")
+                    if os.path.exists(file_path):
+                        logging.info(f"Found APEX manifest file: {file_path} to delete")
+                        shutil.move(file_path, manifest_dst)
+                    else:
+                        logging.error(f"No APEX manifest found in {apex_extract_dir_path} | {file_path}")
+                        exit(1)
+                    #manifest_json_file_path = get_apex_manifest_from_aosp(aosp_path, apex_file_name)
+                    #convert_apex_manifest_json_to_pb(manifest_json_file_path, manifest_dst)
+                    logging.info(f"Copied APEX manifest file: {file_path} to {manifest_dst}.")
+                    if os.path.exists(manifest_dst):
+                        is_apex_manifest_file_found = True
+                        logging.info(f"APEX manifest file found: {manifest_dst}")
+                    break
+    except Exception as ex:
+        logging.error(f"Failed to move APEX manifest file: {ex}")
+        traceback.print_exc()
+        traceback.print_stack()
+
     return is_apex_manifest_file_found, str(manifest_dst)
 
 def convert_apex_manifest_json_to_pb(apex_manifest_path, output_file_path):
