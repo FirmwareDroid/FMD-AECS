@@ -764,6 +764,10 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                 if os.path.exists(apex_manifest_path):
                     logging.info(f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
                     convert_manifest_from_json(apex_manifest_path, out_file_path=apex_manifest_path_pb)
+                    if not os.path.exists(apex_manifest_path_pb):
+                        logging.error(f"APEX manifest Protobuf file not created: {apex_manifest_path_pb}. EXIT PROGRAM!")
+                        traceback.print_stack()
+                        exit(-1)
                 else:
                     logging.error("APEX Manifest path is invalid. EXIT PROGRAM!")
                     traceback.print_stack()
@@ -1327,11 +1331,8 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target, 
 
     info = f"APEX: Deapexer tool path: {deapexer_tool_path}|{lunch_target}|{apex_file_path}|{output_dir_path}"
     logging.info(info)
-    if aosp_version in ["11", "12", "13"]:
-        command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
-                   f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}'"
-    else:
-        command = f"{deapexer_tool_path} extract {apex_file_path} {output_dir_path}"
+    command = f"bash -c 'source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
+               f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}'"
 
     is_success, log = execute_shell_command(command, aosp_path)
     logging.info(f"APEX: Deapexer extraction command: {command} | {is_success} | {log}")

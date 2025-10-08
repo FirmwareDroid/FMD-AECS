@@ -33,6 +33,7 @@ def execute_command(command, cwd=None, shell=False):
             is_success = True
             log = result.stdout.decode('utf-8', errors='ignore').strip()
         else:
+            is_success  = False
             logging.error(f"Error executing command: {command} - {result.returncode}")
             log = f"Return code: {result.returncode} with message: {result.stderr.decode('utf-8', errors='ignore').strip()}"
     except Exception as e:
