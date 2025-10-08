@@ -62,9 +62,9 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     logging.debug(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version)
     if aosp_version in ["11", "12"]:
-        blueprint_build_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static'"
+        blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static'"
     else:
-        blueprint_build_command = f"bash -c 'source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static apexer deapexer avbtool'"
+        blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static apexer deapexer avbtool'"
     execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path)
     logging.debug(f"Environment setup for {lunch_target} completed. Moving packages to aosp source code next.")
     try:
@@ -646,12 +646,12 @@ def get_aosp_build_command(lunch_target, aosp_version, aosp_root):
         raise RuntimeError("Unsupported build CPU architecture specified.")
 
     if aosp_version in ["11", "12"]:
-        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+        command = f"bash -c 'cd {aosp_root} && source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
                   "&& m " \
                   "&& m sdk'"
     else:
-        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+        command = f"bash -c 'cd {aosp_root} && source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
                   "&& m '"
     return command
@@ -659,17 +659,17 @@ def get_aosp_build_command(lunch_target, aosp_version, aosp_root):
 
 def get_aosp_repo_build_command(aosp_root, lunch_target, aosp_version):
     if aosp_version in ["11"]:
-        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+        command = f"bash -c 'cd {aosp_root} && source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
                   "&& m sdk_repo " \
                   "&& m dist'"
     elif aosp_version in ["12"]:
-        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+        command = f"bash -c 'cd {aosp_root} && source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
                   "&& m sdk_repo " \
                   "&& m emu_img_zip'"
     else:
-        command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+        command = f"bash -c 'cd {aosp_root} && source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
                   "&& m emu_img_zip'"
     return command
@@ -689,7 +689,7 @@ def get_rebuild_jar_modules_command(aosp_root, lunch_target, included_package_na
     command_list = []
     for jar_module_name in included_package_name_list:
         if "INJECTED_PREBUILT_JAR" in jar_module_name:
-            command = f"bash -c 'source {aosp_root}/build/envsetup.sh " \
+            command = f"bash -c 'cd {aosp_root} && source {aosp_root}/build/envsetup.sh " \
                       f"&& lunch {lunch_target} "
             command += f"&& mmm packages/apps/{jar_module_name} '"
             command_list.append(command)
