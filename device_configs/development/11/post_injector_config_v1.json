@@ -302,7 +302,6 @@
   "APEX_DEFAULT_PATHS_DICT": {
     "sdkext": "packages/modules/SdkExtensions",
     "extservices": "packages/modules/ExtServices/apex",
-    "wifi": "packages/modules/Wifi/apex",
     "tethering": "packages/modules/Connectivity/Tethering/apex",
     "i18n": "packages/modules/RuntimeI18n/apex",
     "vndk": "packages/modules/vndk/apex",

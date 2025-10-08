@@ -80,8 +80,8 @@ def clean_json_file(input_path, output_path):
         lines = f.readlines()
     cleaned_lines = [
         line for line in lines
-        if "// Placeholder module version to be replaced during build." not in line
-        and "// Do not change!" not in line
+        if "Placeholder module version to be replaced during build." not in line
+        and "Do not change!" not in line
     ]
     with open(output_path, 'w') as f:
         f.writelines(cleaned_lines)
