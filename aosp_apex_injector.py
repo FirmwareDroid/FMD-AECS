@@ -7,6 +7,8 @@ import subprocess
 import tempfile
 import traceback
 import zipfile
+from asyncore import write
+
 from jinja2 import Environment, FileSystemLoader
 from ConfigManager import ConfigManager
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
@@ -151,7 +153,8 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version):
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
             logging.info(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
-            if apex_manifest_path:
+
+            if apex_manifest_path and os.path.exists(apex_manifest_path):
                 is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path = create_and_sign_apex_repack_container(
                         apex_manifest_path=apex_manifest_path,
                         apex_extract_dir_path=apex_extract_dir_path,
@@ -1343,7 +1346,7 @@ def create_apex_manifest_file(apex_extract_dir_path, apex_package_name):
         manifest_file.write(rendered_template)
 
 
-def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
+def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filename):
     """
     Searches for the APEX manifest file in the APEX extract directory and moves it to the current directory.
     Moving is necessary because the apexer tool requires the manifest file to be in the same directory as the APEX files and not in
@@ -1356,15 +1359,14 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
 
     """
     logging.debug(f"Copying APEX manifest file.")
+    manifest_dst = os.path.join(output_dir_path, "apex_manifest.pb")
     is_apex_manifest_file_found = False
-    manifest_dst = None
     try:
         for root, dirs, files in os.walk(apex_extract_dir_path):
             for file in files:
                 logging.info(f"Scanning for APEX manifest file: {file}")
                 if file == "apex_manifest.pb":
                     file_path = str(os.path.join(root, file))
-                    manifest_dst = os.path.join(output_dir_path, "apex_manifest.pb")
                     if os.path.exists(file_path):
                         logging.info(f"Found APEX manifest file: {file_path} to delete")
                         shutil.move(file_path, manifest_dst)
@@ -1382,6 +1384,22 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path):
         logging.error(f"Failed to move APEX manifest file: {ex}")
         traceback.print_exc()
         traceback.print_stack()
+
+    if not is_apex_manifest_file_found:
+        if not is_apex_manifest_file_found:
+            manifest_json_str = f"""{{
+          "name": "{apex_filename}",
+          "version": 999999
+        }}
+        """
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode='w',
+                                             encoding='utf-8') as temp_manifest_file:
+                temp_manifest_file.write(manifest_json_str)
+                temp_manifest_path = temp_manifest_file.name
+        convert_manifest_from_json(temp_manifest_path, manifest_dst)
+        if os.path.exists(manifest_dst):
+            is_apex_manifest_file_found = True
+            logging.info(f"APEX manifest file created from template: {manifest_dst}")
 
     return is_apex_manifest_file_found, str(manifest_dst)
 
