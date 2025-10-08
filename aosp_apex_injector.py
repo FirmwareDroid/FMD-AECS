@@ -151,7 +151,8 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version):
             with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
                 generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name, allow_filtering=False)
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
-            is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
+            apex_file_name = str(os.path.basename(apex_file_path))
+            is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path, apex_file_name)
             logging.info(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
 
             if apex_manifest_path and os.path.exists(apex_manifest_path):
@@ -476,7 +477,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     logging.info(f"Created {apex_manifest_path} with content: {apex_manifest} for APEX file {apex_file_name}")
 
     # Remove the old manifest file if it exists
-    is_manifest_found, old_apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path)
+    is_manifest_found, old_apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path, apex_file_name)
     logging.info(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
     if os.path.exists(old_apex_manifest_path):
         logging.info(f"Removing existing APEX manifest Protobuf file: {old_apex_manifest_path}")
@@ -784,8 +785,10 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name, apk_name_list)
 
+
         is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path,
-                                                                        apex_root_path)
+                                                                        apex_root_path,
+                                                                        filename_input)
         logging.info(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
         if is_manifest_found and os.path.exists(apex_manifest_path):
             if apex_manifest_path:
@@ -1388,7 +1391,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
     if not is_apex_manifest_file_found:
         if not is_apex_manifest_file_found:
             manifest_json_str = f"""{{
-          "name": "{apex_filename}",
+          "name": "{apex_filename.replace(".apex", "").replace(".capex", "")}",
           "version": 999999
         }}
         """
