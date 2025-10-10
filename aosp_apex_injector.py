@@ -1,4 +1,5 @@
 import hashlib
+import json
 import logging
 import os.path
 import re
@@ -543,6 +544,20 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
 
     return is_success, log_message
 
+
+def clean_json_file(input_path, output_path):
+    with open(input_path, 'r') as f:
+        lines = f.readlines()
+    cleaned_lines = [
+        line for line in lines
+        if "Placeholder module version to be replaced during build." not in line
+        and "Do not change!" not in line
+    ]
+    with open(output_path, 'w') as f:
+        f.writelines(cleaned_lines)
+    with open(output_path, 'r') as f:
+        json.load(f)
+
 def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lunch_target):
     """
     Executes the binary "conv_apex_manifest" to convert an apex_manifest.json file to
@@ -560,15 +575,19 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
     options:
       -h, --help            show this help message and exit
     """
-    apexer_bin_candidates = [
+    conv_bin_candidates = [
         os.path.join(aosp_path, "out/soong/host/linux-x86/bin/conv_apex_manifest"),
         os.path.join(aosp_path, "out/host/linux-x86/bin/conv_apex_manifest"),
     ]
-    converter_path = next((p for p in apexer_bin_candidates if os.path.exists(p)), None)
+    converter_path = next((p for p in conv_bin_candidates if os.path.exists(p)), None)
     if not converter_path:
         message = "APEX conv_apex_manifest failed: conv_apex_manifest tool not found in any known location."
         logging.info(message)
         return False, {f"{message}"}
+
+    base_dir = os.path.dirname(apex_manifest_path)
+    cleaned_manifest = os.path.join(base_dir, "apex_manifest_cleaned.json")
+    clean_json_file(apex_manifest_path, cleaned_manifest)
 
     info = f"APEX: conv_apex_manifest tool path: {converter_path}|{apex_manifest_path}|{out_file_path}|{lunch_target}"
     logging.info(info)
