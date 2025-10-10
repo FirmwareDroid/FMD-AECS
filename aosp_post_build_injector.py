@@ -545,9 +545,9 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     file_extension = os.path.splitext(file_name)[1]
 
     target_file_injection_path = get_target_injection_path(file_path, partition_name, target_out_path)
-    logging.info(f"Target file injection path: {target_file_injection_path} ")
+    logging.debug(f"Target file injection path: {target_file_injection_path} ")
     if file_extension == ".apex" or file_extension == ".capex":
-        logging.info(f"APEX Injection Strategy Selection for file: {file_path}")
+        logging.debug(f"APEX Injection Strategy Selection for file: {file_path}")
         if (not os.path.exists(target_file_injection_path)
                 and not any(keyword in os.path.basename(target_file_injection_path)
                             for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"])):
@@ -816,7 +816,7 @@ def search_original_file_in_obj(partition_name,
 
 
     module_name = os.path.splitext(file_name)[0]
-    logging.info(f"File Matcher:{module_type} Searching in {search_folder_path} for module_name: {module_name} and file_name: {file_name}")
+    logging.debug(f"File Matcher:{module_type} Searching in {search_folder_path} for module_name: {module_name} and file_name: {file_name}")
     for file in file_path_list:
         root = os.path.dirname(file)
         candidate_path = file
@@ -876,10 +876,10 @@ def search_original_file_in_obj(partition_name,
             logging.debug(f"File Matcher: File not found: {file_name}")
 
     if len(result_file_path_list) > 0:
-        logging.info(f"File Matcher: Found file for {file_name} in {search_folder_path} with partition {partition_name}")
+        logging.debug(f"File Matcher: Found file for {file_name} in {search_folder_path} with partition {partition_name}")
         return result_file_path_list
     else:
-        logging.info(f"File Matcher: No file found for {file_name} in {search_folder_path} with partition {partition_name}")
+        logging.debug(f"File Matcher: No file found for {file_name} in {search_folder_path} with partition {partition_name}")
         return None
 
 
