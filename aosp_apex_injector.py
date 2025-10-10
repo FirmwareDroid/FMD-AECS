@@ -15,7 +15,7 @@ from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, ve
     sign_apex_container_apksigner, sign_apex_container_signapk
 from common import extract_vendor_name, remove_vendor_name_from_filename, check_shared_object_architecture, \
     get_path_up_to_first_term
-from conv_apex_manifest import convert_manifest_from_json
+#from conv_apex_manifest import convert_manifest_from_json
 from parse_lddtree_to_json import run_lddtree
 from shell_command import execute_shell_command
 from config_post_injector import *
@@ -152,7 +152,7 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version):
                 generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name, allow_filtering=False)
             logging.info(f"Canned FS config file: {canned_fs_config.name}")
             apex_file_name = str(os.path.basename(apex_file_path))
-            is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path, apex_file_name)
+            is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path, apex_file_name, aosp_path, lunch_target)
             logging.info(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
 
             if apex_manifest_path and os.path.exists(apex_manifest_path):
@@ -477,7 +477,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     logging.info(f"Created {apex_manifest_path} with content: {apex_manifest} for APEX file {apex_file_name}")
 
     # Remove the old manifest file if it exists
-    is_manifest_found, old_apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path, apex_file_name)
+    is_manifest_found, old_apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path, apex_file_name, aosp_path, lunch_target)
     logging.info(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
     if os.path.exists(old_apex_manifest_path):
         logging.info(f"Removing existing APEX manifest Protobuf file: {old_apex_manifest_path}")
@@ -487,7 +487,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     apex_manifest_name_pb = "apex_manifest.pb"
     apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
     logging.info(f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
-    convert_manifest_from_json(apex_manifest_path, out_file_path=apex_manifest_path_pb)
+    convert_manifest_from_json(apex_manifest_path=apex_manifest_path, out_file_path=apex_manifest_path_pb, aosp_path=aosp_path, lunch_target=lunch_target)
     if not os.path.exists(apex_manifest_path_pb):
         logging.error(f"APEX manifest Protobuf file not created: {apex_manifest_path_pb} for APEX file {apex_file_name}")
         return False, f"APEX manifest Protobuf file not created: {apex_manifest_path_pb}"
@@ -542,6 +542,43 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     logging.info(f"APEX container file {apex_file_name} successfully created to: {apex_out_file}")
 
     return is_success, log_message
+
+def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lunch_target):
+    """
+    Executes the binary "conv_apex_manifest" to convert an apex_manifest.json file to
+    an apex_manifest.pb Protobuf file.
+
+    usage: conv_apex_manifest [-h] {strip,proto,setprop,print} ...
+
+    positional arguments:
+      {strip,proto,setprop,print}
+        strip               remove unknown keys from APEX manifest (JSON)
+        proto               write protobuf binary format
+        setprop             change property value
+        print               print APEX manifest
+
+    options:
+      -h, --help            show this help message and exit
+    """
+    apexer_bin_candidates = [
+        os.path.join(aosp_path, "out/soong/host/linux-x86/bin/conv_apex_manifest"),
+        os.path.join(aosp_path, "out/host/linux-x86/bin/conv_apex_manifest"),
+    ]
+    converter_path = next((p for p in apexer_bin_candidates if os.path.exists(p)), None)
+    if not converter_path:
+        message = "APEX conv_apex_manifest failed: conv_apex_manifest tool not found in any known location."
+        logging.info(message)
+        return False, {f"{message}"}
+
+    info = f"APEX: conv_apex_manifest tool path: {converter_path}|{apex_manifest_path}|{out_file_path}|{lunch_target}"
+    logging.info(info)
+    command = f"bash -c 'cd {aosp_path} && source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
+               f"&& {converter_path} proto {apex_manifest_path} {out_file_path}'"
+
+    is_success, log = execute_shell_command(command, aosp_path)
+    logging.info(f"APEX: conv_apex_manifest extraction command: {command} | {is_success} | {log}")
+    return is_success, {f"ERROR: {log}| More infos: {info}"}
+
 
 
 def create_apex_build_module(aosp_path, apex_file_path, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path):
@@ -700,7 +737,7 @@ def get_matching_apex_key(filename, config):
     return None
 
 
-def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_path, filename_input, aosp_path, apex_root_path):
+def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_path, filename_input, aosp_path, apex_root_path, lunch_target):
     apex_manifest_path_pb = os.path.join(apex_emulator_folder, "apex_manifest.pb")
     logging.info(f"Checking for existing APEX manifest in emulator APEX: {apex_manifest_path_pb}")
     if os.path.exists(apex_manifest_path_pb):
@@ -740,7 +777,7 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
         if os.path.exists(apex_manifest_path):
             logging.info(
                 f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
-            convert_manifest_from_json(apex_manifest_path, out_file_path=apex_manifest_path_pb)
+            convert_manifest_from_json(apex_manifest_path=apex_manifest_path, out_file_path=apex_manifest_path_pb, aosp_path=aosp_path, lunch_target=lunch_target)
             if not os.path.exists(apex_manifest_path_pb):
                 logging.error(f"APEX manifest Protobuf file not created: {apex_manifest_path_pb}. EXIT PROGRAM!")
                 traceback.print_stack()
@@ -787,7 +824,8 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                          merged_apex_extract_dir_path,
                                          filename_input,
                                          aosp_path,
-                                        apex_root_path)
+                                         apex_root_path,
+                                         lunch_target)
 
         apk_name_list = []
         if POST_INJECTOR_CONFIG["INJECT_APEX_VENDOR_FILES"]:
@@ -808,7 +846,9 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
 
         is_manifest_found, apex_manifest_path = move_apex_manifest_file(merged_apex_extract_dir_path,
                                                                         apex_root_path,
-                                                                        filename_input)
+                                                                        filename_input,
+                                                                        aosp_path,
+                                                                        lunch_target)
         logging.info(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
         if is_manifest_found and os.path.exists(apex_manifest_path):
             if apex_manifest_path:
@@ -1366,7 +1406,7 @@ def create_apex_manifest_file(apex_extract_dir_path, apex_package_name):
         manifest_file.write(rendered_template)
 
 
-def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filename):
+def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filename, aosp_path, lunch_target):
     """
     Searches for the APEX manifest file in the APEX extract directory and moves it to the current directory.
     Moving is necessary because the apexer tool requires the manifest file to be in the same directory as the APEX files and not in
@@ -1416,7 +1456,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
                                              encoding='utf-8') as temp_manifest_file:
                 temp_manifest_file.write(manifest_json_str)
                 temp_manifest_path = temp_manifest_file.name
-        convert_manifest_from_json(temp_manifest_path, manifest_dst)
+        convert_manifest_from_json(apex_manifest_path=temp_manifest_path, out_file_path=manifest_dst, aosp_path=aosp_path, lunch_target=lunch_target)
         if os.path.exists(manifest_dst):
             is_apex_manifest_file_found = True
             logging.info(f"APEX manifest file created from template: {manifest_dst}")
