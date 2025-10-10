@@ -573,7 +573,7 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
     info = f"APEX: conv_apex_manifest tool path: {converter_path}|{apex_manifest_path}|{out_file_path}|{lunch_target}"
     logging.info(info)
     command = f"bash -c 'cd {aosp_path} && source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
-               f"&& {converter_path} proto {apex_manifest_path} {out_file_path}'"
+               f"&& {converter_path} proto -o {out_file_path} {apex_manifest_path}'"
 
     is_success, log = execute_shell_command(command, aosp_path)
     logging.info(f"APEX: conv_apex_manifest extraction command: {command} | {is_success} | {log}")
