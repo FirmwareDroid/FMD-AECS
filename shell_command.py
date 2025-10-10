@@ -1,6 +1,8 @@
 import logging
 import os
 import subprocess
+import traceback
+
 
 def execute_shell_command(command, aosp_root_path):
     current_directory = os.path.dirname(os.path.realpath(__file__))
