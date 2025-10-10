@@ -34,9 +34,20 @@ def execute_command(command, cwd=None, shell=False):
             log = result.stdout.decode('utf-8', errors='ignore').strip()
         else:
             is_success  = False
-            logging.error(f"Error executing command: {command} - {result.returncode}")
+            log = (
+                f"Error executing command: {command}\n"
+                f"Working directory: {cwd}\n"
+                f"Return code: {result.returncode}\n"
+                f"Stdout: {result.stdout.decode('utf-8', errors='ignore').strip()}\n"
+                f"Stderr: {result.stderr.decode('utf-8', errors='ignore').strip()}"
+            )
             log = f"Return code: {result.returncode} with message: {result.stderr.decode('utf-8', errors='ignore').strip()}"
     except Exception as e:
-        log = f"Error: {e}"
+        log = (
+            f"Exception while executing command: {command}\n"
+            f"Working directory: {cwd}\n"
+            f"Error: {e}\n"
+            f"Stack trace:\n{traceback.format_exc()}"
+        )
 
     return is_success, log
