@@ -553,9 +553,9 @@ def clean_json_file(input_path, output_path):
         if "Placeholder module version to be replaced during build." not in line
         and "Do not change!" not in line
     ]
-    for line in cleaned_lines:
+    for i, line in enumerate(cleaned_lines):
         if "\"version\": 0" in line:
-            line = line.replace("\"version\": 0", "\"version\": 99999")
+            cleaned_lines[i] = line.replace("\"version\": 0", "\"version\": 99999")
 
     with open(output_path, 'w') as f:
         f.writelines(cleaned_lines)
