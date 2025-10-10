@@ -555,7 +555,7 @@ def clean_json_file(input_path, output_path):
     ]
     for i, line in enumerate(cleaned_lines):
         if "\"version\": 0" in line:
-            cleaned_lines[i] = line.replace("\"version\": 0", "\"version\": 99999")
+            cleaned_lines[i] = line.replace("0", "999")
 
     with open(output_path, 'w') as f:
         f.writelines(cleaned_lines)
