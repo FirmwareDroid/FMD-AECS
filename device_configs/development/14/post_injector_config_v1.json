@@ -38,7 +38,9 @@
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "Overlay",
     "ExtServices",
-    "Settings"
+    "Settings",
+    "__auto_generated",
+    "Provider"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
