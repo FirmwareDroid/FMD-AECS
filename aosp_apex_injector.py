@@ -679,8 +679,8 @@ def get_apex_build_intermediate_folder(target_out_path):
 
 
 def get_match_existing_emulator_folders(filename_no_vendor):
-    if "tzdata3" in filename_no_vendor or "tzdata4" in filename_no_vendor:
-        filename_no_vendor = filename_no_vendor.replace("tzdata3", "tzdata").replace("tzdata4", "tzdata")
+    if "tzdata" in filename_no_vendor:
+        filename_no_vendor = re.sub(r'tzdata\d+', 'tzdata', filename_no_vendor)
 
     for key in POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"]:
         if key in filename_no_vendor:
@@ -1090,7 +1090,7 @@ def get_apex_file_mapping(key):
         apex_file_name_no_extension = f"com.android.os.statsd"
     elif key == "swcodec":
         apex_file_name_no_extension = f"com.android.media.swcodec"
-    elif key == "tzdata3" or key == "tzdata4":
+    elif key == "tzdata3" or key == "tzdata4" or key == "tzdata5" or key == "tzdata":
         apex_file_name_no_extension = f"com.android.tzdata"
     return apex_file_name_no_extension
 
