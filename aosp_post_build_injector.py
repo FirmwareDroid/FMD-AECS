@@ -358,8 +358,8 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
                     if file_path.endswith(".capex"):
                         file_path = replace_capex_with_apex(file_path)
-                    if "tzdata3" in file_path or "tzdata4" in filename:
-                        new_name = filename.replace("tzdata3", "tzdata").replace("tzdata4", "tzdata")
+                    if "tzdata" in file_path or "tzdata" in filename:
+                        new_name = re.sub(r'tzdata\d+', 'tzdata', filename)
                         file_path = rename_file(file_path, new_name)
                     if aosp_version and int(aosp_version) > 12:
                         if "bluetooth" in filename:
