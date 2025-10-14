@@ -16,7 +16,6 @@
   "ALLOW_APP_KEYWORD_ALWAYS_LIST": [
     "ExtServices",
     "ExtShared",
-    "Provider",
     "AndroidPlatformServices",
     "ServicesFramework",
     "SystemUIGoogle",
