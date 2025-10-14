@@ -58,6 +58,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
 
 
     """
+    pre_injector_start_time = time.time()
     is_successful = False
     logging.debug(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version)
@@ -79,12 +80,13 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         traceback.print_exc()
         exit(-1)
 
-
+    pre_injector_end_time = time.time()
     try:
         result = {
             "hostname": os.uname()[1],
             "firmware_id": firmware_id,
             "included_package_statistics": included_package_statistics,
+            "pre_injector_duration": round(pre_injector_end_time - pre_injector_start_time, 2),
         }
         logging.info(json.dumps(result, indent=4))
         write_json_output(result, PATH_BUILD_INJECTOR_LOG)
@@ -109,7 +111,9 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     while not is_successful and retry_attempts > 0:
         try:
             main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
+            build_start_time = time.time()
             execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
+            build_end_time = time.time()
             logging.info(f"AOSP main build completed successfully. Continuing with post-build injection.")
             target_out_path = get_target_out_path(aosp_path, lunch_target)
             all_extracted_firmware_files_path = os.path.join(EXTRACTED_PACKAGES_PATH, EXTRACTION_ALL_FILES_DIR_NAME)
@@ -125,9 +129,13 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
                                       cookies=cookies,
                                       aosp_version=aosp_version
                                       )
+            included_package_statistics["main_build_duration"] = round(build_end_time - build_start_time, 2)
             logging.info(f"Summary Pre-Injector: {included_package_statistics}")
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target, aosp_version)
+            package_start_time = time.time()
             execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path)
+            package_end_time = time.time()
+            included_package_statistics["package_build_artefacts_duration"] = round(package_end_time - package_start_time, 2)
             is_successful = True
         except Exception as err:
             logging.error(err)
