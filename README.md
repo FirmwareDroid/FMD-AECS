@@ -129,12 +129,12 @@ docker-compose --version
 
 ### 4. Configure Environment
 
-Copy and configure the environment files:
+Edit the environment configuration file with your settings:
 
 ```bash
-# Environment variables for services
-cp env/.env.example env/.env
-# Edit env/.env with your configuration
+# Edit environment variables for services
+nano env/.env
+# Configure FirmwareDroid URL, credentials, and other settings
 ```
 
 ## Quick Start
@@ -345,7 +345,7 @@ FMD-AECS/
 │   ├── .env                     # Environment variables
 │   ├── envoy/                   # Envoy proxy configuration
 │   ├── coturn/                  # Coturn server configuration
-│   └── nginx/                   # Nginx configuration (optional)
+│   └── nginx/                   # Nginx web server (for ACME/Let's Encrypt)
 │
 ├── templates/                   # Configuration templates
 │   ├── docker-compose.yaml      # Docker Compose template
@@ -358,9 +358,11 @@ FMD-AECS/
 │   └── apex/                    # APEX configuration templates
 │
 ├── image_artefacts/             # Built image artifacts (ignored)
+│   ├── arm64-v8a/               # ARM64 emulator image files
+│   └── x86_64/                  # x86_64 emulator image files
 ├── out/                         # Build output directory (ignored)
 ├── nexus/                       # Nexus repository integration
-└── testing_service/             # Testing utilities
+└── testing_service/             # Testing utilities and services
 ```
 
 ## Contributing
@@ -384,9 +386,6 @@ venv\Scripts\activate  # On Windows
 
 # Install dependencies
 pip install -r requirements.txt
-
-# Run tests (if available)
-# pytest tests/
 ```
 
 ## License
