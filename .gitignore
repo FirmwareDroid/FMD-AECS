@@ -17,3 +17,5 @@ env/envoy/*
 env/envoy/envoy.yaml
 /env/envoy/envoy.yaml
 ./docker_images.txt
+env/*
+env/adb_streamer/*
