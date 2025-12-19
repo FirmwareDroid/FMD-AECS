@@ -1,0 +1,18 @@
+{
+  "name": "ADB Streaming Service",
+  "version": "1.0.0",
+  "description": "Streaming service for ADB based on https://github.com/mnhock/swcs",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Not Implemented\" && exit 1"
+  },
+  "author": "Thomas Sutter",
+  "license": "MIT",
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.9"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}
