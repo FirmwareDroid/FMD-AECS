@@ -38,7 +38,7 @@ services:
     container_name: adb_streamer
     hostname: adb_streamer
     build:
-      context: ./adb_streamer_service
+      context: ./adb_streaming_service
       dockerfile: 'Dockerfile'
     ports:
       - '4001:4001'
