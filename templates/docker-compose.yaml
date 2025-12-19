@@ -34,6 +34,22 @@ services:
     networks:
       - android
 
+  adb_streamer:
+    container_name: adb_streamer
+    hostname: adb_streamer
+    build:
+      context: ./adb_streamer_service
+      dockerfile: 'Dockerfile'
+    ports:
+      - '4001:4001'
+    restart: always
+    env_file:
+      - ./env/adb_streamer/.env
+    networks:
+      - android
+    volumes:
+      - './adb_streaming_service/source/apps:/app/source/apps'
+
   coturn:
     platform: {{ platform }}
     image: coturn/coturn
