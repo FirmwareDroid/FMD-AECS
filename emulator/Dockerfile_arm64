@@ -10,9 +10,9 @@ COPY ./image_artefacts/ /android/sdk/system-images/android/
 # Create start script
 ###################################
 COPY ./emulator/emulator_start.sh /android/
+RUN service ssh start
 RUN chmod +x /android/emulator_start.sh
 #CMD ["bash", "-c", "/android/emulator_start.sh"]
 
 # Start SSH
-EXPOSE 22
-CMD ["", "-D"]
+CMD rm -f /tmp/restart && /usr/sbin/sshd -D
