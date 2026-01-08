@@ -39,31 +39,63 @@ setup_stop_existing_emulator() {
 setup_pulse_audio() {
   mkdir -p /root/.config/pulse
   export PULSE_SERVER=unix:/tmp/pulse-socket
-  pulseaudio -D -vvvv --log-time=1 --log-target=newfile:/tmp/pulseverbose.log --log-time=1 --exit-idle-time=-1 &
-  PIDS+=($!)
-  tail -f /tmp/pulseverbose.log -n +1 | sed -u 's/^/pulse: /g' &
-  PIDS+=($!)
-  pactl list || exit 1
+
+  # Ensure log file exists so tail -F won't complain about missing file
+  touch /tmp/pulseverbose.log
+
+  # start pulseaudio in daemon mode, but tolerate failures
+  pulseaudio -D -vvvv --log-time=1 --log-target=newfile:/tmp/pulseverbose.log --exit-idle-time=-1 2>>/tmp/pulseverbose.err || true
+  PA_PID=$!
+  # give pulse some time to initialize and poll using pactl
+  MAX_TRIES=10
+  TRY=0
+  AUDIO_OK=0
+  while [[ $TRY -lt $MAX_TRIES ]]; do
+    sleep 0.5
+    if pactl list 1>/dev/null 2>/dev/null; then
+      AUDIO_OK=1
+      break
+    fi
+    TRY=$((TRY+1))
+  done
+
+  if [[ $AUDIO_OK -eq 1 && $PA_PID -ne 0 ]]; then
+    # Use tail -F (follow and retry) and suppress stderr to avoid noisy messages
+    tail -F /tmp/pulseverbose.log -n +1 2>/dev/null | sed -u 's/^/pulse: /g' &
+    PIDS+=($!)
+  else
+    echo "Warning: pulseaudio did not become available; audio disabled for this run." >&2
+    # collect pulseaudio stderr for diagnostics but do not abort
+    if [[ -s /tmp/pulseverbose.err ]]; then
+      echo "pulseaudio stderr (first 20 lines):"
+      head -n 20 /tmp/pulseverbose.err || true
+    fi
+  fi
 }
 
 setup_logger_forwarding() {
   mkdir -p /tmp/android-unknown
   rm -f /tmp/android-unknown/kernel.log /tmp/android-unknown/logcat.log
-  mkfifo /tmp/android-unknown/kernel.log
-  mkfifo /tmp/android-unknown/logcat.log
-  tail --retry -f /tmp/android-unknown/goldfish_rtc_0 | sed -u 's/^/video: /g' &
+  # create FIFOs for kernel and logcat streams; ignore errors if they already exist
+  mkfifo /tmp/android-unknown/kernel.log 2>/dev/null || true
+  mkfifo /tmp/android-unknown/logcat.log 2>/dev/null || true
+  # For goldfish RTC data, use tail -F to avoid immediate failure if file not present yet
+  # Redirect stderr to /dev/null to avoid noisy messages when emulator isn't producing the file yet
+  tail -F /tmp/android-unknown/goldfish_rtc_0 2>/dev/null | sed -u 's/^/video: /g' &
   PIDS+=($!)
-  cat /tmp/android-unknown/kernel.log | sed -u 's/^/kernel: /g' &
+  # read from FIFOs
+  (cat /tmp/android-unknown/kernel.log 2>/dev/null | sed -u 's/^/kernel: /g') &
   PIDS+=($!)
-  cat /tmp/android-unknown/logcat.log | sed -u 's/^/logcat: /g' &
+  (cat /tmp/android-unknown/logcat.log 2>/dev/null | sed -u 's/^/logcat: /g') &
   PIDS+=($!)
 }
 
 setup_port_forwarding() {
   sleep 1
-  socat -d tcp-listen:5555,reuseaddr,fork tcp:127.0.0.1:5557 &
+  # Redirect socat stderr to per-listener logs to keep console clean and capture diagnostics
+  socat -d tcp-listen:5555,reuseaddr,fork tcp:127.0.0.1:5557 2>/tmp/socat-5555.log &
   PIDS+=($!)
-  socat -d tcp-listen:8554,reuseaddr,fork tcp:127.0.0.1:8556 &
+  socat -d tcp-listen:8554,reuseaddr,fork tcp:127.0.0.1:8556 2>/tmp/socat-8554.log &
   PIDS+=($!)
 }
 
