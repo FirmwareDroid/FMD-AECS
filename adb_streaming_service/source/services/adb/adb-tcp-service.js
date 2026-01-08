@@ -49,28 +49,41 @@ logger.info(`ADB_SERVER_VERSION=${VERSION}`);
 
 global.metainfo.version = VERSION;
 // Read server bytes: prefer user-provided local file, otherwise use bundled BIN
-const server = userProvidedLocalServerPath
-	? await (async () => {
-		try {
-			await fs.access(LOCAL_SERVER_PATH_RESOLVED);
-			logger.info(`Using local DEFAULT_SERVER_PATH: ${LOCAL_SERVER_PATH_RESOLVED}`);
-			return await fs.readFile(LOCAL_SERVER_PATH_RESOLVED);
-		} catch (err) {
-			logger.error(`DEFAULT_SERVER_PATH not found or not accessible: ${LOCAL_SERVER_PATH_RESOLVED}`);
-			logger.error("Please set DEFAULT_SERVER_PATH to the local path of the scrcpy server binary (accessible by the service) or remove the env var to use the bundled server.");
-			process.exit(1);
+// Replace the previous immediate-read (and process.exit) with a loader that polls every 30s
+async function loadServerBinary() {
+	const RETRY_MS = 30_000; // 30 seconds
+	if (userProvidedLocalServerPath) {
+		logger.info(`User provided DEFAULT_SERVER_PATH: ${LOCAL_SERVER_PATH_RESOLVED} — attempting to load`);
+		while (true) {
+			try {
+				await fs.access(LOCAL_SERVER_PATH_RESOLVED);
+				logger.info(`Using local DEFAULT_SERVER_PATH: ${LOCAL_SERVER_PATH_RESOLVED}`);
+				return await fs.readFile(LOCAL_SERVER_PATH_RESOLVED);
+			} catch (err) {
+				logger.error(`DEFAULT_SERVER_PATH not found or not accessible: ${LOCAL_SERVER_PATH_RESOLVED}`);
+				logger.info(`Retrying to load DEFAULT_SERVER_PATH in ${RETRY_MS/1000}s...`);
+				// wait and retry
+				await new Promise((r) => setTimeout(r, RETRY_MS));
+			}
 		}
-	})()
-	: await fs.readFile(BIN);
+	} else {
+		// Use bundled BIN — if this fails, it's a fatal condition (unlikely), but we will also poll
+		try {
+			return await fs.readFile(BIN);
+		} catch (err) {
+			logger.error(`Failed to read embedded BIN for scrcpy server: ${String(err)}`);
+			logger.info('Will retry reading embedded BIN every 30s');
+			while (true) {
+				try { return await fs.readFile(BIN); } catch (e) { logger.error('Retry read BIN failed:', e?.message || e); await new Promise((r) => setTimeout(r, 30_000)); }
+			}
+		}
+	}
+}
 
-// Device-side server path (where the server will be pushed on the device).
-// Allow override via SCRCPY_DEVICE_PATH env; otherwise use DefaultServerPath.
-const DEVICE_SERVER_PATH = process.env.SCRCPY_DEVICE_PATH || DefaultServerPath;
+const server = await loadServerBinary();
 
-// Support multiple ADB servers via env var ADB_SERVER_LIST (comma-separated host:port entries).
-// Fallback to localhost:5037 for backward compatibility.
-const adbServerListStr = (process.env.ADB_SERVER_LIST || process.env.ADB_SERVERS || 'localhost:5037').toString();
-const adbServerEntries = adbServerListStr.split(',').map(s => s.trim()).filter(Boolean);
+// helper sleep
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // helper to add a timeout to any promise
 function withTimeout(promise, ms = 10000, errMsg = null) {
@@ -90,37 +103,50 @@ function withTimeout(promise, ms = 10000, errMsg = null) {
 	});
 }
 
-// Create a pool of server clients (each backed by its own AdbServerNodeTcpConnector)
-const serverPools = await Promise.all(adbServerEntries.map(async (entry) => {
-	const parts = entry.split(':');
-	const host = parts[0] || 'localhost';
-	const port = parts[1] ? Number(parts[1]) : 5037;
-	try {
-		const connector = new AdbServerNodeTcpConnector({ host, port });
-		const client = new AdbServerClient(connector);
-		const key = `${host}:${port}`;
-		// Verify connectivity by requesting server features with a timeout
+// Support multiple ADB servers via env var ADB_SERVER_LIST (comma-separated host:port entries).
+// Fallback to localhost:5037 for backward compatibility.
+const adbServerListStr = (process.env.ADB_SERVER_LIST || process.env.ADB_SERVERS || 'localhost:5037').toString();
+const adbServerEntries = adbServerListStr.split(',').map(s => s.trim()).filter(Boolean);
+
+// Create pools function (attempts once)
+async function createPoolsOnce() {
+	const results = await Promise.all(adbServerEntries.map(async (entry) => {
+		const parts = entry.split(':');
+		const host = parts[0] || 'localhost';
+		const port = parts[1] ? Number(parts[1]) : 5037;
 		try {
-			const features = await withTimeout(client.getServerFeatures(), 5000, `Timeout connecting to ADB server ${host}:${port}`);
-			logger.info(`Configured ADB server pool ${key} (features:${Object.keys(features||{}).length})`);
-			return { host, port, key, connector, client };
+			const connector = new AdbServerNodeTcpConnector({ host, port });
+			const client = new AdbServerClient(connector);
+			const key = `${host}:${port}`;
+			// Verify connectivity by requesting server features with a timeout
+			try {
+				const features = await withTimeout(client.getServerFeatures(), 5000, `Timeout connecting to ADB server ${host}:${port}`);
+				logger.info(`Configured ADB server pool ${key} (features:${Object.keys(features||{}).length})`);
+				return { host, port, key, connector, client };
+			} catch (e) {
+				try { if (connector && typeof connector.close === 'function') connector.close(); } catch (closeErr) { logger.debug(`Failed to close connector for ${key}: ${closeErr?.message || closeErr}`); }
+				logger.error(`Skipping ADB server ${key}: ${e?.message || e}`);
+				return null;
+			}
 		} catch (e) {
-			// close connector if possible and skip this pool
-			try { if (connector && typeof connector.close === 'function') connector.close(); } catch (closeErr) { logger.debug(`Failed to close connector for ${key}: ${closeErr?.message || closeErr}`); }
-			logger.error(`Skipping ADB server ${key}: ${e?.message || e}`);
+			logger.error(`Failed to create ADB server connector for ${entry}: ${e?.message || e}`);
 			return null;
 		}
-	} catch (e) {
-		logger.error(`Failed to create ADB server connector for ${entry}: ${e?.message || e}`);
-		return null;
-	}
-}));
+	}));
+	return results.filter(Boolean);
+}
 
-// Remove any null failed pools
-const pools = serverPools.filter(Boolean);
-if (!pools.length) {
-	logger.error('No valid ADB server pools configured. Please set ADB_SERVER_LIST or ensure localhost:5037 is available.');
-	process.exit(1);
+// Ensure we have at least one pool — poll every 30s instead of exiting the process
+let pools = [];
+const POOL_RETRY_MS = 30_000; // 30s
+while (true) {
+	pools = await createPoolsOnce();
+	if (pools && pools.length > 0) {
+		logger.info(`Initialized ${pools.length} ADB server pool(s).`);
+		break;
+	}
+	logger.error('No valid ADB server pools configured or reachable. Will retry in 30s.');
+	await sleep(POOL_RETRY_MS);
 }
 
 // convenience: default pool (first entry) to preserve previous single-host behavior
