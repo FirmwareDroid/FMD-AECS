@@ -71,7 +71,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssh-server 
 RUN mkdir /var/run/sshd
 RUN mkdir -p /root/.ssh && \
     touch /root/.ssh/authorized_keys && \
-    for key in /emulator/prebuilts/ssh/*.pub; do \
+    for key in ./emulator/prebuilts/ssh/*.pub; do \
         cat "$key" >> /root/.ssh/authorized_keys; \
     done
 RUN chmod 600 /root/.ssh/authorized_keys \
