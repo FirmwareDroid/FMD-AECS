@@ -218,22 +218,27 @@ def validate_urls(repository_url, docker_repo_url):
 
 def check_if_base_images_exists():
     """
-    Checks if the base image exists in the docker registry.
-
-    Returns:
-
+    Check if the base image for the current host architecture exists in the local Docker.
+    Returns True if the image fmd-emulator_<arch> exists for the detected arch, False otherwise.
     """
-    base_images_exist = True
     client = docker.from_env()
-    for arch in ["x86_64", "arm64"]:
-        try:
-            image = client.images.get(f"fmd-emulator_{arch}")
-            logging.info(f"Base image {image.id} exists.")
-        except Exception as err:
-            base_images_exist = False
-            logging.warning(f"Base image fmd-emulator_{arch} not found.: {err}")
-            break
-    return base_images_exist
+    mach = (platform.machine() or '').lower()
+
+    # Normalize common machine names to our image suffixes
+    if mach in ('x86_64', 'amd64'):
+        arch = 'x86_64'
+    elif mach in ('arm64', 'aarch64'):
+        arch = 'arm64'
+    else:
+        arch = mach or 'unknown'
+
+    try:
+        image = client.images.get(f"fmd-emulator_{arch}")
+        logging.info(f"Base image {image.id} exists for arch={arch}.")
+        return True
+    except Exception as err:
+        logging.warning(f"Base image fmd-emulator_{arch} not found: {err}")
+        return False
 
 
 def get_host_architecture():
