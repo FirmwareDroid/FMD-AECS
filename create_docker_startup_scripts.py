@@ -47,7 +47,7 @@ def main():
     parser.add_argument("-k",
                         "--scrcpy-start-port",
                         type=int,
-                        default=5001,
+                        default=5000,
                         help="Starting port for the scrcpy service. Default is 5001.")
     parser.add_argument("-c",
                         "--cpu-arch",

@@ -45,7 +45,6 @@ RUN chown -R app:appgroup /app && chmod -R g+rX /app
 USER app
 
 WORKDIR /app/source
-EXPOSE 4001/tcp
 
 # Start: run adb devices then pm2-runtime from local node_modules
 # Use shell wrapper to run adb devices before pm2 runtime (pm2 binary is in node_modules/.bin)
