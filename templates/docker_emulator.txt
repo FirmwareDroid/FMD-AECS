@@ -14,6 +14,11 @@
     networks:
       - frontend
       - android
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/restart"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 {%- for line in optional_settings %}
     {{ line }}
 {%- endfor %}

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "cross-env NODE_ENV=development EXPERIMENTAL_FASTCALL=1 nodemon index.js --config nodemon.json",
-    "dev-env": "export ENV_FILE=/Users/tom/Documents/02_INIT/02_PhD/02_Research/02_FirmwareDroid/FMD-AECS/env/adb_streamer/.env NODE_ENV=development && npx @yume-chan/fetch-scrcpy-server 3.3.3 && adb devices && pnpm run start",
+    "dev-env": "export ENV_FILE=/Users/tom/Documents/02_INIT/02_PhD/02_Research/02_FirmwareDroid/FMD-AECS/env/adb_streamer/.env NODE_ENV=development && npx @yume-chan/fetch-scrcpy-server 3.3.3 && adb devices && nodemon index.js --config nodemon.json",
     "start": "pm2-runtime start pm2.config.cjs",
     "build-start": "npx @yume-chan/fetch-scrcpy-server 3.3.3 && adb devices && pnpm run start"
   },

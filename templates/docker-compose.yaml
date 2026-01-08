@@ -41,7 +41,7 @@ services:
       context: ./adb_streaming_service
       dockerfile: 'Dockerfile'
     ports:
-      - '4001:4001'
+      - '9001:9001'
     restart: always
     env_file:
       - ./env/adb_streamer/.env
@@ -49,6 +49,8 @@ services:
       - android
     volumes:
       - './adb_streaming_service/source/apps:/app/source/apps'
+      - ./env/adb_streamer/fmd.crt:/app/source/env/certs/fmd.crt
+      - ./env/adb_streamer/fmd.key:/app/source/env/certs/fmd.key
 
   coturn:
     platform: {{ platform }}

@@ -67,8 +67,102 @@ const server = userProvidedLocalServerPath
 // Allow override via SCRCPY_DEVICE_PATH env; otherwise use DefaultServerPath.
 const DEVICE_SERVER_PATH = process.env.SCRCPY_DEVICE_PATH || DefaultServerPath;
 
-const connector = new AdbServerNodeTcpConnector({ host: "localhost", port: 5037 });
-const serverClient = new AdbServerClient(connector);
+// Support multiple ADB servers via env var ADB_SERVER_LIST (comma-separated host:port entries).
+// Fallback to localhost:5037 for backward compatibility.
+const adbServerListStr = (process.env.ADB_SERVER_LIST || process.env.ADB_SERVERS || 'localhost:5037').toString();
+const adbServerEntries = adbServerListStr.split(',').map(s => s.trim()).filter(Boolean);
+
+// helper to add a timeout to any promise
+function withTimeout(promise, ms = 10000, errMsg = null) {
+	return new Promise((resolve, reject) => {
+		let settled = false;
+		const timer = setTimeout(() => {
+			if (settled) return;
+			settled = true;
+			reject(new Error(errMsg || `Timed out after ${ms}ms`));
+		}, ms);
+		promise.then((v) => {
+			if (settled) return;
+			settled = true; clearTimeout(timer); resolve(v);
+		}).catch((e) => {
+			if (settled) return; settled = true; clearTimeout(timer); reject(e);
+		});
+	});
+}
+
+// Create a pool of server clients (each backed by its own AdbServerNodeTcpConnector)
+const serverPools = await Promise.all(adbServerEntries.map(async (entry) => {
+	const parts = entry.split(':');
+	const host = parts[0] || 'localhost';
+	const port = parts[1] ? Number(parts[1]) : 5037;
+	try {
+		const connector = new AdbServerNodeTcpConnector({ host, port });
+		const client = new AdbServerClient(connector);
+		const key = `${host}:${port}`;
+		// Verify connectivity by requesting server features with a timeout
+		try {
+			const features = await withTimeout(client.getServerFeatures(), 5000, `Timeout connecting to ADB server ${host}:${port}`);
+			logger.info(`Configured ADB server pool ${key} (features:${Object.keys(features||{}).length})`);
+			return { host, port, key, connector, client };
+		} catch (e) {
+			// close connector if possible and skip this pool
+			try { if (connector && typeof connector.close === 'function') connector.close(); } catch (closeErr) { logger.debug(`Failed to close connector for ${key}: ${closeErr?.message || closeErr}`); }
+			logger.error(`Skipping ADB server ${key}: ${e?.message || e}`);
+			return null;
+		}
+	} catch (e) {
+		logger.error(`Failed to create ADB server connector for ${entry}: ${e?.message || e}`);
+		return null;
+	}
+}));
+
+// Remove any null failed pools
+const pools = serverPools.filter(Boolean);
+if (!pools.length) {
+	logger.error('No valid ADB server pools configured. Please set ADB_SERVER_LIST or ensure localhost:5037 is available.');
+	process.exit(1);
+}
+
+// convenience: default pool (first entry) to preserve previous single-host behavior
+const defaultPool = pools[0];
+
+// helper to find the pool by key
+function findPoolByKey(key) {
+	return pools.find(p => p.key === key) || null;
+}
+
+// helper to find the pool that hosts a given serial (searches metainfo cache first, then probes all servers)
+async function findPoolForSerial(serial) {
+	if (!serial) return null;
+	// if already server-prefixed like host:port/serial or key/serial
+	if (serial.includes('/')) {
+		const [maybeKey, maybeSerial] = serial.split('/', 2);
+		const pool = findPoolByKey(maybeKey);
+		if (pool) return { pool, serial: maybeSerial };
+	}
+	// check cached metainfo mapping
+	if (global && global.metainfo && Array.isArray(global.metainfo.devices)) {
+		for (const d of global.metainfo.devices) {
+			if (d && (d.serial === serial || `${d._serverKey}/${d.serial}` === serial || `${d._serverHost}:${d._serverPort}/${d.serial}` === serial)) {
+				const pool = findPoolByKey(d._serverKey || `${d._serverHost}:${d._serverPort}`) || defaultPool;
+				return { pool, serial: d.serial };
+			}
+		}
+	}
+	// fallback: probe each server for device serial
+	for (const p of pools) {
+		try {
+			const ds = await p.client.getDevices();
+			if (Array.isArray(ds) && ds.find(d => d && d.serial === serial)) return { pool: p, serial };
+		} catch (e) {
+			logger.error(`findPoolForSerial probe failed for pool=${p.key}: ${e?.message || e}`);
+		}
+	}
+	return null;
+}
+
+// convenience wrapper to use defaultPool.client in places that previously used serverClient
+const serverClient = defaultPool.client;
 
 // Track pushes per serial and in-flight promises
 const pushedBySerial = new Set();
@@ -193,13 +287,75 @@ const pushServer = async (adbInstance, force = false) => {
 
 class AdbTcpService {
 	numOfTrials = 10;
-	async getFeatures() { return await serverClient.getServerFeatures(); }
-	async getDevices() { return await serverClient.getDevices(); }
+	async getFeatures() {
+		// Aggregate server features from all pools (use first non-error result)
+		const results = [];
+		for (const p of pools) {
+			try {
+				const f = await p.client.getServerFeatures();
+				results.push({ pool: p.key, features: f });
+			} catch (e) {
+				logger.debug(`getFeatures: pool ${p.key} failed: ${e?.message || e}`);
+			}
+		}
+		// return aggregated: prefer defaultPool.features if available else first
+		if (results.length) return results[0].features;
+		throw new Error('Could not retrieve server features from any configured ADB server');
+	}
+	async getDevices() {
+		// Query each pool for devices and tag them with pool metadata
+		const all = [];
+		for (const p of pools) {
+			try {
+				const ds = await p.client.getDevices();
+				if (Array.isArray(ds)) {
+					for (const d of ds) {
+						// tag with pool info so we can resolve later
+						d._serverKey = p.key;
+						d._serverHost = p.host;
+						d._serverPort = p.port;
+						all.push(d);
+					}
+				}
+			} catch (e) {
+				logger.debug(`getDevices: pool ${p.key} failed: ${e?.message || e}`);
+			}
+		}
+		// Deduplicate by serial (keep first seen)
+		const seen = new Set();
+		const unique = [];
+		for (const d of all) {
+			if (!d || !d.serial) continue;
+			if (seen.has(d.serial)) continue;
+			seen.add(d.serial);
+			unique.push(d);
+		}
+		return unique;
+	}
 
 	async connectToDevice(serial) {
-		const transport = await serverClient.createTransport({ serial });
+		// Determine which pool hosts this serial
+		let poolInfo = null;
+		if (typeof serial === 'string' && serial.includes('/')) {
+			// allow explicit pool key prefix like host:port/serial
+			const [maybeKey, maybeSerial] = serial.split('/', 2);
+			const pool = findPoolByKey(maybeKey);
+			if (pool) poolInfo = { pool, serial: maybeSerial };
+		}
+		if (!poolInfo) {
+			poolInfo = await findPoolForSerial(serial);
+		}
+		if (!poolInfo) {
+			// last resort: use defaultPool and attempt to create transport
+			logger.debug(`connectToDevice: could not find pool for serial ${serial}, using default pool ${defaultPool.key}`);
+			poolInfo = { pool: defaultPool, serial };
+		}
+		const { pool } = poolInfo;
+		// create transport on the selected pool's client
+		const transport = await pool.client.createTransport({ serial: poolInfo.serial });
 		const adb = new Adb(transport);
-		return { serial, transport, adb, displays: [], encoders: [] };
+		// return enhanced object including pool meta
+		return { serial: poolInfo.serial, transport, adb, displays: [], encoders: [], _serverKey: pool.key, _serverHost: pool.host, _serverPort: pool.port };
 	}
 
 	async getDeviceDisplays(deviceAdb) {

@@ -237,8 +237,4 @@ MIT
 
 ---
 
-If you'd like, I can also:
-- Add a short integration test harness to the repository (a small Node script) that exercises the main control commands and records responses.
-- Add a Dockerfile / docker-compose example to run the service behind a reverse proxy with certs.
 
-Tell me which of these you want next and I will implement it.

@@ -1,0 +1,10 @@
+service lldb-server /system/bin/lldb-server platform --server --listen 0.0.0.0:1338
+    class late_start
+    user root
+    group root
+    seclabel u:r:su:s0
+    disabled
+    respawn
+
+on property:sys.boot_completed=1
+    start lldb-server
