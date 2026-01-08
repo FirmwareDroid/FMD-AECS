@@ -1,240 +1,180 @@
-# ADB Streaming Service
+# ADB Streaming Service (adb_streaming_service)
 
-A small, production-ready Node.js service that proxies Android device video/audio/control streams over WebSockets using ADB + scrcpy tooling. It exposes both HTTP endpoints for simple status/debug information and a WebSocket endpoint that speaks msgpack-packed control and media messages. The service is designed to run behind TLS in production and supports basic HTTP authentication.
+This subproject implements a WebSocket-based ADB streaming service that can connect to remote or local Android devices (emulators or physical devices) and provide real-time control and media streaming to web clients.
 
-This README explains how to configure, run, and integrate with the service and contains examples to help you test basic functionality.
+The service includes:
+- WebSocket transport for video, audio and control messages (based on scrcpy / @yume-chan client abstractions)
+- HTTP API for management endpoints (metainfo, install, start, pin/unpin)
+- Basic authentication middleware (optional) for HTTP APIs
+- WebSocket upgrade authentication (supports Authorization header, `auth` query param, and origin userinfo)
+- SSL/TLS (HTTPS/WSS) support via environment variables
+- Volume control via key-injection (no subprocess.exec)
+- Robust audio handling and diagnostic logging for troubleshooting
 
 ---
 
-## Table of contents
-
-- [What it does](#what-it-does)
-- [Prerequisites](#prerequisites)
-- [Configuration (.env)](#configuration-env)
-- [Run (development)](#run-development)
-- [Run (production / pm2)](#run-production--pm2)
-- [HTTP & WebSocket API](#http--websocket-api)
-  - [Status endpoint](#status-endpoint)
-  - [WebSocket upgrade & query params](#websocket-upgrade--query-params)
-  - [Message format (msgpack)](#message-format-msgpack)
-  - [Common commands](#common-commands)
-- [Examples](#examples)
-  - [Node test: send setVolume small-step](#node-test-send-setvolume-small-step)
-- [Debugging & logs](#debugging--logs)
+Table of contents
+- [Getting started](#getting-started)
+- [Environment variables](#environment-variables)
+- [Running](#running)
+- [HTTP API](#http-api)
+- [WebSocket API](#websocket-api)
+- [Volume control](#volume-control)
+- [Authentication & security](#authentication--security)
 - [Troubleshooting](#troubleshooting)
-- [Notes & internals](#notes--internals)
-- [Contributing](#contributing)
-- [License](#license)
+- [Development notes](#development-notes)
 
----
 
-## What it does
+## Getting started
 
-- Starts an HTTPS (or HTTP) server and a WebSocket endpoint that upgrades clients to a streaming/control session.
-- Uses an ADB-over-TCP service and `@yume-chan/scrcpy` to start streaming from connected Android devices.
-- Forwards video and audio frames to connected clients via msgpack-packed WebSocket messages.
-- Accepts control messages (touch, scroll, key events) from clients and injects them into the device using the scrcpy controller.
-- Implements helper commands such as `setVolume` (mapped to Android keycodes), `injectTouch`, `injectScroll`, `injectKeyCode`.
-- Provides debug HTTP endpoints (e.g. `/_debug/audio_stats`).
+Prerequisites
+- Node.js (v20 or v22 recommended)
+- pnpm (used for installing dependencies)
+- adb (Android platform tools) available in PATH
+- Docker (optional, for integration with emulator images)
 
----
-
-## Prerequisites
-
-- Node.js (v18+ recommended) and `pnpm`/`npm` installed.
-- ADB available (the environment expects an ADB server compatible with the `@yume-chan` stack). The project includes configuration to locate an ADB version via env.
-- `@yume-chan` dependencies (installed via `pnpm install` or `npm install`).
-- If SSL is enabled you must have the certificate and key available on disk and pointed to by environment variables.
-
----
-
-## Configuration (.env)
-
-The service loads environment variables from several locations (see `source/index.js`); the main options are:
-
-- `HOST` — host to bind to (default: `0.0.0.0`)
-- `PORT` — port to listen on (default: `9001`)
-- `SSL` — `true` or `false`. If `true`, the server expects SSL key/cert paths and will serve HTTPS/WSS.
-- `SSL_KEY_PATH` — path to the SSL private key file (required when `SSL=true`).
-- `SSL_CERT_PATH` — path to the SSL certificate file (required when `SSL=true`).
-- `AUTH_ENABLED` — `true` or `false`. When `true` HTTP/WebSocket upgrade require Basic auth.
-- `AUTH_USER` and `AUTH_PASS` — username/password for Basic HTTP auth when `AUTH_ENABLED=true`.
-
-Example `.env` (the repository contains a sample under `env/adb_streamer/.env`):
-
-```
-HOST=0.0.0.0
-PORT=9001
-SSL=true
-SSL_KEY_PATH=/path/to/priv.key
-SSL_CERT_PATH=/path/to/cert.pem
-AUTH_ENABLED=false
-```
-
-The service also accepts `ENV_FILE` or `DOTENV_PATH` environment variables to point to a specific env file.
-
----
-
-## Run (development)
-
-Install dependencies and run in development mode:
+Install dependencies (in `adb_streaming_service/source`):
 
 ```bash
-# from repository root (adb_streaming_service/source)
 pnpm install
-pnpm run dev
 ```
 
-This launches the server with `nodemon` (see `package.json` scripts). If you need to fetch a compatible scrcpy server binary you can run the helper from `@yume-chan/fetch-scrcpy-server` (see `package.json:build-start`).
+## Environment variables
 
----
+You can place environment variables in the repository `.env` files. Key variables for this service:
 
-## Run (production / pm2)
+- `HOST` — host address to bind (default: `0.0.0.0`)
+- `PORT` — HTTP/WebSocket port (default: `9001`)
+- `SSL` — set to `true` or `1` to enable HTTPS/WSS
+- `SSL_KEY_PATH` — path to private key file (required if `SSL` enabled)
+- `SSL_CERT_PATH` — path to certificate file (required if `SSL` enabled)
+- `AUTH_ENABLED` — set to `true` or `1` to enable Basic auth for HTTP endpoints
+- `AUTH_USER` — Basic auth username
+- `AUTH_PASS` — Basic auth password
 
-The project contains a `pm2` configuration. To run under `pm2`/`pm2-runtime`:
+The startup script attempts to load `.env` from several fallback locations. The primary file is `adb_streaming_service/source/.env` then `env/adb_streamer/.env`, etc. You can also set environment variables directly in your environment or Docker container.
+
+## Running
+
+Development (run locally):
 
 ```bash
-# start with pm2 runtime (recommended in production container)
-pm run start
-# or with pm2 directly
-pm2 start pm2.config.cjs
-pm2 logs <app-name>
+# in adb_streaming_service/source
+pnpm run build-start
+# or directly
+node index.js
 ```
 
-When running under pm2, ensure the `.env` file is accessible to the process (pm2 can be started with environment variables set, or you can point to an `ENV_FILE`).
+Docker (multi-stage build included): see top-level `Dockerfile` in project root and `create_docker_startup_scripts.py` for image generation.
 
----
+## HTTP API
 
-## HTTP & WebSocket API
+Routes (examples):
 
-The service exposes an HTTP status endpoint and a WebSocket endpoint that clients use for streaming and control. WebSocket messages are msgpack-packed objects (uses `msgpackr` `Packr` / `Unpackr`).
+- `GET /api/health/get` — health check (public, does not require auth)
+- `GET /api/meta/get-all` — returns meta information about the service (requires auth if `AUTH_ENABLED=true`)
+- `POST /api/adb/install` — install APK on device (requires auth if enabled)
+- `POST /api/adb/start` — start a device stream (requires auth if enabled)
+- `POST /api/adb/pin` — pin a device to a client session (requires auth if enabled)
+- `POST /api/adb/unpin` — unpin device (requires auth if enabled)
 
-### Status endpoint
+All HTTP endpoints (except `/api/health/*`) are protected by default when `AUTH_ENABLED=true`.
 
-- `GET /` — will reply with `ADB streaming service is running.` (requires auth if enabled)
-- `GET /_debug/audio_stats` — returns JSON with current per-user audio statistics (requires auth if enabled)
+### Authentication for HTTP
 
-### WebSocket upgrade & query params
+- When `AUTH_ENABLED=true`, the server expects Basic auth credentials either via the `Authorization` header or via the `auth` query parameter (which can be a base64 payload or `Basic <payload>`).
+- Example with `curl`:
 
-Upgrade path is the same as the Web server root; to upgrade to a streaming session connect to WSS/WS with query parameters:
-
-- `id` — session identifier (required). The server uses this to keep per-user state.
-- `device` — the device serial to connect to (optional if exactly one device is connected; the server will auto-select when appropriate)
-- `audio` — `true` to enable audio forwarding (default: `false`)
-- `audioCodec` — codec preference (e.g. `raw`, `aac`, `opus`)
-- `video` — `true` to enable video streaming (default: `true` when omitted)
-- `videoCodec` — codec preference (e.g. `h264`)
-- Other optional parameters: `displayId`, `maxSize`, `maxFps`, `videoBitRate`
-
-Example WSS URL:
-
-```
-wss://yourhost:9001/?id=session-123&device=emulator-5554&audio=true&video=true
+```bash
+curl -u $AUTH_USER:$AUTH_PASS http://localhost:9001/api/meta/get-all
 ```
 
-If `AUTH_ENABLED=true`, the WebSocket upgrade must be performed with a valid Basic Authorization header.
+## WebSocket API
 
-### Message format (msgpack)
+The streaming/control channel is provided via WebSocket. Connect to `ws://host:port` or `wss://host:port` when SSL is enabled.
 
-All messages sent and received over the WebSocket are packed with msgpack using the `msgpackr` library. Each message is an object with at least a `cmd` property for client->server control messages, or `media` for server->client messages. Examples below assume a `Packr` client.
+The WebSocket upgrade requires authentication too — it uses the same Basic scheme but allows a few transport conveniences:
 
-Server->Client messages examples:
-- `{ media: 'video', packet }` — video frame packet
-- `{ media: 'audio', packet }` — audio frame packet (binary Uint8Array)
-- `{ media: 'audio_metadata', packet }` — audio metadata (codec, channels, sample rate)
-- `{ media: 'message', type: 'volume_set', payload: { ok: true, action: 'small-increase' } }` — informational message
+- `Authorization` header with `Basic` token
+- `auth` query parameter (base64 token or `Basic <payload>`)
+- `origin` header that includes userinfo `wss://user:pass@host` (legacy)
 
-Client->Server commands (examples):
-- `cmd: 'setVolume'` with payload:
-  - number `0` or `1` — (small step) will perform a single volume down/up press
-  - object `{ volume: 0.5 }` — best-effort set to ~50% via repeated key presses (slow)
-  - object `{ delta: -3 }` — press volume down 3 steps
-  - object `{ muted: true }` — will send the MUTE keycode
-- `cmd: 'injectTouch'` with payload: an object or an array of objects representing touch events (the server normalizes many shapes). The normalized shape the scrcpy controller expects contains fields such as `action`, `pointerId` (BigInt), `pointerX`, `pointerY`, `videoWidth`, `videoHeight`, `pressure`, `buttons`.
-- `cmd: 'injectScroll'` — normalized shape includes `pointerX`, `pointerY`, `scrollX`, `scrollY`, `pointerId`.
-- `cmd: 'injectKeyCode'` — inject a key event specified by `{ action: 0|1, keyCode: <AndroidKeyCode> }`.
-
-The server provides robust normalization for `injectTouch` and `injectScroll` payloads; if normalization fails the server logs a helpful message and rejects the action.
-
-### Message packing/unpacking
-
-Clients must use msgpack (Packr/Unpackr) to serialize/deserialize messages. Example Node code to pack a command:
-
-```javascript
-import { Packr, Unpackr } from 'msgpackr';
-const packr = new Packr();
-const data = packr.pack({ cmd: 'setVolume', payload: 0 });
-ws.send(data);
-```
-
----
-
-## Examples
-
-### Node test: send setVolume small-step
-
-A quick Node script that connects to the service and sends small-step volume commands (0 = small decrease, 1 = small increase). Save as `test-set-volume.js` and run `node test-set-volume.js`.
-
-```javascript
-import WebSocket from 'ws';
-import { Packr, Unpackr } from 'msgpackr';
-const packr = new Packr();
-const unpackr = new Unpackr();
-
-const ws = new WebSocket('wss://localhost:9001/?id=test&device=emulator-5554', { rejectUnauthorized: false });
-ws.on('open', () => {
-  ws.send(packr.pack({ cmd: 'setVolume', payload: 0 })); // small decrease
-  setTimeout(() => ws.send(packr.pack({ cmd: 'setVolume', payload: 1 })), 1000); // small increase
-});
-ws.on('message', (data) => {
-  const o = unpackr.unpack(data);
-  console.log('recv', o);
-});
+Client upgrade example (wss):
 
 ```
+wss://your-server:9001/?id=your-session-id&device=emulator-5554&video=true&audio=true
 
----
+# You can include auth as query param (base64 user:pass)
+wss://your-server:9001/?id=...&device=...&auth=<base64>
+```
 
-## Debugging & logs
+After upgrade the server will send/receive message-packed (msgpack) frames. The service uses `msgpackr` for packing/unpacking frames. Messages have the shape:
 
-- Logs are implemented via `pino`; the logger is initialized from `source/services/logger.js`. The service prints startup information (loaded env file, SSL status, listening address).
-- Useful debug endpoints:
-  - `GET /` — quick status check
-  - `GET /_debug/audio_stats` — inspect per-session audio statistics (packets sent/dropped)
-- The server logs incoming WS messages as concise descriptors (cmd + payload summary) and extensive debug details when normalization or serialization issues occur.
+```
+{ cmd?: string, payload?: any }
+```
 
-If you run into `ERR_CONNECTION_REFUSED`, ensure the service is started (the CLI startup now calls `run()` in `source/index.js`) and check for TLS errors after the server is up.
+Common `cmd` values (examples):
+- `injectTouch` — inject touch event
+- `injectKeyCode` — inject key event
+- `injectScroll` — inject scroll event
+- `setDeviceVolume` — set/increase/decrease/mute volume (see next section)
 
----
+The server accepts and gracefully normalizes a variety of payload shapes for touch/scroll events (client coordinates, normalized coords, device coords). The service performs a best-effort normalization and will either send an error message back through WS or attempt a fallback normalization.
+
+## Volume control
+
+`setDeviceVolume` (aliased to `setVolume`) is designed to be safe and avoid calling `subprocess.exec` on the host. Instead, it uses the scrcpy controller to inject Android key events:
+
+- VolumeUp `keyCode=24`
+- VolumeDown `keyCode=25`
+- Mute `keyCode=164`
+
+Payload shapes accepted:
+
+- `{ volume: 0 }` or `{ volume: 1 }` — treated as a single small step decrease/increase (to avoid sudden full mute/full volume)
+- `{ volume: 0.3 }` or `0.3` — treated as best-effort absolute target (the server will clamp to an assumed volume steps and issue multiple presses)
+- `{ delta: -3 }` — press VolumeDown three times
+- `{ action: 'up' }` or `'up'` — single VolumeUp press
+- `{ muted: true }` — mute via Mute key
+
+The server responds with a message-packed message `media: 'message', type: 'volume_set'` containing `payload: {ok: true|false, ...}` describing the result.
+
+## Authentication & security
+
+- HTTP authentication (Basic) is enforced by middleware for all non-health routes when `AUTH_ENABLED=true`.
+- WebSocket upgrade is protected by `requireAuthForUpgrade` and supports the three transport methods listed above.
+- To enable TLS set `SSL=true` and provide `SSL_KEY_PATH` and `SSL_CERT_PATH` (server will abort startup if missing).
 
 ## Troubleshooting
 
-- Certificate/TLS errors: if you use self-signed certs your browser will reject the connection. Test with `curl -k https://localhost:9001/` to confirm the server is responding.
-- Controller unavailable: many control commands (e.g., `injectKeyCode`) require the scrcpy controller to be connected. The server will respond with an error message when the controller is not available on the connection.
-- Audio frames dropped / unexpected shape: the server validates audio frames and logs detailed previews when it rejects frames. Ensure the scrcpy audio encoder emits raw Uint8Array or another supported format.
-- BigInt serialization errors: The server sanitizes payloads to keep `pointerId` as BigInt while converting other BigInt fields to numbers. If you see `Cannot mix BigInt and other types` exceptions, the client may be sending a mixture that the scrcpy writer cannot serialize — share the exact payload and server logs and the helpers will be adjusted.
+1. WebSocket upgrade fails with 401:
+   - Ensure `AUTH_ENABLED`, `AUTH_USER`, `AUTH_PASS` are set and your client provides valid credentials.
+   - Use `?auth=<base64>` query parameter as a convenience.
+
+2. Audio not playing or lots of dropped audio:
+   - The server performs validation of audio packets (expects codec-specific formats). Check logs for `Audio packet with unexpected shape/type` and `audio_invalid` messages.
+   - Ensure clients signal `audio_ready` before expecting continuous audio streaming.
+
+3. Volume changes not applied:
+   - Volume is applied using key injection. Ensure the scrcpy controller is active for the websocket session (server logs errors if the controller is not yet available).
+
+4. SSL startup aborts:
+   - If `SSL=true` the server requires `SSL_KEY_PATH` and `SSL_CERT_PATH` to exist and be readable by the process.
+
+5. `uWebSockets.js` native binding errors on ARM laptops/containers:
+   - Ensure your container's glibc version matches requirements for the `uWebSockets.js` compiled binary or rebuild in a compatible environment. For containerized builds use a x86_64 builder or pick a Node base image matching the platform.
+
+## Development notes
+
+- The server is implemented in `index.js` and uses `App` and `Route` wrappers in `utils/http/` to unify HTTP and WS handling.
+- The `Route` object accepts `method`, `url`, `handler`, and optional `upgrade/open/message` fields. Authentication middleware is installed via `app.use(httpAuthMiddleware)`.
+- Audio handling includes packet unwrapping helpers and validation (`validateAudioPacket`). When audio packets are invalid the server sends `audio_invalid` messages and tracks drop statistics.
+
+## Contribution
+
+If you'd like to contribute, please create a PR with changes and tests where appropriate. For client-side protocol changes, ensure backward compatibility or provide a migration path.
 
 ---
 
-## Notes & internals
-
-- The server uses `msgpackr` to pack/unpack messages (Packr/Unpackr) for compact binary transport.
-- `@yume-chan` libraries are used to manage ADB and scrcpy integration; check `package.json` for versions.
-- The service performs multiple normalization layers for input commands (`normalizeTouchPayload`, `fallbackNormalizePayload`, `normalizeScrollPayload`) to be resilient to different client payload shapes.
-- `setVolume` uses injected Android keycodes (VolumeUp/VolumeDown/Mute) rather than calling `adb shell` repeatedly, which is more reliable in many setups. The code distinguishes small-step (exact `0` / `1`) vs. bulk/best-effort changes via repeated presses.
-
----
-
-## Contributing
-
-- Fork the repository, make changes, and open a PR. Please follow the project's code style and run a local smoke test (start service + test WebSocket messaaging) before submitting.
-
----
-
-## License
-
-MIT
-
----
-
-
+(End)

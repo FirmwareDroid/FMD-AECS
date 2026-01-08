@@ -29,11 +29,20 @@ FMD-AECS is designed to facilitate Android firmware analysis and emulation at sc
 4. **WebRTC Support**: Enable real-time communication features with Coturn
 5. **Firmware Analysis**: Integration with FirmwareDroid backend for firmware analysis
 
+In addition, the repository contains a dedicated ADB streaming service that exposes Android device video, audio and control channels over WebSockets (WSS) for web clients. This ADB streaming service integrates with the emulator fleet and the Envoy proxy to provide authenticated, real-time device streams and remote input injection. See `adb_streaming_service/source/README.md` for detailed usage and configuration.
+
 ## Architecture
 
-The system consists of several key components:
+The system consists of several key components. The high-level flow is:
+
+- Clients (web UI, automation) connect to either Envoy (for gRPC/API) or directly to the ADB Streaming Service (WSS) for real-time streams.
+- Envoy routes gRPC/API calls to emulator instances and other backend components.
+- The ADB Streaming Service connects to Android devices (local or remote emulators) via ADB and exposes video/audio/control channels over WebSockets.
+
+Here's an updated ASCII diagram showing the ADB streaming service as a first-class component:
 
 ```
+WebRTC Streaming & gRPC API
 ┌─────────────────────────────────────────────────────────┐
 │                    Client Applications                   │
 └────────────────────┬────────────────────────────────────┘
@@ -53,14 +62,33 @@ The system consists of several key components:
 ┌───────▼──────────────────────────────────────┐
 │         Coturn Server (WebRTC)               │
 └──────────────────────────────────────────────┘
+
+ADB Streaming Service
+┌────────────────────────────────────────────────────────────────────┐
+│                            Client Applications                     │
+│                  (Web UI, automation, test clients)               │
+└──────────────┬─────────────────────────────────────────────────────┘
+               │
+               │
+    ┌──────────▼───────────┐
+    │  ADB Streaming Svc    │  <-- WebSockets (WSS) -->  Clients (real-time)
+    │  (WebSocket / scrcpy) │
+    └──────────┬───────────┘
+               │
+    ┌──────────┴───────────┐
+    │    Emulators /       │
+    │    Android Devices   │
+    │  (Docker containers) │
+    └──────────────────────┘
 ```
 
 ### Key Components:
 
-- **Envoy Proxy**: Routes and load-balances gRPC requests to emulator instances
-- **Android Emulators**: Run in Docker containers with full Android system images
-- **Coturn Server**: Provides STUN/TURN services for WebRTC connections
-- **AOSP Build Tools**: Scripts for building and customizing Android system images
+- **Envoy Proxy**: Routes and load-balances gRPC/HTTP requests to emulator instances and management backends
+- **ADB Streaming Service (WebSocket)**: Provides WSS-based streaming of video/audio and control channels for devices; it connects to Android devices via ADB and normalizes control messages (touch/key/scroll) from web clients
+- **Android Emulators**: Run in Docker containers with full Android system images (the runtime target for streaming and AOSP builds)
+- **Coturn Server**: Provides STUN/TURN services for WebRTC connections used by certain streaming options
+- **AOSP Build Tools**: Scripts and templates for building and customizing Android system images and injecting firmware/APEX
 - **FirmwareDroid Integration**: Backend connection for firmware download and analysis
 
 ## Features
@@ -406,13 +434,4 @@ For issues, questions, or contributions:
 ## Acknowledgments
 
 This project is part of the FirmwareDroid ecosystem for Android firmware analysis and security research.
-
-
-
-
-
-
-
-
-
 
