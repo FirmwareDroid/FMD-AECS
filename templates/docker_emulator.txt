@@ -9,6 +9,7 @@
       - "{{ grpc_port_host }}:8554"
       - "{{ adb_port_host }}:5555"
       - "{{ ssh_port_host }}:22"
+      - 5037:5037
     sysctls:
       - "net.ipv6.conf.all.disable_ipv6=1"
     networks:

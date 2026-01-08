@@ -279,191 +279,122 @@ function requireAuthForHttp(res, req) {
     return false;
 }
 
-function requireAuthForUpgrade(res, req) {
-    if (!isAuthEnabled()) return true;
-    const authHeader = getAuthHeaderFromRequest(req) || req.getHeader && (req.getHeader('authorization') || req.getHeader('Authorization'));
-    if (validateBasicAuthHeader(authHeader)) return true;
-    // respond with 401 during upgrade
-    res.writeStatus('401 Unauthorized');
-    res.writeHeader('WWW-Authenticate', 'Basic realm="FirmwareDroid"');
-    res.end('Unauthorized');
-    return false;
-}
-
-// helper that safely sends packed data to a user's websocket only if the user's
-// abort signal is not triggered and the websocket is present.
-function sendToUser(user, packed) {
+// HTTP middleware wrapper to be used with app.use(...) — enforces auth on all routes
+// except health endpoints (those under '/api/health'). This runs before route handlers.
+function httpAuthMiddleware(response, request) {
     try {
-        if (!user) {
-            logger.debug('sendToUser: no user provided');
-            return false;
+        // Allow preflight OPTIONS without auth
+        try {
+            if (request && request.route && String(request.route.method).toLowerCase() === 'options') return true;
+        } catch (e) {}
+
+        // If auth is disabled, allow through
+        if (!isAuthEnabled()) return true;
+
+        // Allow unauthenticated access to health endpoints
+        try {
+            const routeUrl = request && request.route && request.route.url ? String(request.route.url) : null;
+            const reqUrl = request && typeof request.getUrl === 'function' ? request.getUrl() : null;
+            if (routeUrl && routeUrl.startsWith('/api/health')) return true;
+            if (reqUrl && String(reqUrl).startsWith('/api/health')) return true;
+        } catch (e) {
+            // ignore and fall through to auth check
         }
-        if (user.abortController?.signal?.aborted) {
-            logger.debug('sendToUser: user abort signal is set, skipping send');
-            return false;
-        }
-        if (!user.ws) {
-            logger.debug('sendToUser: user.ws missing, skipping send');
-            return false;
-        }
-        // uWebSockets ws.send returns 1 when successful; wrap in try/catch
-        const ok = user.ws.send(packed, true);
-        if (ok !== 1) {
-            logger.debug(`sendToUser: ws.send returned non-1 status=${ok}`);
-        }
-        return true;
+
+        // Delegate to existing low-level helper using raw uWS objects
+        return requireAuthForHttp(response.res, request.req);
     } catch (e) {
-        logger.debug('Failed to send to user (likely closed):', e?.message || e);
+        try { logger.error('httpAuthMiddleware error', e?.message || e); } catch (ex) {}
+        // On unexpected errors, deny access
+        try {
+            response.writeStatus('500 Internal Server Error');
+            response.end('Internal server error');
+        } catch (e) {}
         return false;
     }
 }
 
-// helper to close or send error without closing — keeps behavior explicit and logs reason
-function closeSocket(ws, reason = '', shouldClose = true) {
+// WebSocket upgrade authentication helper — validates Basic auth on raw uWS req/res
+function requireAuthForUpgrade(res, req) {
     try {
-        // mark server-initiated close on user if available
+        if (!isAuthEnabled()) return true;
+        // getAuthHeaderFromRequest works with objects exposing getHeader/getQuery (uWS HttpRequest has those)
+        const authHeader = getAuthHeaderFromRequest(req) || (req.getHeader && (req.getHeader('authorization') || req.getHeader('Authorization')));
+        if (validateBasicAuthHeader(authHeader)) return true;
+        // Deny the upgrade with a 401 response and the WWW-Authenticate header
         try {
-            if (ws && ws.id && global.users.has(ws.id)) {
-                const u = global.users.get(ws.id);
-                if (u) {
-                    u._serverInitiatedClose = shouldClose;
-                    u._serverCloseReason = reason || '';
-                    u._serverCloseStack = (new Error()).stack;
-                }
-            }
+            res.writeStatus('401 Unauthorized');
+            res.writeHeader('WWW-Authenticate', 'Basic realm="FirmwareDroid"');
+            res.end('Unauthorized');
         } catch (e) {
-            // non-fatal
-            logger.debug('closeSocket: could not mark user state', e?.message || e);
+            // best-effort: if writing fails, just close the response
+            try { res.close(); } catch (ee) {}
         }
-        if (reason) {
-            try {
-                // send structured msgpack error so client can unpack consistently
-                const u = ws && ws.id ? global.users.get(ws.id) : undefined;
-                if (u) {
-                    try {
-                        u.ws.send(packer.pack({media: 'error', message: reason}), true);
-                    } catch (e) { /* ignore */
-                    }
-                } else {
-                    try {
-                        ws.send(packer.pack({media: 'error', message: reason}), true);
-                    } catch (e) { /* ignore */
-                    }
-                }
-            } catch (e) { /* ignore send error */
-            }
-            logger.info(`WebSocket close requested: ${reason}`);
-        }
-        if (shouldClose) {
-            try {
-                ws.close();
-            } catch (e) {
-                logger.debug('ws.close() failed:', e?.message || e);
-            }
-        }
+        return false;
     } catch (e) {
-        logger.error('closeSocket unexpected error:', e?.message || e);
+        try { logger.error('requireAuthForUpgrade error', e?.message || e); } catch (ex) {}
+        try {
+            res.writeStatus('500 Internal Server Error');
+            res.end('Internal server error');
+        } catch (er) {}
+        return false;
     }
 }
 
-// Normalize scroll payload into scrcpy expected shape (scrollX/scrollY in [-1,1])
-function normalizeScrollPayload(user, payload) {
+// Helper to send packed bytes to a user's websocket safely.
+// Accepts user object (with .ws) and packed (Uint8Array/Buffer/ArrayBuffer).
+function sendToUser(user, packed, allowCloseOnError = false) {
     try {
-        if (!payload || typeof payload !== 'object') return null;
-        // prefer explicit device coords
-        const deviceX = payload.deviceX ?? payload.device_x ?? null;
-        const deviceY = payload.deviceY ?? payload.device_y ?? null;
+        if (!user || !user.ws) return false;
+        const ws = user.ws;
+        // Normalize packed to Uint8Array
+        let data = packed;
+        if (typeof Buffer !== 'undefined' && Buffer.isBuffer(packed)) {
+            data = new Uint8Array(packed);
+        } else if (packed instanceof ArrayBuffer) {
+            data = new Uint8Array(packed);
+        } else if (packed && typeof packed === 'object' && (packed.buffer instanceof ArrayBuffer) && typeof packed.byteLength === 'number') {
+            // TypedArray (Uint8Array etc.)
+            data = packed instanceof Uint8Array ? packed : new Uint8Array(packed.buffer, packed.byteOffset || 0, packed.byteLength || packed.buffer.byteLength);
+        }
 
-        // pointer coords (device space if provided)
-        let x = deviceX ?? payload.pointerX ?? payload.clientX ?? payload.client_x ?? payload.x ?? null;
-        let y = deviceY ?? payload.pointerY ?? payload.clientY ?? payload.client_y ?? payload.y ?? null;
+        // Best-effort check for backpressure
+        let before = null;
+        try {
+            if (typeof ws.getBufferedAmount === 'function') before = ws.getBufferedAmount();
+        } catch (e) { before = null; }
 
-        // display/video size
-        let videoWidth = payload.displayWidth ?? payload.display_width ?? payload.screenWidth ?? payload.screen_width ?? (user && user.videoMetadata ? user.videoMetadata.width : null) ?? 1;
-        let videoHeight = payload.displayHeight ?? payload.display_height ?? payload.screenHeight ?? payload.screen_height ?? (user && user.videoMetadata ? user.videoMetadata.height : null) ?? 1;
+        // Send as binary
+        // uWebSockets.js expects either string or ArrayBuffer/TypedArray; passing Uint8Array is fine
+        ws.send(data, true);
 
-        // parse numbers
-        x = (typeof x === 'string') ? Number(x) : x;
-        y = (typeof y === 'string') ? Number(y) : y;
-        if (!isFinite(Number(x))) x = NaN;
-        if (!isFinite(Number(y))) y = NaN;
+        let after = null;
+        try {
+            if (typeof ws.getBufferedAmount === 'function') after = ws.getBufferedAmount();
+        } catch (e) { after = null; }
 
-        // try to infer coordinates from clientX/clientY if necessary
-        if ((x === null || Number.isNaN(x)) && (payload.clientX || payload.client_x)) {
-            const cx = payload.clientX ?? payload.client_x;
-            const cy = payload.clientY ?? payload.client_y;
-            if (typeof cx === 'number' && typeof cy === 'number' && user && user.videoMetadata) {
-                const metaW = user.clientWidth || user.videoMetadata.width || videoWidth;
-                const metaH = user.clientHeight || user.videoMetadata.height || videoHeight;
-                if (metaW > 0 && metaH > 0) {
-                    x = Math.round(cx * (videoWidth / metaW));
-                    y = Math.round(cy * (videoHeight / metaH));
-                }
+        // If buffer grew a lot, log debug message
+        try {
+            if (before !== null && after !== null && after - before > 1024 * 64) {
+                logger.debug(`sendToUser: websocket buffer grew by ${after - before} bytes for user=${user?.ws?.id || '<unknown>'}`);
             }
-        }
-
-        if (!isFinite(x)) x = 0;
-        if (!isFinite(y)) y = 0;
-        x = Math.round(x);
-        y = Math.round(y);
-
-        // pointerId handling similar to touch normalizer
-        let pointerId = payload.pointerId ?? payload.pointer_id ?? payload.pid ?? payload.pointer ?? -2n;
-        try {
-            if (pointerId === null || typeof pointerId === 'undefined') pointerId = -2n;
-            else if (typeof pointerId === 'bigint') { /* ok */
-            } else if (typeof pointerId === 'number') pointerId = BigInt(Math.trunc(pointerId));
-            else if (typeof pointerId === 'string') {
-                const s = pointerId.trim().replace(/n$/i, '');
-                const num = Number(s);
-                pointerId = Number.isNaN(num) ? BigInt(-2) : BigInt(Math.trunc(num));
-            } else pointerId = BigInt(-2);
         } catch (e) {
-            pointerId = BigInt(-2);
+            // ignore logging errors
         }
 
-        // scroll deltas: accept multiple names
-        let scrollX = payload.scrollX ?? payload.scroll_x ?? payload.deltaX ?? payload.delta_x ?? payload.amountX ?? payload.amount_x ?? 0;
-        let scrollY = payload.scrollY ?? payload.scroll_y ?? payload.deltaY ?? payload.delta_y ?? payload.amountY ?? payload.amount_y ?? 0;
-        scrollX = (typeof scrollX === 'string') ? Number(scrollX) : scrollX;
-        scrollY = (typeof scrollY === 'string') ? Number(scrollY) : scrollY;
-        if (!isFinite(Number(scrollX))) scrollX = 0;
-        if (!isFinite(Number(scrollY))) scrollY = 0;
-
-        // Convert pixel deltas into normalized floats in [-1,1]
-        videoWidth = Number(videoWidth) || 1;
-        videoHeight = Number(videoHeight) || 1;
-        const normX = videoWidth > 0 ? (scrollX / videoWidth) : 0;
-        const normY = videoHeight > 0 ? (scrollY / videoHeight) : 0;
-        const clamp = (v) => Math.max(-1, Math.min(1, v));
-        // NOTE: invert sign to match scrcpy expected scroll direction (pixel positive -> negative scroll in control protocol in many implementations)
-        const finalScrollX = Number(clamp(-normX));
-        const finalScrollY = Number(clamp(-normY));
-
-        return {
-            pointerId: pointerId,
-            pointerX: Number(x),
-            pointerY: Number(y),
-            x: Number(x),
-            y: Number(y),
-            scrollX: finalScrollX,
-            scrollY: finalScrollY,
-            scroll_x: finalScrollX,
-            scroll_y: finalScrollY,
-            hscroll: finalScrollX,
-            vscroll: finalScrollY,
-            deltaX: Number(scrollX) || 0,
-            deltaY: Number(scrollY) || 0,
-            // include optional metadata to assist controller implementations
-            buttons: Number(payload.buttons ?? payload.button ?? 0) || 0,
-            action: Number(payload.action ?? payload.type ?? 0) || 0,
-        };
-    } catch (e) {
+        return true;
+    } catch (err) {
         try {
-            logger.debug('normalizeScrollPayload error', e?.message || e);
-        } catch (ex) {
+            logger.error('sendToUser error', err?.message || err);
+            // Optionally notify client or mark user for close
+            if (allowCloseOnError && user && user.ws) {
+                try { user._serverInitiatedClose = true; user._serverCloseReason = 'send-error'; user._serverCloseStack = (new Error()).stack; user.ws.close(); } catch (e) {}
+            }
+        } catch (e) {
+            // fallback console
+            try { console.error('sendToUser fallback error', e); } catch (_) {}
         }
-        return null;
+        return false;
     }
 }
 
@@ -475,6 +406,8 @@ const run = async () => {
         sslOptions,
     });
     app.use(cors);
+    // Enforce authentication for all HTTP routes except health endpoints
+    app.use(httpAuthMiddleware);
     for (const route of routes) {
         app.route(route, {});
     }
