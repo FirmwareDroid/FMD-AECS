@@ -44,6 +44,11 @@ def main():
                         type=int,
                         default=2222,
                         help="Starting port for the ssh service. Default is 2222.")
+    parser.add_argument("-k",
+                        "--scrcpy-start-port",
+                        type=int,
+                        default=5001,
+                        help="Starting port for the scrcpy service. Default is 5001.")
     parser.add_argument("-c",
                         "--cpu-arch",
                         type=str,
@@ -74,7 +79,8 @@ def main():
                                "platform": args.cpu_arch,
                                "debug": args.debug,
                                "ssh_port_host": args.ssh_start_port,
-                               "envoy_port_mapping": envoy_port_mapping
+                               "envoy_port_mapping": envoy_port_mapping,
+                               "scrcpy_port_host": args.scrcpy_start_port
                                }
     environment = Environment(loader=FileSystemLoader("templates/"))
     docker_image_name_list = get_docker_images_names()
@@ -114,6 +120,7 @@ def create_docker_compose_file(template_variables_dict, environment, docker_imag
         grpc_port_host = template_variables_dict["grpc_port_host"] + x
         adb_port_host = template_variables_dict["adb_port_host"] + x
         ssh_port_host = template_variables_dict["ssh_port_host"] + x
+        scrcpy_port_host = template_variables_dict["scrcpy_port_host"] + x
         platform = template_variables_dict["platform"]
         optional_settings = ["devices: [/dev/kvm]"]
         if template_variables_dict["debug"]:
@@ -127,6 +134,7 @@ def create_docker_compose_file(template_variables_dict, environment, docker_imag
             ssh_port_host=ssh_port_host,
             platform=platform,
             optional_settings=optional_settings,
+            scrcpy_port_host=scrcpy_port_host
         )
         emulator_template_content_list.append(content)
         x += 1
