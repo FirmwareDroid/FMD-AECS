@@ -72,7 +72,9 @@ RUN mkdir /var/run/sshd
 RUN mkdir -p /root/.ssh && \
     touch /root/.ssh/authorized_keys && \
     for key in ./emulator/prebuilts/ssh/*.pub; do \
-        cat "$key" >> /root/.ssh/authorized_keys; \
+        if [ -f "$key" ]; then \
+            cat "$key" >> /root/.ssh/authorized_keys; \
+        fi; \
     done
 RUN chmod 600 /root/.ssh/authorized_keys \
     && chown root:root /root/.ssh/authorized_keys
