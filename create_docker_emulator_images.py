@@ -241,21 +241,28 @@ def check_if_base_images_exists():
         return False
 
 
-def get_host_architecture():
-    architecture = platform.machine()
-    return architecture
-
+def get_host_architecture() -> str:
+    arch = (platform.machine() or "").lower()
+    if arch in ("x86_64", "amd64", "x64", "i386", "i686"):
+        return "x86_64"
+    if arch in ("aarch64", "arm64", "armv8l", "armv8", "arm64e"):
+        return "arm64"
+    return arch  # fallback: return raw string for logging / future checks
 
 def create_base_images():
     """
-    Creates the base images for the emulator.
-    Returns:
-
+    Creates the base images for the emulator only for the host CPU arch.
     """
-    for arch in ["x86_64", "arm64"]:
-        if arch in get_host_architecture():
+    host_arch = get_host_architecture()
+    logging.info(f"Host architecture detected: {host_arch}")
+    for arch in ("x86_64", "arm64"):
+        if arch == host_arch:
             logging.info(f"Building base image for {arch}")
-            build_container_image(f"fmd-emulator_{arch}", f"linux/{arch}", f"{EMULATOR_DOCKERFILE_BASE_ABS_PATH}{arch}")
+            build_container_image(
+                f"fmd-emulator_{arch}",
+                f"linux/{arch}",
+                f"{EMULATOR_DOCKERFILE_BASE_ABS_PATH}{arch}"
+            )
 
 
 def delete_emulator_images(local_repo_path):
