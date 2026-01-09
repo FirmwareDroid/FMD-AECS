@@ -341,63 +341,6 @@ function requireAuthForUpgrade(res, req) {
     }
 }
 
-// Helper to send packed bytes to a user's websocket safely.
-// Accepts user object (with .ws) and packed (Uint8Array/Buffer/ArrayBuffer).
-function sendToUser(user, packed, allowCloseOnError = false) {
-    try {
-        if (!user || !user.ws) return false;
-        const ws = user.ws;
-        // Normalize packed to Uint8Array
-        let data = packed;
-        if (typeof Buffer !== 'undefined' && Buffer.isBuffer(packed)) {
-            data = new Uint8Array(packed);
-        } else if (packed instanceof ArrayBuffer) {
-            data = new Uint8Array(packed);
-        } else if (packed && typeof packed === 'object' && (packed.buffer instanceof ArrayBuffer) && typeof packed.byteLength === 'number') {
-            // TypedArray (Uint8Array etc.)
-            data = packed instanceof Uint8Array ? packed : new Uint8Array(packed.buffer, packed.byteOffset || 0, packed.byteLength || packed.buffer.byteLength);
-        }
-
-        // Best-effort check for backpressure
-        let before = null;
-        try {
-            if (typeof ws.getBufferedAmount === 'function') before = ws.getBufferedAmount();
-        } catch (e) { before = null; }
-
-        // Send as binary
-        // uWebSockets.js expects either string or ArrayBuffer/TypedArray; passing Uint8Array is fine
-        ws.send(data, true);
-
-        let after = null;
-        try {
-            if (typeof ws.getBufferedAmount === 'function') after = ws.getBufferedAmount();
-        } catch (e) { after = null; }
-
-        // If buffer grew a lot, log debug message
-        try {
-            if (before !== null && after !== null && after - before > 1024 * 64) {
-                logger.debug(`sendToUser: websocket buffer grew by ${after - before} bytes for user=${user?.ws?.id || '<unknown>'}`);
-            }
-        } catch (e) {
-            // ignore logging errors
-        }
-
-        return true;
-    } catch (err) {
-        try {
-            logger.error('sendToUser error', err?.message || err);
-            // Optionally notify client or mark user for close
-            if (allowCloseOnError && user && user.ws) {
-                try { user._serverInitiatedClose = true; user._serverCloseReason = 'send-error'; user._serverCloseStack = (new Error()).stack; user.ws.close(); } catch (e) {}
-            }
-        } catch (e) {
-            // fallback console
-            try { console.error('sendToUser fallback error', e); } catch (_) {}
-        }
-        return false;
-    }
-}
-
 const run = async () => {
     const app = new App({
         host,
@@ -1859,25 +1802,16 @@ function validateAudioPacket(buf, metadata = {}, sessionId = '<unknown>', wsObj 
 
 // Start the server and install global error handlers
 run().then(() => {
-    logger.info('ADB streaming service startup complete');
-}).catch((err) => {
-    // Log full error details (name, message, stack, other properties) for debugging
     try {
-        const errObj = serializeError(err);
-        try {
-            // log as structured object if logger supports it
-            logger.error('Failed to start ADB streaming service', errObj);
-        } catch (e) {
-            // fallback to string output
-            logger.error('Failed to start ADB streaming service: ' + (errObj && errObj.message ? errObj.message : String(err)));
-            if (err && err.stack) logger.error(err.stack);
-        }
+        logger.info('ADB streaming service startup complete');
     } catch (e) {
-        // If serialization itself fails, at least print the raw error and stack to console
-        try { logger.error('Failed to start ADB streaming service: (error serializing error) ' + String(err)); } catch (ee) { console.error('Failed to start ADB streaming service:', err); }
-        if (err && err.stack) {
-            try { logger.error(err.stack); } catch (ee) { console.error(err.stack); }
-        }
+        console.log('ADB streaming service startup complete');
+    }
+}).catch((err) => {
+    try {
+        logger.error('Failed to start ADB streaming service:', err && err.message ? err.message : err);
+    } catch (e) {
+        console.error('Failed to start ADB streaming service:', err);
     }
     // if startup fails, exit with non-zero code so process managers can restart
     process.exit(1);
