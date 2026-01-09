@@ -120,6 +120,7 @@ async function createPoolsOnce() {
 			const key = `${host}:${port}`;
 			// Verify connectivity by requesting server features with a timeout
 			try {
+				await client.getServerFeatures()
 				//const features = await withTimeout(client.getServerFeatures(), 30000, `Timeout connecting to ADB server ${host}:${port}`);
 				//logger.info(`Configured ADB server pool ${key} (features:${Object.keys(features||{}).length})`);
 				return { host, port, key, connector, client };
