@@ -1859,17 +1859,9 @@ function validateAudioPacket(buf, metadata = {}, sessionId = '<unknown>', wsObj 
 
 // Start the server and install global error handlers
 run().then(() => {
-    try {
-        logger.info('ADB streaming service startup complete');
-    } catch (e) {
-        console.log('ADB streaming service startup complete');
-    }
+    logger.info('ADB streaming service startup complete');
 }).catch((err) => {
-    try {
-        logger.error('Failed to start ADB streaming service:', err && err.message ? err.message : err);
-    } catch (e) {
-        console.error('Failed to start ADB streaming service:', err);
-    }
+    logger.error('Failed to start ADB streaming service:', err && err.message ? err.message : err);
     // if startup fails, exit with non-zero code so process managers can restart
     process.exit(1);
 });
