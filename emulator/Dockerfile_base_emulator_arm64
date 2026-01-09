@@ -65,7 +65,7 @@ RUN unzip /android/sdk-repo-linux_aarch64-emulator-11774154.zip -d /android/sdk/
 COPY ./emulator/avd/ /android/sdk/avd/
 
 ################################
-# Install and start SSH        #
+# Install and configure SSH and fail2ban packages (do NOT start services at build time)
 ################################
 RUN apt-get update && apt-get install -y --no-install-recommends openssh-server fail2ban
 RUN mkdir /var/run/sshd
@@ -82,9 +82,6 @@ RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/s
 RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin without-password/' /etc/ssh/sshd_config
 
 COPY ./emulator/prebuilts/fail2ban/jail.local /etc/fail2ban/jail.local
-RUN service ssh start
-RUN /usr/sbin/sshd -D &
-RUN service fail2ban start
 
 ################################
 # Set environment variables in .bashrc
@@ -99,6 +96,15 @@ RUN echo 'export PATH=$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$AND
 RUN echo 'export REPO_OS_OVERRIDE=macosx' >> /root/.bashrc
 
 ################################
-# RUN Emulator start script at container start
+# Add entrypoint that starts services at runtime after a short delay
 ################################
-RUN /android/emulator_start.sh &
+COPY ./emulator/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Ensure emulator start script is present and executable
+COPY ./emulator/emulator_start.sh /android/emulator_start.sh
+RUN chmod +x /android/emulator_start.sh || true
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["/bin/bash"]
+
