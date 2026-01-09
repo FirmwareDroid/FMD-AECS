@@ -1861,7 +1861,24 @@ function validateAudioPacket(buf, metadata = {}, sessionId = '<unknown>', wsObj 
 run().then(() => {
     logger.info('ADB streaming service startup complete');
 }).catch((err) => {
-    logger.error('Failed to start ADB streaming service:', err && err.message ? err.message : err);
+    // Log full error details (name, message, stack, other properties) for debugging
+    try {
+        const errObj = serializeError(err);
+        try {
+            // log as structured object if logger supports it
+            logger.error('Failed to start ADB streaming service', errObj);
+        } catch (e) {
+            // fallback to string output
+            logger.error('Failed to start ADB streaming service: ' + (errObj && errObj.message ? errObj.message : String(err)));
+            if (err && err.stack) logger.error(err.stack);
+        }
+    } catch (e) {
+        // If serialization itself fails, at least print the raw error and stack to console
+        try { logger.error('Failed to start ADB streaming service: (error serializing error) ' + String(err)); } catch (ee) { console.error('Failed to start ADB streaming service:', err); }
+        if (err && err.stack) {
+            try { logger.error(err.stack); } catch (ee) { console.error(err.stack); }
+        }
+    }
     // if startup fails, exit with non-zero code so process managers can restart
     process.exit(1);
 });
