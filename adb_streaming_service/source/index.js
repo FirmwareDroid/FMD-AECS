@@ -350,7 +350,7 @@ function requireAuthForUpgrade(res, req) {
         } catch (er) {
         }
         return false;
-        {}
+    }
 }
 
 const run = async () => {
@@ -367,6 +367,7 @@ const run = async () => {
     }catch (err) {
         logger.error(err)
     }
+
     for (const route of routes) {
         app.route(route, {});
     }
