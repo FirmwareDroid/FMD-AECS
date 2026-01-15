@@ -62,7 +62,8 @@ Development (run locally):
 # in adb_streaming_service/source
 pnpm run build-start
 # or directly
-node index.js
+cd /app/source
+npx @yume-chan/fetch-scrcpy-server 3.3.3 && node index.js
 ```
 
 Docker (multi-stage build included): see top-level `Dockerfile` in project root and `create_docker_startup_scripts.py` for image generation.
