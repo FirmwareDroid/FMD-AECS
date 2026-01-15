@@ -350,7 +350,7 @@ function requireAuthForUpgrade(res, req) {
         } catch (er) {
         }
         return false;
-    }
+        {}
 }
 
 const run = async () => {
@@ -362,7 +362,11 @@ const run = async () => {
     });
     app.use(cors);
     // Enforce authentication for all HTTP routes except health endpoints
-    app.use(httpAuthMiddleware);
+    try {
+        app.use(httpAuthMiddleware);
+    }catch (err) {
+        logger.error(err)
+    }
     for (const route of routes) {
         app.route(route, {});
     }
