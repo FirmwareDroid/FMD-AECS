@@ -1821,7 +1821,12 @@ function validateAudioPacket(buf, metadata = {}, sessionId = '<unknown>', wsObj 
 run().then(() => {
     logger.info('ADB streaming service startup complete');
 }).catch((err) => {
-    logger.error('Failed to start ADB streaming service:', err && err.message ? err.message : err);
+    try {
+        logger.error('Failed to start ADB streaming service:', serializeError(err));
+    } catch (logErr) {
+        // Ensure something is printed even if logger misbehaves
+        try { console.error('Failed to start ADB streaming service:', err && err.stack ? err.stack : err); } catch (e) {}
+    }
     process.exit(1);
 });
 
@@ -1842,3 +1847,4 @@ process.on('uncaughtException', (err) => {
     // Exit to avoid the process continuing in an unknown state
     process.exit(1);
 });
+
