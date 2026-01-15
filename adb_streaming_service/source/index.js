@@ -286,7 +286,8 @@ function httpAuthMiddleware(response, request) {
         // Allow preflight OPTIONS without auth
         try {
             if (request && request.route && String(request.route.method).toLowerCase() === 'options') return true;
-        } catch (e) {}
+        } catch (e) {
+        }
 
         // If auth is disabled, allow through
         if (!isAuthEnabled()) return true;
@@ -304,12 +305,16 @@ function httpAuthMiddleware(response, request) {
         // Delegate to existing low-level helper using raw uWS objects
         return requireAuthForHttp(response.res, request.req);
     } catch (e) {
-        try { logger.error('httpAuthMiddleware error', e?.message || e); } catch (ex) {}
+        try {
+            logger.error('httpAuthMiddleware error', e?.message || e);
+        } catch (ex) {
+        }
         // On unexpected errors, deny access
         try {
             response.writeStatus('500 Internal Server Error');
             response.end('Internal server error');
-        } catch (e) {}
+        } catch (e) {
+        }
         return false;
     }
 }
@@ -328,15 +333,22 @@ function requireAuthForUpgrade(res, req) {
             res.end('Unauthorized');
         } catch (e) {
             // best-effort: if writing fails, just close the response
-            try { res.close(); } catch (ee) {}
+            try {
+                res.close();
+            } catch (ee) {
+            }
         }
         return false;
     } catch (e) {
-        try { logger.error('requireAuthForUpgrade error', e?.message || e); } catch (ex) {}
+        try {
+            logger.error('requireAuthForUpgrade error', e?.message || e);
+        } catch (ex) {
+        }
         try {
             res.writeStatus('500 Internal Server Error');
             res.end('Internal server error');
-        } catch (er) {}
+        } catch (er) {
+        }
         return false;
     }
 }
@@ -1802,18 +1814,9 @@ function validateAudioPacket(buf, metadata = {}, sessionId = '<unknown>', wsObj 
 
 // Start the server and install global error handlers
 run().then(() => {
-    try {
-        logger.info('ADB streaming service startup complete');
-    } catch (e) {
-        console.log('ADB streaming service startup complete');
-    }
+    logger.info('ADB streaming service startup complete');
 }).catch((err) => {
-    try {
-        logger.error('Failed to start ADB streaming service:', err && err.message ? err.message : err);
-    } catch (e) {
-        console.error('Failed to start ADB streaming service:', err);
-    }
-    // if startup fails, exit with non-zero code so process managers can restart
+    logger.error('Failed to start ADB streaming service:', err && err.message ? err.message : err);
     process.exit(1);
 });
 
