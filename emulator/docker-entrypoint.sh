@@ -19,47 +19,10 @@ else
 fi
 
 # Start fail2ban if available
-if command -v service >/dev/null 2>&1; then
-  echo "Starting fail2ban (if configured)..."
-  # ensure runtime directory exists
-  mkdir -p /var/run/fail2ban
-
-  # If a socket exists from a previous run but no server process is listening, remove it (stale socket)
-  if [ -S /var/run/fail2ban/fail2ban.sock ]; then
-    echo "Found existing fail2ban socket at /var/run/fail2ban/fail2ban.sock — checking for running process..."
-    SOCKET_STALE=0
-    if command -v pgrep >/dev/null 2>&1; then
-      if ! pgrep -f fail2ban-server >/dev/null 2>&1; then
-        SOCKET_STALE=1
-      fi
-    else
-      # fallback: use ps+grep
-      if ! ps aux | grep "[f]ail2ban-server" >/dev/null 2>&1; then
-        SOCKET_STALE=1
-      fi
-    fi
-    if [ "$SOCKET_STALE" -eq 1 ]; then
-      echo "No fail2ban process found but socket exists — removing stale socket"
-      rm -f /var/run/fail2ban/fail2ban.sock || true
-    else
-      echo "fail2ban process appears to be running or socket in use; leaving socket in place"
-    fi
-  fi
-
-  # Attempt to start fail2ban, retry once after removing stale socket
-  if service fail2ban start; then
-    echo "fail2ban started"
-  else
-    echo "Warning: initial attempt to start fail2ban failed — retrying after cleanup"
-    # Try quick cleanup of socket and retry
-    rm -f /var/run/fail2ban/fail2ban.sock 2>/dev/null || true
-    if service fail2ban start; then
-      echo "fail2ban started on retry"
-    else
-      echo "Warning: fail2ban did not start or is not configured"
-    fi
-  fi
-fi
+##if command -v service >/dev/null 2>&1; then
+#  echo "Starting fail2ban (if configured)..."
+  #ervice fail2ban start || echo "Warning: fail2ban did not start or is not configured"
+##fi
 
 # Ensure emulator script is executable
 if [ -f /android/emulator_start.sh ]; then
