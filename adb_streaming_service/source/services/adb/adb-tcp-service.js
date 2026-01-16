@@ -397,7 +397,7 @@ class AdbTcpService {
 		const clientFeatures = adb.clientFeatures;
 		const deviceFeatures = adb.deviceFeatures;
 		const deviceModel = { serial: poolInfo.serial, transport, adb, displays: [], encoders: [], _serverKey: pool.key, _serverHost: pool.host, _serverPort: pool.port };
-		try { await pushServer(adb); } catch (err) { logger.error('Initial pushServer failed in connectToDevice:', err); }
+		try { await pushServer(adb); } catch (err) { logger.error(`Initial pushServer failed in connectToDevice: ${err}`); }
 		return deviceModel
 	}
 
