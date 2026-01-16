@@ -30,6 +30,8 @@ services:
     container_name: pihole
     env_file:
       - ./env/pihole/.env
+    ports:
+      - "8082:80"
     networks:
       android:
         ipv4_address: 172.28.10.2
@@ -81,7 +83,6 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.28.0.0/16
-          aux_addresses:
-            pihole: 172.28.10.2
+        - subnet: 172.28.10.0/24
+          ip_range: 172.28.10.128/25
 
