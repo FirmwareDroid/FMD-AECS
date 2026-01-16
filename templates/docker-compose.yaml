@@ -31,9 +31,7 @@ services:
     env_file:
       - ./env/pihole/.env
     ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      - "80:80"
+      - "8082:80"
     networks:
       android:
         ipv4_address: 172.28.0.2
