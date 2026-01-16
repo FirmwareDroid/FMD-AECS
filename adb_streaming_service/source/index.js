@@ -362,11 +362,7 @@ const run = async () => {
     });
     app.use(cors);
     // Enforce authentication for all HTTP routes except health endpoints
-    try {
-        app.use(httpAuthMiddleware);
-    }catch (err) {
-        logger.error(err)
-    }
+    app.use(httpAuthMiddleware);
 
     for (const route of routes) {
         app.route(route, {});
@@ -379,6 +375,7 @@ const run = async () => {
             maxPayloadLength: 16 * 1024,
             idleTimeout: 0,
             upgrade: async (res, req, context) => {
+                logger.info("WebSocket upgrade request from IP:", req.getRemoteAddressAsText());
                 if (!requireAuthForUpgrade(res, req)) return;
                 res.upgrade(
                     {
@@ -403,6 +400,7 @@ const run = async () => {
                 );
             },
             open: async (ws) => {
+                logger.info("WebSocket connection opened");
                 try {
                     const {id} = ws;
                     let device = ws.device;
@@ -418,6 +416,7 @@ const run = async () => {
 
                     // If device not provided and exactly one device connected, auto-select it
                     if (!device) {
+                        logger.info("No device specified, checking for auto-selection...");
                         try {
                             const devices = await adbTcpService.getDevices();
                             if (Array.isArray(devices) && devices.length === 1) {
@@ -447,10 +446,10 @@ const run = async () => {
                             return;
                         }
                     }
-
+                    logger.info("WebSocket open: id='" + id + "' device='" + device + "'");
                     const user = {ws, client: null, abortController: new AbortController()};
                     global.users.set(id, user);
-
+                    logger.info(`Starting ADB TCP streaming for id='${id}' device='${device}' audio=${ws.audio} video=${ws.video}`);
                     let deviceAdb;
                     try {
                         deviceAdb = await adbTcpService.getDeviceAdb(device);
@@ -467,6 +466,7 @@ const run = async () => {
 
                     let startResult;
                     try {
+                        logger.info(`Starting ADB TCP service for device='${device}' id='${id}'...`);
                         startResult = await adbTcpService.start(deviceAdb, user);
                     } catch (err) {
                         const errObj = serializeError(err);
@@ -507,6 +507,7 @@ const run = async () => {
                     }
 
                     // pipe client stdout if available
+                    logger.info("Setting up client.stdout piping for id='" + id + "'");
                     if (client.stdout && typeof client.stdout.pipeTo === 'function') {
                         try {
                             client.stdout.pipeTo(new WritableStream({write: (line) => logger.info(line)}), {signal: user.abortController?.signal || undefined}).catch((e) => {
@@ -522,6 +523,7 @@ const run = async () => {
 
                     // clipboard
                     if (options && options.clipboard) {
+                        logger.info("Setting up clipboard piping for id='" + id + "'");
                         options.clipboard.pipeTo(new WritableStream({
                             write: (message) => {
                                 try {
@@ -538,6 +540,7 @@ const run = async () => {
 
                     // audio
                     if (client.audioStream) {
+                        logger.info("Setting up audio streaming for id='" + id + "'");
                         try {
                             const metadata = await client.audioStream;
                             // store simple audio stats per-user
@@ -851,6 +854,7 @@ const run = async () => {
 
                     // video
                     if (client.videoStream) {
+                        logger.info("Setting up video streaming for id='" + id + "'");
                         const {metadata: videoMetadata, stream: videoPacketStream} = await client.videoStream;
                         logger.info(videoMetadata);
                         // store metadata on user for touch normalization
@@ -887,6 +891,7 @@ const run = async () => {
             message: (ws, message) => {
                 const {id} = ws;
                 try {
+                    logger.info("WS message received from id='" + id + "'");
                     const user = global.users.get(id);
                     const record = unpacker.unpack(message);
                     // Log the incoming command and a short description of the payload for debugging
@@ -1443,6 +1448,7 @@ const run = async () => {
             }
         })
         .get('/*', (res, req) => {
+            logger.info("HTTP %s %s", req.getMethod(), req.getUrl());
             if (!requireAuthForHttp(res, req)) return;
             res.cork(() => {
                 res.writeHeader('Access-Control-Allow-Origin', req.getHeader('origin') || '*');

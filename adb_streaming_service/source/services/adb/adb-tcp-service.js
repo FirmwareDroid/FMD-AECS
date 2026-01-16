@@ -188,7 +188,12 @@ async function findPoolForSerial(serial) {
 }
 
 // convenience wrapper to use defaultPool.client in places that previously used serverClient
-const serverClient = defaultPool.client;
+if (defaultPool.hasOwnProperty('client')){
+	logger.info(`Setting up default serverClient for pool ${defaultPool.key}`);
+	const serverClient = defaultPool.client;
+} else {
+	throw new Error('defaultPool does not have a client property');
+}
 
 // Track pushes per serial and in-flight promises
 const pushedBySerial = new Set();
