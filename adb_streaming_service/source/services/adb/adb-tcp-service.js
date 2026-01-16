@@ -221,9 +221,9 @@ function resolveSerialFromAdbInstance(adbInstance) {
 }
 
 const pushServer = async (adbInstance, force = false) => {
-	logging.info("Pushing scrcpy server to device if not already present...");
+	logger.info("Pushing scrcpy server to device if not already present...");
 	const serial = resolveSerialFromAdbInstance(adbInstance);
-	logging.info("Got serial from adb instance:", serial);
+	logger.info("Got serial from adb instance:", serial);
 	// probe remote server file via ls -l to verify existence/size
 	const probeRemoteServer = async (adbInst) => {
 		try {
@@ -394,8 +394,6 @@ class AdbTcpService {
 		// create transport on the selected pool's client
 		const transport = await pool.client.createTransport({ serial: poolInfo.serial });
 		const adb = new Adb(transport);
-		const clientFeatures = adb.clientFeatures;
-		const deviceFeatures = adb.deviceFeatures;
 		const deviceModel = { serial: poolInfo.serial, transport, adb, displays: [], encoders: [], _serverKey: pool.key, _serverHost: pool.host, _serverPort: pool.port };
 		try { await pushServer(adb); } catch (err) { logger.error(`Initial pushServer failed in connectToDevice: ${err}`); }
 		return deviceModel
