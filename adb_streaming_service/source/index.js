@@ -387,7 +387,6 @@ const run = async () => {
             maxPayloadLength: 16 * 1024,
             idleTimeout: 0,
             upgrade: async (res, req, context) => {
-                logger.info("WebSocket upgrade request from IP:", req.getRemoteAddressAsText());
                 if (!requireAuthForUpgrade(res, req)) return;
                 res.upgrade(
                     {
