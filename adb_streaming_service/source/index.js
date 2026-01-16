@@ -355,14 +355,23 @@ function requireAuthForUpgrade(res, req) {
 
 const run = async () => {
     logger.info(`Starting ADB Streaming Service on ${host}:${port} SSL=${sslEnabled} AUTH=${isAuthEnabled()}`);
-    const app = new App({
-        host,
-        port,
-        protocol: sslEnabled ? 'https' : 'http',
-        sslOptions,
-    });
+    let app;
+    try {
+        app = new App({
+            host,
+            port,
+            protocol: sslEnabled ? 'https' : 'http',
+            sslOptions,
+        });
+    }catch (err){
+        logger.error("Failed to start server:", err);
+        process.exit(1);
+    }
+
+    logger.info("Configuring CORS middleware...");
     app.use(cors);
     // Enforce authentication for all HTTP routes except health endpoints
+    logger.info("Configuring HTTP auth middleware...");
     app.use(httpAuthMiddleware);
     logger.info("Registering routes...");
 
