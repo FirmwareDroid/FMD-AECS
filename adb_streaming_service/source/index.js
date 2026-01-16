@@ -959,7 +959,7 @@ const run = async () => {
             message: (ws, message) => {
                 const {id} = ws;
                 try {
-                    logger.info("WS message received from id='" + id + "'");
+                    logger.debug("WS message received from id='" + id + "'");
                     const user = global.users.get(id);
                     const record = unpacker.unpack(message);
                     // Log the incoming command and a short description of the payload for debugging
