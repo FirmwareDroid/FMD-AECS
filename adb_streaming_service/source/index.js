@@ -269,6 +269,63 @@ function getAuthHeaderFromRequest(req) {
     }
 }
 
+// Helper to send packed bytes to a user's websocket safely.
+// Accepts user object (with .ws) and packed (Uint8Array/Buffer/ArrayBuffer).
+function sendToUser(user, packed, allowCloseOnError = false) {
+    try {
+        if (!user || !user.ws) return false;
+        const ws = user.ws;
+        // Normalize packed to Uint8Array
+        let data = packed;
+        if (typeof Buffer !== 'undefined' && Buffer.isBuffer(packed)) {
+            data = new Uint8Array(packed);
+        } else if (packed instanceof ArrayBuffer) {
+            data = new Uint8Array(packed);
+        } else if (packed && typeof packed === 'object' && (packed.buffer instanceof ArrayBuffer) && typeof packed.byteLength === 'number') {
+            // TypedArray (Uint8Array etc.)
+            data = packed instanceof Uint8Array ? packed : new Uint8Array(packed.buffer, packed.byteOffset || 0, packed.byteLength || packed.buffer.byteLength);
+        }
+
+        // Best-effort check for backpressure
+        let before = null;
+        try {
+            if (typeof ws.getBufferedAmount === 'function') before = ws.getBufferedAmount();
+        } catch (e) { before = null; }
+
+        // Send as binary
+        // uWebSockets.js expects either string or ArrayBuffer/TypedArray; passing Uint8Array is fine
+        ws.send(data, true);
+
+        let after = null;
+        try {
+            if (typeof ws.getBufferedAmount === 'function') after = ws.getBufferedAmount();
+        } catch (e) { after = null; }
+
+        // If buffer grew a lot, log debug message
+        try {
+            if (before !== null && after !== null && after - before > 1024 * 64) {
+                logger.debug(`sendToUser: websocket buffer grew by ${after - before} bytes for user=${user?.ws?.id || '<unknown>'}`);
+            }
+        } catch (e) {
+            // ignore logging errors
+        }
+
+        return true;
+    } catch (err) {
+        try {
+            logger.error('sendToUser error', err?.message || err);
+            // Optionally notify client or mark user for close
+            if (allowCloseOnError && user && user.ws) {
+                try { user._serverInitiatedClose = true; user._serverCloseReason = 'send-error'; user._serverCloseStack = (new Error()).stack; user.ws.close(); } catch (e) {}
+            }
+        } catch (e) {
+            // fallback console
+            try { console.error('sendToUser fallback error', e); } catch (_) {}
+        }
+        return false;
+    }
+}
+
 function requireAuthForHttp(res, req) {
     if (!isAuthEnabled()) return true;
     const authHeader = getAuthHeaderFromRequest(req) || req.getHeader && (req.getHeader('authorization') || req.getHeader('Authorization'));
