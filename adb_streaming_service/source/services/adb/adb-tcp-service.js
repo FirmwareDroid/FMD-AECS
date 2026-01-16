@@ -23,6 +23,16 @@ import { logger } from "../logger.js";
 import { global } from "../../state/global.js";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+
+// safe JSON stringify that converts BigInt -> string to avoid runtime errors in logs
+function safeStringify(obj, space = 2) {
+	try {
+		return JSON.stringify(obj, (k, v) => (typeof v === 'bigint' ? v.toString() : v), space);
+	} catch (e) {
+		try { return JSON.stringify(obj); } catch (e2) { return String(obj); }
+	}
+}
+
 // inline __dirname when needed to avoid keeping an unused constant
 
 export class ProgressStream extends InspectStream {
@@ -193,7 +203,7 @@ async function findPoolForSerial(serial) {
 // convenience wrapper to use defaultPool.client in places that previously used serverClient
 if (defaultPool.hasOwnProperty('client')){
 	logger.info(`Setting up default serverClient for pool ${defaultPool.key}`);
-	const serverClient = defaultPool.client;
+	// defaultPool.client is available
 } else {
 	throw new Error('defaultPool does not have a client property');
 }
@@ -391,7 +401,7 @@ class AdbTcpService {
 			poolInfo = { pool: defaultPool, serial };
 		}
 		const { pool } = poolInfo;
-		logger.info(`Connecting to device serial=${poolInfo.serial} via ADB server pool=${pool.key} with poolInfo=${JSON.stringify(poolInfo)}`);
+		logger.info(`Connecting to device serial=${poolInfo.serial} via ADB server pool=${pool.key} with poolInfo=${safeStringify(poolInfo)}`);
 		// create transport on the selected pool's client
 		const transport = await pool.client.createTransport({ serial: poolInfo.serial });
 		const adb = new Adb(transport);
@@ -404,17 +414,17 @@ class AdbTcpService {
 		let result = [];
 		let trial = 0;
 		// push server once before trials
-		logger.info(`Getting device displays for deficeAdb: ${JSON.stringify(deviceAdb)}`)
+		logger.info(`Getting device displays for deficeAdb: ${safeStringify(deviceAdb)}`)
 		try { await pushServer(deviceAdb); } catch (err) { logger.error('Initial pushServer failed in getDeviceDisplays:', err); }
 		// optional: try to verify file exists on device (best-effort)
 		logger.info('Verifying scrcpy server file existence on device before getDeviceDisplays');
-		try { if (deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') { const check = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]); logger.debug(`device ls output: ${JSON.stringify(check)}`); } } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
+		try { if (deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') { const check = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]); logger.debug(`device ls output: ${safeStringify(check)}`); } } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
 		while (!result?.length && trial < this.numOfTrials) {
 			try {
 				logger.debug(`Attempt ${trial + 1} to get displays`);
 				const minimalInitForList = { cleanup: true, tunnelForward: true };
 				const displays = await AdbScrcpyClient.getDisplays(deviceAdb, DEVICE_SERVER_PATH, new AdbScrcpyOptionsLatest(minimalInitForList, { version: VERSION }));
-				logger.debug(`getDisplays returned: ${JSON.stringify(displays)}`);
+				logger.debug(`getDisplays returned: ${safeStringify(displays)}`);
 				result = displays || [];
 				if (!result.length) {
 					logger.warn(`getDisplays returned empty on attempt ${trial + 1}; attempting to re-push scrcpy server and retry.`);
@@ -435,13 +445,13 @@ class AdbTcpService {
 		let result = [];
 		let trial = 0;
 		try { await pushServer(deviceAdb); } catch (err) { logger.error('Initial pushServer failed in getDeviceEncoders:', err); }
-		try { if (deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') { const check = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]); logger.debug(`device ls output: ${JSON.stringify(check)}`); } } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
+		try { if (deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') { const check = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]); logger.debug(`device ls output: ${safeStringify(check)}`); } } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
 		while (!result?.length && trial < this.numOfTrials) {
 			try {
 				logger.debug(`Attempt ${trial + 1} to get encoders`);
 				const minimalInitForList = { cleanup: true, tunnelForward: true };
 				const encoders = await AdbScrcpyClient.getEncoders(deviceAdb, DEVICE_SERVER_PATH, new AdbScrcpyOptionsLatest(minimalInitForList, { version: VERSION }));
-				logger.debug(`getEncoders returned: ${JSON.stringify(encoders)}`);
+				logger.debug(`getEncoders returned: ${safeStringify(encoders)}`);
 				result = encoders || [];
 				if (!result.length) {
 					logger.warn(`getEncoders returned empty on attempt ${trial + 1}; attempting to re-push scrcpy server and retry.`);

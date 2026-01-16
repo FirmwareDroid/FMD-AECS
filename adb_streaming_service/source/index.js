@@ -1851,14 +1851,14 @@ run().then(() => {
 // Global error handlers to capture unhandled failures and log them via the configured logger
 process.on('unhandledRejection', (reason, promise) => {
     try {
-        logger.error('Unhandled Rejection at:', serializeError(reason));
+        logger.error(`Unhandled Rejection at: ${serializeError(reason)}`);
     } catch (e) {
         console.error('Unhandled Rejection at:', reason);
     }
 });
 process.on('uncaughtException', (err) => {
     try {
-        logger.error('Uncaught Exception:', serializeError(err));
+        logger.error(`Uncaught Exception: ${serializeError(reason)}`);
     } catch (e) {
         console.error('Uncaught Exception:', err);
     }
