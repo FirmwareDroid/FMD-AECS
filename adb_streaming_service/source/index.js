@@ -354,6 +354,7 @@ function requireAuthForUpgrade(res, req) {
 }
 
 const run = async () => {
+    logger.info(`Starting ADB Streaming Service on ${host}:${port} SSL=${sslEnabled} AUTH=${isAuthEnabled()}`);
     const app = new App({
         host,
         port,
@@ -363,8 +364,10 @@ const run = async () => {
     app.use(cors);
     // Enforce authentication for all HTTP routes except health endpoints
     app.use(httpAuthMiddleware);
+    logger.info("Registering routes...");
 
     for (const route of routes) {
+        logger.info("Registering route:", route.method, route.url);
         app.route(route, {});
     }
 
