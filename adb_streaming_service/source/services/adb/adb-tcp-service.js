@@ -384,6 +384,7 @@ class AdbTcpService {
 			poolInfo = { pool: defaultPool, serial };
 		}
 		const { pool } = poolInfo;
+		logger.info(`Connecting to device serial=${poolInfo.serial} via ADB server pool=${pool.key} with poolInfo=${JSON.stringify(poolInfo)}`);
 		// create transport on the selected pool's client
 		const transport = await pool.client.createTransport({ serial: poolInfo.serial });
 		const adb = new Adb(transport);
