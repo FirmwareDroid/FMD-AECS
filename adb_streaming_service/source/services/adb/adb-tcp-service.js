@@ -539,7 +539,15 @@ class AdbTcpService {
 	async metainfo() {
 		const [features, devices] = await Promise.all([ this.getFeatures(), this.getDevices() ]);
 		const deviceModels = await Promise.all(devices.map((d) => this.connectToDevice(d.serial)));
-		logger.info(`metainfo: connected to ${deviceModels.length} device(s): ${JSON.stringify(deviceModels)}`);
+		// Safely stringify deviceModels (convert BigInt to string) to avoid JSON.stringify errors
+		const safeStringify = (obj) => {
+			try {
+				return JSON.stringify(obj, (k, v) => (typeof v === 'bigint' ? v.toString() : v));
+			} catch (e) {
+				try { return JSON.stringify(obj); } catch (e2) { return String(obj); }
+			}
+		};
+		logger.info(`metainfo: connected to ${deviceModels.length} device(s): ${safeStringify(deviceModels)}`);
 		await Promise.all(deviceModels.map(async (d) => {
 			const [displays, encoders] = await Promise.all([ this.getDeviceDisplays(d.adb), this.getDeviceEncoders(d.adb) ]);
 			d.displays = displays; d.encoders = encoders;
