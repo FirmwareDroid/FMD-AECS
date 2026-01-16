@@ -159,6 +159,7 @@ function findPoolByKey(key) {
 
 // helper to find the pool that hosts a given serial (searches metainfo cache first, then probes all servers)
 async function findPoolForSerial(serial) {
+	logger.info(`findPoolForSerial: resolving pool for serial=${serial}`);
 	if (!serial) return null;
 	// if already server-prefixed like host:port/serial or key/serial
 	if (serial.includes('/')) {
@@ -368,12 +369,15 @@ class AdbTcpService {
 
 	async connectToDevice(serial) {
 		// Determine which pool hosts this serial
+		logger.info(`connectToDevice: resolving pool for serial=${serial}`);
 		let poolInfo = null;
 		if (typeof serial === 'string' && serial.includes('/')) {
 			// allow explicit pool key prefix like host:port/serial
 			const [maybeKey, maybeSerial] = serial.split('/', 2);
 			const pool = findPoolByKey(maybeKey);
 			if (pool) poolInfo = { pool, serial: maybeSerial };
+		}else {
+			logger.info(`connectToDevice: serial=${serial} has no explicit pool key prefix, searching metainfo cache`);
 		}
 		if (!poolInfo) {
 			poolInfo = await findPoolForSerial(serial);
