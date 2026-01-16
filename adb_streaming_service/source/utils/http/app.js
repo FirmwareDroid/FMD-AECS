@@ -45,6 +45,7 @@ class App {
 	 * @param {New route options} r
 	 */
 	route(r, defaults) {
+		logger.info(`Registering new route: ${r.method} ${r.url || ""}`);
 		const route = new Route(
 			{
 				app: this,
@@ -99,6 +100,7 @@ class App {
 	 * @param {value of the new property} val
 	 */
 	add(name, val) {
+		logger.info(`Adding new App scope: '${name}' to global '$' scope`);
 		if (!App.prototype.$) {
 			App.prototype.$ = (name) => this.plugins.get(name);
 		}
@@ -122,6 +124,7 @@ class App {
 	 * Server starts listening on: host:port
 	 */
 	start() {
+		logger.info("Starting App server...");
 		return new Promise((resolve, reject) => {
 			this.server.listen(this.port, (token) => {
 				let message;
