@@ -30,8 +30,6 @@ services:
     container_name: pihole
     env_file:
       - ./env/pihole/.env
-    ports:
-      - "8082:80"
     networks:
       android:
         ipv4_address: 172.28.10.2
