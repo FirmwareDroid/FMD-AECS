@@ -1858,7 +1858,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 process.on('uncaughtException', (err) => {
     try {
-        logger.error(`Uncaught Exception: ${serializeError(reason)}`);
+        logger.error(`Uncaught Exception: ${serializeError(err)}`);
     } catch (e) {
         console.error('Uncaught Exception:', err);
     }
