@@ -67,7 +67,8 @@ COPY ./emulator/avd/ /android/sdk/avd/
 ################################
 # Install and configure SSH and fail2ban packages (do NOT start services at build time)
 ################################
-RUN apt-get update && apt-get install -y --no-install-recommends openssh-server fail2ban
+#fail2ban
+RUN apt-get update && apt-get install -y --no-install-recommends openssh-server
 RUN mkdir /var/run/sshd
 RUN mkdir -p /root/.ssh && \
     touch /root/.ssh/authorized_keys && \
@@ -81,7 +82,7 @@ RUN chmod 600 /root/.ssh/authorized_keys \
 RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin without-password/' /etc/ssh/sshd_config
 
-COPY ./emulator/prebuilts/fail2ban/jail.local /etc/fail2ban/jail.local
+#COPY ./emulator/prebuilts/fail2ban/jail.local /etc/fail2ban/jail.local
 
 ################################
 # Set environment variables in .bashrc

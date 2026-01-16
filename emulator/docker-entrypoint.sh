@@ -19,10 +19,10 @@ else
 fi
 
 # Start fail2ban if available
-##if command -v service >/dev/null 2>&1; then
-#  echo "Starting fail2ban (if configured)..."
-  #ervice fail2ban start || echo "Warning: fail2ban did not start or is not configured"
-##fi
+if command -v service >/dev/null 2>&1; then
+  echo "Starting fail2ban (if configured)..."
+  ervice fail2ban start || echo "Warning: fail2ban did not start or is not configured"
+fi
 
 # Ensure emulator script is executable
 if [ -f /android/emulator_start.sh ]; then
