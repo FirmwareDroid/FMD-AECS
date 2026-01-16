@@ -223,7 +223,7 @@ function resolveSerialFromAdbInstance(adbInstance) {
 const pushServer = async (adbInstance, force = false) => {
 	logger.info("Pushing scrcpy server to device if not already present...");
 	const serial = resolveSerialFromAdbInstance(adbInstance);
-	logger.info("Got serial from adb instance:", serial);
+	logger.info(`Got serial from adb instance: ${serial}`);
 	// probe remote server file via ls -l to verify existence/size
 	const probeRemoteServer = async (adbInst) => {
 		try {
