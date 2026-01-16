@@ -247,7 +247,7 @@ const pushServer = async (adbInstance, force = false) => {
 	};
 
 	if (serial) {
-		logging.info("pushServer: resolved serial=", serial);
+		logger.info(`pushServer: resolved serial=${serial}`);
 		if (pushedBySerial.has(serial) && !force) {
 			try {
 				const remote = await probeRemoteServer(adbInstance);
