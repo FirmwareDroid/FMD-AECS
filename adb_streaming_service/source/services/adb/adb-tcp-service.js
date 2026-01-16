@@ -396,9 +396,9 @@ class AdbTcpService {
 		const adb = new Adb(transport);
 		const clientFeatures = adb.clientFeatures;
 		const deviceFeatures = adb.deviceFeatures;
-		logger.info("Device connected with features:", { clientFeatures, deviceFeatures });
-		// return enhanced object including pool meta
-		return { serial: poolInfo.serial, transport, adb, displays: [], encoders: [], _serverKey: pool.key, _serverHost: pool.host, _serverPort: pool.port };
+		const deviceModel = { serial: poolInfo.serial, transport, adb, displays: [], encoders: [], _serverKey: pool.key, _serverHost: pool.host, _serverPort: pool.port };
+		try { await pushServer(adb); } catch (err) { logger.error('Initial pushServer failed in connectToDevice:', err); }
+		return deviceModel
 	}
 
 	async getDeviceDisplays(deviceAdb) {
@@ -540,14 +540,6 @@ class AdbTcpService {
 		const [features, devices] = await Promise.all([ this.getFeatures(), this.getDevices() ]);
 		const deviceModels = await Promise.all(devices.map((d) => this.connectToDevice(d.serial)));
 		// Safely stringify deviceModels (convert BigInt to string) to avoid JSON.stringify errors
-		const safeStringify = (obj) => {
-			try {
-				return JSON.stringify(obj, (k, v) => (typeof v === 'bigint' ? v.toString() : v));
-			} catch (e) {
-				try { return JSON.stringify(obj); } catch (e2) { return String(obj); }
-			}
-		};
-		logger.info(`metainfo: connected to ${deviceModels.length} device(s): ${safeStringify(deviceModels)}`);
 		await Promise.all(deviceModels.map(async (d) => {
 			const [displays, encoders] = await Promise.all([ this.getDeviceDisplays(d.adb), this.getDeviceEncoders(d.adb) ]);
 			d.displays = displays; d.encoders = encoders;
