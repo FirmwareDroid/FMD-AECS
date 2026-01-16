@@ -223,6 +223,7 @@ function resolveSerialFromAdbInstance(adbInstance) {
 const pushServer = async (adbInstance, force = false) => {
 	logging.info("Pushing scrcpy server to device if not already present...");
 	const serial = resolveSerialFromAdbInstance(adbInstance);
+	logging.info("Got serial from adb instance:", serial);
 	// probe remote server file via ls -l to verify existence/size
 	const probeRemoteServer = async (adbInst) => {
 		try {
@@ -404,6 +405,7 @@ class AdbTcpService {
 		let result = [];
 		let trial = 0;
 		// push server once before trials
+		logger.info(`Getting device displays for deficeAdb: ${deviceAdb}`)
 		try { await pushServer(deviceAdb); } catch (err) { logger.error('Initial pushServer failed in getDeviceDisplays:', err); }
 		// optional: try to verify file exists on device (best-effort)
 		try { if (deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') { const check = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]); logger.debug(`device ls output: ${JSON.stringify(check)}`); } } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
