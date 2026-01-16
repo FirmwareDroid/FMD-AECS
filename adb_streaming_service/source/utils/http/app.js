@@ -14,13 +14,14 @@ class App {
 		this.host = config.host || "0.0.0.0";
 		this.port = Number.parseInt(config.port || 4001);
 		this.sslOptions = config.sslOptions || null;
-
+		logger.info(`App protocol set to: ${this.protocol.toUpperCase()}`);
+		logger.info(`SSL Options:  ${config.sslOptions}`);
 		// If HTTPS requested but no sslOptions provided, throw early to avoid insecure startup
 		if (this.protocol === "https" && !this.sslOptions) {
 			logger.error("HTTPS requested but no SSL options provided (key/cert path missing). Aborting startup.");
 			throw new Error("Missing SSL options for HTTPS protocol");
 		}
-
+		logger.info("Setting up uWebSockets.js server...");
 		this.server = this.protocol === "https" ? uws.SSLApp(this.sslOptions) : uws.App();
 
 		this.logger = logger;
