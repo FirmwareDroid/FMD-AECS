@@ -34,7 +34,7 @@ services:
       - "8082:80"
     networks:
       android:
-        ipv4_address: 172.28.0.2
+        ipv4_address: 172.28.10.2
     restart: unless-stopped
 
   mitmproxy:
@@ -85,5 +85,5 @@ networks:
       config:
         - subnet: 172.28.0.0/16
           aux_addresses:
-            pihole: 172.28.0.2
+            pihole: 172.28.10.2
 

@@ -16,7 +16,7 @@
       - frontend
       - android
     dns:
-      - 172.28.0.2
+      - 172.28.10.2
     healthcheck:
       test: ["CMD", "test", "-f", "/tmp/restart"]
       interval: 10s
