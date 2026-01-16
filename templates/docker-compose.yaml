@@ -49,7 +49,7 @@ services:
       - android
     volumes:
       - './adb_streaming_service/source/apps:/app/source/apps'
-      - ./env/adb_streamer/fmd.crt:/app/source/env/certs/fmd.crt
+      - ./env/adb_streamer/fmd.cert:/app/source/env/certs/fmd.crt
       - ./env/adb_streamer/fmd.key:/app/source/env/certs/fmd.key
 
   coturn:
