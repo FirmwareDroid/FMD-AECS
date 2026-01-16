@@ -23,7 +23,7 @@ class App {
 		}
 		logger.info("Setting up uWebSockets.js server...");
 		this.server = this.protocol === "https" ? uws.SSLApp(this.sslOptions) : uws.App();
-
+		logger.info("uWebSockets.js server initialized.");
 		this.logger = logger;
 		this.token = null; // us_listen_socket
 		this.hooks = new Map([["onclose", new Set()]]);
@@ -33,6 +33,7 @@ class App {
 
 		// initialize routes
 		const routes = config.routes || [];
+		logger.info(`Initializing ${routes.length} routes from config...`);
 		if (routes?.length) {
 			// biome-ignore lint/complexity/noForEach: <explanation>
 			routes.forEach((route) => {
