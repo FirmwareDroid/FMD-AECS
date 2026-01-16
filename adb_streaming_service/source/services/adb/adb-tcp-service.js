@@ -33,6 +33,7 @@ export class ProgressStream extends InspectStream {
 	}
 }
 
+const DEVICE_SERVER_PATH = DefaultServerPath;
 // Allow override of local server binary via DEFAULT_SERVER_PATH env (resolved relative to this module)
 const userProvidedLocalServerPath = typeof process.env.DEFAULT_SERVER_PATH !== 'undefined';
 let LOCAL_SERVER_PATH_RESOLVED = null;
