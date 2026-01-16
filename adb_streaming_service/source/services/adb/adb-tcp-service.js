@@ -539,7 +539,7 @@ class AdbTcpService {
 	async metainfo() {
 		const [features, devices] = await Promise.all([ this.getFeatures(), this.getDevices() ]);
 		const deviceModels = await Promise.all(devices.map((d) => this.connectToDevice(d.serial)));
-		logger.info(`metainfo: connected to ${deviceModels.length} device(s)`);
+		logger.info(`metainfo: connected to ${deviceModels.length} device(s): ${JSON.stringify(deviceModels)}`);
 		await Promise.all(deviceModels.map(async (d) => {
 			const [displays, encoders] = await Promise.all([ this.getDeviceDisplays(d.adb), this.getDeviceEncoders(d.adb) ]);
 			d.displays = displays; d.encoders = encoders;
