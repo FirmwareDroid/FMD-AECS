@@ -393,8 +393,8 @@ class AdbTcpService {
 		// create transport on the selected pool's client
 		const transport = await pool.client.createTransport({ serial: poolInfo.serial });
 		const adb = new Adb(transport);
-		const clientFeatures = adb.clientFeatures()
-		const deviceFeatures = adb.deviceFeatures()
+		const clientFeatures = adb.clientFeatures;
+		const deviceFeatures = adb.deviceFeatures;
 		logger.info("Device connected with features:", { clientFeatures, deviceFeatures });
 		// return enhanced object including pool meta
 		return { serial: poolInfo.serial, transport, adb, displays: [], encoders: [], _serverKey: pool.key, _serverHost: pool.host, _serverPort: pool.port };
