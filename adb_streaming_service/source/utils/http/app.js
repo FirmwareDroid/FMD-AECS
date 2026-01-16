@@ -15,7 +15,7 @@ class App {
 		this.port = Number.parseInt(config.port || 4001);
 		this.sslOptions = config.sslOptions || null;
 		logger.info(`App protocol set to: ${this.protocol.toUpperCase()}`);
-		logger.info(`SSL Options:  ${config.sslOptions}`);
+		logger.info(`SSL Options: ${JSON.stringify(config.sslOptions, null, 2)}`);
 		// If HTTPS requested but no sslOptions provided, throw early to avoid insecure startup
 		if (this.protocol === "https" && !this.sslOptions) {
 			logger.error("HTTPS requested but no SSL options provided (key/cert path missing). Aborting startup.");
