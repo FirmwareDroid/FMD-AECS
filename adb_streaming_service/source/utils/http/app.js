@@ -22,7 +22,12 @@ class App {
 			throw new Error("Missing SSL options for HTTPS protocol");
 		}
 		logger.info("Setting up uWebSockets.js server...");
-		this.server = this.protocol === "https" ? uws.SSLApp(config.sslOptions) : uws.App();
+		try{
+			this.server = this.protocol === "https" ? uws.SSLApp(config.sslOptions) : uws.App();
+		}catch (err){
+			logger.error("Failed to initialize uWebSockets.js server:", err);
+			throw new Error("uWebSockets.js server initialization failed");
+		}
 		logger.info("uWebSockets.js server initialized.");
 		this.logger = logger;
 		this.token = null; // us_listen_socket
