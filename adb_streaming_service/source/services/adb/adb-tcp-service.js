@@ -172,6 +172,7 @@ async function findPoolForSerial(serial) {
 		for (const d of global.metainfo.devices) {
 			if (d && (d.serial === serial || `${d._serverKey}/${d.serial}` === serial || `${d._serverHost}:${d._serverPort}/${d.serial}` === serial)) {
 				const pool = findPoolByKey(d._serverKey || `${d._serverHost}:${d._serverPort}`) || defaultPool;
+				logger.info(`findPoolForSerial: found serial=${serial} in metainfo cache with pool=${pool.key}`);
 				return { pool, serial: d.serial };
 			}
 		}
@@ -384,7 +385,7 @@ class AdbTcpService {
 		}
 		if (!poolInfo) {
 			// last resort: use defaultPool and attempt to create transport
-			logger.debug(`connectToDevice: could not find pool for serial ${serial}, using default pool ${defaultPool.key}`);
+			logger.info(`connectToDevice: could not find pool for serial ${serial}, using default pool ${defaultPool.key}`);
 			poolInfo = { pool: defaultPool, serial };
 		}
 		const { pool } = poolInfo;
@@ -392,6 +393,8 @@ class AdbTcpService {
 		// create transport on the selected pool's client
 		const transport = await pool.client.createTransport({ serial: poolInfo.serial });
 		const adb = new Adb(transport);
+		try { if (deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') { const check = await deviceAdb.subprocess.exec(["ls", "-l", "/"]); logger.info(`device ls output: ${JSON.stringify(check)}`); } } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
+
 		// return enhanced object including pool meta
 		return { serial: poolInfo.serial, transport, adb, displays: [], encoders: [], _serverKey: pool.key, _serverHost: pool.host, _serverPort: pool.port };
 	}
@@ -532,6 +535,7 @@ class AdbTcpService {
 	async metainfo() {
 		const [features, devices] = await Promise.all([ this.getFeatures(), this.getDevices() ]);
 		const deviceModels = await Promise.all(devices.map((d) => this.connectToDevice(d.serial)));
+		logger.info(`metainfo: connected to ${deviceModels.length} device(s)`);
 		await Promise.all(deviceModels.map(async (d) => {
 			const [displays, encoders] = await Promise.all([ this.getDeviceDisplays(d.adb), this.getDeviceEncoders(d.adb) ]);
 			d.displays = displays; d.encoders = encoders;
