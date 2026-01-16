@@ -408,6 +408,7 @@ class AdbTcpService {
 		logger.info(`Getting device displays for deficeAdb: ${JSON.stringify(deviceAdb)}`)
 		try { await pushServer(deviceAdb); } catch (err) { logger.error('Initial pushServer failed in getDeviceDisplays:', err); }
 		// optional: try to verify file exists on device (best-effort)
+		logger.info('Verifying scrcpy server file existence on device before getDeviceDisplays');
 		try { if (deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') { const check = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]); logger.debug(`device ls output: ${JSON.stringify(check)}`); } } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
 		while (!result?.length && trial < this.numOfTrials) {
 			try {
