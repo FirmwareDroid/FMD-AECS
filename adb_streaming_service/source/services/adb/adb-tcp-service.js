@@ -240,7 +240,7 @@ function findPoolByKey(key) {
 
 // helper to find the pool that hosts a given serial (searches metainfo cache first, then probes all servers)
 async function findPoolForSerial(serial) {
-	logger.info(`findPoolForSerial: resolving pool for serial=${serial}`);
+	logger.info(`findPoolForSerial: resolving pool for identifier=${serial}`);
 	if (!serial) return null;
 	// if already server-prefixed like host:port/serial or key/serial
 	if (serial.includes('/')) {
@@ -248,17 +248,35 @@ async function findPoolForSerial(serial) {
 		const pool = findPoolByKey(maybeKey);
 		if (pool) return { pool, serial: maybeSerial };
 	}
-	// check cached metainfo mapping
+
+	// First, if the identifier exactly matches a unique device name (host:port/serial), resolve quickly
 	if (global && global.metainfo && Array.isArray(global.metainfo.devices)) {
-		for (const d of global.metainfo.devices) {
-			if (d && (d.serial === serial || `${d._serverKey}/${d.serial}` === serial || `${d._serverHost}:${d._serverPort}/${d.serial}` === serial)) {
-				const pool = findPoolByKey(d._serverKey || `${d._serverHost}:${d._serverPort}`) || defaultPool;
-				logger.info(`findPoolForSerial: found serial=${serial} in metainfo cache with pool=${pool.key}`);
-				return { pool, serial: d.serial };
-			}
+		const byName = global.metainfo.devices.find(d => d && d.name === serial);
+		if (byName) {
+			const pool = findPoolByKey(byName._serverKey || `${byName._serverHost}:${byName._serverPort}`) || defaultPool;
+			logger.info(`findPoolForSerial: resolved by unique name '${serial}' -> pool=${pool.key}`);
+			return { pool, serial: byName.serial };
+		}
+
+		// Next, find devices by bare serial
+		const matches = global.metainfo.devices.filter(d => d && d.serial === serial);
+		if (matches.length === 1) {
+			const d = matches[0];
+			const pool = findPoolByKey(d._serverKey || `${d._serverHost}:${d._serverPort}`) || defaultPool;
+			logger.info(`findPoolForSerial: single metainfo match for serial='${serial}' -> pool=${pool.key}`);
+			return { pool, serial: d.serial };
+		} else if (matches.length > 1) {
+			// Ambiguous: multiple devices with same serial across different pools
+			logger.warn(`findPoolForSerial: ambiguous serial '${serial}' matched ${matches.length} devices across pools. Prefer explicit unique name 'host:port/serial'. Attempting deterministic fallback.`);
+			// Prefer device that belongs to defaultPool if present
+			let chosen = matches.find(m => m._serverKey === defaultPool.key) || matches[0];
+			const pool = findPoolByKey(chosen._serverKey || `${chosen._serverHost}:${chosen._serverPort}`) || defaultPool;
+			logger.info(`findPoolForSerial: ambiguity resolved to pool=${pool.key} (device name=${chosen.name})`);
+			return { pool, serial: chosen.serial };
 		}
 	}
-	// fallback: probe each server for device serial
+
+	// Fallback: probe each server for device serial (network probe)
 	for (const p of pools) {
 		try {
 			const ds = await p.client.getDevices();
@@ -268,6 +286,8 @@ async function findPoolForSerial(serial) {
 			recordPoolFailure(p.key, e);
 		}
 	}
+
+	logger.debug(`findPoolForSerial: could not resolve pool for identifier=${serial}`);
 	return null;
 }
 
