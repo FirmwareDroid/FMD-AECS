@@ -35,15 +35,16 @@ if [ "$DELAY" -gt 0 ] 2>/dev/null; then
   sleep "$DELAY"
 fi
 
-# Start emulator script in background and capture logs
+# Start emulator script in foreground (so it becomes PID 1) if present
 if [ -f /android/emulator_start.sh ]; then
-  echo "Starting emulator_start.sh in background (logs -> /var/log/emulator_start.log)"
+  echo "Starting emulator_start.sh in foreground (logs -> /var/log/emulator_start.log)"
   # ensure log dir exists
   mkdir -p /var/log
-  /android/emulator_start.sh > /var/log/emulator_start.log 2>&1 &
+  chmod +x /android/emulator_start.sh || true
+  # Run the emulator start script and tee output to the log file and stdout so 'docker logs' shows it
+  exec /bin/sh -c "/android/emulator_start.sh 2>&1 | tee -a /var/log/emulator_start.log"
 else
-  echo "No /android/emulator_start.sh found; skipping emulator start"
+  echo "No /android/emulator_start.sh found; falling back to tailing a log to keep container alive"
+  # keep container alive; provide ability to see logs
+  tail -F /var/log/emulator_start.log 2>/dev/null || tail -f /dev/null
 fi
-
-tail -F /var/log/emulator_start.log 2>/dev/null || tail -f /dev/null
-
