@@ -10,41 +10,18 @@ DELAY=${EMULATOR_START_DELAY:-5}
 # Ensure run dirs
 mkdir -p /var/run/sshd
 
+
+if [ -S /var/run/fail2ban/fail2ban.sock ]; then
+  echo "Removing existing fail2ban socket before start: /var/run/fail2ban/fail2ban.sock"
+  rm -f /var/run/fail2ban/fail2ban.sock || true
+fi
+
 # Start sshd (best-effort). If it fails, log but continue so container can still be used.
 if command -v /usr/sbin/sshd >/dev/null 2>&1; then
   echo "Starting sshd..."
   /usr/sbin/sshd || echo "Warning: sshd failed to start"
 else
   echo "sshd not installed"
-fi
-
-# Start fail2ban if available
-if command -v service >/dev/null 2>&1; then
-  echo "Starting fail2ban (if configured)..."
-  # Attempt to start fail2ban, retry once after removing stale socket
-  echo "Attempting to start fail2ban..."
-  # Ensure any existing socket file is removed before start to avoid bind errors
-  if [ -S /var/run/fail2ban/fail2ban.sock ]; then
-    echo "Removing existing fail2ban socket before start: /var/run/fail2ban/fail2ban.sock"
-    rm -f /var/run/fail2ban/fail2ban.sock || true
-  fi
-  if service fail2ban start >/tmp/fail2ban_start.out 2>&1; then
-    echo "fail2ban started"
-  else
-    echo "Warning: initial attempt to start fail2ban failed — retrying after cleanup"
-    # Dump start output for debugging
-    echo "--- fail2ban start output (first attempt) ---"
-    sed -n '1,200p' /tmp/fail2ban_start.out || true
-    # Try quick cleanup of socket and retry
-    rm -f /var/run/fail2ban/fail2ban.sock 2>/dev/null || true
-    if service fail2ban start >/tmp/fail2ban_start_retry.out 2>&1; then
-      echo "fail2ban started on retry"
-    else
-      echo "Warning: fail2ban did not start or is not configured"
-      echo "--- fail2ban start output (retry) ---"
-      sed -n '1,200p' /tmp/fail2ban_start_retry.out || true
-    fi
-  fi
 fi
 
 # Ensure emulator script is executable
