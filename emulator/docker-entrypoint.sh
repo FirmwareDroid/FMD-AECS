@@ -108,10 +108,10 @@ if [ -f /android/emulator_start.sh ]; then
 
     echo "Starting fresh emulator_start.sh instance..."
     # Run the emulator start script and tee output to the log file and stdout so 'docker logs' shows it
-    exec /bin/sh -c "/android/emulator_start.sh 2>&1 | tee -a /var/log/emulator_start.log"
+    exec /bin/bash -c "/android/emulator_start.sh 2>&1 | tee -a /var/log/emulator_start.log"
   else
     # Run the emulator start script and tee output to the log file and stdout so 'docker logs' shows it
-    exec /bin/sh -c "/android/emulator_start.sh 2>&1 | tee -a /var/log/emulator_start.log"
+    exec /bin/bash -c "/android/emulator_start.sh 2>&1 | tee -a /var/log/emulator_start.log"
   fi
 fi
 

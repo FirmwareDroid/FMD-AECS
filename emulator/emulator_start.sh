@@ -111,7 +111,8 @@ while true; do
   setup_pulse_audio
   setup_logger_forwarding
 
-  /android/sdk/platform-tools/adb -a -P 5037 start-server &
+  #/android/sdk/platform-tools/adb -a -P 5037 start-server &
+  /android/sdk/platform-tools/adb -a -P 5037 nodaemon server &
   PIDS+=($!)
 
   if [[ $architecture == "x86_64" ]]; then
