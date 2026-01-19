@@ -503,7 +503,7 @@ class AdbTcpService {
 		const adb = new Adb(transport);
 		// Create a stable unique name and a human-friendly displayName for the device
 		const uniqueName = `${pool.host}:${pool.port}/${poolInfo.serial}`;
-		const displayName = `${poolInfo.serial} @ ${pool.host}:${pool.port}`;
+		const displayName = `${pool.host}`;
 		const deviceModel = { serial: poolInfo.serial, name: uniqueName, displayName, transport, adb, displays: [], encoders: [], _serverKey: pool.key, _serverHost: pool.host, _serverPort: pool.port };
 		try { await pushServer(adb); } catch (err) { logger.error(`Initial pushServer failed in connectToDevice: ${err}`); }
 		return deviceModel
