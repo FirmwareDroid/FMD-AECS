@@ -156,6 +156,83 @@ while (true) {
 // convenience: default pool (first entry) to preserve previous single-host behavior
 let defaultPool = pools[0];
 
+// --- Automatic pool health monitoring and auto-refresh on repeated failures ---
+const POOL_FAILURE_THRESHOLD = 3; // number of consecutive failures to trigger refresh
+const POOL_FAILURE_WINDOW_MS = 60_000; // time window to consider failures (1 minute)
+const REFRESH_DEBOUNCE_MS = 30_000; // minimum time between auto-refresh attempts
+let poolFailures = new Map(); // key -> { count, firstTs, lastTs }
+let refreshInProgress = false;
+let lastRefreshAttempt = 0;
+
+function recordPoolFailure(key, err) {
+	try {
+		const now = Date.now();
+		const s = poolFailures.get(key) || { count: 0, firstTs: now, lastTs: now };
+		// if outside window, reset
+		if (now - s.firstTs > POOL_FAILURE_WINDOW_MS) {
+			s.count = 1; s.firstTs = now; s.lastTs = now;
+		} else {
+			s.count += 1; s.lastTs = now;
+		}
+		poolFailures.set(key, s);
+		logger.debug(`Pool failure recorded for ${key}: count=${s.count} (err=${String(err)})`);
+		// decide whether to schedule refresh
+		if (s.count >= POOL_FAILURE_THRESHOLD) {
+			const sinceLast = now - lastRefreshAttempt;
+			if (!refreshInProgress && sinceLast > REFRESH_DEBOUNCE_MS) {
+				logger.warn(`Pool ${key} failed ${s.count} times within ${POOL_FAILURE_WINDOW_MS}ms — scheduling refresh`);
+				doAutoRefresh().catch((e) => logger.error('autoRefresh failed:', e?.message || e));
+			} else {
+				logger.debug(`Auto-refresh suppressed for ${key} (refreshInProgress=${refreshInProgress}, sinceLast=${sinceLast})`);
+			}
+		}
+	} catch (e) { logger.debug('recordPoolFailure internal error', e?.message || e); }
+}
+
+async function doAutoRefresh() {
+	if (refreshInProgress) return;
+	refreshInProgress = true;
+	lastRefreshAttempt = Date.now();
+	logger.info('Auto-refreshing ADB server pools due to repeated failures');
+	try {
+		const newPools = await createPoolsOnce();
+		if (!newPools || newPools.length === 0) {
+			logger.warn('autoRefresh: no pools created; keeping existing pools');
+			return { ok: false, message: 'no-pools-found' };
+		}
+		const newKeys = new Set(newPools.map(p => p.key));
+		for (const old of pools) {
+			if (!newKeys.has(old.key)) {
+				try { if (old.connector && typeof old.connector.close === 'function') old.connector.close(); } catch (e) { logger.debug(`autoRefresh: failed to close old connector ${old.key}: ${e?.message || e}`); }
+				try { if (old.client && typeof old.client.close === 'function') old.client.close(); } catch (e) { logger.debug(`autoRefresh: failed to close old client ${old.key}: ${e?.message || e}`); }
+			}
+		}
+		pools = newPools;
+		defaultPool = pools[0];
+		// reset failure counters for refreshed pools
+		for (const k of poolFailures.keys()) {
+			if (newKeys.has(k)) poolFailures.delete(k);
+		}
+		logger.info(`autoRefresh: replaced pools, new count=${pools.length}`);
+		return { ok: true, count: pools.length };
+	} finally { refreshInProgress = false; }
+}
+
+// Periodic health probe to proactively detect failing pools
+const POOL_HEALTH_PROBE_MS = 30_000; // probe every 30s
+setInterval(async () => {
+	for (const p of pools) {
+		try {
+			await withTimeout(p.client.getServerFeatures(), 10_000, `health probe timeout for ${p.key}`);
+			// healthy => clear failure counter
+			if (poolFailures.has(p.key)) poolFailures.delete(p.key);
+		} catch (e) {
+			logger.debug(`Health probe failed for pool=${p.key}: ${e?.message || e}`);
+			recordPoolFailure(p.key, e);
+		}
+	}
+}, POOL_HEALTH_PROBE_MS);
+
 // helper to find the pool by key
 function findPoolByKey(key) {
 	return pools.find(p => p.key === key) || null;
@@ -188,6 +265,7 @@ async function findPoolForSerial(serial) {
 			if (Array.isArray(ds) && ds.find(d => d && d.serial === serial)) return { pool: p, serial };
 		} catch (e) {
 			logger.error(`findPoolForSerial probe failed for pool=${p.key}: ${e?.message || e}`);
+			recordPoolFailure(p.key, e);
 		}
 	}
 	return null;
@@ -336,6 +414,7 @@ class AdbTcpService {
 				results.push({ pool: p.key, features: f });
 			} catch (e) {
 				logger.debug(`getFeatures: pool ${p.key} failed: ${e?.message || e}`);
+				recordPoolFailure(p.key, e);
 			}
 		}
 		// return aggregated: prefer defaultPool.features if available else first
@@ -359,6 +438,7 @@ class AdbTcpService {
 				}
 			} catch (e) {
 				logger.debug(`getDevices: pool ${p.key} failed: ${e?.message || e}`);
+				recordPoolFailure(p.key, e);
 			}
 		}
 		// Deduplicate by serial (keep first seen)
