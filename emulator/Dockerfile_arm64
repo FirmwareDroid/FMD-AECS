@@ -8,7 +8,7 @@ COPY ./image_artefacts/ /android/sdk/system-images/android/
 ###################################
 # Create start script
 ###################################
-RUN service ssh start
-
-# Start SSH
-CMD ["rm -f /tmp/restart"]
+# Ensure the container does not exit when no specific command is provided.
+# The image's ENTRYPOINT already runs the entrypoint script which will exec the emulator start.
+# Use a harmless long-running default command to avoid accidental immediate exit.
+CMD ["/bin/sh", "-c", "tail -f /dev/null"]
