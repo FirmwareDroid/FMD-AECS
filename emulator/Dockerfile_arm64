@@ -15,4 +15,4 @@ RUN chmod +x /android/emulator_start.sh
 #CMD ["bash", "-c", "/android/emulator_start.sh"]
 
 # Start SSH
-CMD rm -f /tmp/restart && /usr/sbin/sshd -D
+CMD ["rm -f /tmp/restart && /usr/sbin/sshd -D"]
