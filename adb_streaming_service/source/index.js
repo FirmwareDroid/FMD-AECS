@@ -2023,3 +2023,69 @@ process.on('uncaughtException', (err) => {
     process.exit(1);
 });
 
+// Helper to close a websocket connection from the server side with diagnostics
+function closeSocket(ws, reason = 'server-initiated', serverInitiated = true) {
+    try {
+        if (!ws) return;
+        // If the ws has an id and a user object, prefer that for cleanup
+        const id = ws.id;
+        const user = id ? global.users.get(id) : null;
+
+        // Attach metadata either on the user object or directly on the ws so the close handler can log it
+        const stack = (new Error()).stack;
+        try {
+            if (user) {
+                user._serverInitiatedClose = !!serverInitiated;
+                user._serverCloseReason = reason || 'server-initiated';
+                user._serverCloseStack = stack;
+            } else {
+                // fallback: attach to ws so the close handler (which may look at user) still can inspect
+                try { ws._serverInitiatedClose = !!serverInitiated; } catch (e) {}
+                try { ws._serverCloseReason = reason || 'server-initiated'; } catch (e) {}
+                try { ws._serverCloseStack = stack; } catch (e) {}
+            }
+        } catch (e) {
+            // ignore metadata attach failures
+        }
+
+        // If we have a user object, try to abort ongoing pipelines and close the adb client
+        if (user) {
+            try {
+                if (user.abortController && !user.abortController.signal.aborted) {
+                    try { user.abortController.abort(); } catch (e) { logger.debug('abortController.abort() failed during closeSocket', e?.message || e); }
+                }
+            } catch (e) {
+                logger.debug('Error aborting user pipelines during closeSocket', e?.message || e);
+            }
+            try {
+                if (user.client && typeof user.client.close === 'function') {
+                    user.client.close().catch ? user.client.close().catch((e) => logger.debug('user.client.close() rejected during closeSocket', e?.message || e)) : null;
+                }
+            } catch (e) {
+                logger.debug('Error closing user.client during closeSocket', e?.message || e);
+            }
+
+            // Remove user from global map
+            try {
+                user.ws = null;
+                global.users.delete(id);
+            } catch (e) {
+                logger.debug('Failed to remove user from global.users during closeSocket', e?.message || e);
+            }
+        }
+
+        // Finally close the websocket itself (best-effort)
+        try {
+            if (typeof ws.close === 'function') {
+                // uWebSockets.js close() accepts optional code/message; we call without to let lib pick defaults
+                ws.close();
+            } else if (typeof ws.end === 'function') {
+                ws.end();
+            }
+        } catch (e) {
+            try { logger.debug('ws.close()/end() threw during closeSocket (ignored)', e?.message || e); } catch (_) {}
+        }
+    } catch (err) {
+        try { logger.error('closeSocket error', err?.message || err); } catch (_) {}
+    }
+}

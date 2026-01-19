@@ -106,11 +106,14 @@ function withTimeout(promise, ms = 10000, errMsg = null) {
 
 // Support multiple ADB servers via env var ADB_SERVER_LIST (comma-separated host:port entries).
 // Fallback to localhost:5037 for backward compatibility.
-const adbServerListStr = (process.env.ADB_SERVER_LIST || process.env.ADB_SERVERS || 'localhost:5037').toString();
-const adbServerEntries = adbServerListStr.split(',').map(s => s.trim()).filter(Boolean);
+function getAdbServerEntries() {
+	const adbServerListStr = (process.env.ADB_SERVER_LIST || process.env.ADB_SERVERS || 'localhost:5037').toString();
+	return adbServerListStr.split(',').map(s => s.trim()).filter(Boolean);
+}
 
 // Create pools function (attempts once)
-async function createPoolsOnce() {
+async function createPoolsOnce(adbServerEntriesParam) {
+	const adbServerEntries = Array.isArray(adbServerEntriesParam) && adbServerEntriesParam.length ? adbServerEntriesParam : (typeof adbServerEntriesParam === 'string' && adbServerEntriesParam.length ? adbServerEntriesParam.split(',').map(s => s.trim()).filter(Boolean) : getAdbServerEntries());
 	const results = await Promise.all(adbServerEntries.map(async (entry) => {
 		const parts = entry.split(':');
 		const host = parts[0] || 'localhost';
@@ -151,7 +154,7 @@ while (true) {
 }
 
 // convenience: default pool (first entry) to preserve previous single-host behavior
-const defaultPool = pools[0];
+let defaultPool = pools[0];
 
 // helper to find the pool by key
 function findPoolByKey(key) {
@@ -547,6 +550,37 @@ class AdbTcpService {
 		return { version: global.metainfo.version, features: global.metainfo.features, devices: global.metainfo.devices.map((d) => ({ serial: d.serial, displays: d.displays, encoders: d.encoders })) };
 	}
 
+	// Public: refresh the configured pools (recreate connections to ADB servers)
+	async refreshPools(serversOverride) {
+		try {
+			logger.info('Refreshing ADB server pools (manual trigger)');
+			const newPools = await createPoolsOnce(serversOverride);
+			if (!newPools || newPools.length === 0) {
+				logger.warn('refreshPools: no pools could be created during refresh; keeping existing pools');
+				return { ok: false, message: 'no-pools-found', count: 0 };
+			}
+			// Close old connectors/clients that are not in newPools
+			const newKeys = new Set(newPools.map(p => p.key));
+			for (const old of pools) {
+				if (!newKeys.has(old.key)) {
+					try {
+						if (old.connector && typeof old.connector.close === 'function') old.connector.close();
+					} catch (e) { logger.debug(`refreshPools: failed to close old connector ${old.key}: ${e?.message || e}`); }
+					try {
+						if (old.client && typeof old.client.close === 'function') old.client.close();
+					} catch (e) { logger.debug(`refreshPools: failed to close old client ${old.key}: ${e?.message || e}`); }
+				}
+			}
+			// replace pools and update defaultPool
+			pools = newPools;
+			defaultPool = pools[0];
+			logger.info(`refreshPools: replaced pools, new count=${pools.length}`);
+			return { ok: true, count: pools.length, keys: pools.map(p => p.key) };
+		} catch (e) {
+			logger.error('refreshPools: unexpected error', e?.message || e);
+			return { ok: false, error: String(e) };
+		}
+	}
 }
 
 export const service = new AdbTcpService();

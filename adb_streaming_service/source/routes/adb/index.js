@@ -31,4 +31,9 @@ export default [
 		// schema: schema.get,
 		handler: controller.unpin,
 	},
+	{
+		method: "get",
+		url: "/api/adb/refresh_pools",
+		handler: controller.refreshPools,
+	},
 ];

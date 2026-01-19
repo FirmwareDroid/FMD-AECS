@@ -72,6 +72,18 @@ class AdbController {
 			res.setStatus("500").send(ex);
 		}
 	}
+
+	// Manual refresh of configured ADB server pools (reconnect to ADB servers)
+	async refreshPools(res, req) {
+		try {
+			const servers = req.getQuery('servers') ?? null; // comma-separated host:port entries (optional)
+			const result = await adbTcpService.refreshPools(servers);
+			res.send(result);
+		} catch (ex) {
+			logger.error('refreshPools handler error', ex);
+			res.setStatus('500').send({ ok: false, error: String(ex) });
+		}
+	}
 }
 
 export const controller = new AdbController();
