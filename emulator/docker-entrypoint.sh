@@ -115,4 +115,4 @@ if [ -f /android/emulator_start.sh ]; then
   fi
 fi
 
-tail -F /var/log/emulator_start.log 2>/dev/null || tail -f /dev/null
+tail -F /var/log/emulator_start.log 2>/dev/null
