@@ -717,17 +717,36 @@ const run = async () => {
                     if (client.audioStream) {
                         logger.info("Setting up audio streaming for id='" + id + "'");
                         try {
-                            const metadata = await client.audioStream;
-                            // store simple audio stats per-user
-                            user.audioStats = user.audioStats || {
-                                sent: 0,
-                                dropped: 0,
-                                lastPacketSize: 0,
-                                lastPacketTs: null
-                            };
-                            logger.info(`Audio stream metadata for id=${id}: type=${metadata?.type}`);
-                            logger.debug('Audio metadata detail', metadata && typeof metadata === 'object' ? (metadata.stream ? Object.assign({}, metadata, {stream: '<stream>'}) : metadata) : String(metadata));
-                            switch (metadata.type) {
+                            // Protect audio stream creation with timeout and better error reporting
+                            let metadata;
+                            try {
+                                metadata = await withTimeout(client.audioStream, 8000, 'audioStream');
+                            } catch (streamErr) {
+                                const errObj = serializeError(streamErr);
+                                logger.error(`audioStream creation failed for id=${id}: ${errObj.message}`);
+                                logger.debug('audioStream error details:', errObj);
+                                try {
+                                    sendToUser(user, packer.pack({
+                                        media: 'error',
+                                        code: 'audio_stream_failed',
+                                        message: `Failed to start audio stream: ${errObj.message}`,
+                                        error: errObj
+                                    }), true);
+                                } catch (e) { /* ignore send errors */ }
+                                // Close the websocket: audio failure likely indicates a broken connection to scrcpy server
+                                closeSocket(ws, `audioStream failed: ${errObj.message}`, true);
+                                return;
+                            }
+                             // store simple audio stats per-user
+                             user.audioStats = user.audioStats || {
+                                 sent: 0,
+                                 dropped: 0,
+                                 lastPacketSize: 0,
+                                 lastPacketTs: null
+                             };
+                             logger.info(`Audio stream metadata for id=${id}: type=${metadata?.type}`);
+                             logger.debug('Audio metadata detail', metadata && typeof metadata === 'object' ? (metadata.stream ? Object.assign({}, metadata, {stream: '<stream>'}) : metadata) : String(metadata));
+                             switch (metadata.type) {
                                 case 'disabled':
                                     logger.info('AudioStream disabled');
                                     break;
@@ -1030,7 +1049,27 @@ const run = async () => {
                     // video
                     if (client.videoStream) {
                         logger.info("Setting up video streaming for id='" + id + "'");
-                        const {metadata: videoMetadata, stream: videoPacketStream} = await client.videoStream;
+                        // Protect video stream creation with timeout and detailed errors
+                        let videoObj;
+                        try {
+                            videoObj = await withTimeout(client.videoStream, 10000, 'videoStream');
+                        } catch (streamErr) {
+                            const errObj = serializeError(streamErr);
+                            logger.error(`videoStream creation failed for id=${id}: ${errObj.message}`);
+                            logger.debug('videoStream error details:', errObj);
+                            try {
+                                sendToUser(user, packer.pack({
+                                    media: 'error',
+                                    code: 'video_stream_failed',
+                                    message: `Failed to start video stream: ${errObj.message}`,
+                                    error: errObj
+                                }), true);
+                            } catch (e) { /* ignore send errors */ }
+                            closeSocket(ws, `videoStream failed: ${errObj.message}`, true);
+                            return;
+                        }
+
+                        const {metadata: videoMetadata, stream: videoPacketStream} = videoObj || {};
                         logger.info(videoMetadata);
                         // store metadata on user for touch normalization
                         try {
@@ -1038,19 +1077,53 @@ const run = async () => {
                         } catch (e) {
                             logger.debug('Could not store videoMetadata on user', e?.message || e);
                         }
-                        sendToUser(user, packer.pack({media: 'video_metadata', packet: videoMetadata}));
-                        videoPacketStream.pipeTo(new WritableStream({
-                            write(packet) {
+                        try {
+                            sendToUser(user, packer.pack({media: 'video_metadata', packet: videoMetadata}));
+                        } catch (e) {
+                            logger.debug('Failed to send video_metadata', e?.message || e);
+                        }
+
+                        if (videoPacketStream) {
+                            // ensure any errors during streaming are caught and handled
+                            try {
+                                videoPacketStream.pipeTo(new WritableStream({
+                                    write(packet) {
+                                        try {
+                                            sendToUser(user, packer.pack({media: 'video', packet}));
+                                        } catch (ex) {
+                                            logger.error('Error sending video packet to ws:', ex?.message || ex);
+                                        }
+                                    }
+                                }), {signal: user.abortController?.signal || undefined}).catch((e) => {
+                                    if (user?.abortController?.signal?.aborted) return;
+                                    const errObj = serializeError(e);
+                                    logger.error('videoPacketStream pipe error', errObj);
+                                    try {
+                                        sendToUser(user, packer.pack({
+                                            media: 'error',
+                                            code: 'video_pipe_error',
+                                            message: 'videoPacketStream pipe error',
+                                            error: errObj
+                                        }), true);
+                                    } catch (se) {}
+                                    closeSocket(ws, 'videoPacketStream pipe error', true);
+                                });
+                            } catch (e) {
+                                const errObj = serializeError(e);
+                                logger.error('Exception while setting up video stream piping', errObj);
                                 try {
-                                    sendToUser(user, packer.pack({media: 'video', packet}));
-                                } catch (ex) {
-                                    logger.error(ex);
-                                }
+                                    sendToUser(user, packer.pack({
+                                        media: 'error',
+                                        code: 'video_setup_failed',
+                                        message: 'Exception while setting up video stream',
+                                        error: errObj
+                                    }), true);
+                                } catch (se) {}
+                                closeSocket(ws, 'video setup failed', true);
                             }
-                        }), {signal: user.abortController?.signal || undefined}).catch((e) => {
-                            if (user?.abortController?.signal?.aborted) return;
-                            logger.error(e);
-                        });
+                        } else {
+                            logger.warn('videoStream provided no stream object');
+                        }
                     }
 
                 } catch (err) {
@@ -2107,4 +2180,6 @@ function normalizeDeviceId(device) {
         return device;
     }
 }
+
+
 
