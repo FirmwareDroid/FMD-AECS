@@ -88,5 +88,5 @@ networks:
       config:
         - subnet: 172.31.250.0/24
           ip_range: 172.31.250.128/25
-          gateway: 172.28.250.1
+          gateway: 172.31.250.1
 
