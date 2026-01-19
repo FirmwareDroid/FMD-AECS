@@ -274,7 +274,7 @@ async function findPoolForSerial(serial) {
 // convenience wrapper to use defaultPool.client in places that previously used serverClient
 if (defaultPool.hasOwnProperty('client')){
 	logger.info(`Setting up default serverClient for pool ${defaultPool.key}`);
-	const serverClient = defaultPool.client;
+	// defaultPool.client is available for legacy code paths when needed
 } else {
 	throw new Error('defaultPool does not have a client property');
 }
@@ -428,13 +428,14 @@ class AdbTcpService {
 			try {
 				const ds = await p.client.getDevices();
 				if (Array.isArray(ds)) {
-					for (const d of ds) {
+					//for (const d of ds) {
 						// tag with pool info so we can resolve later
-						d._serverKey = p.key;
-						d._serverHost = p.host;
-						d._serverPort = p.port;
-						all.push(d);
-					}
+					const d = ds[0];
+					d._serverKey = p.key;
+					d._serverHost = p.host;
+					d._serverPort = p.port;
+					all.push(d);
+					//}
 				}
 			} catch (e) {
 				logger.debug(`getDevices: pool ${p.key} failed: ${e?.message || e}`);
@@ -478,7 +479,10 @@ class AdbTcpService {
 		// create transport on the selected pool's client
 		const transport = await pool.client.createTransport({ serial: poolInfo.serial });
 		const adb = new Adb(transport);
-		const deviceModel = { serial: poolInfo.serial, transport, adb, displays: [], encoders: [], _serverKey: pool.key, _serverHost: pool.host, _serverPort: pool.port };
+		// Create a stable unique name and a human-friendly displayName for the device
+		const uniqueName = `${pool.host}:${pool.port}/${poolInfo.serial}`;
+		const displayName = `${poolInfo.serial} @ ${pool.host}:${pool.port}`;
+		const deviceModel = { serial: poolInfo.serial, name: uniqueName, displayName, transport, adb, displays: [], encoders: [], _serverKey: pool.key, _serverHost: pool.host, _serverPort: pool.port };
 		try { await pushServer(adb); } catch (err) { logger.error(`Initial pushServer failed in connectToDevice: ${err}`); }
 		return deviceModel
 	}
@@ -599,9 +603,9 @@ class AdbTcpService {
 	}
 
 	async getDeviceAdb(deviceSerial) {
-		let device = global.metainfo.devices.find((d) => d.serial === deviceSerial);
+		let device = global.metainfo.devices.find((d) => d.serial === deviceSerial || d.name === deviceSerial || `${d._serverKey}/${d.serial}` === deviceSerial);
 		if (!device) { await this.metainfo(); }
-		device = global.metainfo.devices.find((d) => d.serial === deviceSerial);
+		device = global.metainfo.devices.find((d) => d.serial === deviceSerial || d.name === deviceSerial || `${d._serverKey}/${d.serial}` === deviceSerial);
 		if (!device) { throw new Error(`Device with serial = '${deviceSerial}' is not connected.`); }
 		return device.adb;
 	}
@@ -627,7 +631,7 @@ class AdbTcpService {
 			d.displays = displays; d.encoders = encoders;
 		}));
 		global.metainfo.features = features; global.metainfo.devices = deviceModels;
-		return { version: global.metainfo.version, features: global.metainfo.features, devices: global.metainfo.devices.map((d) => ({ serial: d.serial, displays: d.displays, encoders: d.encoders })) };
+		return { version: global.metainfo.version, features: global.metainfo.features, devices: global.metainfo.devices.map((d) => ({ serial: d.serial, name: d.name, displayName: d.displayName, serverKey: d._serverKey, serverHost: d._serverHost, serverPort: d._serverPort, displays: d.displays, encoders: d.encoders })) };
 	}
 
 	// Public: refresh the configured pools (recreate connections to ADB servers)
