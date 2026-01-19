@@ -615,6 +615,12 @@ const run = async () => {
                             return;
                         }
                     }
+                    // Normalize device id (allow host:port/serial form)
+                    const normalizedDevice = normalizeDeviceId(device);
+                    if (normalizedDevice !== device) {
+                        logger.debug(`Normalized device id from '${device}' to '${normalizedDevice}'`);
+                        device = normalizedDevice;
+                    }
                     logger.info("WebSocket open: id='" + id + "' device='" + device + "'");
                     const user = {ws, client: null, abortController: new AbortController()};
                     global.users.set(id, user);
@@ -2089,3 +2095,16 @@ function closeSocket(ws, reason = 'server-initiated', serverInitiated = true) {
         try { logger.error('closeSocket error', err?.message || err); } catch (_) {}
     }
 }
+
+// normalize device id: accept both "serial" and "host:port/serial" forms
+function normalizeDeviceId(device) {
+    if (!device) return device;
+    try {
+        const s = String(device);
+        if (s.includes('/')) return s.split('/').pop();
+        return s;
+    } catch (e) {
+        return device;
+    }
+}
+
