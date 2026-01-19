@@ -629,7 +629,7 @@ const run = async () => {
                     try {
                         deviceAdb = await adbTcpService.getDeviceAdb(device);
                     } catch (err) {
-                        logger.error(`Failed to get device adb for device='${device}' id='${id}':`, err);
+                        logger.error(`Failed to get device adb for device='${device}' id='${id}': ${err}`);
                         try {
                             ws.send(packer.pack({media: 'error', message: `device '${device}' not connected`}), true);
                         } catch (e) {
