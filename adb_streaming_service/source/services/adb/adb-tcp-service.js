@@ -442,37 +442,38 @@ class AdbTcpService {
 		throw new Error('Could not retrieve server features from any configured ADB server');
 	}
 	async getDevices() {
-		// Query each pool for devices and tag them with pool metadata
-		const all = [];
-		for (const p of pools) {
-			try {
-				const ds = await p.client.getDevices();
-				if (Array.isArray(ds)) {
-					//for (const d of ds) {
-						// tag with pool info so we can resolve later
-					const d = ds[0];
-					d._serverKey = p.key;
-					d._serverHost = p.host;
-					d._serverPort = p.port;
-					all.push(d);
-					//}
-				}
-			} catch (e) {
-				logger.debug(`getDevices: pool ${p.key} failed: ${e?.message || e}`);
-				recordPoolFailure(p.key, e);
-			}
-		}
-		// Deduplicate by serial (keep first seen)
-		const seen = new Set();
-		const unique = [];
-		for (const d of all) {
-			if (!d || !d.serial) continue;
-			if (seen.has(d.serial)) continue;
-			seen.add(d.serial);
-			unique.push(d);
-		}
-		return unique;
-	}
+        // Query each pool for devices and tag them with pool metadata
+        const all = [];
+        for (const p of pools) {
+            try {
+                const ds = await p.client.getDevices();
+                if (Array.isArray(ds)) {
+                    for (const d of ds) {
+                        if (!d) continue;
+                        // tag with pool info so we can resolve later
+                        d._serverKey = p.key;
+                        d._serverHost = p.host;
+                        d._serverPort = p.port;
+                        all.push(d);
+                    }
+                }
+            } catch (e) {
+                logger.debug(`getDevices: pool ${p.key} failed: ${e?.message || e}`);
+                recordPoolFailure(p.key, e);
+            }
+        }
+        // Deduplicate by poolKey+serial (keep first seen for that pool+serial)
+        const seen = new Set();
+        const unique = [];
+        for (const d of all) {
+            if (!d || !d.serial) continue;
+            const uniqueKey = `${d._serverKey}/${d.serial}`;
+            if (seen.has(uniqueKey)) continue;
+            seen.add(uniqueKey);
+            unique.push(d);
+        }
+        return unique;
+    }
 
 	async connectToDevice(serial) {
 		// Determine which pool hosts this serial
@@ -644,8 +645,9 @@ class AdbTcpService {
 
 	async metainfo() {
 		const [features, devices] = await Promise.all([ this.getFeatures(), this.getDevices() ]);
-		const deviceModels = await Promise.all(devices.map((d) => this.connectToDevice(d.serial)));
-		// Safely stringify deviceModels (convert BigInt to string) to avoid JSON.stringify errors
+		// Connect using serverKey/serial to avoid ambiguity when same serial appears on multiple pools
+		const deviceModels = await Promise.all(devices.map((d) => this.connectToDevice(`${d._serverKey}/${d.serial}`)));
+		// Populate displays/encoders
 		await Promise.all(deviceModels.map(async (d) => {
 			const [displays, encoders] = await Promise.all([ this.getDeviceDisplays(d.adb), this.getDeviceEncoders(d.adb) ]);
 			d.displays = displays; d.encoders = encoders;
