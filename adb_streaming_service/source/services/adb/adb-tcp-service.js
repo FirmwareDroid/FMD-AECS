@@ -448,14 +448,15 @@ class AdbTcpService {
             try {
                 const ds = await p.client.getDevices();
                 if (Array.isArray(ds)) {
-                    for (const d of ds) {
-                        if (!d) continue;
+                    //for (const d of ds) {
+                    //    if (!d) continue;
                         // tag with pool info so we can resolve later
-                        d._serverKey = p.key;
-                        d._serverHost = p.host;
-                        d._serverPort = p.port;
-                        all.push(d);
-                    }
+					const d = ds[0];
+					d._serverKey = p.key;
+					d._serverHost = p.host;
+					d._serverPort = p.port;
+					all.push(d);
+                    //}
                 }
             } catch (e) {
                 logger.debug(`getDevices: pool ${p.key} failed: ${e?.message || e}`);
