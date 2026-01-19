@@ -70,7 +70,14 @@ fi
 
 # If user provided a command, exec it. Otherwise keep container alive by tailing the logs.
 if [ "$#" -gt 0 ]; then
-  exec "$@"
+  # If multiple arguments were provided treat them as an argv list and exec directly
+  if [ "$#" -gt 1 ]; then
+    exec "$@"
+  else
+    # Single argument might be a compound shell command (with &&, ;, | etc).
+    # Use /bin/sh -c to evaluate it, which matches common Docker CLI usage when passing a string.
+    exec /bin/sh -c "$1"
+  fi
 else
   # keep container alive; provide ability to see logs
   tail -F /var/log/emulator_start.log 2>/dev/null || tail -f /dev/null

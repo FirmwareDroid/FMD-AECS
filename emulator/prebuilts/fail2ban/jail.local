@@ -1,3 +1,7 @@
+[Definition]
+# possible values: true, false, auto
+allowipv6 = auto
+
 [sshd]
 enabled = true
 port    = ssh
