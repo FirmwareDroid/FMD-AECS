@@ -32,6 +32,7 @@ services:
       - ./env/pihole/.env
     ports:
       - "8082:80"
+      - "8083:443"
     volumes:
       # For persisting Pi-hole's databases and common configuration file
       - './pihole-data:/etc/pihole'
