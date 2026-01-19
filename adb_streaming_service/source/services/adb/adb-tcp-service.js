@@ -625,11 +625,13 @@ class AdbTcpService {
 	}
 
 	async getDeviceAdb(deviceSerial) {
+		logger.info(`Searching for device model in metainfo for serial: ${deviceSerial}`);
 		let device = global.metainfo.devices.find((d) => d.name === deviceSerial || d.serial === deviceSerial || `${d._serverKey}/${d.serial}` === deviceSerial);
 		if (!device) { await this.metainfo(); }
 		device = global.metainfo.devices.find((d) => d.serial === deviceSerial || d.name === deviceSerial || `${d._serverKey}/${d.serial}` === deviceSerial);
 		if (!device) { throw new Error(`Device with serial = '${deviceSerial}' is not connected.`); }
-		logger.info("Got device model from metainfo:", device.serial, device.name, device._serverKey);
+
+		logger.info(`Got device model from metainfo: ${JSON.stringify(device)}`);
 		return device.adb;
 	}
 

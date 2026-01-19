@@ -1732,6 +1732,20 @@ const run = async () => {
     await app.start();
 };
 
+// Utility: await a promise with timeout
+function withTimeout(promiseOrFactory, ms = 5000, name = 'operation') {
+    // promiseOrFactory can be a Promise or a function returning a Promise
+    try {
+        const promise = (typeof promiseOrFactory === 'function') ? promiseOrFactory() : promiseOrFactory;
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error(`${name} timed out after ${ms}ms`)), ms))
+        ]);
+    } catch (e) {
+        return Promise.reject(e);
+    }
+}
+
 // Normalize touch payload into ScrcpyInjectTouchControlMessage shape
 async function normalizeTouchPayload(user, payload) {
     try {
