@@ -84,6 +84,10 @@ networks:
     driver: bridge
   android:
     driver: bridge
+    driver_opts:
+      # ensure the bridge performs IP masquerading (NAT) so containers can reach the Internet
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+    attachable: true
     ipam:
       config:
         - subnet: 172.31.250.0/24
