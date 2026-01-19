@@ -37,7 +37,7 @@ services:
       - './pihole-data:/etc/pihole'
     networks:
       android:
-        ipv4_address: 172.28.10.2
+        ipv4_address: 172.31.250.2
     restart: unless-stopped
 
   mitmproxy:
@@ -86,7 +86,7 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.28.10.0/24
-          ip_range: 172.28.10.128/25
-          gateway: 172.28.10.1
+        - subnet: 172.31.250.0/24
+          ip_range: 172.31.250.128/25
+          gateway: 172.28.250.1
 
