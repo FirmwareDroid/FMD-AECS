@@ -621,17 +621,48 @@ const run = async () => {
                         logger.debug(`Normalized device id from '${device}' to '${normalizedDevice}'`);
                         device = normalizedDevice;
                     }
-                    logger.info("WebSocket open: id='" + id + "' device='" + device + "'");
+
+                    // Enrich device parameter into an object so downstream can use host/port/serial
+                    // device param may be: "host:port/serial" or simply "serial". Build an object:
+                    let deviceObj = null;
+                    try {
+                        if (typeof device === 'string' && device.includes('/')) {
+                            // format: host:port/serial or key/serial
+                            const [hostPort, serialPart] = device.split('/', 2);
+                            const hpParts = hostPort.split(':');
+                            const hostPart = hpParts[0] || 'localhost';
+                            const portPart = hpParts[1] ? Number(hpParts[1]) : 5037;
+                            deviceObj = {
+                                original: device,
+                                host: hostPart,
+                                port: portPart,
+                                serial: serialPart,
+                                key: `${hostPart}:${portPart}`,
+                                uniqueName: `${hostPart}:${portPart}/${serialPart}`,
+                            };
+                        } else if (typeof device === 'string') {
+                            // bare serial
+                            deviceObj = { original: device, serial: device };
+                        } else if (device && typeof device === 'object') {
+                            deviceObj = Object.assign({}, device);
+                        }
+                    } catch (e) {
+                        logger.debug('Failed to build deviceObj from query param', e?.message || e);
+                        deviceObj = { original: device, serial: (typeof device === 'string' ? device : null) };
+                    }
+
+                    logger.info("WebSocket open: id='" + id + "' device='" + (deviceObj && deviceObj.uniqueName ? deviceObj.uniqueName : deviceObj && deviceObj.serial ? deviceObj.serial : device) + "'");
                     const user = {ws, client: null, abortController: new AbortController()};
                     global.users.set(id, user);
-                    logger.info(`Starting ADB TCP streaming for id='${id}' device='${device}' audio=${ws.audio} video=${ws.video}`);
+                    logger.info(`Starting ADB TCP streaming for id='${id}' device='${deviceObj && deviceObj.serial ? deviceObj.serial : '<unknown>'}' audio=${ws.audio} video=${ws.video}`);
                     let deviceAdb;
                     try {
-                        deviceAdb = await adbTcpService.getDeviceAdb(device);
+                        // getDeviceAdb now accepts either a serial string or an enriched device object
+                        deviceAdb = await adbTcpService.getDeviceAdb(deviceObj);
                     } catch (err) {
-                        logger.error(`Failed to get device adb for device='${device}' id='${id}': ${err}`);
+                        logger.error(`Failed to get device adb for device='${deviceObj && deviceObj.serial ? deviceObj.serial : device}' id='${id}':`, err);
                         try {
-                            ws.send(packer.pack({media: 'error', message: `device '${device}' not connected`}), true);
+                            ws.send(packer.pack({media: 'error', message: `device '${deviceObj && deviceObj.serial ? deviceObj.serial : device}' not connected`}), true);
                         } catch (e) {
                         }
                         // do not close socket; client might select another device

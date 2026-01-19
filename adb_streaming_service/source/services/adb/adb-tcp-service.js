@@ -624,15 +624,80 @@ class AdbTcpService {
 		}
 	}
 
-	async getDeviceAdb(deviceSerial) {
-		logger.info(`Searching for device model in metainfo for serial: ${deviceSerial}`);
-		let device = global.metainfo.devices.find((d) => d.name === deviceSerial || d.serial === deviceSerial || `${d._serverKey}/${d.serial}` === deviceSerial);
-		if (!device) { await this.metainfo(); }
-		device = global.metainfo.devices.find((d) => d.serial === deviceSerial || d.name === deviceSerial || `${d._serverKey}/${d.serial}` === deviceSerial);
-		if (!device) { throw new Error(`Device with serial = '${deviceSerial}' is not connected.`); }
+	async getDeviceAdb(deviceParam) {
+		logger.info(`getDeviceAdb called with: ${JSON.stringify(deviceParam)}`);
+		// deviceParam can be either a string (serial) or an object { host, port, serial, key, uniqueName }
+		let serial = null;
+		let uniqueName = null;
+		let key = null;
+		if (deviceParam && typeof deviceParam === 'object') {
+			serial = deviceParam.serial || deviceParam.original || null;
+			uniqueName = deviceParam.uniqueName || null;
+			key = deviceParam.key || (deviceParam.host && deviceParam.port ? `${deviceParam.host}:${deviceParam.port}` : null);
+		} else {
+			serial = deviceParam;
+		}
 
-		logger.info(`Got device model from metainfo: ${JSON.stringify(device)}`);
-		return device.adb;
+		// Helper to lookup in metainfo devices safely
+		const lookupInMeta = () => {
+			if (!global || !global.metainfo || !Array.isArray(global.metainfo.devices)) return null;
+			// prefer exact uniqueName match
+			if (uniqueName) {
+				const byUnique = global.metainfo.devices.find((d) => d && (d.name === uniqueName || `${d._serverKey}/${d.serial}` === uniqueName));
+				if (byUnique) return byUnique;
+			}
+			// try by serial or name
+			if (serial) {
+				const bySerial = global.metainfo.devices.find((d) => d && (d.serial === serial || d.name === serial || `${d._serverKey}/${d.serial}` === serial));
+				if (bySerial) return bySerial;
+			}
+			return null;
+		};
+
+		// Try to find existing device model
+		let deviceModel = lookupInMeta();
+		if (!deviceModel) {
+			// Refresh metainfo once and retry
+			try {
+				logger.debug('getDeviceAdb: refreshing metainfo for lookup');
+				await this.metainfo();
+				deviceModel = lookupInMeta();
+			} catch (e) {
+				logger.debug('getDeviceAdb: metainfo refresh failed', e?.message || e);
+			}
+		}
+
+		// If we still don't have a deviceModel but key+serial were provided, attempt explicit connect to that pool
+		if (!deviceModel && key && serial) {
+			try {
+				logger.info(`getDeviceAdb: attempting explicit connectToDevice for ${key}/${serial}`);
+				const dm = await this.connectToDevice(`${key}/${serial}`);
+				if (dm && dm.adb) return dm.adb;
+				deviceModel = dm;
+			} catch (e) {
+				logger.debug(`getDeviceAdb explicit connectToDevice failed: ${e?.message || e}`);
+			}
+		}
+
+		// If still not found, attempt generic connectToDevice(serial)
+		if (!deviceModel && serial) {
+			try {
+				logger.info(`getDeviceAdb: attempting fallback connectToDevice for serial=${serial}`);
+				const dm = await this.connectToDevice(serial);
+				if (dm && dm.adb) return dm.adb;
+				deviceModel = dm;
+			} catch (e) {
+				logger.debug(`getDeviceAdb fallback connectToDevice failed: ${e?.message || e}`);
+			}
+		}
+
+		if (!deviceModel) {
+			const id = serial || uniqueName || (deviceParam && deviceParam.original) || '<unknown>';
+			throw new Error(`Device with serial = '${id}' is not connected.`);
+		}
+
+		logger.info(`getDeviceAdb: resolved device model: name=${deviceModel.name || '<noname>'} serial=${deviceModel.serial}`);
+		return deviceModel.adb;
 	}
 
 	async setDeviceVolume(deviceAdb, volumeOrPayload, muted = false) {
