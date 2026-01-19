@@ -113,8 +113,6 @@ if [ -f /android/emulator_start.sh ]; then
     # Run the emulator start script and tee output to the log file and stdout so 'docker logs' shows it
     exec /bin/sh -c "/android/emulator_start.sh 2>&1 | tee -a /var/log/emulator_start.log"
   fi
-else
-  echo "No /android/emulator_start.sh found; falling back to tailing a log to keep container alive"
-  # keep container alive; provide ability to see logs
-  tail -F /var/log/emulator_start.log 2>/dev/null || tail -f /dev/null
 fi
+
+tail -F /var/log/emulator_start.log 2>/dev/null || tail -f /dev/null
