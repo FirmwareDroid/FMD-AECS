@@ -44,6 +44,7 @@ services:
     image: mitmproxy/mitmproxy
     ports:
       - "8081:8081"
+      - "8080:8080"
     env_file:
       - ./env/mitmproxy/.env
     command:
@@ -52,6 +53,13 @@ services:
       - 0.0.0.0
       - --web-password
       - ${MITMWEB_PASSWORD}
+      - --web-ssl-cert
+      - ${MITMWEB_SSL_CERT}
+      - --web-ssl-key
+      - ${MITMWEB_SSL_KEY}
+    volume:
+      - ./env/mitmproxy/mitmweb.crt:/certs/
+      - ./env/mitmproxy/mitmweb.key:/certs/mitmweb.key
     networks:
       - android
 
