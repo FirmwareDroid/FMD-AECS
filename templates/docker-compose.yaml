@@ -1,5 +1,6 @@
 services:
   nginx:
+    container_name: nginx
     image: nginx:latest
     restart: unless-stopped
     volumes:
