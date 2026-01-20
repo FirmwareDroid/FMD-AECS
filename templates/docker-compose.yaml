@@ -50,9 +50,8 @@ services:
       - ./env/mitmproxy/.env
     command: "mitmweb --web-host 0.0.0.0"
     volumes:
-      - ./env/mitmproxy/mitmweb.crt:/certs/mitmweb.crt
-      - ./env/mitmproxy/mitmweb.key:/certs/mitmweb.key
-      - ./mitmproxy-data:/home/mitmproxy/
+      - ./env/mitmproxy/config.yml:/home/mitmproxy/.mitmproxy/config.yml
+      - ./mitmproxy-data:/home/mitmproxy/.mitmproxy
     networks:
       - android
 
