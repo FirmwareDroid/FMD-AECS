@@ -50,12 +50,12 @@ services:
     command:
       - mitmweb
       - --web-host 0.0.0.0
-      - --set web-password=${MITMWEB_PASSWORD}
-      - ---set web-ssl-cert=${MITMWEB_SSL_CERT}
-      - ---set web-ssl-key=${MITMWEB_SSL_KEY}
+      - --set web-ssl-cert=/certs/mitmweb.crt
+      - --set web-ssl-key=/certs/mitmweb.key
     volumes:
       - ./env/mitmproxy/mitmweb.crt:/certs/mitmweb.crt
       - ./env/mitmproxy/mitmweb.key:/certs/mitmweb.key
+      - ./mitmproxy-data:/home/mitmproxy/
     networks:
       - android
 
