@@ -600,7 +600,144 @@ class AdbTcpService {
 		init.cleanup = true;
 		init.tunnelForward = true;
 
+		// ensure server binary is present on the device
+		await pushServer(deviceAdb);
+
+		// Try to query device encoders to select a compatible encoder (prefer device-supported names)
+		let deviceEncoders = [];
+		try {
+			deviceEncoders = await this.getDeviceEncoders(deviceAdb) || [];
+			// normalize to only video encoders
+			deviceEncoders = deviceEncoders.filter(e => e && e.type === 'video');
+		} catch (e) {
+			logger.debug('Could not obtain device encoders before scrcpy.start:', e?.message || e);
+		}
+		const availableEncoderNames = deviceEncoders.map(e => e && e.name).filter(Boolean);
+
+		// Helper to pick encoder for the given codec. Prefer c2.* if present, else any matching codec.
+		const pickEncoderForCodec = (codec) => {
+			if (!deviceEncoders || !deviceEncoders.length) return null;
+			let candidates = deviceEncoders.filter(e => String(e.codec || '').toLowerCase() === String(codec || '').toLowerCase());
+			if (!candidates.length) return null;
+			// prefer c2.* names (common on modern Android)
+			const preferred = candidates.find(c => /(^|\.|\-)c2\.|c2\./i.test(c.name)) || candidates[0];
+			return preferred.name;
+		};
+
+		// If user provided a videoEncoder with an '@' prefix (like TinyH264@c2.android.avc.encoder), prefer RHS if available
+		if (videoEncoder) {
+			const vEncStr = String(videoEncoder);
+			if (vEncStr.includes('@')) {
+				const rhs = vEncStr.split('@').pop();
+				if (availableEncoderNames.includes(rhs)) {
+					init.videoEncoder = rhs;
+					logger.info(`Mapped requested videoEncoder '${videoEncoder}' -> using device encoder '${rhs}'`);
+				} else if (availableEncoderNames.includes(vEncStr)) {
+					init.videoEncoder = vEncStr;
+					logger.info(`Using requested videoEncoder as-is: '${vEncStr}'`);
+				} else {
+					// fallback: try to pick a device encoder for the given codec
+					const picked = pickEncoderForCodec(videoCodec || 'h264');
+					if (picked) {
+						init.videoEncoder = picked;
+						logger.warn(`Requested videoEncoder '${videoEncoder}' not available; falling back to device encoder '${picked}'`);
+					} else {
+						logger.warn(`Requested videoEncoder '${videoEncoder}' not available and no matching fallback found`);
+					}
+				}
+			} else {
+				// videoEncoder provided without '@', check availability
+				if (availableEncoderNames.includes(vEncStr)) {
+					init.videoEncoder = vEncStr;
+					logger.info(`Using requested videoEncoder '${vEncStr}'`);
+				} else {
+					const picked = pickEncoderForCodec(videoCodec || 'h264');
+					if (picked) { init.videoEncoder = picked; logger.warn(`Requested videoEncoder '${vEncStr}' not available; falling back to '${picked}'`); }
+				}
+			}
+		} else {
+			// No explicit videoEncoder requested - pick sensible default for codec
+			const auto = pickEncoderForCodec(videoCodec || 'h264');
+			if (auto) { init.videoEncoder = auto; logger.info(`No videoEncoder requested; auto-selected '${auto}' for codec='${videoCodec || 'h264'}'`); }
+		}
+
+		// audioEncoder: if provided and contains '@', use RHS if device supports it, else try to pick by codec
+		if (audioEncoder) {
+			const aEncStr = String(audioEncoder);
+			try {
+				// query audio encoders list
+				let audioEncList = [];
+				try { audioEncList = (await this.getDeviceEncoders(deviceAdb)) || []; } catch (e) { /* ignore */ }
+				audioEncList = audioEncList.filter(e => e && e.type === 'audio');
+				const audioNames = audioEncList.map(e => e.name).filter(Boolean);
+				if (aEncStr.includes('@')) {
+					const rhs = aEncStr.split('@').pop();
+					if (audioNames.includes(rhs)) { init.audioEncoder = rhs; logger.info(`Mapped requested audioEncoder '${audioEncoder}' -> '${rhs}'`); }
+					else if (audioNames.includes(aEncStr)) { init.audioEncoder = aEncStr; }
+					else { logger.debug(`Requested audioEncoder '${audioEncoder}' not available on device`); }
+				} else {
+					if (audioNames.includes(aEncStr)) init.audioEncoder = aEncStr; else logger.debug(`Requested audioEncoder '${audioEncoder}' not available on device`);
+				}
+			} catch (e) { logger.debug('audioEncoder selection failed:', e?.message || e); }
+		}
+
+		// finalize videoEncoder selection and normalize forms like 'TinyH264@c2.android.avc.encoder'
+		let chosenVideoEncoder = null;
+		if (init.videoEncoder) {
+			const v = String(init.videoEncoder);
+			if (v.includes('@')) {
+				const rhs = v.split('@').pop();
+				if (availableEncoderNames.includes(rhs)) chosenVideoEncoder = rhs;
+				else if (availableEncoderNames.includes(v)) chosenVideoEncoder = v;
+				else chosenVideoEncoder = null;
+			} else if (availableEncoderNames.includes(v)) {
+				chosenVideoEncoder = v;
+			} else {
+				chosenVideoEncoder = null;
+			}
+		} else {
+			chosenVideoEncoder = pickEncoderForCodec(videoCodec || 'h264');
+		}
+		if (chosenVideoEncoder) {
+			init.videoEncoder = chosenVideoEncoder;
+			logger.info(`Final selected videoEncoder='${chosenVideoEncoder}'`);
+		} else {
+			// ensure we don't pass unsupported compound name
+			if (init.videoEncoder && String(init.videoEncoder).includes('@')) delete init.videoEncoder;
+			logger.info('No compatible videoEncoder found; letting scrcpy choose default');
+		}
+
+		// finalize audio encoder similarly
+		let chosenAudioEncoder = null;
+		if (init.audioEncoder) {
+			const a = String(init.audioEncoder);
+			if (a.includes('@')) {
+				const rhs = a.split('@').pop();
+				// reuse audio list fetched earlier
+				// audioEncList may not exist here, fetch quickly
+				try {
+					let audioEncList = (await this.getDeviceEncoders(deviceAdb)) || [];
+					audioEncList = audioEncList.filter(e => e && e.type === 'audio');
+					const audioNames = audioEncList.map(e => e.name).filter(Boolean);
+					if (audioNames.includes(rhs)) chosenAudioEncoder = rhs;
+					else if (audioNames.includes(a)) chosenAudioEncoder = a;
+				} catch (e) { logger.debug('audio encoder finalization failed:', e?.message || e); }
+			} else {
+				chosenAudioEncoder = init.audioEncoder;
+			}
+		}
+		if (chosenAudioEncoder) {
+			init.audioEncoder = chosenAudioEncoder;
+			logger.info(`Final selected audioEncoder='${chosenAudioEncoder}'`);
+		} else if (init.audioEncoder && String(init.audioEncoder).includes('@')) {
+			delete init.audioEncoder;
+			logger.info('No compatible audioEncoder found; letting scrcpy choose default');
+		}
+
+		// Create options after we possibly adjusted encoders
 		const options = new AdbScrcpyOptions2_1(init, { version: VERSION });
+
+		logger.debug(`Using encoders: video='${init.videoEncoder || ''}' audio='${init.audioEncoder || ''}' availableVideoEncoders=${JSON.stringify(availableEncoderNames)}`);
 
 		// ensure server binary is present on the device
 		await pushServer(deviceAdb);
@@ -622,7 +759,7 @@ class AdbTcpService {
 					try { reader.releaseLock(); } catch (e) {}
 				}
 			} catch (e) {
-				logger.debug('Reading initial client.output failed:', e?.message || e);
+				logger.debug(`Reading initial client.output failed: ${e?.message || e}`);
 			}
 
 			// richer logging / validation: class instances often stringify to {} — inspect prototype/methods and hidden properties
