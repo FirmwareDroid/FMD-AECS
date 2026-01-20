@@ -6,7 +6,7 @@ const resolvedLogLevel = process.env.LOG_LEVEL || (isDevOrTest ? "info" : "error
 export const logger = pino(
 	{
 		name: "adb_streaming",
-		level: "info",
+		level: "debug",
 		transport: isDevOrTest
 			? {
 					target: "pino-pretty",

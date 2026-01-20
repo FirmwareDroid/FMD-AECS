@@ -323,7 +323,7 @@ function resolveSerialFromAdbInstance(adbInstance) {
 }
 
 const pushServer = async (adbInstance, force = false) => {
-	logger.info(`Pushing scrcpy server to device if not already present with Instance: ${adbInstance}`);
+	logger.info(`Pushing scrcpy server to device if not already present with Instance: ${JSON.stringify(adbInstance)}`);
 	const serial = resolveSerialFromAdbInstance(adbInstance);
 	logger.info(`Got serial from adb instance: ${serial}`);
 	// probe remote server file via ls -l to verify existence/size
@@ -341,6 +341,7 @@ const pushServer = async (adbInstance, force = false) => {
 			// fallback - find numeric token
 			const tokens = first.split(/\s+/);
 			for (let t of tokens) if (/^\d+$/.test(t)) return { exists: true, size: Number(t) };
+			logger.info("probeRemoteServer: could not parse ls -l output for size");
 			return { exists: true, size: null };
 		} catch (e) {
 			logger.error(`probeRemoteServer failed: ${e?.message || e}`);
