@@ -47,9 +47,7 @@ services:
       - "8080:8080"
     env_file:
       - ./env/mitmproxy/.env
-    command:
-      - mitmweb
-      - --web-host 0.0.0.0
+    command: "mitmweb --web-host 0.0.0.0"
     volumes:
       - ./env/mitmproxy/mitmweb.crt:/certs/mitmweb.crt
       - ./env/mitmproxy/mitmweb.key:/certs/mitmweb.key
