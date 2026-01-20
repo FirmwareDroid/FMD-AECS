@@ -448,15 +448,13 @@ class AdbTcpService {
             try {
                 const ds = await p.client.getDevices();
                 if (Array.isArray(ds)) {
-                    //for (const d of ds) {
-                    //    if (!d) continue;
-                        // tag with pool info so we can resolve later
-					const d = ds[0];
-					d._serverKey = p.key;
-					d._serverHost = p.host;
-					d._serverPort = p.port;
-					all.push(d);
-                    //}
+                    for (const d of ds) {
+                        if (!d) continue;
+                        d._serverKey = p.key;
+                        d._serverHost = p.host;
+                        d._serverPort = p.port;
+                        all.push(d);
+                    }
                 }
             } catch (e) {
                 logger.debug(`getDevices: pool ${p.key} failed: ${e?.message || e}`);
@@ -587,7 +585,10 @@ class AdbTcpService {
 		const init = {};
 		if (typeof audio !== 'undefined') init.audio = !!audio;
 		if (audioCodec) init.audioCodec = audioCodec;
-		if (audioEncoder) init.audioEncoder = audioEncoder;
+		// Only set audioEncoder when audioCodec is not 'raw' and audioEncoder is not 'raw'
+		if (audioEncoder && String(audioEncoder).toLowerCase() !== 'raw' && String(init.audioCodec || '').toLowerCase() !== 'raw') {
+			init.audioEncoder = audioEncoder;
+		}
 		if (typeof video !== 'undefined') init.video = !!video;
 		if (videoCodec) init.videoCodec = videoCodec;
 		if (videoEncoder) init.videoEncoder = videoEncoder;
@@ -764,3 +765,4 @@ class AdbTcpService {
 }
 
 export const service = new AdbTcpService();
+
