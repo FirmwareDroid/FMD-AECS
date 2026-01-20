@@ -568,7 +568,7 @@ class AdbTcpService {
 		return result;
 	}
 
-	async start(deviceAdb, user) {
+	async start(deviceAdb, user, _attempt = 0) {
 		const {
 			audio,
 			audioCodec,
@@ -607,12 +607,31 @@ class AdbTcpService {
 		try {
 			logger.info(`Starting scrcpy client with options: ${JSON.stringify(options)} \n and deviceAdb: ${JSON.stringify(deviceAdb)} \n and server path: ${DEVICE_SERVER_PATH}`);
 			const client = await AdbScrcpyClient.start(deviceAdb, DEVICE_SERVER_PATH, options);
+			// read some initial output lines from client.output to help debugging
+			let initialOutputLines = [];
+			try {
+				if (client && client.output && typeof client.output.getReader === 'function') {
+					const reader = client.output.getReader();
+					// read up to 40 lines, with a short timeout for each
+					for (let i = 0; i < 40; i++) {
+						const p = reader.read();
+						const r = await Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('output-read-timeout')), 300))]);
+						if (r && r.done) { break; }
+						if (r && r.value) initialOutputLines.push(String(r.value));
+					}
+					try { reader.releaseLock(); } catch (e) {}
+				}
+			} catch (e) {
+				logger.debug('Reading initial client.output failed:', e?.message || e);
+			}
+
 			// richer logging / validation: class instances often stringify to {} — inspect prototype/methods and hidden properties
 			import('node:util').then((util) => {
 				try {
 					const proto = client && Object.getPrototypeOf(client) ? Object.getOwnPropertyNames(Object.getPrototypeOf(client)) : [];
 					logger.info(`Got scrcpy client: type=${typeof client} protoKeys=${JSON.stringify(proto.slice(0,50))}`);
 					logger.debug(`Inspect client (showHidden, depth=2): ${util.inspect(client, { showHidden: true, depth: 2 })}`);
+					if (initialOutputLines.length) logger.debug(`Initial client.output lines:\n${initialOutputLines.join('\n')}`);
 				} catch (e) { logger.debug('Error inspecting scrcpy client', e?.message || e); }
 			});
 
@@ -623,9 +642,11 @@ class AdbTcpService {
 			const controlRequested = options && options.value && options.value.control === true;
 			const hasController = !!(client && client.controller);
 			logger.debug(`scrcpy client validation: hasClose=${hasClose} hasOutput=${!!hasOutput} controlRequested=${controlRequested} hasController=${hasController}`);
+
+			// If control was requested, ensure controller exists
 			if (!client || !hasClose || !hasOutput || (controlRequested && !hasController)) {
 				// collect diagnostics and throw detailed error to be visible to caller
-				const details = { clientTruthy: !!client, protoKeys: protoNames.slice(0,50), hasClose, hasOutput: !!hasOutput, controlRequested, hasController, server_length: server ? (server.byteLength || server.length || null) : null };
+				const details = { clientTruthy: !!client, protoKeys: protoNames.slice(0,50), hasClose, hasOutput: !!hasOutput, controlRequested, hasController, server_length: server ? (server.byteLength || server.length || null) : null, initialOutputLines };
 				try {
 					if (deviceAdb && deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') {
 						details.logcat = await deviceAdb.subprocess.exec(["logcat", "-d", "-t", "200"]);
@@ -639,24 +660,105 @@ class AdbTcpService {
 				throw err;
 			}
 
+			// Now attempt to ensure video/audio streams are available (if requested). Use short timeouts to fail fast.
+			try {
+				if (options && options.value) {
+					const checks = [];
+					if (options.value.video === true && client.videoStream) {
+						checks.push((async () => {
+							try {
+								// await videoStream promise with timeout
+								await withTimeout(client.videoStream, 5000, 'video-stream-creation-timeout');
+							} catch (e) { throw new Error('videoStream failed: ' + (e?.message || String(e))); }
+						})();
+					}
+					if (options.value.audio === true && client.audioStream) {
+						checks.push((async () => {
+							try {
+								await withTimeout(client.audioStream, 5000, 'audio-stream-creation-timeout');
+							} catch (e) { throw new Error('audioStream failed: ' + (e?.message || String(e))); }
+						})();
+					}
+					if (checks.length) await Promise.all(checks);
+				}
+			} catch (e) {
+				// collect diagnostics and close client
+				let diag = { message: e?.message || String(e), initialOutputLines };
+				try {
+					if (deviceAdb && deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') {
+						diag.logcat = await deviceAdb.subprocess.exec(["logcat", "-d", "-t", "200"]);
+						diag.device_ls = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]);
+					}
+				} catch (ee) { logger.debug('diag collection after stream failure failed', ee?.message || ee); }
+				try { if (client && typeof client.close === 'function') await client.close(); } catch (ee) { logger.debug('client.close failed', ee?.message || ee); }
+				const err = new Error('scrcpy stream creation failed: ' + diag.message); err.details = diag; throw err;
+			}
+
 			return { client, options };
 		} catch (err) {
+			// If this was the first attempt and audio was requested, retry without audio (some devices/servers fail on audio)
+			if (_attempt === 0 && init.audio === true) {
+				logger.warn('scrcpy start failed on initial attempt with audio enabled; retrying once with audio disabled');
+				try {
+					const initNoAudio = { ...init, audio: false };
+					// Remove audioEncoder if present
+					delete initNoAudio.audioEncoder;
+					const optionsNoAudio = new AdbScrcpyOptions2_1(initNoAudio, { version: VERSION });
+					logger.info('Retrying scrcpy start with options (audio disabled)');
+					const client2 = await AdbScrcpyClient.start(deviceAdb, DEVICE_SERVER_PATH, optionsNoAudio);
+					// perform the same validation checks as above (inspect, read output, stream checks)
+					let initialOutputLines2 = [];
+					try {
+						if (client2 && client2.output && typeof client2.output.getReader === 'function') {
+							const reader2 = client2.output.getReader();
+							for (let i = 0; i < 40; i++) {
+								const p2 = reader2.read();
+								const r2 = await Promise.race([p2, new Promise((_, rej) => setTimeout(() => rej(new Error('output-read-timeout')), 300))]);
+								if (r2 && r2.done) break;
+								if (r2 && r2.value) initialOutputLines2.push(String(r2.value));
+							}
+							try { reader2.releaseLock(); } catch (e) {}
+						}
+					} catch (e2) { logger.debug('Reading initial client2.output failed:', e2?.message || e2); }
+
+					// basic validation
+					const hasClose2 = client2 && typeof client2.close === 'function';
+					const hasOutput2 = client2 && client2.output;
+					if (!client2 || !hasClose2 || !hasOutput2) {
+						logger.error('Retry without audio still returned insufficient client');
+						try { if (client2 && typeof client2.close === 'function') await client2.close(); } catch (e3) { logger.debug('client2.close failed', e3?.message || e3); }
+						// fall through to original error handling below
+					} else {
+						// attempt stream checks for video only
+						try {
+							if (optionsNoAudio && optionsNoAudio.value && optionsNoAudio.value.video === true && client2.videoStream) {
+								await withTimeout(client2.videoStream, 5000, 'video-stream-creation-timeout-retry');
+							}
+							logger.info('Retry without audio succeeded');
+							return { client: client2, options: optionsNoAudio };
+						} catch (e4) {
+							logger.error('Retry without audio failed during stream checks', e4?.message || e4);
+							try { if (client2 && typeof client2.close === 'function') await client2.close(); } catch (e5) { logger.debug('client2.close failed', e5?.message || e5); }
+						}
+					}
+				} catch (retryErr) {
+					logger.error('scrcpy retry (no-audio) failed:', retryErr?.message || retryErr);
+				}
+			}
+
+			// original error handling: collect diagnostics and rethrow a detailed error
 			const details = { message: err && err.message ? err.message : String(err), name: err && err.name ? err.name : 'Error', stack: err && err.stack ? err.stack : null, server_length: server ? (server.byteLength || server.length || null) : null, logcat: null, device_ls: null };
 			try {
 				if (deviceAdb && deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') {
 					details.logcat = await deviceAdb.subprocess.exec(["logcat", "-d", "-t", "200"]);
 				}
-			} catch (e) {
-				logger.debug('Failed to collect logcat during scrcpy start error:', e?.message || e);
-			}
+			} catch (e) { logger.debug('Failed to collect logcat during scrcpy start error:', e?.message || e); }
 			// Try to inspect server file on device
 			try {
 				if (deviceAdb && deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') {
 					details.device_ls = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]);
 				}
-			} catch (e) {
-				logger.debug('Failed to run ls on device for server file:', e?.message || e);
-			}
+			} catch (e) { logger.debug('Failed to run ls on device for server file:', e?.message || e); }
 			const e2 = new Error(`scrcpy start failed: ${details.message}`); e2.details = details; throw e2;
 		}
 	}
