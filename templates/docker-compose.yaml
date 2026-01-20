@@ -51,7 +51,8 @@ services:
       - mitmweb
       - --web-host
       - 0.0.0.0
-      - --web-password
+      - --set
+      - web-password
       - ${MITMWEB_PASSWORD}
       - --web-ssl-cert
       - ${MITMWEB_SSL_CERT}
