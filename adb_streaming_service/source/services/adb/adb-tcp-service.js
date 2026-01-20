@@ -602,6 +602,7 @@ class AdbTcpService {
 		await pushServer(deviceAdb);
 		try {
 			const client = await AdbScrcpyClient.start(deviceAdb, DEVICE_SERVER_PATH, options);
+			logger.info(`Got scrcpy client: ${JSON.stringify(client)}`);
 			return { client, options };
 		} catch (err) {
 			const details = { message: err && err.message ? err.message : String(err), name: err && err.name ? err.name : 'Error', stack: err && err.stack ? err.stack : null, server_length: server ? (server.byteLength || server.length || null) : null, logcat: null, device_ls: null };

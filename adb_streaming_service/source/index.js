@@ -748,12 +748,15 @@ const run = async () => {
 
                     // audio
                     if (client.audioStream) {
-                        logger.info("Setting up audio streaming for id='" + id + "'");
+                        logger.info("Setting up audio streaming for id='" + id + "' and audioStream: audio=" + ws.audio + "");
+                        logger.info(`Using audioCodec='${ws.audioCodec}' audioEncoder='${ws.audioEncoder || '<default>'}'`);
                         try {
                             // Protect audio stream creation with timeout and better error reporting
                             let metadata;
                             try {
-                                metadata = await withTimeout(client.audioStream, 8000, 'audioStream');
+                                metadata = await withTimeout(client.audioStream, 8000, 'audioStream').catch(err => {
+                                    logger.error(err?.message || err);
+                                });
                             } catch (streamErr) {
                                 const errObj = serializeError(streamErr);
                                 logger.error(`audioStream creation failed for id=${id}: ${errObj.message}`);
@@ -1689,7 +1692,7 @@ const run = async () => {
             },
             // close: async (ws) => {
             close: async (ws, code, message) => {
-                logger.info(`WebSocket close event received code=${code} message=${message}`);
+                logger.info(`WebSocket close event received code=${code} message=${JSON.stringify(message)}`);
                 try {
                     const {id} = ws;
                     const user = global.users.get(id);
