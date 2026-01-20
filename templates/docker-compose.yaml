@@ -63,7 +63,7 @@ services:
     networks:
       android:
         ipv4_address: 172.31.250.4
-      - frontend
+      frontend:
 
   adb_streamer:
     container_name: adb_streamer
