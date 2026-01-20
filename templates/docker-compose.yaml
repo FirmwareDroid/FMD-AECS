@@ -41,6 +41,7 @@ services:
     restart: unless-stopped
 
   mitmproxy:
+    container_name: mitmproxy
     image: mitmproxy/mitmproxy
     ports:
       - "8081:8081"
