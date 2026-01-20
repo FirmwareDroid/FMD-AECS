@@ -58,7 +58,7 @@ services:
       - ${MITMWEB_SSL_CERT}
       - --web-ssl-key
       - ${MITMWEB_SSL_KEY}
-    volume:
+    volumes:
       - ./env/mitmproxy/mitmweb.crt:/certs/
       - ./env/mitmproxy/mitmweb.key:/certs/mitmweb.key
     networks:
