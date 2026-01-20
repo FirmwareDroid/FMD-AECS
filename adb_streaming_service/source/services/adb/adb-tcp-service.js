@@ -670,14 +670,14 @@ class AdbTcpService {
 								// await videoStream promise with timeout
 								await withTimeout(client.videoStream, 5000, 'video-stream-creation-timeout');
 							} catch (e) { throw new Error('videoStream failed: ' + (e?.message || String(e))); }
-						})();
+						})());
 					}
 					if (options.value.audio === true && client.audioStream) {
 						checks.push((async () => {
 							try {
 								await withTimeout(client.audioStream, 5000, 'audio-stream-creation-timeout');
 							} catch (e) { throw new Error('audioStream failed: ' + (e?.message || String(e))); }
-						})();
+						})());
 					}
 					if (checks.length) await Promise.all(checks);
 				}
