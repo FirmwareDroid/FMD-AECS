@@ -61,7 +61,8 @@ services:
       - ./env/mitmproxy/config.yml:/home/mitmproxy/.mitmproxy/config.yml
       - ./mitmproxy-data:/home/mitmproxy/.mitmproxy
     networks:
-      - android
+      android:
+        ipv4_address: 172.31.250.4
       - frontend
 
   adb_streamer:
