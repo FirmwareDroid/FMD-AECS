@@ -59,7 +59,7 @@ services:
       - --web-ssl-key
       - ${MITMWEB_SSL_KEY}
     volumes:
-      - ./env/mitmproxy/mitmweb.crt:/certs/
+      - ./env/mitmproxy/mitmweb.crt:/certs/mitmweb.crt
       - ./env/mitmproxy/mitmweb.key:/certs/mitmweb.key
     networks:
       - android
