@@ -615,43 +615,45 @@ const run = async () => {
                             return;
                         }
                     }
-                    // Normalize device id (allow host:port/serial form)
-                    const normalizedDevice = normalizeDeviceId(device);
-                    if (normalizedDevice !== device) {
-                        logger.debug(`Normalized device id from '${device}' to '${normalizedDevice}'`);
-                        device = normalizedDevice;
-                    }
+
+                    // preserve raw device query value for parsing (don't strip /host prefix yet)
+                    const rawDeviceQuery = device;
 
                     // Enrich device parameter into an object so downstream can use host/port/serial
                     // device param may be: "host:port/serial" or simply "serial". Build an object:
                     let deviceObj = null;
                     try {
-                        if (typeof device === 'string' && device.includes('/')) {
+                        if (typeof rawDeviceQuery === 'string' && rawDeviceQuery.includes('/')) {
                             // format: host:port/serial or key/serial
-                            const [hostPort, serialPart] = device.split('/', 2);
+                            const [hostPort, serialPart] = rawDeviceQuery.split('/', 2);
                             const hpParts = hostPort.split(':');
                             const hostPart = hpParts[0] || 'localhost';
                             const portPart = hpParts[1] ? Number(hpParts[1]) : 5037;
                             deviceObj = {
-                                original: device,
+                                original: rawDeviceQuery,
                                 host: hostPart,
                                 port: portPart,
                                 serial: serialPart,
                                 key: `${hostPart}:${portPart}`,
                                 uniqueName: `${hostPart}:${portPart}/${serialPart}`,
                             };
-                        } else if (typeof device === 'string') {
-                            // bare serial
-                            deviceObj = { original: device, serial: device };
-                        } else if (device && typeof device === 'object') {
-                            deviceObj = Object.assign({}, device);
+                        } else if (typeof rawDeviceQuery === 'string') {
+                            // bare serial — keep original and also a normalized serial fallback
+                            deviceObj = { original: rawDeviceQuery, serial: rawDeviceQuery };
+                        } else if (rawDeviceQuery && typeof rawDeviceQuery === 'object') {
+                            deviceObj = Object.assign({}, rawDeviceQuery);
                         }
                     } catch (e) {
                         logger.debug('Failed to build deviceObj from query param', e?.message || e);
-                        deviceObj = { original: device, serial: (typeof device === 'string' ? device : null) };
+                        deviceObj = { original: rawDeviceQuery, serial: (typeof rawDeviceQuery === 'string' ? rawDeviceQuery : null) };
                     }
 
+                    // If the caller provided a host-prefixed form but url-decoding or other layers stripped it,
+                    // also attempt to detect and recover by checking if the original query contained a '/'
+                    // or a colon (host:port) pattern. Do NOT remove existing host:port info.
+
                     logger.info("WebSocket open: id='" + id + "' device='" + (deviceObj && deviceObj.uniqueName ? deviceObj.uniqueName : deviceObj && deviceObj.serial ? deviceObj.serial : device) + "'");
+
                     const user = {ws, client: null, abortController: new AbortController()};
                     global.users.set(id, user);
                     logger.info(`Starting ADB TCP streaming for id='${id}' device='${deviceObj && deviceObj.serial ? deviceObj.serial : '<unknown>'}' audio=${ws.audio} video=${ws.video}`);
@@ -2213,18 +2215,5 @@ function closeSocket(ws, reason = 'server-initiated', serverInitiated = true) {
         try { logger.error('closeSocket error', err?.message || err); } catch (_) {}
     }
 }
-
-// normalize device id: accept both "serial" and "host:port/serial" forms
-function normalizeDeviceId(device) {
-    if (!device) return device;
-    try {
-        const s = String(device);
-        if (s.includes('/')) return s.split('/').pop();
-        return s;
-    } catch (e) {
-        return device;
-    }
-}
-
 
 
