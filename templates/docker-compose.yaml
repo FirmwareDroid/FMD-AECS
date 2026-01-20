@@ -49,15 +49,10 @@ services:
       - ./env/mitmproxy/.env
     command:
       - mitmweb
-      - --web-host
-      - 0.0.0.0
-      - --set
-      - web-password
-      - ${MITMWEB_PASSWORD}
-      - --web-ssl-cert
-      - ${MITMWEB_SSL_CERT}
-      - --web-ssl-key
-      - ${MITMWEB_SSL_KEY}
+      - --web-host 0.0.0.0
+      - --set web-password=${MITMWEB_PASSWORD}
+      - ---set web-ssl-cert=${MITMWEB_SSL_CERT}
+      - ---set web-ssl-key=${MITMWEB_SSL_KEY}
     volumes:
       - ./env/mitmproxy/mitmweb.crt:/certs/mitmweb.crt
       - ./env/mitmproxy/mitmweb.key:/certs/mitmweb.key
