@@ -35,6 +35,9 @@ services:
       - ./env/pihole/.env
     ports:
       - "8083:443"
+    expose:
+      - "53/tcp"
+      - "53/udp"
     volumes:
       # For persisting Pi-hole's databases and common configuration file
       - './pihole-data:/etc/pihole'
