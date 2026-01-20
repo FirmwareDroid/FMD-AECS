@@ -505,7 +505,10 @@ class AdbTcpService {
 		const uniqueName = `${pool.host}:${pool.port}/${poolInfo.serial}`;
 		const displayName = `${pool.host}`;
 		const deviceModel = { serial: poolInfo.serial, name: uniqueName, displayName, transport, adb, displays: [], encoders: [], _serverKey: pool.key, _serverHost: pool.host, _serverPort: pool.port };
-		try { await pushServer(adb); } catch (err) { logger.error(`Initial pushServer failed in connectToDevice: ${err}`); }
+		try { await pushServer(adb); } catch (err) {
+			logger.error(`Initial pushServer failed in connectToDevice: ${err}`);
+			throw err;
+		}
 		return deviceModel
 	}
 
@@ -601,7 +604,7 @@ class AdbTcpService {
 		// ensure server binary is present on the device
 		await pushServer(deviceAdb);
 		try {
-			logger.info(`Starting scrcpy client with options: ${JSON.stringify(options)} and deviceAdb: ${JSON.stringify(deviceAdb)}`);
+			logger.info(`Starting scrcpy client with options: ${JSON.stringify(options)} \n and deviceAdb: ${JSON.stringify(deviceAdb)} \n and server path: ${DEVICE_SERVER_PATH}`);
 			const client = await AdbScrcpyClient.start(deviceAdb, DEVICE_SERVER_PATH, options);
 			logger.info(`Got scrcpy client: ${JSON.stringify(client)}`);
 			return { client, options };
