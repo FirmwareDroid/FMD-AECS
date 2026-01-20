@@ -11,7 +11,7 @@ RUN apt update && apt install -y --no-install-recommends \
     libnss3 libxcomposite1 libxcursor1 libxi6 \
     libxext6 libxfixes3 zlib1g libgl1 pulseaudio pulseaudio-utils socat \
     iputils-ping curl ca-certificates wget unzip procps rsync net-tools \
-    xz-utils python3 bison make gawk gcc dbus f2fs-tools libpcre2-16-0
+    xz-utils python3 bison make gawk gcc dbus f2fs-tools libpcre2-16-0 dnsutils
 
 ################################
 # Install Java
@@ -83,6 +83,11 @@ RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin without-password
 
 COPY ./emulator/prebuilts/fail2ban/jail.local /etc/fail2ban/jail.local
 
+# Install mitmproxy CA certificate into system trust store so containers trust intercepted TLS
+# Copy PEM and give it a .crt extension in the ca-certificates directory, then update the store
+COPY ./emulator/prebuilts/mitmproxy/mitmproxy-ca-cert.pem /usr/local/share/ca-certificates/mitmproxy-ca.crt
+RUN update-ca-certificates || true
+
 ################################
 # Set environment variables in .bashrc
 ################################
@@ -107,4 +112,3 @@ RUN chmod +x /android/emulator_start.sh || true
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["/bin/bash"]
-
