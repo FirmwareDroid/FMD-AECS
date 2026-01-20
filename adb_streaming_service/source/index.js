@@ -768,7 +768,8 @@ const run = async () => {
                                         message: `Failed to start audio stream: ${errObj.message}`,
                                         error: errObj
                                     }), true);
-                                } catch (e) { /* ignore send errors */ }
+                                } catch (e) {
+                                    /* ignore send errors */ }
                                 // Close the websocket: audio failure likely indicates a broken connection to scrcpy server
                                 closeSocket(ws, `audioStream failed: ${errObj.message}`, true);
                                 return;
@@ -1364,6 +1365,43 @@ const run = async () => {
                         }
                     };
 
+                    // helper to press a key (down + small delay + up) - moved to shared scope so multiple handlers can reuse it
+                    const pressKey = async (keyCode) => {
+                        try {
+                            // action 0 = KeyEvent.ACTION_DOWN, action 1 = ACTION_UP
+                            await safeInvokeController('injectKeyCode', { action: 0, keyCode });
+                            // short delay to emulate a real keypress
+                            await new Promise((r) => setTimeout(r, 50));
+                            await safeInvokeController('injectKeyCode', { action: 1, keyCode });
+                        } catch (e) {
+                            logger.error(`pressKey failed for keyCode=${keyCode}: ${e?.message || e}`);
+                        }
+                    };
+
+                    // Mapping of common key names to Android KeyEvent key codes.
+                    // Add more as needed.
+                    const KEY_NAME_MAP = {
+                        'HOME': 3,
+                        'BACK': 4,
+                        'CALL': 5,
+                        'ENDCALL': 6,
+                        'POWER': 26,
+                        'VOLUME_UP': 24,
+                        'VOLUME_DOWN': 25,
+                        'MUTE': 164,
+                        'MENU': 82,
+                        'APP_SWITCH': 187,
+                        'ENTER': 66,
+                        'DPAD_UP': 19,
+                        'DPAD_DOWN': 20,
+                        'DPAD_LEFT': 21,
+                        'DPAD_RIGHT': 22,
+                        'DPAD_CENTER': 23,
+                        'SPACE': 62,
+                        'TAB': 61,
+                        'ESCAPE': 111,
+                    };
+
                     // Handle volume commands even if controller is not yet available
                     {
                         const cmdAliasMapLocal = {
@@ -1624,7 +1662,47 @@ const run = async () => {
                         const normalizedCmd = cmdAliasMap[incomingCmd] || incomingCmd;
 
                         if (normalizedCmd === 'injectKeyCode') {
-                            safeInvokeController('injectKeyCode', record.payload);
+                            // Allow the client to send either a direct injectKeyCode payload OR a simple keystroke name
+                            (async () => {
+                                try {
+                                    const p = record.payload;
+                                    // If payload is a simple string, interpret as key name
+                                    if (typeof p === 'string') {
+                                        const name = p.trim().toUpperCase();
+                                        const keyCode = KEY_NAME_MAP[name] || KEY_NAME_MAP[name.replace(/\s+/g, '_')];
+                                        if (keyCode) {
+                                            await pressKey(keyCode);
+                                        } else {
+                                            logger.warn(`injectKeyCode: unknown key name '${p}'`);
+                                        }
+                                        return;
+                                    }
+                                    // If payload is an object with keyCode/action, pass through
+                                    if (p && typeof p === 'object') {
+                                        // allow short forms: { key: 'HOME' } or { keystroke: 'BACK' }
+                                        if (typeof p.keyCode !== 'undefined' || typeof p.action !== 'undefined') {
+                                            await safeInvokeController('injectKeyCode', p);
+                                            return;
+                                        }
+                                        const nameField = p.key || p.keystroke || p.code || null;
+                                        if (nameField) {
+                                            const name = String(nameField).trim().toUpperCase();
+                                            const keyCode = KEY_NAME_MAP[name] || KEY_NAME_MAP[name.replace(/\s+/g, '_')];
+                                            if (keyCode) {
+                                                await pressKey(keyCode);
+                                            } else {
+                                                logger.warn(`injectKeyCode: unknown key name in object: '${nameField}'`);
+                                            }
+                                            return;
+                                        }
+                                    }
+                                    // Fallback: pass whatever the client sent to the controller
+                                    await safeInvokeController('injectKeyCode', p);
+                                } catch (e) {
+                                    logger.error(`injectKeyCode handler error: ${e?.message || e}`);
+                                }
+                            })();
+
                         } else if (normalizedCmd === 'injectTouch') {
                             // support array of touch events
                             if (Array.isArray(record.payload)) {
