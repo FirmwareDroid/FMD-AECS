@@ -601,6 +601,7 @@ class AdbTcpService {
 		// ensure server binary is present on the device
 		await pushServer(deviceAdb);
 		try {
+			logger.info(`Starting scrcpy client with options: ${JSON.stringify(options)} and deviceAdb: ${JSON.stringify(deviceAdb)}`);
 			const client = await AdbScrcpyClient.start(deviceAdb, DEVICE_SERVER_PATH, options);
 			logger.info(`Got scrcpy client: ${JSON.stringify(client)}`);
 			return { client, options };
