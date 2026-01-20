@@ -6,7 +6,7 @@ services:
     volumes:
       - ./env/nginx/public:/usr/share/nginx/html
       - ./env/nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./env/nginx/live/:/etc/letsencrypt/live/
+      - ./env/nginx/ssl/live:/etc/letsencrypt/live
     ports:
       - "80:80"
       - "8443:443"
