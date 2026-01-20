@@ -317,13 +317,13 @@ function resolveSerialFromAdbInstance(adbInstance) {
 			if (typeof adbInstance.serial === 'string') return adbInstance.serial;
 		}
 	} catch (e) {
-		logger.debug('resolveSerialFromAdbInstance error:', e?.message || e);
+		logger.debug(`resolveSerialFromAdbInstance error:', ${e?.message || e}`);
 	}
 	return null;
 }
 
 const pushServer = async (adbInstance, force = false) => {
-	logger.info("Pushing scrcpy server to device if not already present...");
+	logger.info(`Pushing scrcpy server to device if not already present with Instance: ${adbInstance}`);
 	const serial = resolveSerialFromAdbInstance(adbInstance);
 	logger.info(`Got serial from adb instance: ${serial}`);
 	// probe remote server file via ls -l to verify existence/size
@@ -343,8 +343,7 @@ const pushServer = async (adbInstance, force = false) => {
 			for (let t of tokens) if (/^\d+$/.test(t)) return { exists: true, size: Number(t) };
 			return { exists: true, size: null };
 		} catch (e) {
-			logger.debug('probeRemoteServer failed:', e?.message || e);
-			return { exists: null, size: null };
+			logger.error(`probeRemoteServer failed: ${e?.message || e}`);
 		}
 	};
 
