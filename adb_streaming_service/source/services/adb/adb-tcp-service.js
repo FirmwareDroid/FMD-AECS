@@ -607,7 +607,38 @@ class AdbTcpService {
 		try {
 			logger.info(`Starting scrcpy client with options: ${JSON.stringify(options)} \n and deviceAdb: ${JSON.stringify(deviceAdb)} \n and server path: ${DEVICE_SERVER_PATH}`);
 			const client = await AdbScrcpyClient.start(deviceAdb, DEVICE_SERVER_PATH, options);
-			logger.info(`Got scrcpy client: ${JSON.stringify(client)}`);
+			// richer logging / validation: class instances often stringify to {} — inspect prototype/methods and hidden properties
+			import('node:util').then((util) => {
+				try {
+					const proto = client && Object.getPrototypeOf(client) ? Object.getOwnPropertyNames(Object.getPrototypeOf(client)) : [];
+					logger.info(`Got scrcpy client: type=${typeof client} protoKeys=${JSON.stringify(proto.slice(0,50))}`);
+					logger.debug(`Inspect client (showHidden, depth=2): ${util.inspect(client, { showHidden: true, depth: 2 })}`);
+				} catch (e) { logger.debug('Error inspecting scrcpy client', e?.message || e); }
+			});
+
+			// Validate client has at least one expected API (best-effort check)
+			const protoNames = client && Object.getPrototypeOf(client) ? Object.getOwnPropertyNames(Object.getPrototypeOf(client)) : [];
+			const hasClose = client && typeof client.close === 'function';
+			const hasOutput = client && client.output;
+			const controlRequested = options && options.value && options.value.control === true;
+			const hasController = !!(client && client.controller);
+			logger.debug(`scrcpy client validation: hasClose=${hasClose} hasOutput=${!!hasOutput} controlRequested=${controlRequested} hasController=${hasController}`);
+			if (!client || !hasClose || !hasOutput || (controlRequested && !hasController)) {
+				// collect diagnostics and throw detailed error to be visible to caller
+				const details = { clientTruthy: !!client, protoKeys: protoNames.slice(0,50), hasClose, hasOutput: !!hasOutput, controlRequested, hasController, server_length: server ? (server.byteLength || server.length || null) : null };
+				try {
+					if (deviceAdb && deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') {
+						details.logcat = await deviceAdb.subprocess.exec(["logcat", "-d", "-t", "200"]);
+						details.device_ls = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]);
+					}
+				} catch (e) {
+					logger.debug('Diagnostics collection failed', e?.message || e);
+				}
+				const err = new Error('AdbScrcpyClient.start returned unexpected/insufficient client object');
+				err.details = details;
+				throw err;
+			}
+
 			return { client, options };
 		} catch (err) {
 			const details = { message: err && err.message ? err.message : String(err), name: err && err.name ? err.name : 'Error', stack: err && err.stack ? err.stack : null, server_length: server ? (server.byteLength || server.length || null) : null, logcat: null, device_ls: null };
