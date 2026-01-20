@@ -71,7 +71,8 @@ services:
     env_file:
       - ./env/adb_streamer/.env
     networks:
-      - android
+      android:
+        ipv4_address: 172.31.250.3
     volumes:
       - './adb_streaming_service/source/apps:/app/source/apps'
       - ./env/adb_streamer/fmd.cert:/app/source/env/certs/fmd.crt
