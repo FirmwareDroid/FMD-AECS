@@ -341,6 +341,77 @@ FMD_DEBUG=False
 
 Modify the AVD (Android Virtual Device) configuration in `emulator/avd/` or create new configurations as needed.
 
+## Pi-hole and mitmproxy (Network) configuration
+
+If you run Pi-hole and/or mitmproxy alongside the emulator fleet you may want to redirect emulator HTTP(S) traffic through a local mitmproxy instance for inspection. Below are recommended host-level network and routing rules to mark and route traffic coming from the emulators' Docker network to the host's mitmproxy container. Use these commands on the Docker host (adjust the CIDR, bridge name and gateway to your environment).
+
+Important notes:
+- These commands modify the host's packet-marking, routing and kernel settings. Test carefully and document the changes on your host.
+- Replace `172.31.250.128/25`, `172.31.250.4` and `br-82bdd2902f50` with the CIDR, gateway and bridge for your Docker network.
+- The commands below assume you want to use policy routing: traffic from emulator containers will be marked (fwmark=1) and routed via a specific routing table that forwards to the mitmproxy host/gateway.
+
+1) Disable Docker's iptables behavior (optional but recommended when using manual host-level iptables rules)
+
+Create or edit `/etc/docker/daemon.json` and add:
+
+```json
+{
+  "iptables": false
+}
+```
+
+Then restart Docker:
+
+```bash
+sudo systemctl restart docker
+```
+
+2) Add iptables mangle rules to mark emulator traffic destined for HTTP(S)
+
+Run these on the Docker host (replace the CIDR and bridge/gateway values):
+
+```bash
+# According to https://docs.mitmproxy.org/stable/howto/transparent/
+sudo sysctl -w net.ipv4.ip_forward=1
+sudo sysctl -w net.ipv6.conf.all.forwarding=1
+
+### Setting up TPROXY redirection ###
+# mark outgoing HTTP traffic from emulator subnet
+sudo iptables -t mangle -A PREROUTING -s 172.31.250.128/25 -p tcp --dport 80 -j MARK --set-mark 1
+# mark outgoing HTTPS traffic from emulator subnet
+sudo iptables -t mangle -A PREROUTING -s 172.31.250.128/25 -p tcp --dport 443 -j MARK --set-mark 1
+```
+
+3) Create a policy routing rule and a routing table that sends marked traffic to the mitmproxy/gateway
+
+```bash
+# add rule to use table 100 for marked packets (fwmark == 1)
+sudo ip rule add fwmark 1 table 100
+
+# route marked packets via the gateway reachable on the Docker bridge
+# replace 172.31.250.4 and br-82bdd2902f50 with your gateway and bridge
+sudo ip route add default via 172.31.250.4 dev br-82bdd2902f50 table 100
+```
+
+4) Adjust reverse path filtering for the mitmproxy container's network namespace
+
+If mitmproxy runs in a Docker container, reverse-path filtering (rp_filter) inside that container may drop the forwarded packets. To disable rp_filter for the mitmproxy container's network namespace run:
+
+```bash
+# get PID of the mitmproxy container and use nsenter to change rp_filter sysctls
+MITM_PID=$(docker inspect -f '{{.State.Pid}}' mitmproxy)
+
+sudo nsenter -t $MITM_PID -n sysctl -w net.ipv4.conf.all.rp_filter=0
+sudo nsenter -t $MITM_PID -n sysctl -w net.ipv4.conf.default.rp_filter=0
+sudo nsenter -t $MITM_PID -n sysctl -w net.ipv4.conf.eth0.rp_filter=0
+```
+
+5) TLS interception: trust the mitmproxy CA inside containers
+
+If mitmproxy performs TLS interception you must import the mitmproxy CA into the system trust stores of the containers that need to trust intercepted TLS. An example step (Debian-based images) was already added to the emulator Dockerfile; the typical steps are:
+
+````markdown
+
 ## Directory Structure
 
 ```
