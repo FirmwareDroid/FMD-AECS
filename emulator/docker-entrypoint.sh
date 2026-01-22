@@ -4,6 +4,10 @@ set -e
 # Docker entrypoint for emulator container
 # Starts sshd and fail2ban, then after a short delay starts emulator_start.sh in the background.
 
+# Redirect host HTTP(S) traffic to emulator web server port 8080 for mitmproxy access
+iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8080
+
 # Allow overriding the delay (seconds) via EMULATOR_START_DELAY env var
 DELAY=${EMULATOR_START_DELAY:-5}
 
