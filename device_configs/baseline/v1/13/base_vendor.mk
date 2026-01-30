@@ -1,4 +1,4 @@
-
+#
 # Copyright (C) 2018 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,8 +25,10 @@ PRODUCT_PACKAGES += \
     linker.recovery \
     otacerts.recovery \
     recovery \
+    servicemanager.recovery \
     shell_and_utilities_recovery \
     watchdogd.recovery \
+{% for line in package_name_list -%}{{ line }}{%- endfor %}
 
 # These had been pulled in via init_second_stage.recovery, but may not be needed.
 PRODUCT_HOST_PACKAGES += \
@@ -57,6 +59,7 @@ PRODUCT_PACKAGES += \
     libdynproc \
     libeffectproxy \
     libeffects \
+    libhapticgenerator \
     libldnhncr \
     libreference-ril \
     libreverbwrapper \
@@ -66,19 +69,20 @@ PRODUCT_PACKAGES += \
     passwd_vendor \
     selinux_policy_nonsystem \
     shell_and_utilities_vendor \
-    vndservice \
-{% for line in package_name_list -%}{{ line }}{%- endfor %}
 
 # Base module when shipping api level is less than or equal to 29
 PRODUCT_PACKAGES_SHIPPING_API_LEVEL_29 += \
     android.hardware.configstore@1.1-service \
+    vndservice \
     vndservicemanager \
 
 # VINTF data for vendor image
 PRODUCT_PACKAGES += \
     vendor_compatibility_matrix.xml \
 
-# Packages to update the recovery partition, which will be installed on
-# /vendor. TODO(b/141648565): Don't install these unless they're needed.
+# Base modules and settings for the debug ramdisk, which is then packed
+# into a boot-debug.img and a vendor_boot-debug.img.
 PRODUCT_PACKAGES += \
-    applypatch
+    adb_debug.prop \
+    userdebug_plat_sepolicy.cil
+
