@@ -410,7 +410,7 @@ sudo nsenter -t $MITM_PID -n sysctl -w net.ipv4.conf.eth0.rp_filter=0
 
 If mitmproxy performs TLS interception you must import the mitmproxy CA into the system trust stores of the containers that need to trust intercepted TLS. An example step (Debian-based images) was already added to the emulator Dockerfile; the typical steps are:
 
-````markdown
+
 
 ## Directory Structure
 

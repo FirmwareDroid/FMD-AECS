@@ -2481,9 +2481,9 @@
     "./toolbox/ca_certificates/c8750f0d.0"
   ],
   "TOOLBOX_PACKAGE_DICT": {
-    "frida-server": "./toolbox/frida",
-    "fsmon": "./toolbox/fsmon",
-    "lldb-server": "./toolbox/lldb-server",
+    "frida-server_fmd": "./toolbox/frida",
+    "fsmon_fmd": "./toolbox/fsmon",
+    "lldb-server_fmd": "./toolbox/lldb-server",
     "wireguard_fmd": "./toolbox/wireguard_app",
     "acv_test_fmd": "./toolbox/acv_app_test"
   },

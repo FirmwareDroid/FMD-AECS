@@ -73,7 +73,8 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         if PRE_INJECTOR_CONFIG["ENABLE_INJECTION"]:
             included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target, aosp_version)
             if PRE_INJECTOR_CONFIG["ENABLE_TOOLBOX_INJECTION"]:
-                add_toolbox_packages_to_aosp(aosp_path)
+                toolbox_package = add_toolbox_packages_to_aosp(aosp_path)
+                included_package_statistics["toolbox"] = toolbox_package
                 logging.debug("Add toolbox modules")
         else:
             logging.debug("Skipping package injection as ENABLE_INJECTION is set to False.")
@@ -449,7 +450,7 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target, aosp
     """
     out_dir = os.path.join(aosp_path, MODULE_BASE_INJECT_DIR)
     os.makedirs(out_dir, exist_ok=True)
-    included_package_statistics = {"apps": [], "libs": [], "apex": [], "count": 0, "skipped_apps": [], "skipped_libs": [], "skipped_apex": []}
+    included_package_statistics = {"apps": [], "libs": [], "apex": [], "count": 0, "skipped_apps": [], "skipped_libs": [], "skipped_apex": [], "toolbox": []}
     for dir_name in os.listdir(extracted_packages_path):
         package_path = os.path.join(extracted_packages_path, dir_name)
         if os.path.isdir(package_path):
@@ -495,7 +496,7 @@ def inject_toolbox_packages_to_aosp(aosp_path):
     for module_name, toolbox_dir in toolbox_packages_dict.items():
         if not os.path.exists(toolbox_dir):
             logging.debug(f"No toolbox directory found at {toolbox_dir}. Skipping toolbox injection.")
-            return
+            return []
         dir_name = os.path.basename(toolbox_dir)
         dst_dir = str(os.path.join(aosp_path, MODULE_BASE_INJECT_DIR, dir_name))
         shutil.copytree(toolbox_dir, dst_dir, dirs_exist_ok=True)
@@ -506,6 +507,7 @@ def inject_toolbox_packages_to_aosp(aosp_path):
             shutil.copyfile(lldb_path, dst_file_path)
             logging.info(f"Copied LLDB binary from {lldb_path} to {dst_file_path}")
         logging.info(f"Injected toolbox packages from {toolbox_dir} into AOSP source code at {dst_dir}.")
+    return list(toolbox_packages_dict.keys())
 
 
 def add_toolbox_packages_to_meta_file():
@@ -529,9 +531,10 @@ def add_toolbox_packages_to_aosp(aosp_path):
     analysis, or additional functionalities that enhance the AOSP build.
     """
     inject_ca_certificate(aosp_path)
-    inject_toolbox_packages_to_aosp(aosp_path)
+    toolbox_list = ["ca_certificate"]
+    toolbox_list.extend(inject_toolbox_packages_to_aosp(aosp_path))
     add_toolbox_packages_to_meta_file()
-
+    return toolbox_list
 
 def process_package(package_path, dir_name, aosp_path, out_dir, included_package_statistics, lunch_target, aosp_version):
     """
