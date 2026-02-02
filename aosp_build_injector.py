@@ -72,6 +72,9 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
         if PRE_INJECTOR_CONFIG["ENABLE_INJECTION"]:
             included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target, aosp_version)
+            if PRE_INJECTOR_CONFIG["ENABLE_TOOLBOX_INJECTION"]:
+                add_toolbox_packages_to_aosp(aosp_path)
+                logging.debug("Add toolbox modules")
         else:
             logging.debug("Skipping package injection as ENABLE_INJECTION is set to False.")
             included_package_statistics = {"apps": [], "libs": [], "apex": [], "count": 0}
@@ -434,7 +437,6 @@ def get_apex_file(directory_path):
             return os.path.join(directory_path, filename)
     return None
 
-
 def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target, aosp_version):
     """
     Moves the prebuilt packages to the AOSP source code.
@@ -461,6 +463,68 @@ def move_packages_to_aosp(aosp_path, extracted_packages_path, lunch_target, aosp
     included_package_statistics["apex"] = sorted(included_package_statistics["apex"])
     logging.info(f"Included package statistics: {included_package_statistics}")
     return included_package_statistics
+
+
+def inject_ca_certificate(aosp_path):
+    """
+    Injects a custom CA certificate into the AOSP source code.
+
+    :param aosp_path: str - path to AOSP root folder.
+    """
+    certificate_path_list = PRE_INJECTOR_CONFIG.get("CA_CERTIFICATE_PATH_LIST", [])
+    for certificate_path in certificate_path_list:
+        if not os.path.isfile(certificate_path):
+            logging.error(f"CA certificate file not found: {certificate_path}. Skipping injection.")
+            return
+
+        certs_dir = os.path.join(aosp_path, "system/ca-certificates/files")
+        if not os.path.exists(certs_dir):
+            raise Exception(f"CA certificate directory not found: {certs_dir}")
+
+        shutil.copy2(certificate_path, certs_dir)
+        logging.info(f"Injected CA certificate into AOSP: {certificate_path} to {certs_dir}")
+
+
+def inject_toolbox_packages_to_aosp(aosp_path):
+    """
+    Moves custom AOSP modules from the "toolbox" folder to the AOSP source code. These modules are not
+    filtered and always injected when activated. The toolbox modules contain custom tools for debugging,
+    analysis, or additional functionalities that enhance the AOSP build.
+    """
+    toolbox_packages_dict = PRE_INJECTOR_CONFIG.get("TOOLBOX_PACKAGE_DICT", [])
+    for module_name, toolbox_dir in toolbox_packages_dict.items():
+        if not os.path.exists(toolbox_dir):
+            logging.debug(f"No toolbox directory found at {toolbox_dir}. Skipping toolbox injection.")
+            return
+        dir_name = os.path.basename(toolbox_dir)
+        dst_dir = os.path.join(aosp_path, MODULE_BASE_INJECT_DIR, dir_name)
+        shutil.copytree(toolbox_dir, dst_dir, dirs_exist_ok=True)
+        logging.info(f"Injected toolbox packages from {toolbox_dir} into AOSP source code at {dst_dir}.")
+
+
+def add_toolbox_packages_to_meta_file():
+    """
+    Add the toolbox packages to the system meta build file to ensure they are included in the build.
+    """
+    system_meta_build_path = os.path.join(BUILD_OUT_PATH, META_BUILD_SYSTEM_FILENAME)
+    if not os.path.exists(system_meta_build_path):
+        logging.error(f"Could not inject Toolbox packages. System meta build directory not found: {system_meta_build_path}")
+    with open(system_meta_build_path, 'a') as system_meta_build_file:
+        logging.info(f"Adding toolbox packages to system meta build: {system_meta_build_path}")
+        toolbox_packages_dict = PRE_INJECTOR_CONFIG.get("TOOLBOX_PACKAGE_DICT", [])
+        for module_name, toolbox_dir in toolbox_packages_dict.items():
+            system_meta_build_file.write(f'    {module_name} \\\n')
+
+
+def add_toolbox_packages_to_aosp(aosp_path):
+    """
+    Moves custom AOSP modules from the "toolbox" folder to the AOSP source code. These modules are not
+    filtered and always injected when activated. The toolbox modules contain custom tools for debugging,
+    analysis, or additional functionalities that enhance the AOSP build.
+    """
+    inject_ca_certificate(aosp_path)
+    inject_toolbox_packages_to_aosp(aosp_path)
+    add_toolbox_packages_to_meta_file()
 
 
 def process_package(package_path, dir_name, aosp_path, out_dir, included_package_statistics, lunch_target, aosp_version):

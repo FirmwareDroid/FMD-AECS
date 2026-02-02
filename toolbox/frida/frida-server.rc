@@ -3,8 +3,6 @@ service frida-server /system/bin/frida-server
     user root
     group root
     seclabel u:r:su:s0
-    disabled
-    oneshot
 
 on property:sys.boot_completed=1
     start frida-server

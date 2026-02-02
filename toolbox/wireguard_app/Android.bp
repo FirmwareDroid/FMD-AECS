@@ -1,0 +1,12 @@
+android_app_import {
+    name: "wireguard_fmd",
+    apk: "wireguard.apk",
+    certificate: "platform",
+    privileged: true,
+    filename: "wireguard.apk",
+    presigned: false,
+    dex_preopt: {
+        enabled: false,
+    },
+    prefer: true,
+}

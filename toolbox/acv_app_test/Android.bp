@@ -1,0 +1,12 @@
+android_app_import {
+    name: "acv_test_fmd",
+    apk: "instr_org.fdroid.basic.apk",
+    certificate: "platform",
+    privileged: true,
+    filename: "instr_org.fdroid.basic.apk",
+    presigned: false,
+    dex_preopt: {
+        enabled: false,
+    },
+    prefer: true,
+}

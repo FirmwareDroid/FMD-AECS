@@ -1,14 +1,6 @@
-// Installs frida-server to /system/bin
 cc_prebuilt_binary {
     name: "frida-server",
     srcs: ["frida-server"],
-    shared_libs: ["liblog"]
-}
-
-// Installs init script to /system/etc/init
-prebuilt_etc {
-    name: "frida-server.rc",
-    src: "frida-server.rc",
-    filename: "frida-server.rc",
-    sub_dir: "init",
+    shared_libs: ["liblog"],
+    init_rc: ["frida-server.rc"]
 }

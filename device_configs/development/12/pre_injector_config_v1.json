@@ -4,16 +4,46 @@
   "ALLOW_APEX_REPACKING_IN_PRE_INJECTOR": false,
   "DISABLE_NATIVE_LIBRARY_INJECTION": true,
   "DISABLE_APP_INJECTION": true,
-  "DISALLOWED_APK_KEYWORDS": ["PermissionController", "GooglePermissionControllerOverlay","ServiceWifiResources",
-    "PixelLiveWallpaper", "WallpapersBReel", "WallpaperPickerGoogle",
-    "TetheringGoogle", "MediaProviderGoogle", "NetworkStackGoogle",
-    "NetworkPermissionConfigGoogle","CaptivePortalLoginGoogle", "NetworkStackOverlay",
-    "CaptivePortalLoginOverlay", "Iwlan", "ONS", "PacProcessor", "VpnDialogs",
-    "TetheringEntitlement", "ShannonQualifiedNetworksService",
-    "ShannonIms", "TeleService", "Telecom", "TelephonyProvider",
-    "PixelConnectivityOverlay2021", "VpnDialogs", "CellBroadcast"],
-  "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
-  "ALLOW_APP_KEYWORD_ALWAYS_LIST": ["ExtServices", "ExtShared", "AndroidPlatformServices", "ServicesFramework", "SystemUIGoogle", "DocumentsUIGoogle", "NexusLauncherRelease"],
+  "DISALLOWED_APK_KEYWORDS": [
+    "PermissionController",
+    "GooglePermissionControllerOverlay",
+    "ServiceWifiResources",
+    "PixelLiveWallpaper",
+    "WallpapersBReel",
+    "WallpaperPickerGoogle",
+    "TetheringGoogle",
+    "MediaProviderGoogle",
+    "NetworkStackGoogle",
+    "NetworkPermissionConfigGoogle",
+    "CaptivePortalLoginGoogle",
+    "NetworkStackOverlay",
+    "CaptivePortalLoginOverlay",
+    "Iwlan",
+    "ONS",
+    "PacProcessor",
+    "VpnDialogs",
+    "TetheringEntitlement",
+    "ShannonQualifiedNetworksService",
+    "ShannonIms",
+    "TeleService",
+    "Telecom",
+    "TelephonyProvider",
+    "PixelConnectivityOverlay2021",
+    "VpnDialogs",
+    "CellBroadcast"
+  ],
+  "DISALLOWED_APK_PACKAGES": [
+    "MicrosoftOneDrive"
+  ],
+  "ALLOW_APP_KEYWORD_ALWAYS_LIST": [
+    "ExtServices",
+    "ExtShared",
+    "AndroidPlatformServices",
+    "ServicesFramework",
+    "SystemUIGoogle",
+    "DocumentsUIGoogle",
+    "NexusLauncherRelease"
+  ],
   "SHARED_USER_ID_MAPPING_DICT": {
     "media": [
       "android.media",
@@ -2474,5 +2504,17 @@
     "libprotobuf-cpp-lite.so",
     "libgui.so",
     "libfs_mgr.so"
-  ]
+  ],
+  "ENABLE_TOOLBOX_INJECTION": true,
+  "CA_CERTIFICATE_PATH_LIST": [
+    "./toolbox/ca_certificates/9a5ba575.0",
+    "./toolbox/ca_certificates/c8750f0d.0"
+  ],
+  "TOOLBOX_PACKAGE_DICT": {
+    "frida-server": "./toolbox/frida",
+    "fsmon": "./toolbox/fsmon",
+    "lldb-server": "./toolbox/lldb-server",
+    "wireguard_fmd": "./toolbox/wireguard_app",
+    "acv_test_fmd": "./toolbox/acv_app_test"
+  }
 }
