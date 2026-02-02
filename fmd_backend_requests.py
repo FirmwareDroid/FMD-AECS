@@ -34,6 +34,7 @@ def authenticate_fmd(graphql_url, username, password, csrf_cookie):
                        verify=VERIFY_SSL,
                        params=params) as response:
         if response.status_code != 200:
+            logging.error(f"Could not authenticate. Status code: {response.status_code}; response: {response.text}")
             raise RuntimeError(f"Could not authenticate. Status code: {response.status_code}")
         else:
             resp_dict = response.json()

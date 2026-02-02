@@ -68,7 +68,7 @@ APEX_PUBKEY_PATH = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "apex.x509.pem")
 BUILD_RETRY_COUNT = 1
 FMD_GRAPHQL_URL_TEMPLATE = '${url}/graphql/'
 FMD_AUTH_QUERY_TEMPLATE = '{"query": "query Auth ' \
-                          '{tokenAuth(password: \\\"${password}\\\", username: \\\"${username}\\\") {token}}",' \
+                          '{tokenAuth(password: \\\"${password}\\\", username: \\\"${username}\\\") {payload}}",' \
                           '"operationName": "Auth"}'
 FMD_APP_MANIFEST_QUERY_TEMPLATE = '{"query": "query GetManifest ' \
                                    '{android_app_list(fieldFilter: {filename: \\\"${filename}\\\", firmware_id_reference: \\\"${firmware_id}\\\"}) {androidManifestDict}}",' \
