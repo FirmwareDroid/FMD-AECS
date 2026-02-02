@@ -37,10 +37,10 @@ def authenticate_fmd(graphql_url, username, password, csrf_cookie):
             logging.error(f"Could not authenticate. Status code: {response.status_code}; response: {response.text}")
             raise RuntimeError(f"Could not authenticate. Status code: {response.status_code}")
         else:
-            resp_dict = response.json()
-            jwt_token = resp_dict["data"]["tokenAuth"]["token"]
-            if not jwt_token:
-                raise RuntimeError("Could not authenticate.")
+            #resp_dict = response.json()
+            #jwt_token = resp_dict["data"]["tokenAuth"]["token"]
+            #if not jwt_token:
+            #    raise RuntimeError("Could not authenticate.")
             auth_cookie = response.cookies
     return auth_cookie
 
