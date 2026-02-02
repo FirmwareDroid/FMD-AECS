@@ -1265,19 +1265,22 @@ def main():
         raise RuntimeError(f"Please enter your FMD username/password ({args.fmd_username}): ")
 
     aosp_version = args.aosp_version
-    if aosp_version not in ["11", "12", "13", "14"]:
-        raise RuntimeError("Please provide a valid AOSP version argument (11, 12, 13, 14).")
+    if aosp_version not in ["12", "13", "14"]:
+        raise RuntimeError("Please provide a valid AOSP version argument (12, 13, 14).")
 
-    if aosp_version in ["11", "12"]:
-        test = os.environ.get("FMD_PHONE64_TEST_BUILD") == "True"
-        if test and aosp_version == "12":
-            lunch_target = "sdk_phone64_arm64-userdebug"
-        else:
-            lunch_target = "sdk_phone_arm64-userdebug"
+    if aosp_version in ["12"]:
+        lunch_target = "sdk_phone64_arm64-userdebug"
+        #test = os.environ.get("FMD_PHONE64_TEST_BUILD") == "True"
+        #if test and aosp_version == "12":
+        #    lunch_target = "sdk_phone64_arm64-userdebug"
+        #else:
+        #    lunch_target = "sdk_phone_arm64-userdebug"
     elif aosp_version == "13":
         lunch_target = "sdk_phone64_arm64-userdebug"
     elif aosp_version == "14":
         lunch_target = "sdk_phone64_arm64-ap2a-userdebug"
+    else:
+        raise RuntimeError("Please provide a valid lunch target argument.")
 
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")

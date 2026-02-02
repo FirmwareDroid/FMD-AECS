@@ -2474,5 +2474,18 @@
     "libprotobuf-cpp-lite.so",
     "libgui.so",
     "libfs_mgr.so"
-  ]
+  ],
+  "ENABLE_TOOLBOX_INJECTION": true,
+  "CA_CERTIFICATE_PATH_LIST": [
+    "./toolbox/ca_certificates/9a5ba575.0",
+    "./toolbox/ca_certificates/c8750f0d.0"
+  ],
+  "TOOLBOX_PACKAGE_DICT": {
+    "frida-server": "./toolbox/frida",
+    "fsmon": "./toolbox/fsmon",
+    "lldb-server": "./toolbox/lldb-server",
+    "wireguard_fmd": "./toolbox/wireguard_app",
+    "acv_test_fmd": "./toolbox/acv_app_test"
+  },
+  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r416183b/runtimes_ndk_cxx/aarch64/lldb-server"
 }

@@ -497,8 +497,14 @@ def inject_toolbox_packages_to_aosp(aosp_path):
             logging.debug(f"No toolbox directory found at {toolbox_dir}. Skipping toolbox injection.")
             return
         dir_name = os.path.basename(toolbox_dir)
-        dst_dir = os.path.join(aosp_path, MODULE_BASE_INJECT_DIR, dir_name)
+        dst_dir = str(os.path.join(aosp_path, MODULE_BASE_INJECT_DIR, dir_name))
         shutil.copytree(toolbox_dir, dst_dir, dirs_exist_ok=True)
+        if module_name == "lldb-server":
+            lldb_path = os.path.join(aosp_path, PRE_INJECTOR_CONFIG["LLDB_BINARY_PATH"])
+            lldb_file_name = str(os.path.basename(lldb_path))
+            dst_file_path = os.path.join(dst_dir, lldb_file_name)
+            shutil.copyfile(lldb_path, dst_file_path)
+            logging.info(f"Copied LLDB binary from {lldb_path} to {dst_file_path}")
         logging.info(f"Injected toolbox packages from {toolbox_dir} into AOSP source code at {dst_dir}.")
 
 
@@ -1113,11 +1119,11 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     if args.arch == SUPPORTED_ARCHITECTURES[0]:
         lunch_target = SUPPORTED_LUNCH_TARGETS[0]
     else:
-        test = os.environ.get("FMD_PHONE64_TEST_BUILD") == "True"
+        #test = os.environ.get("FMD_PHONE64_TEST_BUILD") == "True"
         if aosp_version in ["11", "12"]:
-            lunch_target = SUPPORTED_LUNCH_TARGETS[1]
-            if test:
-                lunch_target = SUPPORTED_LUNCH_TARGETS[2]
+            #lunch_target = SUPPORTED_LUNCH_TARGETS[1]
+            #if test:
+            lunch_target = SUPPORTED_LUNCH_TARGETS[2]
         elif aosp_version in ["13"]:
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]
         elif aosp_version in ["14"]:
