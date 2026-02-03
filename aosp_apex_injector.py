@@ -512,17 +512,15 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
 
     file_contexts_path = os.path.join(aosp_path, "system", "sepolicy", "apex", f"com.android.fmd.{filename}-file_contexts")
 
-    if aosp_version == "13":
+    if aosp_version == "12":
         apex_out_file = os.path.join(aosp_path, "out", "target", "product", "emulator64_arm64", partition_name, "apex",
                                      apex_file_name)
-    elif aosp_version == "14":
-        apex_out_file = os.path.join(aosp_path, "out", "target", "product", "emu64a", partition_name, "apex",
+    elif aosp_version == "13":
+        apex_out_file = os.path.join(aosp_path, "out", "target", "product", "emulator64_arm64", partition_name, "apex",
                                      apex_file_name)
     else:
-        apex_out_file = os.path.join(aosp_path, "out", "target", "product", "emulator_arm64", partition_name, "apex",
+        apex_out_file = os.path.join(aosp_path, "out", "target", "product", "emu64a", partition_name, "apex",
                                      apex_file_name)
-
-
 
     is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path \
         = create_and_sign_apex_repack_container(apex_manifest_path=apex_manifest_path_pb,
@@ -802,8 +800,9 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
         if os.path.exists(apex_manifest_path):
             logging.info(
                 f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
-            convert_manifest_from_json(apex_manifest_path=apex_manifest_path, out_file_path=apex_manifest_path_pb, aosp_path=aosp_path, lunch_target=lunch_target)
+            is_success, log_message = convert_manifest_from_json(apex_manifest_path=apex_manifest_path, out_file_path=apex_manifest_path_pb, aosp_path=aosp_path, lunch_target=lunch_target)
             if not os.path.exists(apex_manifest_path_pb):
+                logging.error(f"Failure converting APEX manifest to Protobuf format: {log_message}")
                 logging.error(f"APEX manifest Protobuf file not created: {apex_manifest_path_pb}. EXIT PROGRAM!")
                 traceback.print_stack()
                 exit(-1)

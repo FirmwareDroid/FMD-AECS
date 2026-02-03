@@ -56,7 +56,8 @@ SUPPORTED_ARCHITECTURES = ["x86_64", "arm64"]
 SUPPORTED_LUNCH_TARGETS = ["sdk_phone_x86_64-userdebug",  # Android 11 / 12 / 13 "sdk_x86_64-userdebug"
                            "sdk_phone_arm64-userdebug",  # Android 12 -> Works
                            "sdk_phone64_arm64-userdebug",  # Android 13 "sdk_arm64-userdebug"
-                           "sdk_phone64_arm64-ap2a-userdebug"
+                           "sdk_phone64_arm64-ap2a-userdebug",  # Android 14
+                           "sdk_phone64_arm64-trunk_staging-userdebug" # Android 15 / 16
                            ]
 NAME_BUILD_FILE_LOG = "results_build_times.json"
 NAME_BUILD_INJECTOR_LOG = "results_build_injector.json"

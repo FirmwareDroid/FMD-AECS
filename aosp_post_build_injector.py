@@ -1021,12 +1021,16 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
     #        logging.info(f"AOSP 12 lib adjustment for file: {filename} into {target_file_injection_path}")
 
     if filename in POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"]:
-        if "phone64" in  lunch_target:
-            target_file_injection_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64", POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"][filename])
-            logging.info(f"Direct Injection via specific target path overwrite for file: {filename} into {target_file_injection_path}")
-        else:
-            target_file_injection_path = os.path.join(aosp_path, "out/target/product/emulator_arm64", POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"][filename])
-            logging.info(f"Direct Injection via specific target path overwrite for file: {filename} into {target_file_injection_path}")
+        target_file_injection_path = os.path.join(aosp_path,
+                                                  "out/target/product/emulator64_arm64",
+                                                  POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"][filename]
+                                                  )
+        logging.info(f"Direct Injection via specific target path overwrite "
+                     f"for file: {filename} into {target_file_injection_path}")
+        #if "phone64" in  lunch_target:
+        #else:
+        #    target_file_injection_path = os.path.join(aosp_path, "out/target/product/emulator_arm64", POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"][filename])
+        #    logging.info(f"Direct Injection via specific target path overwrite for file: {filename} into {target_file_injection_path}")
 
 
     if (filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in
@@ -1136,12 +1140,12 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
     root_path = get_path_up_to_first_term(source_file_path, partition_name)
     logging.info(f"{source_file_path} - Root path: {root_path}")
     relative_source_path = source_file_path.replace(root_path, "")
-    if aosp_version and int(aosp_version) == 13:
+    if aosp_version and int(aosp_version) in ["12", "13"]:
         abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64", relative_source_path)
     elif aosp_version and int(aosp_version) >= 14:
         abs_source_path = os.path.join(aosp_path, "out/target/product/emu64a", relative_source_path)
     else:
-        abs_source_path = os.path.join(aosp_path, "out/target/product/emulator_arm64", relative_source_path)
+        abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64", relative_source_path)
 
     inject_commands = [f"os.remove('{abs_source_path}')",f"subprocess.call(['ln', '-s', '{target_path}', '{abs_source_path}'])"]
     injection_marker = "####### FMD INJECTION MARKER #######"
@@ -1279,6 +1283,8 @@ def main():
         lunch_target = "sdk_phone64_arm64-userdebug"
     elif aosp_version == "14":
         lunch_target = "sdk_phone64_arm64-ap2a-userdebug"
+    elif aosp_version in ["15", "16"]:
+        lunch_target = "sdk_phone64_arm64-trunk_staging-userdebug"
     else:
         raise RuntimeError("Please provide a valid lunch target argument.")
 

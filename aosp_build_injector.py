@@ -104,6 +104,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         package_name_list.extend(included_package_statistics["apps"])
         package_name_list.extend(included_package_statistics["libs"])
         package_name_list.extend(included_package_statistics["apex"])
+        package_name_list.extend(included_package_statistics["toolbox"])
         inject_meta_files(aosp_path, aosp_version, package_name_list)
         logging.debug(f"Injected meta files into aosp source code: {aosp_path}")
     except Exception as err:
@@ -194,7 +195,7 @@ def get_emulator_image_path(aosp_path, lunch_target, aosp_version):
                 image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
     elif aosp_version == "13":
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
-    elif aosp_version in ["14", "15"]:
+    elif aosp_version in ["14", "15", "16"]:
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14, AOSP_EMU_ZIP_FILENAME)
 
     if not os.path.exists(image_source_path):
@@ -531,7 +532,7 @@ def add_toolbox_packages_to_aosp(aosp_path):
     analysis, or additional functionalities that enhance the AOSP build.
     """
     inject_ca_certificate(aosp_path)
-    toolbox_list = ["ca_certificate"]
+    toolbox_list = []
     toolbox_list.extend(inject_toolbox_packages_to_aosp(aosp_path))
     add_toolbox_packages_to_meta_file()
     return toolbox_list
@@ -1131,6 +1132,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]
         elif aosp_version in ["14"]:
             lunch_target = SUPPORTED_LUNCH_TARGETS[3]
+        elif aosp_version in ["15", "16"]:
+            lunch_target = SUPPORTED_LUNCH_TARGETS[4]
         else:
             raise RuntimeError(f"Unsupported Android version: {args.version}")
     logging.debug(f"Downloading and extracting app packages to: {aosp_packages_abs_path}")
