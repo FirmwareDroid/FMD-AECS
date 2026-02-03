@@ -78,7 +78,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
                 logging.debug("Add toolbox modules")
         else:
             logging.debug("Skipping package injection as ENABLE_INJECTION is set to False.")
-            included_package_statistics = {"apps": [], "libs": [], "apex": [], "count": 0}
+            included_package_statistics = {"apps": [], "libs": [], "apex": [], "toolbox": [], "count": 0}
     except Exception as e:
         logging.error(f"Error moving packages to aosp source code: {e}. EXIT PROGRAM!")
         traceback.print_exc()
@@ -532,7 +532,7 @@ def add_toolbox_packages_to_aosp(aosp_path):
     analysis, or additional functionalities that enhance the AOSP build.
     """
     inject_ca_certificate(aosp_path)
-    toolbox_list = []
+    toolbox_list = ["curl"]  # Adding tools from AOSP
     toolbox_list.extend(inject_toolbox_packages_to_aosp(aosp_path))
     add_toolbox_packages_to_meta_file()
     return toolbox_list
