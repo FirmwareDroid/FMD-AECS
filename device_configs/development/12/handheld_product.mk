@@ -19,20 +19,20 @@
 # it definitely doesn't belong on other types of devices (if it
 # does, use base_product.mk).
 $(call inherit-product, $(SRC_TARGET_DIR)/product/media_product.mk)
+# Calendar \
+# Contacts \
+# Gallery2 \
+# LatinIME \
+# Browser2 \
+# Camera2 \
+# DeskClock \
+# Music \
+# QuickSearchBox \
 
 # /product packages
 PRODUCT_PACKAGES += \
-    Browser2 \
-    Calendar \
-    Camera2 \
-    Contacts \
-    DeskClock \
-    Gallery2 \
-    LatinIME \
-    Music \
     OneTimeInitializer \
     preinstalled-packages-platform-handheld-product.xml \
-    QuickSearchBox \
     SettingsIntelligence \
     frameworks-base-overlays
 {% for line in package_name_list -%}{{ line }}{%- endfor %}

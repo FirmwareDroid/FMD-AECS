@@ -1,5 +1,5 @@
 android_app_import {
-    name: "acv_test_toolbox",
+    name: "Acv_test_toolbox",
     apk: "instr_org.fdroid.basic.apk",
     certificate: "platform",
     privileged: true,
