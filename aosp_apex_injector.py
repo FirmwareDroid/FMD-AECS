@@ -593,13 +593,18 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
 
     info = f"APEX: conv_apex_manifest tool path: {converter_path}|{cleaned_manifest}|{out_file_path}|{lunch_target}"
     logging.info(info)
-    command = f"bash -c 'cd {aosp_path} && source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
-               f"&& {converter_path} proto -o {out_file_path} {cleaned_manifest}'"
-    is_success, log = execute_shell_command(command, aosp_path)
-    if not is_success:
-        logging.error(f"APEX: conv_apex_manifest conversion command failed. Trying again: {command} | {is_success} | {log}")
+    attempt = 0
+    is_success = False
+    log = ""
+    while attempt < 3 and not is_success:
+        command = f"bash -c 'cd {aosp_path} && source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
+                   f"&& {converter_path} proto -o {out_file_path} {cleaned_manifest}'"
         is_success, log = execute_shell_command(command, aosp_path)
-    logging.info(f"APEX: conv_apex_manifest extraction command: {command} | {is_success} | {log}")
+        if not is_success:
+            logging.error(f"APEX: conv_apex_manifest conversion command failed. Trying again: {command} | {is_success} | {log}")
+            is_success, log = execute_shell_command(command, aosp_path)
+        logging.info(f"APEX: conv_apex_manifest extraction command: {command} | {is_success} | {log}")
+
     return is_success, {f"ERROR: {log}| More infos: {info}"}
 
 
