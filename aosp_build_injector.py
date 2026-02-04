@@ -329,7 +329,7 @@ def delete_directory_if_exists(directory_path):
 
 def get_directory_size(directory_path):
     """
-    Calculate the size of directories starting with 'ib_' in bytes.
+    Calculate the size of directories in bytes.
 
     :param directory_path: str - path to the directory to calculate the size of.
 
@@ -359,7 +359,7 @@ def get_minimal_partition_size(aosp_path, aosp_packages_path):
     approximate_size = get_directory_size(packages_abs_path)
     default_size = 4294967296  # 4GB
     additional_gb_in_bytes = 1073741824 * 64  # 64GB
-    twenty_gb_in_bytes = 1073741824 * 10  # 10GB
+    twenty_gb_in_bytes = 1073741824 * 15  # 15GB
     while default_size < (approximate_size + twenty_gb_in_bytes):
         default_size += additional_gb_in_bytes
         logging.debug(f"Increasing partition size to: {default_size} Approximate bytes of packages "
