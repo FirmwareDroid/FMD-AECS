@@ -1,5 +1,5 @@
 android_app_import {
-    name: "wireguard_fmd",
+    name: "wireguard_toolbox",
     apk: "wireguard.apk",
     certificate: "platform",
     privileged: true,

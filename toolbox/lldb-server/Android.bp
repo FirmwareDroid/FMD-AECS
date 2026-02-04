@@ -1,6 +1,6 @@
 // Installs frida-server to /system/bin
 cc_prebuilt_binary {
-    name: "lldb-server_fmd",
+    name: "lldb-server_toolbox",
     srcs: ["lldb-server"],
     init_rc: ["lldb-server.rc"]
 }

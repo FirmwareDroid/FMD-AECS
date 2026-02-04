@@ -264,9 +264,9 @@ def extract_package_names(meta_build_path, package_name_list):
         for line in meta_build_file:
             stripped_line = clean_package_name(line)
             if stripped_line not in package_name_list:
-                logging.debug(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
+                logging.info(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
             else:
-                logging.debug(f"Allowing module meta in build: {line}")
+                logging.info(f"Allowing module meta in build: {line}")
                 package_line_list.append(line)
     return package_line_list
 
@@ -511,7 +511,7 @@ def inject_toolbox_packages_to_aosp(aosp_path):
     return list(toolbox_packages_dict.keys())
 
 
-def add_toolbox_packages_to_meta_file():
+def add_toolbox_packages_to_meta_file(toolbox_list):
     """
     Add the toolbox packages to the system meta build file to ensure they are included in the build.
     """
@@ -520,8 +520,7 @@ def add_toolbox_packages_to_meta_file():
         logging.error(f"Could not inject Toolbox packages. System meta build directory not found: {system_meta_build_path}")
     with open(system_meta_build_path, 'a') as system_meta_build_file:
         logging.info(f"Adding toolbox packages to system meta build: {system_meta_build_path}")
-        toolbox_packages_dict = PRE_INJECTOR_CONFIG.get("TOOLBOX_PACKAGE_DICT", [])
-        for module_name, toolbox_dir in toolbox_packages_dict.items():
+        for module_name in toolbox_list:
             system_meta_build_file.write(f'    {module_name} \\\n')
 
 
@@ -534,7 +533,7 @@ def add_toolbox_packages_to_aosp(aosp_path):
     inject_ca_certificate(aosp_path)
     toolbox_list = ["curl"]  # Adding tools from AOSP
     toolbox_list.extend(inject_toolbox_packages_to_aosp(aosp_path))
-    add_toolbox_packages_to_meta_file()
+    add_toolbox_packages_to_meta_file(toolbox_list)
     return toolbox_list
 
 def process_package(package_path, dir_name, aosp_path, out_dir, included_package_statistics, lunch_target, aosp_version):
