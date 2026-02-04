@@ -501,7 +501,7 @@ def inject_toolbox_packages_to_aosp(aosp_path):
         dir_name = os.path.basename(toolbox_dir)
         dst_dir = str(os.path.join(aosp_path, MODULE_BASE_INJECT_DIR, dir_name))
         shutil.copytree(toolbox_dir, dst_dir, dirs_exist_ok=True)
-        if module_name == "lldb-server_fmd":
+        if module_name == "lldb-server_toolbox":
             lldb_path = os.path.join(aosp_path, PRE_INJECTOR_CONFIG["LLDB_BINARY_PATH"])
             lldb_file_name = str(os.path.basename(lldb_path))
             dst_file_path = os.path.join(dst_dir, lldb_file_name)
