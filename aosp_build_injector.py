@@ -904,7 +904,7 @@ def reset_post_injection_files(aosp_path):
 
 def replace_build_image_file(aosp_path):
     build_image_file_path = os.path.join(aosp_path, "build/make/tools/releasetools/build_image.py")
-    template_build_image_path = os.path.join(TEMPLATE_FOLDER, "build_image.py")
+    template_build_image_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "build_image.py")
     logging.info(f"Restore build image file {build_image_file_path} with {template_build_image_path}")
     try:
         shutil.copyfile(template_build_image_path, build_image_file_path)
