@@ -1,5 +1,6 @@
 cc_prebuilt_binary {
     name: "frida-server_toolbox",
+    stem: "frida-server",
     srcs: ["frida-server"],
     shared_libs: ["liblog"],
     init_rc: ["frida-server.rc"]
