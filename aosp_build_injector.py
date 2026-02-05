@@ -72,7 +72,7 @@ def add_acvtool_instrumentation(firmware_id):
         out_folder = os.path.join(str(firmware_folder), base_dir)
         os.makedirs(out_folder, exist_ok=True)
         logging.info(f"Created output folder for ACVTool: {out_folder}")
-        acvtool_instrument_command = f"source ./venv/bin/activate && acv instrument -f {apk_path} --wd {out_folder}"
+        acvtool_instrument_command = f"source ./venv/bin/activate && ./venv/bin/acv instrument -f {apk_path} --wd {out_folder}"
         logging.info(f"Starting ACVTool instrumentation with command: {acvtool_instrument_command}")
 
         file_start = time.time()
