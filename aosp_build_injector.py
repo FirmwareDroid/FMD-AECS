@@ -45,6 +45,7 @@ def delete_files(dir_path):
         os.remove(f)
 
 
+# python
 def add_acvtool_instrumentation(firmware_id):
     """
     Adds ACVTool instrumentation to the AOSP source code and measures duration.
@@ -54,6 +55,13 @@ def add_acvtool_instrumentation(firmware_id):
     and failures.
     """
     result_dict = {"success": [], "failed": []}
+
+    # Check if `acv` is available either on PATH or in a local ./venv/bin/acv
+    venv_acv = os.path.join(os.getcwd(), "venv", "bin", "acv")
+    if shutil.which("acv") is None and not os.path.exists(venv_acv):
+        logging.error("ACVTool `acv` not found in PATH and no local `venv/bin/acv` found. Skipping ACVTool instrumentation.")
+        return result_dict
+
     apk_path_list = glob.glob(os.path.join(EXTRACTED_PACKAGES_PATH, "**", "*.apk"), recursive=True)
     logging.info(f"Found {len(apk_path_list)} APK files for ACVTool instrumentation.")
 
@@ -72,12 +80,18 @@ def add_acvtool_instrumentation(firmware_id):
         out_folder = os.path.join(str(firmware_folder), base_dir)
         os.makedirs(out_folder, exist_ok=True)
         logging.info(f"Created output folder for ACVTool: {out_folder}")
-        acvtool_instrument_command = f"source ./venv/bin/activate && ./venv/bin/acv instrument -f {apk_path} --wd {out_folder}"
-        logging.info(f"Starting ACVTool instrumentation with command: {acvtool_instrument_command}")
+
+        # prefer system `acv` if available, otherwise use local venv binary
+        acv_executable = shutil.which("acv") or venv_acv
+        acvtool_instrument_command = [acv_executable, "instrument", "-f", apk_path, "--wd", out_folder]
+        logging.info(f"Starting ACVTool instrumentation with command: {' '.join(acvtool_instrument_command)}")
 
         file_start = time.time()
         try:
-            subprocess.run(acvtool_instrument_command, check=True, cwd=out_folder)
+            env = os.environ.copy()
+            env.pop("JAVA_TOOL_OPTIONS", None)
+            env.pop("_JAVA_OPTIONS", None)
+            subprocess.run(acvtool_instrument_command, check=True, cwd=out_folder, env=env)
             file_end = time.time()
             elapsed = round(file_end - file_start, 2)
             per_file_times[filename] = {"duration_seconds": elapsed, "status": "success"}
@@ -109,17 +123,19 @@ def add_acvtool_instrumentation(firmware_id):
         "result": result_dict,
     }
 
-    # write timing JSON to current working directory
+    # write timing JSON to firmware folder
     try:
         time_json_path = os.path.join(str(firmware_folder), "time.json")
+        os.makedirs(firmware_folder, exist_ok=True)
         with open(time_json_path, "w") as jf:
             json.dump(summary, jf, indent=2)
         logging.info(f"ACVTool timing written to: {time_json_path}")
     except Exception as err:
-        logging.error(f"Failed to write timing JSON to cwd: {err}")
+        logging.error(f"Failed to write timing JSON: {err}")
 
     logging.info(f"ACVTool instrumentation result: {result_dict}")
     return result_dict
+
 
 
 def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering, cookies):
