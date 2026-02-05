@@ -43,26 +43,74 @@ def delete_files(dir_path):
         os.remove(f)
 
 
-def add_acvtool_instrumentation():
+def add_acvtool_instrumentation(firmware_id):
     """
-    Adds ACVTool instrumentation to the AOSP source code.
+    Adds ACVTool instrumentation to the AOSP source code and measures duration.
+
+    Writes a JSON file `time.json` into the current working directory with the
+    overall duration in seconds plus per-file timings and a summary of successes
+    and failures.
     """
     result_dict = {"success": [], "failed": []}
     apk_path_list = glob.glob(os.path.join(EXTRACTED_PACKAGES_PATH, "**", "*.apk"), recursive=True)
     logging.info(f"Found {len(apk_path_list)} APK files for ACVTool instrumentation.")
+
+    per_file_times = {}
+    start_time = time.time()
+
+    firmware_folder = os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation", firmware_id)
+    shutil.rmtree(firmware_folder, ignore_errors=True)
     for apk_path in apk_path_list:
         base_dir = os.path.dirname(apk_path)
+        out_folder = os.path.join(str(firmware_folder), base_dir)
+        os.makedirs(out_folder, exist_ok=True)
         filename = os.path.basename(apk_path)
-        acvtool_instrument_command = f"python3 acv instrument {apk_path} --wd {base_dir}"
+        acvtool_instrument_command = f"acv instrument -f {apk_path} --wd {out_folder}"
         logging.info(f"Starting ACVTool instrumentation with command: {acvtool_instrument_command}")
+
+        file_start = time.time()
         try:
-            subprocess.run(acvtool_instrument_command, shell=True, check=True)
-            #shutil.move(f"{BUILD_OUT_PATH}_instrumented", BUILD_OUT_PATH)
-            logging.info("ACVTool instrumentation completed successfully.")
+            subprocess.run(acvtool_instrument_command, shell=True, check=True, cwd=out_folder)
+            file_end = time.time()
+            elapsed = round(file_end - file_start, 2)
+            per_file_times[filename] = {"duration_seconds": elapsed, "status": "success"}
+            logging.info(f"ACVTool instrumentation for {filename} completed successfully in {elapsed} seconds.")
             result_dict["success"].append(filename)
         except subprocess.CalledProcessError as e:
-            logging.error(f"ACVTool instrumentation failed: {e}. Exiting.")
+            file_end = time.time()
+            elapsed = round(file_end - file_start, 2)
+            per_file_times[filename] = {"duration_seconds": elapsed, "status": "failed", "error": str(e)}
+            logging.error(f"ACVTool instrumentation failed for {filename}: {e}.")
             result_dict["failed"].append(filename)
+        except Exception as e:
+            file_end = time.time()
+            elapsed = round(file_end - file_start, 2)
+            per_file_times[filename] = {"duration_seconds": elapsed, "status": "failed", "error": str(e)}
+            logging.error(f"Unexpected error during ACVTool instrumentation for {filename}: {e}")
+            result_dict["failed"].append(filename)
+
+    end_time = time.time()
+    total_duration = round(end_time - start_time, 2)
+
+    summary = {
+        "hostname": os.uname()[1],
+        "firmware_id": firmware_id,
+        "start_time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time)),
+        "end_time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)),
+        "acv_instrumentation_duration_seconds": total_duration,
+        "per_file_durations": per_file_times,
+        "result": result_dict,
+    }
+
+    # write timing JSON to current working directory
+    try:
+        time_json_path = os.path.join(str(firmware_folder), "time.json")
+        with open(time_json_path, "w") as jf:
+            json.dump(summary, jf, indent=2)
+        logging.info(f"ACVTool timing written to: {time_json_path}")
+    except Exception as err:
+        logging.error(f"Failed to write timing JSON to cwd: {err}")
+
     logging.info(f"ACVTool instrumentation result: {result_dict}")
     return result_dict
 
@@ -95,7 +143,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     try:
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
         if PRE_INJECTOR_CONFIG["ENABLE_ACVTOOL_INSTRUMENTATION"]:
-            add_acvtool_instrumentation()
+            add_acvtool_instrumentation(firmware_id)
 
         if PRE_INJECTOR_CONFIG["ENABLE_INJECTION"]:
             included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target, aosp_version)
@@ -573,6 +621,9 @@ def process_package(package_path, dir_name, aosp_path, out_dir, included_package
     :param out_dir: str - output directory for injected packages.
     :param included_package_statistics: dict - statistics of included packages.
     :param lunch_target: str - AOSP build argument to select the build arch.
+    :param aosp_version: str - AOSP version
+
+    :returns: dict - updated statistics of included packages.
     """
     uuid_dir = str(uuid.uuid4())
     if is_package_skipped(dir_name, package_path):
@@ -676,6 +727,9 @@ def handle_apex_package(package_path, dir_name, uuid_dir, aosp_path, out_dir, in
     :param out_dir: str - output directory for injected packages.
     :param included_package_statistics: dict - statistics of included packages.
     :param lunch_target: str - AOSP build argument to select the build arch.
+    :param aosp_version: str - AOSP version
+
+    :returns: dict - updated statistics of included packages.
     """
     apex_file_path = get_apex_file(package_path)
     package_dir_name = str(os.path.basename(package_path).lower())
