@@ -43,6 +43,30 @@ def delete_files(dir_path):
         os.remove(f)
 
 
+def add_acvtool_instrumentation():
+    """
+    Adds ACVTool instrumentation to the AOSP source code.
+    """
+    result_dict = {"success": [], "failed": []}
+    apk_path_list = glob.glob(os.path.join(EXTRACTED_PACKAGES_PATH, "**", "*.apk"), recursive=True)
+    logging.info(f"Found {len(apk_path_list)} APK files for ACVTool instrumentation.")
+    for apk_path in apk_path_list:
+        base_dir = os.path.dirname(apk_path)
+        filename = os.path.basename(apk_path)
+        acvtool_instrument_command = f"python3 acv instrument {apk_path} --wd {base_dir}"
+        logging.info(f"Starting ACVTool instrumentation with command: {acvtool_instrument_command}")
+        try:
+            subprocess.run(acvtool_instrument_command, shell=True, check=True)
+            #shutil.move(f"{BUILD_OUT_PATH}_instrumented", BUILD_OUT_PATH)
+            logging.info("ACVTool instrumentation completed successfully.")
+            result_dict["success"].append(filename)
+        except subprocess.CalledProcessError as e:
+            logging.error(f"ACVTool instrumentation failed: {e}. Exiting.")
+            result_dict["failed"].append(filename)
+    logging.info(f"ACVTool instrumentation result: {result_dict}")
+    return result_dict
+
+
 def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering, cookies):
     """
     Wrapper method to start the firmware injection and build process.
@@ -70,6 +94,9 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     logging.debug(f"Environment setup for {lunch_target} completed. Moving packages to aosp source code next.")
     try:
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
+        if PRE_INJECTOR_CONFIG["ENABLE_ACVTOOL_INSTRUMENTATION"]:
+            add_acvtool_instrumentation()
+
         if PRE_INJECTOR_CONFIG["ENABLE_INJECTION"]:
             included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target, aosp_version)
             if PRE_INJECTOR_CONFIG["ENABLE_TOOLBOX_INJECTION"]:

@@ -1,0 +1,7 @@
+{
+    "AAPT": "/usr/bin/aapt2",
+    "ZIPALIGN": "/usr/bin/zipalign",
+    "ADB": "/usr/bin/adb",
+    "APKSIGNER": "/usr/bin/apksigner",
+    "ACVPATCHER": "~/acvtool/ACVPatcher-linux/ACVPatcher"
+}
