@@ -2489,7 +2489,8 @@
     "fsmon_toolbox": "./toolbox/fsmon",
     "lldb-server_toolbox": "./toolbox/lldb-server",
     "wireguard_toolbox": "./toolbox/wireguard_app",
-    "acv_test_toolbox": "./toolbox/acv_app_test"
+    "acv_test_toolbox": "./toolbox/acv_app_test",
+    "PCAPdroid_toolbox": "./toolbox/pcapdroid"
   },
   "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r450784d/runtimes_ndk_cxx/aarch64/lldb-server",
   "ENABLE_ACVTOOL_INSTRUMENTATION": true

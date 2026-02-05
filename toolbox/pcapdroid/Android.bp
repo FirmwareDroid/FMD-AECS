@@ -1,0 +1,12 @@
+android_app_import {
+    name: "PCAPdroid_toolbox",
+    apk: "PCAPdroid.apk",
+    certificate: "platform",
+    privileged: true,
+    filename: "PCAPdroid.apk",
+    presigned: false,
+    dex_preopt: {
+        enabled: false,
+    },
+    prefer: true,
+}
