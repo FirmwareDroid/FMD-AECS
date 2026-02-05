@@ -30,21 +30,53 @@ fi
 echo "Creating destination: $DEST_DIR"
 mkdir -p "$DEST_DIR"
 
-# Unzip into the destination directory
+# Unzip into a temporary directory, then move the entire extracted folder to DEST_DIR/ACVPatcher-linux
 if command -v unzip >/dev/null 2>&1; then
-  echo "Unzipping $ZIP_NAME into $DEST_DIR"
-  unzip -o "$ZIP_NAME" -d "$DEST_DIR"
+  echo "Unzipping $ZIP_NAME into a temporary directory"
+  TMPDIR=$(mktemp -d)
+  unzip -o "$ZIP_NAME" -d "$TMPDIR"
+
+  # Determine extracted content. Prefer a directory named ACVPatcher-linux if present.
+  if [ -d "$TMPDIR/ACVPatcher-linux" ]; then
+    echo "Moving extracted folder to $EXTRACT_SUBDIR"
+    rm -rf "$EXTRACT_SUBDIR"
+    mv "$TMPDIR/ACVPatcher-linux" "$EXTRACT_SUBDIR"
+  else
+    # If the archive didn't contain the expected top-level folder, move everything under TMPDIR into EXTRACT_SUBDIR
+    echo "Archive doesn't contain ACVPatcher-linux folder; moving all contents into $EXTRACT_SUBDIR"
+    rm -rf "$EXTRACT_SUBDIR"
+    mkdir -p "$EXTRACT_SUBDIR"
+    shopt -s dotglob
+    mv "$TMPDIR"/* "$EXTRACT_SUBDIR" 2>/dev/null || true
+    shopt -u dotglob
+  fi
+
+  # cleanup tmp
+  rm -rf "$TMPDIR"
 else
   echo "unzip is required but not found. Please install unzip." >&2
   exit 3
 fi
 
-# Make the binary executable if present
-if [ -f "$EXTRACT_SUBDIR/ACVPatcher" ]; then
-  echo "Setting executable permission on $EXTRACT_SUBDIR/ACVPatcher"
-  chmod +x "$EXTRACT_SUBDIR/ACVPatcher"
+# Make the main binary executable if present (search for ACVPatcher executable inside EXTRACT_SUBDIR)
+BINARY_PATH=""
+if [ -x "$EXTRACT_SUBDIR/ACVPatcher" ]; then
+  BINARY_PATH="$EXTRACT_SUBDIR/ACVPatcher"
+elif [ -f "$EXTRACT_SUBDIR/ACVPatcher" ]; then
+  BINARY_PATH="$EXTRACT_SUBDIR/ACVPatcher"
 else
-  echo "Warning: Expected binary not found at $EXTRACT_SUBDIR/ACVPatcher" >&2
+  # try to find any file named ACVPatcher anywhere inside the folder
+  FOUND=$(find "$EXTRACT_SUBDIR" -maxdepth 3 -type f -name 'ACVPatcher' -print -quit || true)
+  if [ -n "$FOUND" ]; then
+    BINARY_PATH="$FOUND"
+  fi
+fi
+
+if [ -n "$BINARY_PATH" ]; then
+  echo "Setting executable permission on $BINARY_PATH"
+  chmod +x "$BINARY_PATH"
+else
+  echo "Warning: Expected binary 'ACVPatcher' not found under $EXTRACT_SUBDIR" >&2
 fi
 
 # Copy config.json to destination if it exists in current directory
@@ -56,4 +88,4 @@ else
 fi
 
 echo "Done. ACVPatcher is installed under $DEST_DIR"
-echo "You can run: $EXTRACT_SUBDIR/ACVPatcher"
+echo "You can run: $BINARY_PATH or $EXTRACT_SUBDIR/ACVPatcher"
