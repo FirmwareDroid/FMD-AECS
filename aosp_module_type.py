@@ -142,7 +142,7 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
         module_type = "ETC"
 
     if module_type == "APPS" and POST_INJECTOR_CONFIG["DISALLOW_APP_INJECTION"]:
-        logging.error(f"App injection is disallowed by configuration: {source_file_path}")
+        logging.error(f"Post-Build App injection is disallowed by configuration: {source_file_path}")
         module_type = "SKIPPED"
 
     if module_type == "JAVA_LIBRARIES" and POST_INJECTOR_CONFIG["DISABLE_JAVA_LIBRARIES_INJECTION"]:

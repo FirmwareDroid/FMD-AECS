@@ -960,6 +960,36 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
     return files_coped_list
 
 
+def copy_symlink_shutil(src, dst_dir):
+    """
+    Copy the symlink `src` into `dst_dir` without resolving the link target.
+    """
+    os.makedirs(dst_dir, exist_ok=True)
+    dst = os.path.join(dst_dir, os.path.basename(src))
+    if os.path.lexists(dst):            # remove existing file/symlink
+        os.remove(dst)
+    # follow_symlinks=False ensures the link itself is copied, not the target
+    shutil.copy2(src, dst, follow_symlinks=False)
+    return dst
+
+def copy_symlink_recreate(src, dst_dir):
+    """
+    Recreate the symlink at destination by reading the link target (works if target missing).
+    """
+    os.makedirs(dst_dir, exist_ok=True)
+    link_target = os.readlink(src)     # returns the stored target path (may not exist)
+    dst = os.path.join(dst_dir, os.path.basename(src))
+    if os.path.lexists(dst):
+        os.remove(dst)
+    os.symlink(link_target, dst)
+    try:
+        # optional: copy lstat metadata from original symlink (where supported)
+        shutil.copystat(src, dst, follow_symlinks=False)
+    except Exception:
+        pass
+    return dst
+
+
 def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path):
     files_coped_list = []
     current_username = os.getlogin()
@@ -978,8 +1008,14 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 logging.info(f"Copying symlink in APEX container: {file_path} into {dst_file_path} with command: {command}")
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
                 if result.returncode != 0:
-                    logging.error(
-                        f"Error copying symlink in APEX container: {file_path} with {dst_file_path} | {result.stderr}")
+                    try:
+                        copy_symlink_shutil(file_path, dst_file_path)
+                    except Exception:
+                        try:
+                            copy_symlink_recreate(file_path, dst_file_path)
+                        except Exception:
+                            logging.error(f"Error copying symlink in APEX container: "
+                                          f"{file_path} with {dst_file_path} | {result.stderr}")
                 if os.path.exists(dst_file_path):
                     logging.info(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
                     files_coped_list.append(dst_file_path)

@@ -62,6 +62,7 @@ def add_acvtool_instrumentation(firmware_id):
 
     firmware_folder = os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation", firmware_id)
     shutil.rmtree(firmware_folder, ignore_errors=True)
+    logging.info(f"Deleting ACVTool instrumentation folder: {firmware_folder}")
     for apk_path in apk_path_list:
         if not os.path.exists(apk_path):
             logging.warning(f"Skipping {apk_path} because it doesn't exist.")
@@ -76,7 +77,7 @@ def add_acvtool_instrumentation(firmware_id):
 
         file_start = time.time()
         try:
-            subprocess.run(acvtool_instrument_command, shell=True, check=True, cwd=out_folder)
+            subprocess.run(acvtool_instrument_command, check=True, cwd=out_folder)
             file_end = time.time()
             elapsed = round(file_end - file_start, 2)
             per_file_times[filename] = {"duration_seconds": elapsed, "status": "success"}
