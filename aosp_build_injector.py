@@ -11,6 +11,8 @@ import logging
 import shutil
 import subprocess
 import glob
+from pathlib import Path
+
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
@@ -64,7 +66,7 @@ def add_acvtool_instrumentation(firmware_id):
         if not os.path.exists(apk_path):
             logging.warning(f"Skipping {apk_path} because it doesn't exist.")
             continue
-        base_dir = os.path.dirname(apk_path)
+        base_dir = Path(apk_path).parent.name
         filename = os.path.basename(apk_path)
         out_folder = os.path.join(str(firmware_folder), base_dir)
         os.makedirs(out_folder, exist_ok=True)
