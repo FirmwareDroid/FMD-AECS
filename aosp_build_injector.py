@@ -99,7 +99,7 @@ def add_acvtool_instrumentation(firmware_id):
                 for line in proc.stdout:
                     logging.info(line.rstrip())
                 if proc.wait() != 0:
-                    raise subprocess.CalledProcessError(proc.returncode, cmd)
+                    raise subprocess.CalledProcessError(proc.returncode, acvtool_instrument_command)
             file_end = time.time()
             elapsed = round(file_end - file_start, 2)
             per_file_times[filename] = {"duration_seconds": elapsed, "status": "success"}
