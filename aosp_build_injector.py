@@ -68,6 +68,7 @@ def add_acvtool_instrumentation(firmware_id):
     per_file_times = {}
     start_time = time.time()
 
+    current_cwd = os.getcwd()
     firmware_folder = os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation", firmware_id)
     shutil.rmtree(firmware_folder, ignore_errors=True)
     os.makedirs(firmware_folder, exist_ok=True)
@@ -80,6 +81,9 @@ def add_acvtool_instrumentation(firmware_id):
         filename = os.path.basename(apk_path)
         out_folder = os.path.join(str(firmware_folder), base_dir)
         os.makedirs(out_folder, exist_ok=True)
+        if not os.path.exists(out_folder):
+            raise OSError(f"Could not create output folder for ACVTool: {out_folder}")
+        os.chdir(out_folder)
         logging.info(f"Created output folder for ACVTool: {out_folder}")
 
         # prefer system `acv` if available, otherwise use local venv binary
@@ -92,7 +96,7 @@ def add_acvtool_instrumentation(firmware_id):
             env = os.environ.copy()
             env.pop("JAVA_TOOL_OPTIONS", None)
             env.pop("_JAVA_OPTIONS", None)
-            subprocess.run(acvtool_instrument_command, check=True, cwd=out_folder, env=env)
+            subprocess.run(acvtool_instrument_command, check=True, env=env)
             file_end = time.time()
             elapsed = round(file_end - file_start, 2)
             per_file_times[filename] = {"duration_seconds": elapsed, "status": "success"}
@@ -112,7 +116,7 @@ def add_acvtool_instrumentation(firmware_id):
             logging.error(f"Unexpected error during ACVTool instrumentation for {filename}: {e}")
             result_dict["failed"].append(filename)
             exit(1)
-
+    os.chdir(current_cwd)
     end_time = time.time()
     total_duration = round(end_time - start_time, 2)
 
