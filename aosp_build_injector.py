@@ -93,10 +93,7 @@ def add_acvtool_instrumentation(firmware_id):
 
         file_start = time.time()
         try:
-            env = os.environ.copy()
-            env.pop("JAVA_TOOL_OPTIONS", None)
-            env.pop("_JAVA_OPTIONS", None)
-            subprocess.run(acvtool_instrument_command, check=True, env=env)
+            subprocess.run(acvtool_instrument_command, check=True)
             file_end = time.time()
             elapsed = round(file_end - file_start, 2)
             per_file_times[filename] = {"duration_seconds": elapsed, "status": "success"}
