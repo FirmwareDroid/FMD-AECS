@@ -61,10 +61,14 @@ def add_acvtool_instrumentation(firmware_id):
     firmware_folder = os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation", firmware_id)
     shutil.rmtree(firmware_folder, ignore_errors=True)
     for apk_path in apk_path_list:
+        if not os.path.exists(apk_path):
+            logging.warning(f"Skipping {apk_path} because it doesn't exist.")
+            continue
         base_dir = os.path.dirname(apk_path)
+        filename = os.path.basename(apk_path)
         out_folder = os.path.join(str(firmware_folder), base_dir)
         os.makedirs(out_folder, exist_ok=True)
-        filename = os.path.basename(apk_path)
+        logging.info(f"Created output folder for ACVTool: {out_folder}")
         acvtool_instrument_command = f"acv instrument -f {apk_path} --wd {out_folder}"
         logging.info(f"Starting ACVTool instrumentation with command: {acvtool_instrument_command}")
 
