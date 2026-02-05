@@ -3,5 +3,5 @@
     "ZIPALIGN": "/usr/bin/zipalign",
     "ADB": "/usr/bin/adb",
     "APKSIGNER": "/usr/bin/apksigner",
-    "ACVPATCHER": "~/acvtool/ACVPatcher-linux/ACVPatcher"
+    "ACVPATCHER": "/home/ubuntu/acvtool/ACVPatcher-linux/ACVPatcher"
 }
