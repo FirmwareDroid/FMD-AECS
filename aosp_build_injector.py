@@ -70,6 +70,7 @@ def add_acvtool_instrumentation(firmware_id):
 
     firmware_folder = os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation", firmware_id)
     shutil.rmtree(firmware_folder, ignore_errors=True)
+    os.makedirs(firmware_folder, exist_ok=True)
     logging.info(f"Deleting ACVTool instrumentation folder: {firmware_folder}")
     for apk_path in apk_path_list:
         if not os.path.exists(apk_path):
@@ -103,12 +104,14 @@ def add_acvtool_instrumentation(firmware_id):
             per_file_times[filename] = {"duration_seconds": elapsed, "status": "failed", "error": str(e)}
             logging.error(f"ACVTool instrumentation failed for {filename}: {e}.")
             result_dict["failed"].append(filename)
+            exit(1)
         except Exception as e:
             file_end = time.time()
             elapsed = round(file_end - file_start, 2)
             per_file_times[filename] = {"duration_seconds": elapsed, "status": "failed", "error": str(e)}
             logging.error(f"Unexpected error during ACVTool instrumentation for {filename}: {e}")
             result_dict["failed"].append(filename)
+            exit(1)
 
     end_time = time.time()
     total_duration = round(end_time - start_time, 2)
