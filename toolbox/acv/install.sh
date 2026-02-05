@@ -88,4 +88,3 @@ else
 fi
 
 echo "Done. ACVPatcher is installed under $DEST_DIR"
-echo "You can run: $BINARY_PATH or $EXTRACT_SUBDIR/ACVPatcher"
