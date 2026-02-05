@@ -94,7 +94,7 @@ def add_acvtool_instrumentation(firmware_id):
         file_start = time.time()
         try:
             #subprocess.run(acvtool_instrument_command, check=True)
-            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=out_folder,
+            with subprocess.Popen(acvtool_instrument_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=out_folder,
                                   text=True) as proc:
                 for line in proc.stdout:
                     logging.info(line.rstrip())
