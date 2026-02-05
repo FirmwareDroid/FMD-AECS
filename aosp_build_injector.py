@@ -80,15 +80,15 @@ def add_acvtool_instrumentation(firmware_id):
         base_dir = Path(apk_path).parent.name
         filename = os.path.basename(apk_path)
         out_folder = os.path.join(str(firmware_folder), base_dir)
-        os.makedirs(out_folder, exist_ok=True)
-        if not os.path.exists(out_folder):
-            raise OSError(f"Could not create output folder for ACVTool: {out_folder}")
-        os.chdir(out_folder)
-        logging.info(f"Created output folder for ACVTool: {out_folder}")
+        #os.makedirs(out_folder, exist_ok=True)
+        #if not os.path.exists(out_folder):
+        #    raise OSError(f"Could not create output folder for ACVTool: {out_folder}")
+        os.chdir(firmware_folder)
+        logging.info(f"Created output folder for ACVTool: {firmware_folder}")
 
         file_start = time.time()
         try:
-            shutil.copy(apk_path, out_folder)
+            shutil.copy(apk_path, firmware_folder)
             apk_in_path = os.path.join(out_folder, filename)
             acv_executable = shutil.which("acv") or venv_acv
             acvtool_instrument_command = [acv_executable, "instrument", apk_in_path, "--wd", out_folder]
