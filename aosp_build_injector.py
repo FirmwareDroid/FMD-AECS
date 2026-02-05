@@ -93,7 +93,13 @@ def add_acvtool_instrumentation(firmware_id):
 
         file_start = time.time()
         try:
-            subprocess.run(acvtool_instrument_command, check=True)
+            #subprocess.run(acvtool_instrument_command, check=True)
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=out_folder,
+                                  text=True) as proc:
+                for line in proc.stdout:
+                    logging.info(line.rstrip())
+                if proc.wait() != 0:
+                    raise subprocess.CalledProcessError(proc.returncode, cmd)
             file_end = time.time()
             elapsed = round(file_end - file_start, 2)
             per_file_times[filename] = {"duration_seconds": elapsed, "status": "success"}
