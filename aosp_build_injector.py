@@ -86,14 +86,13 @@ def add_acvtool_instrumentation(firmware_id):
         os.chdir(out_folder)
         logging.info(f"Created output folder for ACVTool: {out_folder}")
 
-        # prefer system `acv` if available, otherwise use local venv binary
-        acv_executable = shutil.which("acv") or venv_acv
-        acvtool_instrument_command = [acv_executable, "instrument", "-f", apk_path, "--wd", out_folder]
-        logging.info(f"Starting ACVTool instrumentation with command: {' '.join(acvtool_instrument_command)}")
-
         file_start = time.time()
         try:
-            #subprocess.run(acvtool_instrument_command, check=True)
+            shutil.copy(apk_path, out_folder)
+            apk_in_path = os.path.join(out_folder, filename)
+            acv_executable = shutil.which("acv") or venv_acv
+            acvtool_instrument_command = [acv_executable, "instrument", "-f", apk_in_path, "--wd", out_folder]
+            logging.info(f"Starting ACVTool instrumentation with command: {' '.join(acvtool_instrument_command)}")
             with subprocess.Popen(acvtool_instrument_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=out_folder,
                                   text=True) as proc:
                 for line in proc.stdout:
