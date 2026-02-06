@@ -116,14 +116,12 @@ def add_acvtool_instrumentation(firmware_id):
             per_file_times[filename] = {"duration_seconds": elapsed, "status": "failed", "error": str(e)}
             logging.error(f"ACVTool instrumentation failed for {filename}: {e}.")
             result_dict["failed"].append(filename)
-            exit(1)
         except Exception as e:
             file_end = time.time()
             elapsed = round(file_end - file_start, 2)
             per_file_times[filename] = {"duration_seconds": elapsed, "status": "failed", "error": str(e)}
             logging.error(f"Unexpected error during ACVTool instrumentation for {filename}: {e}")
             result_dict["failed"].append(filename)
-            exit(1)
     os.chdir(current_cwd)
     end_time = time.time()
     total_duration = round(end_time - start_time, 2)
