@@ -88,8 +88,11 @@ def add_acvtool_instrumentation(firmware_id):
 
         file_start = time.time()
         try:
-            shutil.copy(apk_path, firmware_folder)
-            apk_in_path = os.path.join(out_folder, filename)
+            apk_in_path = os.path.join(str(firmware_folder), filename)
+            shutil.copy(apk_path, apk_in_path)
+            if not os.path.exists(apk_in_path):
+                raise OSError(f"Could not copy {apk_path} to output folder: {apk_in_path}")
+
             acv_executable = shutil.which("acv") or venv_acv
             acvtool_instrument_command = [acv_executable, "instrument", "-f", apk_in_path, "--wd", out_folder]
             logging.info(f"Starting ACVTool instrumentation with command: {' '.join(acvtool_instrument_command)}")
