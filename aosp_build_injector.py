@@ -96,7 +96,10 @@ def add_acvtool_instrumentation(firmware_id):
             acv_executable = shutil.which("acv") or venv_acv
             acvtool_instrument_command = [acv_executable, "instrument", "-f", apk_in_path, "--wd", out_folder]
             logging.info(f"Starting ACVTool instrumentation with command: {' '.join(acvtool_instrument_command)}")
-            with subprocess.Popen(acvtool_instrument_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=out_folder,
+            with subprocess.Popen(acvtool_instrument_command,
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.STDOUT,
+                                  cwd=firmware_folder,
                                   text=True) as proc:
                 for line in proc.stdout:
                     logging.info(line.rstrip())
