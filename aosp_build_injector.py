@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import glob
 from pathlib import Path
+import concurrent.futures
 
 from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
@@ -45,7 +46,126 @@ def delete_files(dir_path):
         os.remove(f)
 
 
-# python
+def _acv_instrument_worker(params):
+    """Worker called in a separate process to instrument a single APK.
+
+    params: tuple(apk_path, firmware_folder, acv_executable, safe_cwd)
+    returns: tuple(filename, elapsed, status, error_message)
+    """
+    apk_path, firmware_folder, acv_executable, safe_cwd = params
+    filename = os.path.basename(apk_path)
+    current_cwd = os.path.abspath(os.getcwd())
+    try:
+        # create out folder under firmware_folder using parent dir name
+        base_dir = Path(apk_path).parent.name
+        out_folder = os.path.join(firmware_folder, base_dir)
+        os.makedirs(out_folder, exist_ok=True)
+        os.chdir(safe_cwd)
+        cmd = [acv_executable, "instrument", "-f", apk_path, "--wd", out_folder]
+        start = time.time()
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        elapsed = round(time.time() - start, 2)
+        if proc.returncode != 0:
+            out = proc.stdout.decode(errors='ignore') if proc.stdout else ""
+            return (filename, elapsed, "failed", out)
+        return (filename, elapsed, "success", "")
+    except Exception as e:
+        elapsed = round((time.time() - start) if 'start' in locals() else 0.0, 2)
+        return (filename, elapsed, "failed", str(e))
+
+
+def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
+    """Parallel version of add_acvtool_instrumentation using multiple processes.
+
+    Processes APKs in parallel using a process pool. Writes a timing JSON (same layout as
+    the single-process function) into the firmware folder under BUILD_OUT_PATH.
+
+    :param firmware_id: str - identifier used to create the firmware folder
+    :param max_workers: int|None - number of worker processes. If None, defaults to os.cpu_count().
+    :returns: dict with lists of successes and failures (same shape as existing function)
+    """
+    result_dict = {"success": [], "failed": []}
+
+    # Resolve acv
+    venv_acv = os.path.join(os.getcwd(), "venv", "bin", "acv")
+    acv_executable = shutil.which("acv") or (venv_acv if os.path.exists(venv_acv) else None)
+    if acv_executable is None:
+        logging.error("ACVTool `acv` not found in PATH and no local `venv/bin/acv` found. Skipping ACVTool instrumentation.")
+        return result_dict
+
+    apk_path_list = glob.glob(os.path.join(EXTRACTED_PACKAGES_PATH, "**", "*.apk"), recursive=True)
+    logging.info(f"Found {len(apk_path_list)} APK files for ACVTool instrumentation (parallel mode).")
+
+    per_file_times = {}
+    start_time = time.time()
+
+    firmware_folder = str(os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation", firmware_id))
+    # remove previous results and recreate folder
+    shutil.rmtree(firmware_folder, ignore_errors=True)
+    os.makedirs(firmware_folder, exist_ok=True)
+    logging.info(f"Deleted and recreated ACVTool instrumentation folder: {firmware_folder}")
+
+    firmware_folder_abs = os.path.abspath(firmware_folder)
+    # prepare worker args
+    worker_args = [(apk_path, firmware_folder, acv_executable, firmware_folder_abs) for apk_path in apk_path_list]
+
+    # decide number of workers
+    if max_workers is None:
+        try:
+            max_workers = os.cpu_count() or 4
+        except Exception:
+            max_workers = 4
+
+    logging.info(f"Starting instrumentation with {max_workers} worker(s)")
+
+    # run in parallel
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(_acv_instrument_worker, args): args[0] for args in worker_args}
+        for fut in concurrent.futures.as_completed(futures):
+            apk = futures[fut]
+            try:
+                filename, elapsed, status, error = fut.result()
+                per_file_times[filename] = {"duration_seconds": elapsed, "status": status}
+                if status == "success":
+                    result_dict["success"].append(filename)
+                    logging.info(f"ACVTool instrumentation succeeded for {filename} in {elapsed}s (parallel)")
+                else:
+                    result_dict["failed"].append(filename)
+                    per_file_times[filename]["error"] = error
+                    logging.error(f"ACVTool instrumentation failed for {filename} in {elapsed}s (parallel): {error}")
+            except Exception as e:
+                # Shouldn't happen often; record generic failure
+                fname = os.path.basename(futures[fut])
+                per_file_times[fname] = {"duration_seconds": 0.0, "status": "failed", "error": str(e)}
+                result_dict["failed"].append(fname)
+                logging.exception(f"Worker for {fname} failed unexpectedly: {e}")
+
+    end_time = time.time()
+    total_duration = round(end_time - start_time, 2)
+
+    summary = {
+        "hostname": os.uname()[1],
+        "firmware_id": firmware_id,
+        "start_time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time)),
+        "end_time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)),
+        "acv_instrumentation_duration_seconds": total_duration,
+        "per_file_durations": per_file_times,
+        "result": result_dict,
+    }
+
+    # write timing JSON to firmware folder
+    try:
+        time_json_path = os.path.join(firmware_folder, "time.json")
+        with open(time_json_path, "w") as jf:
+            json.dump(summary, jf, indent=2)
+        logging.info(f"ACVTool parallel timing written to: {time_json_path}")
+    except Exception as err:
+        logging.error(f"Failed to write timing JSON: {err}")
+
+    logging.info(f"ACVTool instrumentation parallel result: {result_dict}")
+    return result_dict
+
+
 def add_acvtool_instrumentation(firmware_id):
     """
     Adds ACVTool instrumentation to the AOSP source code and measures duration.
@@ -179,7 +299,8 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     try:
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
         if PRE_INJECTOR_CONFIG["ENABLE_ACVTOOL_INSTRUMENTATION"]:
-            add_acvtool_instrumentation(firmware_id)
+            #add_acvtool_instrumentation(firmware_id)
+            add_acvtool_instrumentation_multiprocessing
 
         if PRE_INJECTOR_CONFIG["ENABLE_INJECTION"]:
             included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target, aosp_version)
@@ -1256,7 +1377,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     failed_firmware_ids = []
     succeed_firmware_ids = []
     download_url_list = []
-    clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
+    clear_environment(args.aosp_path, aosp_packages_abs_path, args.version)
     logging.info(f"Building for lunch target: {lunch_target} with aosp version: {aosp_version}")
     for firmware_id in tqdm(firmware_id_list):
         try:
