@@ -3,7 +3,7 @@
   "DISABLE_APEX_APP_INJECTION": true,
   "ALLOW_APEX_REPACKING_IN_PRE_INJECTOR": false,
   "DISABLE_NATIVE_LIBRARY_INJECTION": true,
-  "DISABLE_APP_INJECTION": true,
+  "DISABLE_APP_INJECTION": false,
   "DISALLOWED_APK_KEYWORDS": ["PermissionController", "GooglePermissionControllerOverlay","ServiceWifiResources",
     "PixelLiveWallpaper", "WallpapersBReel", "WallpaperPickerGoogle",
     "TetheringGoogle", "MediaProviderGoogle", "NetworkStackGoogle",
@@ -2497,7 +2497,6 @@
     "fsmon_toolbox": "./toolbox/fsmon",
     "lldb-server_toolbox": "./toolbox/lldb-server",
     "wireguard_toolbox": "./toolbox/wireguard_app",
-    "acv_test_toolbox": "./toolbox/acv_app_test",
     "PCAPdroid_toolbox": "./toolbox/pcapdroid",
     "magisk_toolbox": "./toolbox/magisk"
   },
