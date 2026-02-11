@@ -155,7 +155,9 @@
     "product/media",
     "product/app/TrichromeLibrary",
     "product/usr/share",
-    "product/etc/",
+    "product/etc/CarrierSettings",
+    "product/etc/permissions",
+    "product/etc/sysconfig",
     "system/fonts/",
     "system/etc/security/cacerts_google",
     "system/etc/security/cacerts"
