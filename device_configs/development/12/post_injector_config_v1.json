@@ -171,7 +171,8 @@
     "android.hardware.radio",
     "android.hardware.wifi",
     "hardware.radio",
-    "hardware.wifi"
+    "hardware.wifi",
+    "netd"
   ],
   "ENABLE_ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST": true,
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST": [
