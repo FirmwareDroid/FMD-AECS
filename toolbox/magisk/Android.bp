@@ -1,13 +1,13 @@
 android_app_import {
     name: "magisk_toolbox",
     apk: "Magisk.apk",
-    //certificate: "platform",
+    certificate: "platform",
     privileged: false,
     filename: "Magisk.apk",
-    presigned: true,
+    //presigned: true,
     dex_preopt: {
         enabled: false,
     },
     prefer: true,
-    preprocessed: true,
+    //preprocessed: true,
 }
