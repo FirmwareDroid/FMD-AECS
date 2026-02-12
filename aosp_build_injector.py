@@ -841,13 +841,13 @@ def is_package_skipped(dir_name, package_path):
         if not PRE_INJECTOR_CONFIG["DISABLE_APEX_APP_INJECTION"]:
             if "_FMD_APEX" in dir_name and any(keyword.lower() in dir_name_cleaned for keyword in
                    PRE_INJECTOR_CONFIG["APEX_PRE_INJECT_DISALLOWED_KEYWORDS"]):
-                logging.info(f"Skipping APEX package due to disallowed keyword: {dir_name_cleaned}")
+                logging.info(f"Skipping APEX package due to disallowed keyword (pre-injector): {dir_name_cleaned}")
                 return True
             else:
-                logging.info(f"Injecting APEX package: {dir_name}")
+                logging.info(f"Injecting APEX package (pre-injector): {dir_name}")
                 return False
         else:
-            logging.info(f"Skipping APEX package: {dir_name} due to disabled APEX injection.")
+            logging.info(f"Skipping APEX package (pre-injector): {dir_name} due to disabled APEX injection.")
             return True
     return False
 

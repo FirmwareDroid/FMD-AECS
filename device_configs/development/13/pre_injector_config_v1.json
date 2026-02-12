@@ -3,7 +3,7 @@
   "DISABLE_APEX_APP_INJECTION": true,
   "ALLOW_APEX_REPACKING_IN_PRE_INJECTOR": false,
   "DISABLE_NATIVE_LIBRARY_INJECTION": true,
-  "DISABLE_APP_INJECTION": false,
+  "DISABLE_APP_INJECTION": true,
   "DISALLOWED_APK_KEYWORDS": [
     "PermissionController",
     "GooglePermissionControllerOverlay",
