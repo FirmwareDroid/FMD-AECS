@@ -54,7 +54,6 @@
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
     "app_process32",
-    "libhbmsvmanager_jni.so",
     "libbluetooth_jni.so",
     "libhwui.so",
     "libgui.so",
