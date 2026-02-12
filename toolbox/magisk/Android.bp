@@ -9,4 +9,5 @@ android_app_import {
         enabled: false,
     },
     prefer: true,
+    preprocessed: true,
 }
