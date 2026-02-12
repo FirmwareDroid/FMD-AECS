@@ -31,7 +31,8 @@
     "PixelConnectivityOverlay2021",
     "VpnDialogs",
     "CellBroadcast",
-    "AccessibilityMenu"
+    "AccessibilityMenu",
+    "E2eeContactKeysProvider"
   ],
   "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
   "ALLOW_APP_KEYWORD_ALWAYS_LIST": [
