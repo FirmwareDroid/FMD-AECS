@@ -289,6 +289,7 @@ PRODUCT_PACKAGES += \
     wifi.rc \
     wm \
     PlatformProperties \
+    mediatuner \
 {% for line in package_name_list -%}{{ line }}{%- endfor %}
 
 # VINTF data for system image
