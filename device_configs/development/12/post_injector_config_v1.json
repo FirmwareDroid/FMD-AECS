@@ -42,7 +42,8 @@
     "TelephonyProvider",
     "PixelConnectivityOverlay2021",
     "VpnDialogs",
-    "CellBroadcast"
+    "CellBroadcast",
+    "HbmSVManager"
   ],
   "USE_ISOLATED_NAMESPACE": false,
   "ISOLATED_NAMESPACE_LIST": [],
