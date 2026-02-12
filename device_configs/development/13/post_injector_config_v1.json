@@ -2,7 +2,7 @@
   "FMD_URL": "https://firmwaredroid.cloudlab.zhaw.ch",
   "GRAPHQL_API_URL": "https://firmwaredroid.cloudlab.zhaw.ch/graphql",
   "ENABLE_INJECTION": true,
-  "DISABLE_MISC_INJECTION": false,
+  "DISABLE_MISC_INJECTION": true,
   "SHARED_USER_ID_MAPPING_DICT":{
     "media": ["android.media", "android.uid.media"],
     "shared":["android.shared", "android.uid.shared"],
@@ -221,8 +221,18 @@
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
     "system_ext/framework",
+    "system_other/framework",
     "vendor/framework",
-    "product/framework"
+    "product/framework",
+    "product/app/Chrome/",
+    "product/tts/",
+    "product/media/",
+    "product/app/WebViewGoogle",
+    "system_ext/apex/etc/fs/include/",
+    "system/fonts/",
+    "system/etc/security/cacerts",
+    "system/etc/permissions/",
+    "system/etc/security/cacerts_google/"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
