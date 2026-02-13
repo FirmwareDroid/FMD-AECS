@@ -621,10 +621,15 @@ def overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version):
             for i, line in enumerate(lines):
                 if "BOARD_SUPER_PARTITION_SIZE" in line:
                     lines[i] = f"  BOARD_SUPER_PARTITION_SIZE := {super_partition_size}\n"
+                    logging.info(f"Overwriting super_partition size: {super_partition_size} in {board_config_file_path}")
                 if "BOARD_GSI_DYNAMIC_PARTITIONS_SIZE" in line:
                     lines[i] = f"  BOARD_GSI_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
+                    logging.info(f"Overwriting super_partition size: {super_partition_size} in {board_config_file_path}")
                 if "BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE" in line:
                     lines[i] = f"BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
+                    logging.info(f"Overwriting partition size to: {minimal_partition_size} in {board_config_file_path} for emulator")
+            with open(board_config_file_path, 'w') as base_file:
+                base_file.writelines(lines)
     else:
         board_config_file_path = os.path.join(aosp_path, "build/make/target/board/BoardConfigEmuCommon.mk")
         logging.debug(f"Overwriting partition size to: {minimal_partition_size} in {board_config_file_path}")
