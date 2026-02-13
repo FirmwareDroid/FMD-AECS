@@ -611,14 +611,21 @@ def overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version):
     super_partition_size = minimal_partition_size + 8388608  # 8MB
     dynamic_partition_size = minimal_partition_size
     if aosp_version and int(aosp_version) >= 14:
-        board_config_file_path = os.path.join(aosp_path, "build/make/target/board/BoardConfigGsiCommon.mk")
-        with open(board_config_file_path, 'r') as base_file:
-            lines = base_file.readlines()
-        for i, line in enumerate(lines):
-            if "BOARD_SUPER_PARTITION_SIZE" in line:
-                lines[i] = f"  BOARD_SUPER_PARTITION_SIZE := {super_partition_size}\n"
-            if "BOARD_GSI_DYNAMIC_PARTITIONS_SIZE" in line:
-                lines[i] = f"  BOARD_GSI_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
+        board_config_file_path_list = [
+            os.path.join(aosp_path, "build/make/target/board/BoardConfigCommon.mk"),
+            os.path.join(aosp_path, "device/generic/goldfish/board/BoardConfigCommon.mk")
+        ]
+        for board_config_file_path in board_config_file_path_list:
+            board_config_file_path = os.path.join(aosp_path, "build/make/target/board/BoardConfigGsiCommon.mk")
+            with open(board_config_file_path, 'r') as base_file:
+                lines = base_file.readlines()
+            for i, line in enumerate(lines):
+                if "BOARD_SUPER_PARTITION_SIZE" in line:
+                    lines[i] = f"  BOARD_SUPER_PARTITION_SIZE := {super_partition_size}\n"
+                if "BOARD_GSI_DYNAMIC_PARTITIONS_SIZE" in line:
+                    lines[i] = f"  BOARD_GSI_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
+                if "BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE" in line:
+                    lines[i] = f"BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
     else:
         board_config_file_path = os.path.join(aosp_path, "build/make/target/board/BoardConfigEmuCommon.mk")
         logging.debug(f"Overwriting partition size to: {minimal_partition_size} in {board_config_file_path}")
