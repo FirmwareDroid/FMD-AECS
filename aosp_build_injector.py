@@ -616,7 +616,6 @@ def overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version):
             os.path.join(aosp_path, "device/generic/goldfish/board/BoardConfigCommon.mk")
         ]
         for board_config_file_path in board_config_file_path_list:
-            board_config_file_path = os.path.join(aosp_path, "build/make/target/board/BoardConfigGsiCommon.mk")
             with open(board_config_file_path, 'r') as base_file:
                 lines = base_file.readlines()
             for i, line in enumerate(lines):
