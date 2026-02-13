@@ -11,7 +11,6 @@
     "PixelLiveWallpaper",
     "WallpapersBReel",
     "WallpaperPickerGoogle",
-    "TetheringGoogle",
     "MediaProviderGoogle",
     "NetworkStackGoogle",
     "NetworkPermissionConfigGoogle",
@@ -22,7 +21,6 @@
     "ONS",
     "PacProcessor",
     "VpnDialogs",
-    "TetheringEntitlement",
     "ShannonQualifiedNetworksService",
     "ShannonIms",
     "TeleService",
@@ -30,7 +28,9 @@
     "TelephonyProvider",
     "PixelConnectivityOverlay2021",
     "VpnDialogs",
-    "CellBroadcast"
+    "CellBroadcast",
+    "TetheringEntitlement",
+    "TetheringGoogle"
   ],
   "DISALLOWED_APK_PACKAGES": [
     "MicrosoftOneDrive"
