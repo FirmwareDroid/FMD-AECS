@@ -15,7 +15,7 @@ from ConfigManager import ConfigManager
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
     sign_apex_container_apksigner, sign_apex_container_signapk
 from common import extract_vendor_name, remove_vendor_name_from_filename, check_shared_object_architecture, \
-    get_path_up_to_first_term
+    get_path_up_to_first_term, get_md5_from_file
 #from conv_apex_manifest import convert_manifest_from_json
 from parse_lddtree_to_json import run_lddtree
 from shell_command import execute_shell_command
@@ -951,7 +951,7 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                     logging.error(
                         f"Error copying file in APEX container (when injecting APKs): {file_path} with {dst_file_path} | {result.stderr}")
                 if os.path.exists(dst_file_path):
-                    md5sum = hashlib.md5(dst_file_path).hexdigest()
+                    md5sum = get_md5_from_file(dst_file_path)
                     logging.info(f"Copied APK {file}:{md5sum} into APEX: {file_path} with {dst_file_path}")
                     files_coped_list.append(file)
                 else:
