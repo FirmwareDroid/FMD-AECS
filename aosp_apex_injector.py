@@ -950,9 +950,9 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                 if result.returncode != 0:
                     logging.error(
                         f"Error copying file in APEX container (when injecting APKs): {file_path} with {dst_file_path} | {result.stderr}")
-
                 if os.path.exists(dst_file_path):
-                    logging.info(f"Copied APK file into APEX: {file_path} with {dst_file_path}")
+                    md5sum = hashlib.md5(dst_file_path).hexdigest()
+                    logging.info(f"Copied APK {file}:{md5sum} into APEX: {file_path} with {dst_file_path}")
                     files_coped_list.append(file)
                 else:
                     logging.error(f"APK file does not exist after coping in APEX")
