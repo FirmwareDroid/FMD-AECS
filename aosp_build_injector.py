@@ -612,7 +612,7 @@ def overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version):
     dynamic_partition_size = minimal_partition_size
     if aosp_version and int(aosp_version) >= 14:
         board_config_file_path_list = [
-            os.path.join(aosp_path, "build/make/target/board/BoardConfigCommon.mk"),
+            os.path.join(aosp_path, "build/make/target/board/BoardConfigGsiCommon.mk"),
             os.path.join(aosp_path, "device/generic/goldfish/board/BoardConfigCommon.mk")
         ]
         for board_config_file_path in board_config_file_path_list:
