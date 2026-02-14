@@ -66,8 +66,8 @@ importers:
         specifier: ^6.0.14
         version: 6.0.14
       qs:
-        specifier: ^6.14.1
-        version: 6.14.1
+        specifier: ^6.14.2
+        version: 6.14.2
       uWebSockets.js:
         specifier: github:uNetworking/uWebSockets.js#v20.56.0
         version: https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/d04e707a1292928d50163ff7545e45c3e84c5ec3
@@ -1009,8 +1009,8 @@ packages:
   pump@3.0.3:
     resolution: {integrity: sha512-todwxLMY7/heScKmntwQG8CXVkWUOdYxIvY2s0VWAAMh/nd8SoYiRaKjlr7+iCs984f2P8zvrfWcDDYVb73NfA==}
 
-  qs@6.14.1:
-    resolution: {integrity: sha512-4EK3+xJl8Ts67nLYNwqw/dsFVnCf+qR7RgXSK9jEEm9unao3njwMDdmsdvoKBKHzxd7tCYz5e5M+SnMjdtXGQQ==}
+  qs@6.14.2:
+    resolution: {integrity: sha512-V/yCWTTF7VJ9hIh18Ugr2zhJMP01MY7c5kh4J870L7imm6/DIzBsNLTXzMwUA3yZ5b/KBqLx8Kp3uRvd7xSe3Q==}
     engines: {node: '>=0.6'}
 
   quick-format-unescaped@4.0.4:
@@ -2351,7 +2351,7 @@ snapshots:
       end-of-stream: 1.4.5
       once: 1.4.0
 
-  qs@6.14.1:
+  qs@6.14.2:
     dependencies:
       side-channel: 1.1.0
 
