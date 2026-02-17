@@ -612,10 +612,11 @@ def overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version):
     dynamic_partition_size = minimal_partition_size
 
     board_config_file_path_list = [
+        os.path.join(aosp_path, "build/make/target/board/BoardConfigEmuCommon.mk"),
         os.path.join(aosp_path, "build/make/target/board/BoardConfigGsiCommon.mk"),
         os.path.join(aosp_path, "device/generic/goldfish/board/BoardConfigCommon.mk"),
         os.path.join(aosp_path, "device/generic/goldfish/emulator64_arm64/BoardConfig.mk"),
-        os.path.join(aosp_path, "device/generic/goldfish/emu64a/BoardConfig.mk")
+        os.path.join(aosp_path, "device/generic/goldfish/emu64a/BoardConfig.mk"),
     ]
     for board_config_file_path in board_config_file_path_list:
         if not os.path.exists(board_config_file_path):
@@ -626,13 +627,13 @@ def overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version):
         for i, line in enumerate(lines):
             if "BOARD_SUPER_PARTITION_SIZE" in line:
                 lines[i] = f"  BOARD_SUPER_PARTITION_SIZE := {super_partition_size}\n"
-                logging.info(f"Overwriting super_partition size: {super_partition_size} in {board_config_file_path}")
+                logging.info(f"Overwriting BOARD_SUPER_PARTITION_SIZE size: {super_partition_size} in {board_config_file_path}")
             if "BOARD_GSI_DYNAMIC_PARTITIONS_SIZE" in line:
                 lines[i] = f"  BOARD_GSI_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
-                logging.info(f"Overwriting super_partition size: {super_partition_size} in {board_config_file_path}")
+                logging.info(f"Overwriting BOARD_GSI_DYNAMIC_PARTITIONS_SIZE size: {super_partition_size} in {board_config_file_path}")
             if "BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE" in line:
-                lines[i] = f"BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
-                logging.info(f"Overwriting partition size to: {minimal_partition_size} in {board_config_file_path} for emulator")
+                lines[i] = f"  BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
+                logging.info(f"Overwriting partition BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE size to:  {minimal_partition_size} in {board_config_file_path} for emulator")
         with open(board_config_file_path, 'w') as base_file:
             base_file.writelines(lines)
     #if aosp_version and int(aosp_version) >= 14:
