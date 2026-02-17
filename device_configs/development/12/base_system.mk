@@ -16,6 +16,8 @@
 # Removed packages:
 # PackageInstaller \
 # SettingsProvider \
+#CtsShimPrebuilt \
+#CtsShimPrivPrebuilt \
 
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \
@@ -74,8 +76,6 @@ PRODUCT_PACKAGES += \
     com.android.wifi \
     ContactsProvider \
     content \
-    CtsShimPrebuilt \
-    CtsShimPrivPrebuilt \
     debuggerd\
     device_config \
     dmctl \
