@@ -556,10 +556,16 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
             inj_partition = (file_path, target_path, module_type)
         else:
             try:
+                file_path_vendor_replaced = remove_vendor_name_from_path(target_file_injection_path)
+                os.remove(file_path_vendor_replaced)
+                logging.info(f"Removed file before indirect injection (vendor removed): {target_file_injection_path}")
+            except Exception as e:
+                logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
+            try:
                 os.remove(target_file_injection_path)
                 logging.info(f"Removed file before indirect injection: {target_file_injection_path}")
             except Exception as e:
-                logging.error(e)
+                logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version)
     elif not os.path.exists(target_file_injection_path):
@@ -571,7 +577,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
             os.remove(target_file_injection_path)
             logging.info(f"Removed file before indirect injection: {target_file_injection_path}")
         except Exception as e:
-            logging.error(e)
+            logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
         inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                     partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version)
         if not is_injected and is_injected is not None:
