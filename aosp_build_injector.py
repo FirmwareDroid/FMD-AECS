@@ -496,7 +496,7 @@ def extract_package_names(meta_build_path, package_name_list):
         for line in meta_build_file:
             stripped_line = clean_package_name(line)
             if stripped_line not in package_name_list:
-                logging.info(f"Removing blacklisted module from meta file {meta_build_path}: {line}")
+                logging.info(f"(Pre-Injector) Removing blacklisted module from meta file {meta_build_path}: {line}")
             else:
                 logging.info(f"Allowing module meta in build: {line}")
                 package_line_list.append(line)
@@ -802,7 +802,7 @@ def process_package(package_path, dir_name, aosp_path, out_dir, included_package
     """
     uuid_dir = str(uuid.uuid4())
     if is_package_skipped(dir_name, package_path):
-        logging.info(f"Skipping package: {dir_name}")
+        logging.info(f"(Pre-Injector) Skipping package: {dir_name}")
         included_package_statistics["skipped_apps" if check_file_extension(package_path, [".apk"]) else
                                     "skipped_libs" if check_file_extension(package_path, [".so", ".1", ".2", ".3", ".4", ".5", ".6", ".7", ".8", ".9"]) else
                                     "skipped_apex"].append(dir_name)

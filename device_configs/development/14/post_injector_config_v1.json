@@ -33,7 +33,8 @@
     "libhbmsvmanager_jni.so",
     "libbluetooth_jni.so",
     "TrichromeLibrary.apk.gz",
-    "Chrome.apk.gz"
+    "Chrome.apk.gz",
+    "libactivitymanager_aidl.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "Overlay",
