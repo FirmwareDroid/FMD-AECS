@@ -558,7 +558,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
             try:
                 os.remove(target_file_injection_path)
                 logging.info(f"Removed file before indirect injection: {target_file_injection_path}")
-            except exception as e:
+            except Exception as e:
                 logging.error(e)
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version)
@@ -570,7 +570,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         try:
             os.remove(target_file_injection_path)
             logging.info(f"Removed file before indirect injection: {target_file_injection_path}")
-        except exception as e:
+        except Exception as e:
             logging.error(e)
         inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                     partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version)
