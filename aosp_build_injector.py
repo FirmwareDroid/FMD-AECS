@@ -633,7 +633,7 @@ def overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version):
                 logging.info(f"Overwriting BOARD_GSI_DYNAMIC_PARTITIONS_SIZE size: {super_partition_size} in {board_config_file_path}")
             if "BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE" in line:
                 lines[i] = f"  BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
-                logging.info(f"Overwriting partition BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE size to:  {minimal_partition_size} in {board_config_file_path} for emulator")
+                logging.info(f"Overwriting BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE size to:  {minimal_partition_size} in {board_config_file_path} for emulator")
         with open(board_config_file_path, 'w') as base_file:
             base_file.writelines(lines)
     #if aosp_version and int(aosp_version) >= 14:
