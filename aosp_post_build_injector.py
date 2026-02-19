@@ -558,7 +558,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
             try:
                 file_path_vendor_replaced = remove_vendor_name_from_path(target_file_injection_path)
                 os.remove(file_path_vendor_replaced)
-                logging.info(f"Removed file before indirect injection (vendor removed): {target_file_injection_path}")
+                logging.info(f"Removed file before indirect injection (vendor removed): {file_path_vendor_replaced}")
             except Exception as e:
                 logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
             try:
