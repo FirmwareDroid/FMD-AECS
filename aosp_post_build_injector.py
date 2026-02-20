@@ -26,6 +26,7 @@ from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
     check_shared_object_architecture, get_path_up_to_first_term
+from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH
 from config_post_injector import *
 from fmd_backend_requests import get_csrf_token, authenticate_fmd
 from setup_logger import setup_logger
@@ -478,6 +479,35 @@ def replace_capex_with_apex(file_path):
         file_path = extracted_apex_file_path
     return file_path
 
+def delete_intermediate_cached_files(target_file_injection_path, aosp_version, aosp_path):
+    file_ext = os.path.splitext(target_file_injection_path)[1]
+    if file_ext == ".apex" or file_ext == ".capex":
+        try:
+            file_path_vendor_replaced = remove_vendor_name_from_path(target_file_injection_path)
+            os.remove(file_path_vendor_replaced)
+            logging.info(f"Removed file before indirect injection (vendor removed): {file_path_vendor_replaced}")
+            if aosp_version and int(aosp_version) > 12:
+                apex_path = os.path.join(aosp_path,
+                                         AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14,
+                                         "apex",
+                                         os.path.basename(file_path_vendor_replaced))
+            else:
+                apex_path = os.path.join(aosp_path,
+                                         AOSP_BUILD_OUT_SDK_ARM64_x64_PATH,
+                                         "apex",
+                                         os.path.basename(file_path_vendor_replaced))
+            os.remove(apex_path)
+            logging.info(f"Removed file before indirect injection (vendor removed): {apex_path}")
+        except Exception as e:
+            logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
+    else:
+        try:
+            os.remove(target_file_injection_path)
+            logging.info(f"Removed file before indirect injection: {target_file_injection_path}")
+        except Exception as e:
+            logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
+
+
 def indirect_injection(target_file_injection_path, file_name, target_out_path, partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version):
     file_ext = os.path.splitext(file_name)[1]
     if file_ext in POST_INJECTOR_CONFIG["SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION"]:
@@ -489,6 +519,8 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
             logging.info(f"Skipped indirect injection for shared library file: {file_path} as "
                          f"ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS is set.")
             return None, inj_partition, None
+
+    delete_intermediate_cached_files(target_file_injection_path, aosp_version, aosp_path)
 
     logging.info(f"File exists in target path: {target_file_injection_path} "
                  f"- skipping direct injection. Continue with indirect injection.")
@@ -555,17 +587,6 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
             target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
             inj_partition = (file_path, target_path, module_type)
         else:
-            try:
-                file_path_vendor_replaced = remove_vendor_name_from_path(target_file_injection_path)
-                os.remove(file_path_vendor_replaced)
-                logging.info(f"Removed file before indirect injection (vendor removed): {file_path_vendor_replaced}")
-            except Exception as e:
-                logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
-            try:
-                os.remove(target_file_injection_path)
-                logging.info(f"Removed file before indirect injection: {target_file_injection_path}")
-            except Exception as e:
-                logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version)
     elif not os.path.exists(target_file_injection_path):
@@ -573,11 +594,6 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
         inj_partition = (file_path, target_path, module_type)
     else:
-        try:
-            os.remove(target_file_injection_path)
-            logging.info(f"Removed file before indirect injection: {target_file_injection_path}")
-        except Exception as e:
-            logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
         inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                     partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version)
         if not is_injected and is_injected is not None:
