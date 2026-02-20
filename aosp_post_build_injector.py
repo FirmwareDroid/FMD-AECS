@@ -486,7 +486,7 @@ def delete_intermediate_cached_files(target_file_injection_path, aosp_version, a
             file_path_vendor_replaced = remove_vendor_name_from_path(target_file_injection_path)
             os.remove(file_path_vendor_replaced)
             logging.info(f"Removed file before indirect injection (vendor removed): {file_path_vendor_replaced}")
-            if aosp_version and int(aosp_version) > 12:
+            if aosp_version and int(aosp_version) > 13:
                 apex_path = os.path.join(aosp_path,
                                          AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14,
                                          "apex",
