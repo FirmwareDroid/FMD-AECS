@@ -482,10 +482,14 @@ def replace_capex_with_apex(file_path):
 def delete_intermediate_cached_files(target_file_injection_path, aosp_version, aosp_path):
     file_ext = os.path.splitext(target_file_injection_path)[1]
     if file_ext == ".apex" or file_ext == ".capex":
+        file_path_vendor_replaced = remove_vendor_name_from_path(target_file_injection_path)
         try:
-            file_path_vendor_replaced = remove_vendor_name_from_path(target_file_injection_path)
             os.remove(file_path_vendor_replaced)
             logging.info(f"Removed file before indirect injection (vendor removed): {file_path_vendor_replaced}")
+        except Exception as e:
+            logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
+
+        try:
             if aosp_version and int(aosp_version) > 13:
                 apex_path = os.path.join(aosp_path,
                                          AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14,
