@@ -236,7 +236,8 @@
     "system/fonts/",
     "system/etc/security/cacerts",
     "system/etc/permissions/",
-    "system/etc/security/cacerts_google/"
+    "system/etc/security/cacerts_google/",
+    "android.extservices.apex"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [".apk"],
