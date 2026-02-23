@@ -487,7 +487,7 @@ def delete_intermediate_cached_files(target_file_injection_path, aosp_version, a
             os.remove(file_path_vendor_replaced)
             logging.info(f"Removed file before indirect injection (vendor removed): {file_path_vendor_replaced}")
         except Exception as e:
-            logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
+            logging.warning(f"Could not remove file before indirect injection: {file_path_vendor_replaced} | {e}")
 
         apex_path = os.path.join(aosp_path,
                                  AOSP_BUILD_OUT_SDK_ARM64_x64_PATH,
