@@ -15,7 +15,8 @@ from ConfigManager import ConfigManager
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
     sign_apex_container_apksigner, sign_apex_container_signapk
 from common import extract_vendor_name, remove_vendor_name_from_filename, check_shared_object_architecture, \
-    get_path_up_to_first_term, get_md5_from_file
+    get_path_up_to_first_term, get_md5_from_file, remove_vendor_name_from_path
+from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14
 #from conv_apex_manifest import convert_manifest_from_json
 from parse_lddtree_to_json import run_lddtree
 from shell_command import execute_shell_command
@@ -821,6 +822,36 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
             exit(-1)
     return apex_manifest_path_pb
 
+def replace_emulator_apex_folder(input_apex, aosp_path, aosp_version, apex_merge_folder_path):
+    file_path_vendor_replaced = remove_vendor_name_from_path(input_apex)
+    apex_filename_no_ext = str(os.path.basename(file_path_vendor_replaced)
+                               .replace(".apex", "")
+                               .replace(".capex", ""))
+    apex_folder_path = os.path.join(aosp_path,
+                                    AOSP_BUILD_OUT_SDK_ARM64_x64_PATH,
+                                    "apex/",
+                                    apex_filename_no_ext
+                                    )
+    try:
+        if aosp_version and int(aosp_version) > 13:
+            apex_folder_path = os.path.join(aosp_path,
+                                            AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14,
+                                            "apex/",
+                                            apex_filename_no_ext)
+        shutil.rmtree(apex_folder_path)
+        logging.info(f"Removed apex emulator intermediate files: {apex_folder_path}")
+    except Exception as e:
+        logging.warning(f"Could not remove apex emulator intermediate files: {apex_folder_path} | {e}")
+        return False, f"Error deleting emulator APEX folder: {e}"
+
+    try:
+        shutil.copytree(apex_merge_folder_path, apex_folder_path)
+        logging.info(f"Replaced emulator APEX folder with merged APEX folder: {apex_merge_folder_path} to {apex_folder_path}")
+    except Exception as e:
+        logging.error(f"Error replacing emulator APEX folder with merged APEX folder: {apex_merge_folder_path} to {apex_folder_path} | {e}")
+        return False, f"Error replacing emulator APEX folder: {e}"
+    return True, None
+
 # Keep the structure of the original apex
 # Inject additional files into the apex
 def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_target, aosp_path, target_out_path, aosp_version):
@@ -900,6 +931,16 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                cert_apex_apk_path,
                                                                lunch_target)
                     logging.info(f"Completed APEX merge successfully: {apex_out_file}")
+
+                    is_success, error_message = replace_emulator_apex_folder(input_apex, aosp_path, aosp_version, merged_apex_extract_dir_path)
+                    if is_success:
+                        logging.info(f"Replaced emulator APEX folder with merged APEX folder successfully: {apex_out_file}")
+                    else:
+                        log_message = (f"Error replacing emulator APEX folder "
+                                       f"with merged APEX folder: {error_message}")
+                        logging.error(f"Error replacing emulator APEX folder "
+                                      f"with merged APEX folder: {apex_out_file} | {error_message}")
+
                     if POST_INJECTOR_CONFIG["REPLACE_AVB_KEYS"]:
                         logging.info(f"Overwriting AVB keys for APEX: {apex_out_file}")
                         is_success, log_message = inject_apex_avb_public_key(input_apex,
