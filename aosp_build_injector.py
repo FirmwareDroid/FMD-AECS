@@ -1245,6 +1245,8 @@ def parse_arguments():
     parser.add_argument("-m", "--pre_injector_config",
                         type=str,
                         default="./device_configs/development/pre_injector_config_v1.json",)
+    parser.add_argument("-1", "--build-only-first", action='store_true', default=False,
+                        help='If set, only builds the first firmware id returned from the fmd service.')
     parser.add_argument("-i", "--post_injector_config",
                         type=str,
                         default="./device_configs/development/post_injector_config_v1.json",)
@@ -1378,10 +1380,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     if args.arch == SUPPORTED_ARCHITECTURES[0]:
         lunch_target = SUPPORTED_LUNCH_TARGETS[0]
     else:
-        #test = os.environ.get("FMD_PHONE64_TEST_BUILD") == "True"
         if aosp_version in ["11", "12"]:
-            #lunch_target = SUPPORTED_LUNCH_TARGETS[1]
-            #if test:
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]
         elif aosp_version in ["13"]:
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]
@@ -1462,6 +1461,9 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
         finally:
             if not args.skip_clean:
                 clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
+        if args.build_only_first:
+            logging.info("Build only first flag is set. Stopping after first firmware id.")
+            break
 
     if len(failed_firmware_ids) > 0:
         logging.error(f"Failed to build {len(failed_firmware_ids)} of the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")

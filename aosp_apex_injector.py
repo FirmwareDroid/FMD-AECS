@@ -932,14 +932,14 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                lunch_target)
                     logging.info(f"Completed APEX merge successfully: {apex_out_file}")
 
-                    is_success, error_message = replace_emulator_apex_folder(input_apex, aosp_path, aosp_version, merged_apex_extract_dir_path)
-                    if is_success:
-                        logging.info(f"Replaced emulator APEX folder with merged APEX folder successfully: {apex_out_file}")
-                    else:
-                        log_message = (f"Error replacing emulator APEX folder "
-                                       f"with merged APEX folder: {error_message}")
-                        logging.error(f"Error replacing emulator APEX folder "
-                                      f"with merged APEX folder: {apex_out_file} | {error_message}")
+                    # is_success, error_message = replace_emulator_apex_folder(input_apex, aosp_path, aosp_version, merged_apex_extract_dir_path)
+                    # if is_success:
+                    #     logging.info(f"Replaced emulator APEX folder with merged APEX folder successfully: {apex_out_file}")
+                    # else:
+                    #     log_message = (f"Error replacing emulator APEX folder "
+                    #                    f"with merged APEX folder: {error_message}")
+                    #     logging.error(f"Error replacing emulator APEX folder "
+                    #                   f"with merged APEX folder: {apex_out_file} | {error_message}")
 
                     if POST_INJECTOR_CONFIG["REPLACE_AVB_KEYS"]:
                         logging.info(f"Overwriting AVB keys for APEX: {apex_out_file}")
