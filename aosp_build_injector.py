@@ -296,11 +296,12 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static apexer deapexer avbtool'"
     execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path)
     logging.debug(f"Environment setup for {lunch_target} completed. Moving packages to aosp source code next.")
+    acv_result_dict = {}
     try:
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
         if PRE_INJECTOR_CONFIG["ENABLE_ACVTOOL_INSTRUMENTATION"]:
             #add_acvtool_instrumentation(firmware_id)
-            add_acvtool_instrumentation_multiprocessing(firmware_id)
+            acv_result_dict = add_acvtool_instrumentation_multiprocessing(firmware_id)
 
         if PRE_INJECTOR_CONFIG["ENABLE_INJECTION"]:
             included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target, aosp_version)
@@ -323,6 +324,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             "firmware_id": firmware_id,
             "included_package_statistics": included_package_statistics,
             "pre_injector_duration": round(pre_injector_end_time - pre_injector_start_time, 2),
+            "acvtool_instrumentation_result": acv_result_dict,
         }
         logging.info(json.dumps(result, indent=4))
         write_json_output(result, PATH_BUILD_INJECTOR_LOG)
