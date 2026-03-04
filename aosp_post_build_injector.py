@@ -25,7 +25,7 @@ from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, 
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
-    check_shared_object_architecture, get_path_up_to_first_term
+    check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file
 from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH
 from config_post_injector import *
 from fmd_backend_requests import get_csrf_token, authenticate_fmd
@@ -487,6 +487,18 @@ def delete_intermediate_cached_files(target_file_injection_path, aosp_version, a
         logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
 
 
+def find_intermediate_file(aosp_path, md5_original_file):
+    intermediata_path = str(os.path.join(aosp_path, "out/soong/.intermediates/"))
+    matching_intermediate_file_list = []
+    for file, dir in os.walk(intermediata_path):
+        if file.endswith(".apex"):
+            logging.info(f"Found intermediate APEX file: {file} in {dir}")
+            file_path = os.path.join(dir, file)
+            md5sum = get_md5_from_file(file_path)
+            if md5sum == md5_original_file:
+                matching_intermediate_file_list.append(file_path)
+    return matching_intermediate_file_list
+
 def indirect_injection(target_file_injection_path, file_name, target_out_path, partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version):
     file_ext = os.path.splitext(file_name)[1]
     if file_ext in POST_INJECTOR_CONFIG["SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION"]:
@@ -770,6 +782,28 @@ def get_all_files(directory):
         for file in files:
             all_files.append(os.path.join(root, file))
     return all_files
+
+
+def find_intermediate_apex(aosp_path, merged_apex_file_path, md5sum_replaced_apex):
+    intermediata_path = os.path.join(aosp_path, "out/soong/.intermediates/")
+    is_success = False
+    message = "Did not found any intermediate APEX file to replace with the merged APEX file."
+    for file, dir in os.walk(intermediata_path):
+        if file.endswith(".apex"):
+            logging.info(f"Found intermediate APEX file: {file} in {dir}")
+            file_path = os.path.join(dir, file)
+            md5sum = get_md5_from_file(file_path)
+            if md5sum == md5sum_replaced_apex:
+                try:
+                    shutil.copy(merged_apex_file_path, file_path)
+                    logging.info(f"Replaced intermediate APEX file: {file_path} with merged APEX: {merged_apex_file_path}")
+                    is_success = True
+                except Exception as e:
+                    message = f"Error replacing intermediate APEX file: {file_path} with merged APEX: {merged_apex_file_path} | {e}"
+                    logging.error(message)
+                    return False, f"Error replacing intermediate APEX file: {e}"
+    return is_success, message
+
 
 
 
@@ -1197,17 +1231,23 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
     filename = os.path.basename(source_file_path)
     inj_md5 = compute_file_hash(source_file_path)
     org_md5 = compute_file_hash(original_file_path)
+
+    matching_intermediate_file_list = find_intermediate_file(aosp_path, org_md5)
+
     logging.info(f"Overwriting Obj file: {source_file_path}:{inj_md5} into {original_file_path}:{org_md5}")
     file_name = os.path.basename(original_file_path)
     try:
         if "/apex/" in original_file_path:
+            #TODO Remove this check
             if module_type == "JAVA_LIBRARIES":
                 new_file_path = "/system/framework/" + file_name
                 logging.info(f"Injecting file from apex: {source_file_path} into {new_file_path}")
             elif module_type == "BINARY":
                 new_file_path = "/bin/" + file_name
+                logging.info(f"Injecting binary from apex: {source_file_path} into {new_file_path}")
             else:
                 new_file_path = "/etc/" + file_name
+                logging.info(f"Injecting /etc/ file from apex: {source_file_path} into {new_file_path}")
             shutil.copyfile(source_file_path, new_file_path)
             is_injected = True
         elif filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
@@ -1217,6 +1257,9 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
             shutil.copyfile(source_file_path, original_file_path)
             is_injected = True
             set_executable_permission(original_file_path)
+            for file_path in matching_intermediate_file_list:
+                shutil.copyfile(source_file_path, file_path)
+                logging.info(f"Indirect Injection of .intermediate file: {file_path} with {source_file_path}")
             #os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
     except Exception as e:
         logging.error(f"Error injecting file: {source_file_path} into {original_file_path} | {e}")
