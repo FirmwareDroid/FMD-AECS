@@ -63,7 +63,7 @@ def _acv_instrument_worker(params):
         os.chdir(safe_cwd)
         cmd = [acv_executable, "instrument", "-f", apk_path, "--wd", out_folder]
         start = time.time()
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=700)
         elapsed = round(time.time() - start, 2)
         if proc.returncode != 0:
             out = proc.stdout.decode(errors='ignore') if proc.stdout else ""
