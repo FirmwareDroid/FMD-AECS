@@ -490,13 +490,29 @@ def delete_intermediate_cached_files(target_file_injection_path, aosp_version, a
 def find_intermediate_file(aosp_path, md5_original_file):
     intermediata_path = str(os.path.join(aosp_path, "out/soong/.intermediates/"))
     matching_intermediate_file_list = []
-    for file, dir in os.walk(intermediata_path):
-        if file.endswith(".apex"):
-            logging.info(f"Found intermediate APEX file: {file} in {dir}")
-            file_path = os.path.join(dir, file)
-            md5sum = get_md5_from_file(file_path)
-            if md5sum == md5_original_file:
-                matching_intermediate_file_list.append(file_path)
+    if not os.path.exists(intermediata_path):
+        logging.debug(f"Intermediates path does not exist: {intermediata_path}")
+        return matching_intermediate_file_list
+
+    # Normalize md5 to lowercase for comparison
+    target_md5 = (md5_original_file or '').strip().lower()
+
+    for root, dirs, files in os.walk(intermediata_path):
+        for fname in files:
+            if not fname.endswith('.apex'):
+                continue
+            try:
+                file_path = os.path.join(root, fname)
+                logging.debug(f"Found intermediate APEX candidate: {file_path}")
+                md5sum = get_md5_from_file(file_path)
+                if not md5sum:
+                    continue
+                if md5sum.strip().lower() == target_md5:
+                    logging.info(f"Matched intermediate APEX by md5: {file_path}")
+                    matching_intermediate_file_list.append(file_path)
+            except Exception as e:
+                logging.warning(f"Error while checking intermediate file {fname} in {root}: {e}")
+                continue
     return matching_intermediate_file_list
 
 def indirect_injection(target_file_injection_path, file_name, target_out_path, partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version):
