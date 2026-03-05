@@ -488,19 +488,17 @@ def delete_intermediate_cached_files(target_file_injection_path, aosp_version, a
 
 
 def find_intermediate_file(aosp_path, md5_original_file):
-    intermediata_path = str(os.path.join(aosp_path, "out/soong/.intermediates/"))
+    intermediates_path = str(os.path.join(aosp_path, "out/soong/.intermediates/"))
     matching_intermediate_file_list = []
-    if not os.path.exists(intermediata_path):
-        logging.debug(f"Intermediates path does not exist: {intermediata_path}")
+    if not os.path.exists(intermediates_path):
+        logging.debug(f"Intermediates path does not exist: {intermediates_path}")
         return matching_intermediate_file_list
 
     # Normalize md5 to lowercase for comparison
     target_md5 = (md5_original_file or '').strip().lower()
 
-    for root, dirs, files in os.walk(intermediata_path):
+    for root, dirs, files in os.walk(intermediates_path):
         for fname in files:
-            if not fname.endswith('.apex'):
-                continue
             try:
                 file_path = os.path.join(root, fname)
                 logging.debug(f"Found intermediate APEX candidate: {file_path}")
