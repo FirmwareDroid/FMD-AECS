@@ -24,3 +24,4 @@ env/adb_streamer/*
 /adb_streaming_service/source/node_modules/
 /env/adb_streamer/.env
 /env/
+/testing_service/.env

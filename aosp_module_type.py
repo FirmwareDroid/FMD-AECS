@@ -96,6 +96,9 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
         module_type = "MISC"
 
     tmp_module_type = module_type
+    if "_apex" in source_file_path:
+        module_type = "SKIPPED"
+        logging.warning(f"FMD extraction leftover file {source_file_path} contains '_apex' in its path, marking it as SKIPPED to avoid potential issues with APEX files.")
 
     if module_type == "APPS" and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_APP_KEYWORDLIST"]):
         module_type = "SKIPPED"
