@@ -21,10 +21,10 @@
 $(call inherit-product, $(SRC_TARGET_DIR)/product/media_system_ext.mk)
 
 #AccessibilityMenu \
+# Launcher3QuickStep \
 
 # /system_ext packages
 PRODUCT_PACKAGES += \
-    Launcher3QuickStep \
     Provision \
     Settings \
     StorageManager \

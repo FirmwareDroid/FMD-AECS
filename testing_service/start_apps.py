@@ -8,7 +8,11 @@ This script will:
  - collect successes and failures and a frequency analysis of failure reasons
  - write summary.json and failures.json into current working directory
 
-Usage: python3 start_apps.py [-s SERIAL] [-d DELAY]
+Additionally, you can control how many monkey events are sent when attempting a monkey launch
+using the --monkey-events / -m CLI option (default 1), and other monkey options like
+--monkey-seed, --monkey-throttle, and raw extra monkey args via --monkey-extra.
+
+Usage: python3 start_apps.py [-s SERIAL] [-d DELAY] [--monkey-events N] [--monkey-seed N] [--monkey-extra ...]
 """
 
 import argparse
@@ -18,7 +22,7 @@ import time
 import logging
 from collections import Counter, defaultdict
 from shutil import which
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -64,12 +68,81 @@ def pid_of(package, serial=None):
     return out
 
 
-def monkey_launch(package, serial=None):
-    # Use monkey to attempt to start a package's main launcher activity
+def monkey_launch(package, serial=None, events=1, monkey_opts: Optional[Dict[str, Any]] = None):
+    """
+    Use monkey to attempt to start a package's main launcher activity.
+
+    :param package: package name to target
+    :param serial: optional device serial for adb -s
+    :param events: number of monkey events to send (int >= 1)
+    :param monkey_opts: optional dict of monkey options (seed, throttle, flags, extra args)
+    :return: (success: bool, combined_output: str)
+    """
+    if events is None:
+        events = 1
+    try:
+        events_int = int(events)
+    except Exception:
+        events_int = 1
+    if events_int < 1:
+        events_int = 1
+
+    if monkey_opts is None:
+        monkey_opts = {}
+
     cmd = []
     if serial:
         cmd += ['-s', serial]
-    cmd += ['shell', 'monkey', '-p', package, '-c', 'android.intent.category.LAUNCHER', '1']
+
+    # Build monkey command tokens
+    monkey_cmd = ['shell', 'monkey', '-p', package, '-c', 'android.intent.category.LAUNCHER']
+
+    # boolean flags
+    if monkey_opts.get('ignore_crashes'):
+        monkey_cmd.append('--ignore-crashes')
+    if monkey_opts.get('ignore_timeouts'):
+        monkey_cmd.append('--ignore-timeouts')
+    if monkey_opts.get('ignore_security_exceptions'):
+        monkey_cmd.append('--ignore-security-exceptions')
+    if monkey_opts.get('monitor_native_crashes'):
+        monkey_cmd.append('--monitor-native-crashes')
+    if monkey_opts.get('ignore_native_crashes'):
+        monkey_cmd.append('--ignore-native-crashes')
+    if monkey_opts.get('kill_process_after_error'):
+        monkey_cmd.append('--kill-process-after-error')
+    if monkey_opts.get('hprof'):
+        monkey_cmd.append('--hprof')
+
+    # seed
+    seed = monkey_opts.get('seed')
+    if seed is not None:
+        try:
+            monkey_cmd += ['-s', str(int(seed))]
+        except Exception:
+            pass
+
+    # throttle
+    throttle = monkey_opts.get('throttle')
+    if throttle is not None:
+        try:
+            monkey_cmd += ['--throttle', str(int(throttle))]
+        except Exception:
+            pass
+    if monkey_opts.get('randomize_throttle'):
+        monkey_cmd.append('--randomize-throttle')
+
+    # append any raw extra args (list of tokens)
+    extra = monkey_opts.get('extra')
+    if extra:
+        # ensure list of strings
+        monkey_cmd += [str(x) for x in extra]
+
+    # finally append the event count
+    monkey_cmd.append(str(events_int))
+
+    cmd += monkey_cmd
+
+    logging.debug('Running adb command: %s', ' '.join(cmd))
     rc, out, err = run_adb(cmd)
     return rc == 0, out + err
 
@@ -83,13 +156,19 @@ def resolve_main_activity(package, serial=None):
     rc, out, err = run_adb(cmd)
     if rc != 0:
         return None
-    # Look for 'component=' in output
+    # Look for 'component=' in output and sanitize it. Example lines can include
+    # trailing attributes like 'priority=0' which must not be passed to `am start -n`.
     for line in out.splitlines():
         if 'component=' in line:
             # component=com.example/.MainActivity or component=com.example/com.example.MainActivity
             part = line.split('component=', 1)[1].strip()
-            if part:
-                return part
+            if not part:
+                continue
+            # take only the first whitespace-separated token to drop things like 'priority=0'
+            token = part.split()[0].strip()
+            # token may be like com.example/.MainActivity or com.example/com.example.MainActivity
+            # ensure it contains a slash; if not, try to be conservative and return as-is
+            return token
     # fallback: try brief resolve-activity
     cmd = []
     if serial:
@@ -97,7 +176,10 @@ def resolve_main_activity(package, serial=None):
     cmd += ['shell', 'cmd', 'package', 'resolve-activity', '--brief', package]
     rc, out, err = run_adb(cmd)
     if rc == 0 and out:
-        return out.strip()
+        # brief output may also include extra tokens; sanitize similarly
+        first = out.strip().splitlines()[0].strip()
+        if first:
+            return first.split()[0].strip()
     return None
 
 
@@ -131,6 +213,17 @@ def pretty_print_summary(summary: Dict[str, Any], failures: List[Dict[str, Any]]
     print(f"Started: {s.get('started', 0)}")
     print(f"Failed: {s.get('failed', 0)}")
     print(f"Started by script: {s.get('started_by_script', 0)}")
+    # Print the actual package names for successes and failures if available
+    started_pkgs = s.get('started_packages') or summary.get('started_packages') or []
+    failed_pkgs = s.get('failed_packages') or summary.get('failed_packages') or []
+    if started_pkgs:
+        print('\nSuccessful packages:')
+        for p in started_pkgs:
+            print(f' - {p}')
+    if failed_pkgs:
+        print('\nFailed packages:')
+        for p in failed_pkgs:
+            print(f' - {p}')
 
     print('\n--- Failure frequency ---')
     ff = summary.get('failure_frequency', {})
@@ -156,7 +249,7 @@ def pretty_print_summary(summary: Dict[str, Any], failures: List[Dict[str, Any]]
     print('=========================\n')
 
 
-def get_apk_path(package: str, serial: str | None = None) -> str | None:
+def get_apk_path(package: str, serial: Optional[str] = None) -> Optional[str]:
     """Return the device APK path for a package or None if not found.
 
     Uses `adb shell pm path <package>` which typically returns lines like:
@@ -176,10 +269,19 @@ def get_apk_path(package: str, serial: str | None = None) -> str | None:
     return first
 
 
-def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.0):
-    packages = list_packages(serial)
-    total = len(packages)
-    logging.info('Found %d packages to try to start.', total)
+def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.0, package: Optional[str] = None, monkey_events: int = 1, monkey_opts: Optional[Dict[str, Any]] = None):
+    """Start packages. If `package` is provided, only that package will be attempted.
+
+    Returns (out_summary, failures)
+    """
+    if package:
+        packages = [package]
+        total = 1
+        logging.info('Targeting single package: %s', package)
+    else:
+        packages = list_packages(serial)
+        total = len(packages)
+        logging.info('Found %d packages to try to start.', total)
 
     success = []
     failures = []
@@ -217,7 +319,7 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
             continue
 
         # try monkey launch
-        ok, output = monkey_launch(pkg, serial)
+        ok, output = monkey_launch(pkg, serial, events=monkey_events, monkey_opts=monkey_opts)
         time.sleep(delay)
         pid_after = pid_of(pkg, serial)
         if pid_after:
@@ -276,6 +378,8 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
         'started': len(success),
         'failed': len(failures),
         'started_by_script': len(started_by_script),
+        'started_packages': success,
+        'failed_packages': [f.get('package') for f in failures]
     }
 
     logging.info('Finished processing packages. Started=%d Failed=%d. Started by script=%d', len(success), len(failures), len(started_by_script))
@@ -287,13 +391,12 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
     out_summary = {
         'summary': summary,
         'failure_frequency': freq,
+        "failures": failures
     }
 
     try:
-        with open('summary.json', 'w') as f:
+        with open('app_start_summary.json', 'w') as f:
             json.dump(out_summary, f, indent=2)
-        with open('failures.json', 'w') as f:
-            json.dump(failures, f, indent=2)
         logging.info('Wrote summary.json and failures.json')
     except Exception as e:
         logging.error('Failed to write output files: %s', e)
@@ -318,14 +421,67 @@ def main():
     parser.add_argument('--stop-delay', type=float, default=1.0, help='Seconds to wait before stopping apps when --stop-after-start is set')
     parser.add_argument('--pretty', dest='pretty', action='store_true', default=True, help='Pretty-print output summary to stdout')
     parser.add_argument('--no-pretty', dest='pretty', action='store_false', help='Do not pretty-print output summary')
+    # Accept package either as positional argument or via --package flag to support both usages
+    parser.add_argument('package', nargs='?', help='(optional) single package to start')
+    parser.add_argument('-p', '--package', dest='package_flag', help='(optional) single package to start (alternative flag)')
+    parser.add_argument('-m', '--monkey-events', dest='monkey_events', type=int, default=1, help='Number of monkey events to send when attempting monkey launch (default 1)')
+
+    # Monkey configuration options
+    parser.add_argument('--monkey-seed', dest='monkey_seed', type=int, help='Random seed for monkey (-s)')
+    parser.add_argument('--monkey-throttle', dest='monkey_throttle', type=int, help='Monkey --throttle in milliseconds')
+    parser.add_argument('--monkey-randomize-throttle', dest='monkey_randomize_throttle', action='store_true', help='Use --randomize-throttle with monkey')
+    parser.add_argument('--monkey-ignore-crashes', dest='monkey_ignore_crashes', action='store_true', help='Use --ignore-crashes with monkey')
+    parser.add_argument('--monkey-ignore-timeouts', dest='monkey_ignore_timeouts', action='store_true', help='Use --ignore-timeouts with monkey')
+    parser.add_argument('--monkey-ignore-security-exceptions', dest='monkey_ignore_security_exceptions', action='store_true', help='Use --ignore-security-exceptions with monkey')
+    parser.add_argument('--monkey-monitor-native-crashes', dest='monkey_monitor_native_crashes', action='store_true', help='Use --monitor-native-crashes with monkey')
+    parser.add_argument('--monkey-ignore-native-crashes', dest='monkey_ignore_native_crashes', action='store_true', help='Use --ignore-native-crashes with monkey')
+    parser.add_argument('--monkey-kill-process-after-error', dest='monkey_kill_process_after_error', action='store_true', help='Use --kill-process-after-error with monkey')
+    parser.add_argument('--monkey-hprof', dest='monkey_hprof', action='store_true', help='Use --hprof with monkey')
+    parser.add_argument('--monkey-extra', dest='monkey_extra', nargs='*', help='Extra raw monkey arguments (tokens) to append, e.g. --monkey-extra --pct-touch 50')
+
     args = parser.parse_args()
+
+    # choose package from either positional or flag
+    package_to_start = args.package_flag or args.package
 
     if not which('adb'):
         logging.error('adb not found in PATH. Aborting.')
         return
 
+    # validate monkey events
+    if args.monkey_events is None or args.monkey_events < 1:
+        logging.error('Invalid --monkey-events value: %s. It must be an integer >= 1.', args.monkey_events)
+        return
+
+    # validate throttle if provided
+    if args.monkey_throttle is not None and args.monkey_throttle < 0:
+        logging.error('Invalid --monkey-throttle value: %s. It must be >= 0.', args.monkey_throttle)
+        return
+
+    # validate seed if provided
+    if args.monkey_seed is not None:
+        try:
+            int(args.monkey_seed)
+        except Exception:
+            logging.error('Invalid --monkey-seed value: %s. It must be an integer.', args.monkey_seed)
+            return
+
+    monkey_opts = {
+        'seed': args.monkey_seed,
+        'throttle': args.monkey_throttle,
+        'randomize_throttle': bool(args.monkey_randomize_throttle),
+        'ignore_crashes': bool(args.monkey_ignore_crashes),
+        'ignore_timeouts': bool(args.monkey_ignore_timeouts),
+        'ignore_security_exceptions': bool(args.monkey_ignore_security_exceptions),
+        'monitor_native_crashes': bool(args.monkey_monitor_native_crashes),
+        'ignore_native_crashes': bool(args.monkey_ignore_native_crashes),
+        'kill_process_after_error': bool(args.monkey_kill_process_after_error),
+        'hprof': bool(args.monkey_hprof),
+        'extra': args.monkey_extra or []
+    }
+
     try:
-        summary, failures = start_packages(args.serial, args.delay, stop_after_start=args.stop_after_start, stop_delay=args.stop_delay)
+        summary, failures = start_packages(args.serial, args.delay, stop_after_start=args.stop_after_start, stop_delay=args.stop_delay, package=package_to_start, monkey_events=args.monkey_events, monkey_opts=monkey_opts)
         if args.pretty:
             pretty_print_summary(summary, failures)
     except RuntimeError as e:
