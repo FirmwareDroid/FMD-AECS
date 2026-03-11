@@ -745,6 +745,18 @@ def set_dumping_mode(driver, mode_label="HTTP", logger=None, timeout=10):
         return False
 
 
+def set_socks_5_proxy_setting(driver):
+    socks_elem = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR,
+                                       value='new UiSelector().textContains("SOCKS5")')
+    socks_elem.click()
+    set_toggle_by_label(driver, label="SOCKS5", max_scroll_attempts=5, wait_time=1.5)
+    host_elem = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR,
+                                       value='new UiSelector().textContains("host")')
+    host_elem.click()
+    set_text_field(driver, value="amy.cloudlab.zhaw.ch")
+
+
+
 def run_open_settings(driver):
     logging.info('configure_pcapdroid_settings: attempting to open settings')
     opened = open_settings_page(driver, timeout=6.0)
@@ -821,6 +833,29 @@ def configure_pcapdroid_settings(driver) -> bool:
         return False
     return True
 
+def set_text_field(driver, value=""):
+    text_field = None
+    try:
+        text_field = driver.find_element(by=AppiumBy.CLASS_NAME, value="android.widget.EditText")
+    except Exception:
+        # Try fallback by resource id or other heuristics
+        text_field = driver.find_element(by=AppiumBy.XPATH, value='//android.widget.EditText')
+    if text_field:
+        text_field.clear()
+        text_field.send_keys(value)
+        time.sleep(0.5)
+        # Find and click the OK button
+        ok_button = None
+        try:
+            ok_button = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value='new UiSelector().text("OK")')
+        except Exception:
+            ok_button = driver.find_element(by=AppiumBy.XPATH, value='//*[contains(@text, "OK")]')
+        if ok_button:
+            ok_button.click()
+            time.sleep(0.5)
+            return True
+    return False
+
 
 def set_http_server_port(driver, port=54320, timeout=10):
     """
@@ -832,28 +867,7 @@ def set_http_server_port(driver, port=54320, timeout=10):
         port_label = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value=scroll_cmd)
         port_label.click()
         time.sleep(1)
-        # Find the text field and enter the port
-        text_field = None
-        try:
-            text_field = driver.find_element(by=AppiumBy.CLASS_NAME, value="android.widget.EditText")
-        except Exception:
-            # Try fallback by resource id or other heuristics
-            text_field = driver.find_element(by=AppiumBy.XPATH, value='//android.widget.EditText')
-        if text_field:
-            text_field.clear()
-            text_field.send_keys(str(port))
-            time.sleep(0.5)
-            # Find and click the OK button
-            ok_button = None
-            try:
-                ok_button = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value='new UiSelector().text("OK")')
-            except Exception:
-                ok_button = driver.find_element(by=AppiumBy.XPATH, value='//*[contains(@text, "OK")]')
-            if ok_button:
-                ok_button.click()
-                time.sleep(0.5)
-                return True
-        return False
+        set_text_field(driver, value=str(port))
     except Exception as e:
         print(f"set_http_server_port: error setting port: {e}")
         return False

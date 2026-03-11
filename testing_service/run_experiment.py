@@ -169,8 +169,6 @@ def execute_app_with_coverage(package, mode):
                        description="Run ACVTool to deserialize coverage measurement")
     run_script_capture(ACVTOOL, args=["report", package],
                        description="Run ACVTool to generate html coverage report")
-    run_script_capture(LOGCAT_COLLECTOR, args=["--package", package, "--output", f"logcat_{package}.json"],
-                       description="Collect logcat logs for the app")
 
 
 def start_experiment(mode='single', test_only_one=False):
@@ -185,15 +183,14 @@ def start_experiment(mode='single', test_only_one=False):
         logging.info('Test-only-one enabled; testing only first package: %s', first_pkg)
         run_script_capture(INSTALL_APPS, args=["--package", first_pkg], description=f"Install app {first_pkg} on devices.")
         execute_app_with_coverage(first_pkg, mode)
-        return
     else:
         run_script_capture(INSTALL_APPS, args=["-a"], description=f"Install all apps on devices.")
+        for package in app_package_names:
+            logging.info(f"Starting {package}")
+            #TODO Filter apps that have an Activity
+            execute_app_with_coverage(package, mode)
 
-    for package in app_package_names:
-        logging.info(f"Starting {package}")
-        #TODO Filter apps that have an Activity
-        execute_app_with_coverage(package, mode)
-
+    run_script_capture(LOGCAT_COLLECTOR, args=["--full-dump"], description="Collect all logcat logs")
 
 
 def main():

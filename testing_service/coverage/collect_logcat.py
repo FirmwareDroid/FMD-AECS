@@ -54,24 +54,35 @@ def clear_logcat(device: Optional[str]):
     """Clear logcat buffers on the device. Uses '-b all -c' to clear all buffers when available."""
     adb_args = ['-s', device] if device else []
     # Use '-b all -c' to clear all buffers (main, system, crash, events) on modern devices.
-    proc = run_adb((adb_args or []) + ['shell', 'logcat', '-b', 'all', '-c'])
+
+
+    proc = run_adb((adb_args or []) + ['logcat', '-b', 'all' , '-c'])
     if proc.returncode != 0:
         # Fall back to plain '-c' if '-b all -c' is unsupported
-        proc2 = run_adb((adb_args or []) + ['shell', 'logcat', '-c'])
+        proc2 = run_adb((adb_args or []) + ['logcat', '-c'])
         if proc2.returncode != 0:
             raise RuntimeError(f'logcat clear failed: {proc.stderr.strip() or proc2.stderr.strip()}')
 
 
-def dump_full_logcat(device: Optional[str]) -> str:
+def dump_uid_logcat(uid: Optional[int], device: Optional[str]):
     adb_args = ['-s', device] if device else []
-    proc = run_adb((adb_args or []) + ['shell', 'logcat', '-d'])
+    proc = run_adb((adb_args or []) + ['logcat', '-d', '-b', 'all', '-v', 'uid', '-D', "--uid", uid])
     if proc.returncode != 0:
         # include stderr for debugging
         raise RuntimeError(f'logcat failed: {proc.stderr.strip()}')
     return proc.stdout or ''
 
 
-def write_json_output(output_path: str, package: str, uid: Optional[int], logcat: str):
+def dump_full_logcat(device: Optional[str]) -> str:
+    adb_args = ['-s', device] if device else []
+    proc = run_adb((adb_args or []) + ['logcat', '-d', '-b', 'all', '-v', 'uid', '-D'])
+    if proc.returncode != 0:
+        # include stderr for debugging
+        raise RuntimeError(f'logcat failed: {proc.stderr.strip()}')
+    return proc.stdout or ''
+
+
+def write_json_output(output_path: str, package: Optional[str], uid: Optional[int], logcat: str):
     """Append or write a JSON payload to output_path.
 
     Behavior:
@@ -80,12 +91,18 @@ def write_json_output(output_path: str, package: str, uid: Optional[int], logcat
       - If file exists and contains a single JSON object: convert to a JSON array [old, new] (atomic replace).
       - If file exists but is not valid JSON: append a newline-delimited JSON (NDJSON) record.
     """
-    payload = {
-        'package': package,
-        'uid': uid,
-        'logcat': logcat,
-        'collected_at': datetime.datetime.now(datetime.timezone.utc).isoformat()
-    }
+    if package is None:
+        payload = {
+            'logcat': logcat,
+            'collected_at': datetime.datetime.now(datetime.timezone.utc).isoformat()
+        }
+    else:
+        payload = {
+            'package': package,
+            'uid': uid,
+            'logcat': logcat,
+            'collected_at': datetime.datetime.now(datetime.timezone.utc).isoformat()
+        }
 
     # If the file doesn't exist, create it with a single JSON object
     if not os.path.exists(output_path):
@@ -181,14 +198,23 @@ def main():
     parser.add_argument('--output', '-o', required=False, help='Output JSON file path')
     parser.add_argument('--clear', action='store_true', help='Clear device logcat before collecting')
     parser.add_argument('--flush', action='store_true', help='Clear device logcat after collecting (flush buffers)')
+    parser.add_argument('--full-dump', action='store_true', help='Create a full logcat dump')
     args = parser.parse_args()
-
+    print(f"Start Logcat Collector")
     try:
         # If flush is specified and neither package nor output is given, perform flush-only mode
         if args.flush and not args.package and not args.output:
             print(f'Flushing (clearing) device logcat on device {args.device or "default"}...')
             clear_logcat(args.device)
             print('Flush complete.')
+            return
+
+        if args.full_dump:
+            print('Dumping full logcat...')
+            full_log = dump_full_logcat(args.device)
+            #output_path: str, package: str, uid: Optional[int], logcat: str
+            write_json_output("logcat_full_dump.txt", logcat=full_log, package=None, uid=None)
+            print(f'Wrote logs to {args.output} (entries length: {len(full_log)} characters)')
             return
 
         # Otherwise, require both package and output for collection
@@ -199,18 +225,17 @@ def main():
         uid = get_package_uid(args.device, args.package)
         if uid is not None:
             print(f'Found UID: {uid}')
+            full_log = dump_full_logcat(args.device)
         else:
+            full_log = dump_uid_logcat(uid, args.device)
             print('UID not found for package; continuing to dump full logcat')
+        write_json_output(args.output, args.package, uid, full_log)
 
         if args.clear:
             print('Clearing device logcat before collection...')
             clear_logcat(args.device)
 
-        print('Dumping full logcat...')
-        full_log = dump_full_logcat(args.device)
 
-        write_json_output(args.output, args.package, uid, full_log)
-        print(f'Wrote logs to {args.output} (entries length: {len(full_log)} characters)')
 
         if args.flush:
             try:
