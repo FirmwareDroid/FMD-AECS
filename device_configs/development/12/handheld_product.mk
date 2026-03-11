@@ -28,12 +28,12 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/media_product.mk)
 # DeskClock \
 # Music \
 # QuickSearchBox \
+# OneTimeInitializer \
+# SettingsIntelligence \
 
 # /product packages
 PRODUCT_PACKAGES += \
-    OneTimeInitializer \
     preinstalled-packages-platform-handheld-product.xml \
-    SettingsIntelligence \
     frameworks-base-overlays
 {% for line in package_name_list -%}{{ line }}{%- endfor %}
 
