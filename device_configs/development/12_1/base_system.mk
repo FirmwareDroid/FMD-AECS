@@ -15,10 +15,9 @@
 #
 # Removed packages:
 # PackageInstaller \
-# NetworkStack \
 # SettingsProvider \
-#CtsShimPrebuilt \
-#CtsShimPrivPrebuilt \
+# CtsShimPrebuilt \
+# CtsShimPrivPrebuilt \
 
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \

@@ -15,7 +15,7 @@
 # Disabled Packages
 #
 # PackageInstaller \
-# NetworkStack \
+#
 # SettingsProvider \
 # CtsShimPrebuilt \
 # CtsShimPrivPrebuilt \
@@ -25,6 +25,7 @@ PRODUCT_PACKAGES += \
     abx \
     adbd_system_api \
     am \
+    NetworkStack \
     android.hidl.allocator@1.0-service \
     android.hidl.base-V1.0-java \
     android.hidl.manager-V1.0-java \

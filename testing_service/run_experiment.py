@@ -32,6 +32,9 @@ def parse_args():
                              '"single" runs a simple test cycle (for development/debugging)')
     parser.add_argument('--test-only-one', action='store_true', help='If set, only the first app in the list will be tested')
     parser.add_argument('--skip-setup', action='store_true', help='Skip device setup steps (installing Appium/PCAPdroid/Droidrun)')
+    # pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address
+    parser.add_argument('--pcap-http-port', type=int, help='Port to use for pcap http server')
+    parser.add_argument('--socks5-address', type=str, help='The SOCKS5 proxy address')
     return parser.parse_args()
 
 def run_script(script_path, args=None, description=None):
@@ -128,12 +131,13 @@ def stop_appium_server(proc, timeout=5):
         logging.error('Error stopping Appium server: %s', e)
 
 
-def setup_devices(mode='basic'):
+def setup_devices(mode='basic', pcap_http_port=54320, socks5_address="127.0.0.1"):
     logging.info(f"Setting up devices...")
     # Install Appium driver
     run_script_capture(INSTALL_APPIUM, args=["--all"], description="Install Appium driver on all devices")
     # Configure PCAPdroid on all devices
-    run_script_capture(RUN_PCAPDROID, description="Configure PCAPdroid on all devices")
+    run_script_capture(RUN_PCAPDROID, args=["--http-port", str(pcap_http_port), "--socks5-address", socks5_address],
+                       description="Configure PCAPdroid on all devices")
     if mode == 'droidrun':
         # Install Droidrun on all devices
         run_command("droidrun setup --latest", description="Install Droidrun on all devices")
@@ -204,7 +208,7 @@ def main():
         if args.skip_setup:
             logging.info('Skipping device setup as requested (--skip-setup)')
         else:
-            setup_devices(mode=args.mode)
+            setup_devices(mode=args.mode, pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address)
         start_experiment(mode=args.mode, test_only_one=getattr(args, 'test-only-one', False) or getattr(args, 'test_only_one', False) or args.test_only_one)
     except KeyboardInterrupt:
         logging.info('Interrupted by user')

@@ -15,7 +15,6 @@
 #
 
 #
-# NetworkStack \
 # SettingsProvider \
 # CtsShimPrebuilt \
 # CtsShimPrivPrebuilt \
@@ -27,6 +26,7 @@ PRODUCT_PACKAGES += \
     adbd_system_api \
     aflags \
     am \
+    NetworkStack \
     android.hidl.base-V1.0-java \
     android.hidl.manager-V1.0-java \
     android.system.suspend-service \

@@ -389,7 +389,9 @@ def start_pcapdroid_on_device_with_settings(appium_url: str,
                                            app_activity: str,
                                            start_locators: List[Dict],
                                            settings_retries: int = 3,
-                                           abort_on_settings_fail: bool = True) -> Dict:
+                                           abort_on_settings_fail: bool = True,
+                                           socks_ip: str = "",
+                                           http_port: int = 54320) -> Dict:
     """Wrapper that ensures settings configuration is attempted and, depending on flags, will abort the test for the device if not successful."""
     # Start device and run normal flow
     result = {"device": device_serial, "ok": False, "messages": []}
@@ -451,7 +453,7 @@ def start_pcapdroid_on_device_with_settings(appium_url: str,
             result['ok'] = False
             return result
 
-        cfg_ok = configure_pcapdroid_settings(driver)
+        cfg_ok = configure_pcapdroid_settings(driver, socks_ip, http_port)
         if cfg_ok:
             logging.info('configure_pcapdroid_settings: succeeded', )
         else:
@@ -565,11 +567,12 @@ def set_vpn_ip_addresses(driver, label="VPN IP addresses", selection="IPv4 and I
     if not found_label:
         print(f"[ERROR] set_vpn_ip_addresses: Could not find label '{label}' after {max_attempts} attempts. Last error: {last_error}")
         return False
+
     # Try to click the label to open the selection list
     try:
         elem = driver.find_element(AppiumBy.XPATH, f'//*[contains(@text, "{label}")]')
         elem.click()
-        time.sleep(1)
+        time.sleep(2)
     except Exception as e:
         print(f"[WARN] set_vpn_ip_addresses: Could not click label '{label}': {e}")
     # Try to select the desired option
@@ -745,15 +748,22 @@ def set_dumping_mode(driver, mode_label="HTTP", logger=None, timeout=10):
         return False
 
 
-def set_socks_5_proxy_setting(driver):
-    socks_elem = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR,
-                                       value='new UiSelector().textContains("SOCKS5")')
-    socks_elem.click()
-    set_toggle_by_label(driver, label="SOCKS5", max_scroll_attempts=5, wait_time=1.5)
-    host_elem = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR,
-                                       value='new UiSelector().textContains("host")')
-    host_elem.click()
-    set_text_field(driver, value="amy.cloudlab.zhaw.ch")
+def set_socks_5_proxy_setting(driver, socks_ip):
+    is_success = False
+    try:
+        socks_elem = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR,
+                                           value='new UiSelector().textContains("SOCKS5")')
+        socks_elem.click()
+        time.sleep(0.6)
+        set_toggle_by_label(driver, label="SOCKS5", max_scroll_attempts=5, wait_time=1.5)
+        host_elem = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR,
+                                           value='new UiSelector().textContains("host")')
+        host_elem.click()
+        set_text_field(driver, value=socks_ip)
+    except Exception as e:
+        is_success = False
+
+    return is_success
 
 
 
@@ -774,7 +784,7 @@ def run_open_settings(driver):
     return True
 
 
-def configure_pcapdroid_settings(driver) -> bool:
+def configure_pcapdroid_settings(driver, socks_ip, http_port) -> bool:
     """Open settings and configure required toggles for PCAPdroid. Returns True if succeeded."""
     try:
         toggles = [
@@ -790,7 +800,7 @@ def configure_pcapdroid_settings(driver) -> bool:
         try:
             if handle_crash_dialog(driver, timeout=2.0):
                 logging.info("Dismissed crash dialog after app start")
-            ok_vpn = set_http_server_port(driver, port=54320, timeout=10)
+            ok_vpn = set_http_server_port(driver, port=http_port, timeout=10)
             logging.info('configure_pcapdroid_settings: set HTTP Port -> %s', ok_vpn)
         except Exception as e:
             logging.error('configure_pcapdroid_settings: error setting VPN IP addresses: %s', e)
@@ -811,6 +821,24 @@ def configure_pcapdroid_settings(driver) -> bool:
                 logging.error('configure_pcapdroid_settings: error setting %s: %s', t, e)
                 toggle_results[t] = False
                 all_ok = False
+
+        # Set SOCKS5 Proxy
+        try:
+            if handle_crash_dialog(driver, timeout=2.0):
+                logging.info("Dismissed crash dialog after app start")
+            ok_socks = set_socks_5_proxy_setting(driver, socks_ip)
+            logging.info('configure_pcapdroid_settings: set SOCKS5 -> %s', ok_socks)
+            if not ok_socks:
+                logging.error('configure_pcapdroid_settings: SOCKS5 could not be set')
+                all_ok = False
+        except Exception as e:
+            logging.error('configure_pcapdroid_settings: error setting SOCKS5: %s', e)
+            all_ok = False
+        try:
+            driver.back()
+            time.sleep(0.4)
+        except Exception:
+            pass
 
         # Set VPN IP addresses to 'IPv4 and IPv6'
         try:
@@ -894,6 +922,8 @@ def parse_args():
     p.add_argument("--verbose", "-v", action="store_true")
     p.add_argument('--settings-retries', type=int, default=3, help='Number of attempts to open/configure settings before giving up')
     p.add_argument('--no-settings-abort', action='store_true', help='Do not abort the test for a device if settings cannot be opened/configured (default is to abort)')
+    p.add_argument('--http-port', type=int, help='Port to use for HTTP server', default=54320)
+    p.add_argument('--socks5-address', type=str, help='The SOCKS5 proxy address to set in PCAPdroid settings')
     return p.parse_args()
 
 
@@ -934,7 +964,16 @@ def main():
         logging.info("Starting PCAPdroid on %s", serial)
         # enforce settings configuration by default; if args.no_settings_abort is True we will continue on failure
         abort_on_settings_fail = not args.no_settings_abort
-        r = start_pcapdroid_on_device_with_settings(args.appium_url, serial, args.app_package, args.app_activity, start_locators, settings_retries=args.settings_retries, abort_on_settings_fail=abort_on_settings_fail)
+        r = start_pcapdroid_on_device_with_settings(args.appium_url,
+                                                    serial,
+                                                    args.app_package,
+                                                    args.app_activity,
+                                                    start_locators,
+                                                    settings_retries=args.settings_retries,
+                                                    abort_on_settings_fail=abort_on_settings_fail,
+                                                    http_port=args.http_port,
+                                                    socks_ip=args.socks5_address
+                                                    )
         results.append(r)
 
     # print summary
