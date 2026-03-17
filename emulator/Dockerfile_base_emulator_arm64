@@ -106,16 +106,6 @@ RUN echo 'export REPO_OS_OVERRIDE=macosx' >> /root/.bashrc
 COPY ./emulator/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Ensure emulator start script is present and executable
-COPY ./emulator/emulator_start.sh /android/emulator_start.sh
-RUN chmod +x /android/emulator_start.sh || true
-
-# ADD TCPdump script for debugging network traffic in emulator
-COPY ./emulator/tcpdump.sh /android/tcpdump.sh
-RUN chmod +x /android/tcpdump.sh || true
-COPY ./emulator/pcaps/ /android/pcaps/
-RUN chmod +w /android/pcaps/
-
 # Add Testing Service Scripts
 COPY ./emulator/testing_service/ /android/testing_service/
 
