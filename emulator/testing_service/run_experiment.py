@@ -205,15 +205,18 @@ def wait_for_bootanim_stop(max_wait_seconds=300, sleep_seconds=30):
 
         if value.lower() != 'running':
             logging.info("init.svc.bootanim reported as %r -> proceeding", value)
-            return True
+            is_running = False
+            break
 
         tries += 1
         if tries >= max_tries:
-            logging.warning("init.svc.bootanim remained 'running' after %s seconds (max wait). Proceeding anyway.", max_wait_seconds)
-            return False
+            logging.warning("init.svc.bootanim remained 'running' after %s seconds (max wait).", max_wait_seconds)
+            is_running = True
+            break
 
         logging.info("init.svc.bootanim is 'running' (try %d/%d). Sleeping %s seconds...", tries, max_tries, sleep_seconds)
         time.sleep(sleep_seconds)
+    return is_running
 
 
 def execute_app_with_coverage(package, mode):
@@ -302,8 +305,9 @@ def main():
     # Wait for boot animation (init.svc.bootanim) to stop (max 5 minutes) before running the launcher test
     preflight_ok = False
     try:
-        wait_for_bootanim_stop(max_wait_seconds=600, sleep_seconds=30)
-        preflight_ok = run_launcher_test(results_dir)
+        is_running = wait_for_bootanim_stop(max_wait_seconds=600, sleep_seconds=10)
+        if not is_running:
+            preflight_ok = run_launcher_test(results_dir)
     except Exception:
         logging.exception('Error while waiting for boot animation to stop;')
 
