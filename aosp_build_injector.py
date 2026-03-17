@@ -4,6 +4,7 @@ on disk. Directly extract the downloaded zip content.
 """
 import argparse
 import json
+import os.path
 import re
 import traceback
 import uuid
@@ -289,7 +290,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     pre_injector_start_time = time.time()
     is_successful = False
     logging.debug(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
-    overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version)
+    overwrite_partition_size(aosp_path)
     if aosp_version in ["11", "12"]:
         blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static'"
     else:
@@ -579,7 +580,7 @@ def get_directory_size(directory_path):
     return total
 
 
-def get_minimal_partition_size(aosp_path, aosp_packages_path):
+def get_minimal_partition_size():
     """
     Calculates the minimal partition size based on the size of the packages to inject.
 
@@ -589,19 +590,22 @@ def get_minimal_partition_size(aosp_path, aosp_packages_path):
     :returns: int - minimal partition size in bytes.
 
     """
-    packages_abs_path = os.path.join(aosp_path, aosp_packages_path)
-    approximate_size = get_directory_size(packages_abs_path)
+    #packages_abs_path = os.path.join(aosp_path, aosp_packages_path)
+    #approximate_size_packages = get_directory_size(packages_abs_path)
+    extracted_files_abs_path = str(os.path.abspath(EXTRACTED_PACKAGES_PATH))
+    approximate_size = get_directory_size(extracted_files_abs_path)
+    logging.info(f"Approximate_size size all extracted files: {approximate_size}")
     default_size = 4294967296  # 4GB
-    additional_gb_in_bytes = 1073741824 * 100  # 100GB
-    gb_in_bytes = 1073741824 * 10  # 10GB
-    while default_size < (approximate_size + gb_in_bytes):
-        default_size += additional_gb_in_bytes
-        logging.debug(f"Increasing partition size to: {default_size} Approximate bytes of packages "
+    overhead_gb = 1073741824 * 5  # 5GB
+    while default_size < (approximate_size + overhead_gb):
+        default_size += overhead_gb
+        logging.info(f"Increasing partition size to: {default_size} Approximate bytes of packages "
                       f"to inject is: {approximate_size}")
+    logging.info(f"Final partition size set to: {default_size} bytes for approximate package size of: {approximate_size} bytes")
     return default_size
 
 
-def overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version):
+def overwrite_partition_size(aosp_path):
     """
     Overwrites the partition size in the aosp source code.
 
@@ -609,7 +613,7 @@ def overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version):
     :param aosp_packages_path: str - path to the prebuilt package folder of aosp.
 
     """
-    minimal_partition_size = get_minimal_partition_size(aosp_path, aosp_packages_path)
+    minimal_partition_size = get_minimal_partition_size()
     super_partition_size = minimal_partition_size + 8388608  # 8MB
     dynamic_partition_size = minimal_partition_size
 
@@ -638,19 +642,6 @@ def overwrite_partition_size(aosp_path, aosp_packages_path, aosp_version):
                 logging.info(f"Overwriting BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE size to:  {minimal_partition_size} in {board_config_file_path} for emulator")
         with open(board_config_file_path, 'w') as base_file:
             base_file.writelines(lines)
-    #if aosp_version and int(aosp_version) >= 14:
-    # else:
-    #     board_config_file_path = os.path.join(aosp_path, "build/make/target/board/BoardConfigEmuCommon.mk")
-    #     logging.debug(f"Overwriting partition size to: {minimal_partition_size} in {board_config_file_path}")
-    #     with open(board_config_file_path, 'r') as base_file:
-    #         lines = base_file.readlines()
-    #     for i, line in enumerate(lines):
-    #         if "BOARD_SUPER_PARTITION_SIZE" in line:
-    #             lines[i] = f"  BOARD_SUPER_PARTITION_SIZE := {super_partition_size}\n"
-    #         if "BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE" in line:
-    #             lines[i] = f"  BOARD_EMULATOR_DYNAMIC_PARTITIONS_SIZE := {dynamic_partition_size}\n"
-    #     with open(board_config_file_path, 'w') as base_file:
-    #         base_file.writelines(lines)
 
 
 def move_txt_files(source_directory, destination_directory):
