@@ -596,7 +596,7 @@ def get_minimal_partition_size():
     approximate_size = get_directory_size(extracted_files_abs_path)
     logging.info(f"Approximate_size size all extracted files: {approximate_size}")
     default_size = 4294967296  # 4GB
-    overhead_gb = 1073741824 * 5  # 5GB
+    overhead_gb = 1073741824 * 3  # 3GB
     while default_size < (approximate_size + overhead_gb):
         default_size += overhead_gb
         logging.info(f"Increasing partition size to: {default_size} Approximate bytes of packages "
