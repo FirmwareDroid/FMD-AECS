@@ -110,5 +110,15 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 COPY ./emulator/emulator_start.sh /android/emulator_start.sh
 RUN chmod +x /android/emulator_start.sh || true
 
+# ADD TCPdump script for debugging network traffic in emulator
+COPY ./emulator/tcpdump.sh /android/tcpdump.sh
+RUN chmod +x /android/tcpdump.sh || true
+COPY ./emulator/pcaps/ /android/pcaps/
+RUN chmod +w /android/pcaps/
+
+# Add Testing Service Scripts
+COPY ./emulator/testing_service/ /android/testing_service/
+
+
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["/bin/bash"]

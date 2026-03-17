@@ -3,6 +3,19 @@
 # All background pids for the current iteration
 PIDS=()
 emulator_pid=0
+BASEDIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Ensure SSL keylog file so TLS keys from processes that honor SSLKEYLOGFILE
+# (e.g. BoringSSL/OpenSSL-based apps) are written to a persistent file. We
+# place it under BASEDIR/pcaps so it lives with captures.
+SSLKEY_DIR="$BASEDIR/pcaps"
+SSLKEYFILE="$SSLKEY_DIR/sslkeylog.log"
+mkdir -p "$SSLKEY_DIR"
+touch "$SSLKEYFILE" 2>/dev/null || true
+# make it readable/writable by the current user only
+chmod 600 "$SSLKEYFILE" 2>/dev/null || true
+export SSLKEYLOGFILE="$SSLKEYFILE"
+echo "SSLKEYLOGFILE set -> $SSLKEYLOGFILE"
 
 cleanup() {
   trap - SIGINT SIGTERM EXIT
@@ -20,6 +33,11 @@ cleanup() {
   pkill -f "socat -d tcp-listen:5555" 2>/dev/null || true
   pkill -f "socat -d tcp-listen:8554" 2>/dev/null || true
   pkill -f "pulseaudio" 2>/dev/null || true
+
+  # Stop tcpdump started by this script (ignore errors)
+  if [[ -x "$BASEDIR/tcpdump.sh" ]]; then
+    "$BASEDIR/tcpdump.sh" stop >/dev/null 2>&1 || true
+  fi
 
   exit 0
 }
@@ -128,10 +146,23 @@ while true; do
     cleanup
   fi
 
+  # Start tcpdump capture on host once emulator is launched. Use a pcaps subdir next to this script.
+  if [[ -x "$BASEDIR/tcpdump.sh" ]]; then
+    echo "Starting tcpdump helper to capture emulator traffic..."
+    # start will wait for adb boot completion inside tcpdump.sh; provide outdir under emulator/pcaps
+    "$BASEDIR/tcpdump.sh" start "$BASEDIR/pcaps" >/dev/null 2>&1 || true
+  else
+    echo "tcpdump helper not found at $BASEDIR/tcpdump.sh; skipping tcpdump start." >&2
+  fi
+
   # wait for emulator to stop; when it does, kill the iteration subprocesses and restart
   wait "$emulator_pid" 2>/dev/null || true
 
   echo "Emulator crashed or exited, stopping subprocesses and restarting..."
+  # Stop tcpdump associated with this emulator run
+  if [[ -x "$BASEDIR/tcpdump.sh" ]]; then
+    "$BASEDIR/tcpdump.sh" stop >/dev/null 2>&1 || true
+  fi
   # cleanup iteration processes but keep trap active for signals
   if [[ ${#PIDS[@]} -gt 0 ]]; then
     kill -TERM "${PIDS[@]}" 2>/dev/null || true
