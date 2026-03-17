@@ -92,12 +92,12 @@ def get_firmware_ids(graphql_url, cookies, arch=None, pk_filter=None):
                                f"response: {response.text}")
         resp_dict = response.json()
         aecs_job_list = resp_dict["data"]["aecs_job_list"]
-        logging.info(f"Found {len(aecs_job_list)}")
+        logging.info(f"Found {len(aecs_job_list)} aecs jobs.")
         object_id_list = []
         for aecs_job in aecs_job_list:
-            logging.info(f"Processing aecs job with pk: {aecs_job['pk']} and arch: {aecs_job['arch']}")
+            logging.debug(f"Processing aecs job with pk: {aecs_job['pk']} and arch: {aecs_job['arch']}")
             if (pk_filter and aecs_job["pk"] != pk_filter) or (arch and aecs_job["arch"] != arch):
-                logging.info(f"Skipping aecs job with pk: {aecs_job['pk']} and arch: {aecs_job['arch']} "
+                logging.debug(f"Skipping aecs job with pk: {aecs_job['pk']} and arch: {aecs_job['arch']} "
                              f"with pk_filter: {pk_filter}")
                 continue
             else:
@@ -108,9 +108,9 @@ def get_firmware_ids(graphql_url, cookies, arch=None, pk_filter=None):
                     decoded_string = decoded_bytes.decode('utf-8')
                     object_id_list.append(decoded_string.split(":")[1])
         if not object_id_list:
-            logging.info("No firmware ids found to process.")
+            logging.error("No firmware ids found to process.")
             exit(0)
-    logging.info(f"Found ids: {object_id_list}")
+    logging.info(f"Found ids to process: {object_id_list}")
     return object_id_list
 
 
