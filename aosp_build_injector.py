@@ -1314,6 +1314,7 @@ def upload_build_artefact(repo_url, username, password, artefact_path, filename)
     """
     is_upload_success = False
     max_attempts = 5
+    download_url = None
     while not is_upload_success and max_attempts > 0:
         logging.debug(f"Uploading image {filename} to repo {repo_url}.")
         try:
@@ -1376,6 +1377,21 @@ def write_json_output(result, output_file):
         logging.error(f"Error writing to file: {err}")
 
 
+def write_text_output(result, output_file):
+    """
+    Writes the build result to a text file.
+
+    :param result: str - The result to write to the text file.
+    :param output_file: str - Path to the text output file.
+    """
+    try:
+        with open(output_file, "a") as file:
+            file.write(result + ",")
+    except Exception as err:
+        logging.error(f"Error writing to file: {err}")
+
+
+
 def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
     aosp_version = args.version
@@ -1426,7 +1442,6 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                     "status": status
                 }
                 write_json_output(result, PATH_BUILD_FILE_LOG)
-
                 logging.info(f"Build process for firmware-id: {firmware_id} took {duration:.2f} seconds.")
             finally:
                 logging.getLogger().removeHandler(file_handler)
@@ -1451,6 +1466,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                         file.write(f"{filename.replace('.zip', '')}\n")
                     succeed_firmware_ids.append(firmware_id)
                     download_url_list.append(download_url)
+                    write_text_output(filename, PATH_BUILD_FILE_ARTEFACT_LOG)
                 else:
                     raise RuntimeError(f"Upload process for firmware-id: {firmware_id} failed.")
             else:
@@ -1471,6 +1487,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
         logging.error(f"Failed to build {len(failed_firmware_ids)} of the following firmware ids: {failed_firmware_ids} for arch: {args.arch}")
     logging.info(f"Successfully built {len(succeed_firmware_ids)} of the following firmware ids: {succeed_firmware_ids} for arch: {args.arch}")
     logging.info(f"Download URLs: {download_url_list}")
+
 
 
 

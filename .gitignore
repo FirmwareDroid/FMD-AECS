@@ -28,3 +28,4 @@ env/adb_streamer/*
 /testing_service/ollama_data/
 /testing_service/open-webui_data/
 /testing_service/trajectories/
+/testing_service/out/

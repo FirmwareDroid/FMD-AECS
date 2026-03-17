@@ -22,6 +22,9 @@ import re
 import os
 from typing import Optional, List
 
+# Default output directory for collect_logcat: ./testing_service/out
+DEFAULT_OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'out')
+
 
 def run_adb(args: List[str], capture_output=True, text=True) -> subprocess.CompletedProcess:
     cmd = ['adb'] + args
@@ -212,14 +215,27 @@ def main():
         if args.full_dump:
             print('Dumping full logcat...')
             full_log = dump_full_logcat(args.device)
-            #output_path: str, package: str, uid: Optional[int], logcat: str
-            write_json_output("logcat_full_dump.txt", logcat=full_log, package=None, uid=None)
-            print(f'Wrote logs to {args.output} (entries length: {len(full_log)} characters)')
+            # default output path inside DEFAULT_OUT_DIR
+            out_dir = DEFAULT_OUT_DIR
+            os.makedirs(out_dir, exist_ok=True)
+            out_path = os.path.join(out_dir, 'logcat_full_dump.json')
+            # write as JSON payload (package=None indicates a generic dump)
+            write_json_output(out_path, package=None, uid=None, logcat=full_log)
+            print(f'Wrote logs to {out_path} (entries length: {len(full_log)} characters)')
             return
 
-        # Otherwise, require both package and output for collection
-        if not args.package or not args.output:
-            parser.error('The --package and --output arguments are required for collection. Use --flush alone to clear device logcat without providing package/output.')
+        # Otherwise, require package; output defaults to DEFAULT_OUT_DIR/<package>.json
+        if not args.package:
+            parser.error('The --package argument is required for collection. Use --flush alone to clear device logcat without providing package/output.')
+        # Determine output path
+        out_path = args.output
+        if not out_path:
+            # default output filename in DEFAULT_OUT_DIR
+            os.makedirs(DEFAULT_OUT_DIR, exist_ok=True)
+            out_path = os.path.join(DEFAULT_OUT_DIR, f'{args.package}.json')
+        else:
+            # ensure parent dir exists
+            os.makedirs(os.path.dirname(out_path) or '.', exist_ok=True)
 
         print(f'Querying UID for package {args.package} on device {args.device or "default"}...')
         uid = get_package_uid(args.device, args.package)
@@ -229,8 +245,8 @@ def main():
         else:
             full_log = dump_uid_logcat(uid, args.device)
             print('UID not found for package; continuing to dump full logcat')
-        write_json_output(args.output, args.package, uid, full_log)
-
+        write_json_output(out_path, args.package, uid, full_log)
+        
         if args.clear:
             print('Clearing device logcat before collection...')
             clear_logcat(args.device)

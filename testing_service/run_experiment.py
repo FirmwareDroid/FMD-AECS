@@ -23,6 +23,15 @@ ACVTOOL = os.path.join(BASE_DIR, 'coverage', 'acvtool_wrapper.py')
 LOGCAT_COLLECTOR = os.path.join(BASE_DIR, 'coverage', 'collect_logcat.py')
 INSTALL_APPS = os.path.join(BASE_DIR, 'install_apps.py')
 START_APPS_BASIC = os.path.join(BASE_DIR, 'start_apps.py')
+LAUNCHER_TEST = os.path.join(BASE_DIR, 'launcher_test.py')
+
+import glob
+try:
+    import crash_watcher
+except Exception:
+    crash_watcher = None
+    
+OUT_DIR = os.path.join(BASE_DIR, 'out')
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run experiment pipeline')
@@ -160,18 +169,18 @@ def get_installed_packages():
 
 def execute_app_with_coverage(package, mode):
     logging.info(f"Executing appium with package: {package}, mode: {mode}")
-    run_script_capture(ACVTOOL, args=["flush", package], description="Run ACVTool to activate coverage measurement.")
-    run_script_capture(ACVTOOL, args=["activate", package], description="Run ACVTool to activate coverage measurement.")
+    run_script_capture(ACVTOOL, args=["flush", package, "--wd", OUT_DIR], description="Run ACVTool to flush coverage measurement.")
+    run_script_capture(ACVTOOL, args=["activate", package, "--wd", OUT_DIR], description="Run ACVTool to activate coverage measurement.")
     if mode == 'droidrun':
         run_script_capture(DROIDRUN_AGENT, args=["run"], description="Run Droidrun agent to test apps.")
     elif mode == 'monkey':
         run_script_capture(START_APPS_BASIC, args=["-m", "1", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package])
     else:
         run_script_capture(START_APPS_BASIC, args=[package], description=f"Run basic start/stop test for {package}")
-    run_script_capture(ACVTOOL, args=["snap", package], description="Run ACVTool to get coverage measurement")
-    run_script_capture(ACVTOOL, args=["cover-pickles", package],
+    run_script_capture(ACVTOOL, args=["snap", package, "--wd", OUT_DIR], description="Run ACVTool to get coverage measurement")
+    run_script_capture(ACVTOOL, args=["cover-pickles", package, "--wd", OUT_DIR],
                        description="Run ACVTool to deserialize coverage measurement")
-    run_script_capture(ACVTOOL, args=["report", package],
+    run_script_capture(ACVTOOL, args=["report", package, "--wd", OUT_DIR],
                        description="Run ACVTool to generate html coverage report")
 
 
@@ -199,11 +208,65 @@ def start_experiment(mode='single', test_only_one=False):
 
 def main():
     args = parse_args()
+
+    # Start crash watcher in background to dismiss random ANR/crash dialogs during the pipeline
+    if crash_watcher:
+        try:
+            crash_watcher.start_crash_watcher(device=None, interval=5.0)
+            atexit.register(crash_watcher.stop_crash_watcher)
+            logging.info('Started crash watcher (background)')
+        except Exception:
+            logging.exception('Failed to start crash watcher')
+
+    # 0) Preflight: run launcher test and require success before proceeding
+    logging.info('Running launcher preflight test before any device setup')
+    results_dir = os.path.join(BASE_DIR, 'out', 'launcher_test_results')
+    os.makedirs(results_dir, exist_ok=True)
+    # call launcher_test with a stable name so we can find the JSON output
+    preflight_name = 'preflight'
+    res = run_script_capture(LAUNCHER_TEST, args=['--output-dir', results_dir, '--name', preflight_name], description='Run launcher preflight test')
+    # find the JSON file produced (preflight_*.json)
+    json_matches = glob.glob(os.path.join(results_dir, f"{preflight_name}_*.json"))
+    json_path = None
+    if json_matches:
+        # pick the newest by mtime
+        json_path = max(json_matches, key=os.path.getmtime)
+        logging.info('Found launcher test JSON output: %s', json_path)
+        try:
+            with open(json_path, 'r', encoding='utf-8') as jf:
+                jdata = json.load(jf)
+        except Exception as e:
+            logging.error('Failed to read launcher test JSON: %s', e)
+            jdata = None
+    else:
+        logging.error('No launcher test JSON output found in %s', results_dir)
+        jdata = None
+
+    preflight_ok = False
+    if jdata and isinstance(jdata, dict):
+        preflight_ok = bool(jdata.get('success'))
+    else:
+        # fallback: use returncode of the launcher_test process
+        preflight_ok = (res.get('returncode', 1) == 0)
+
+    if not preflight_ok:
+        logging.error('Launcher preflight test failed; aborting experiment pipeline')
+        if json_path and os.path.exists(json_path):
+            try:
+                with open(json_path, 'r', encoding='utf-8') as jf:
+                    logging.error('Launcher preflight details:\n%s', jf.read())
+            except Exception:
+                pass
+        sys.exit(2)
+
+    logging.info('Launcher preflight succeeded; continuing with Appium start and device setup')
+
     # Start a local Appium server for the experiment and ensure it is stopped at the end
     appium_proc = start_appium_server()
     if appium_proc:
         # register atexit cleanup as a safety net
         atexit.register(stop_appium_server, appium_proc)
+
     try:
         if args.skip_setup:
             logging.info('Skipping device setup as requested (--skip-setup)')

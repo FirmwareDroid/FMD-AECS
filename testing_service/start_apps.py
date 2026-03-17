@@ -23,6 +23,10 @@ import logging
 from collections import Counter, defaultdict
 from shutil import which
 from typing import Dict, Any, List, Optional
+import os
+
+# Default output directory for start_apps summaries
+DEFAULT_OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out')
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -395,9 +399,11 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
     }
 
     try:
-        with open('app_start_summary.json', 'w') as f:
+        os.makedirs(DEFAULT_OUT_DIR, exist_ok=True)
+        out_path = os.path.join(DEFAULT_OUT_DIR, 'app_start_summary.json')
+        with open(out_path, 'w') as f:
             json.dump(out_summary, f, indent=2)
-        logging.info('Wrote summary.json and failures.json')
+        logging.info('Wrote summary to %s', out_path)
     except Exception as e:
         logging.error('Failed to write output files: %s', e)
 

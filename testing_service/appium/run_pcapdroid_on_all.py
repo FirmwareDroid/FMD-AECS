@@ -35,6 +35,32 @@ except Exception:
 import urllib.request
 import urllib.error
 
+# Start: add crash_watcher import (optional)
+# Make import robust when this script is executed from the appium/ subfolder
+crash_watcher = None
+try:
+    # Prefer package-style import when running from project root
+    from testing_service import crash_watcher as _cw
+    crash_watcher = _cw
+    logging.info("Crash watcher imported via testing_service.crash_watcher")
+except Exception:
+    try:
+        # Fallback to top-level module import
+        import crash_watcher as _cw
+        crash_watcher = _cw
+        logging.info("Crash watcher imported as top-level module")
+    except Exception:
+        # As a last resort, try to add the parent directory of this file to sys.path and import
+        try:
+            import os
+            sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+            import crash_watcher as _cw
+            crash_watcher = _cw
+            logging.info("Crash watcher imported after prepending parent dir to sys.path")
+        except Exception:
+            logging.debug("Could not import crash_watcher module; crash watcher disabled", exc_info=True)
+            crash_watcher = None
+
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 
 
@@ -61,7 +87,7 @@ def list_connected_devices(adb_cmd: str = "adb") -> List[str]:
     return devices
 
 
-def set_toggle_by_label(driver, label, max_scroll_attempts=5, wait_time=1.5):
+def set_toggle_by_label(driver, label, max_scroll_attempts=5, wait_time=0.5):
     """
     Scrolls the settings page to find the toggle by label and clicks it.
     Args:
@@ -72,21 +98,28 @@ def set_toggle_by_label(driver, label, max_scroll_attempts=5, wait_time=1.5):
     Returns:
         True if toggle was found and clicked, False otherwise
     """
+    is_success = False
     for attempt in range(max_scroll_attempts):
+        handle_crash_dialog(driver, timeout=2.0)
         try:
             # Try to find the element by text
             elem = driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, f'new UiSelector().textContains("{label}")')
             elem.click()
-            time.sleep(wait_time)
-            return True
+            #time.sleep(wait_time)#
+            is_success =  True
+            break
         except Exception:
             # Scroll to try to find the element
             try:
                 scroll_cmd = f'new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("{label}"))'
-                driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, scroll_cmd)
+                elem = driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, scroll_cmd)
+                elem.click()
+                #time.sleep(wait_time)
+                is_success = True
+                break
             except Exception:
                 time.sleep(0.5)
-    return False
+    return is_success
 
 
 def resolve_appium_endpoint(base_url: str, timeout: float = 2.0) -> str:
@@ -221,7 +254,7 @@ def try_click_start(driver, locators: List[Dict], timeout: int = 10) -> bool:
     return False
 
 
-def handle_permission_dialogs(driver, timeout: int = 5) -> None:
+def handle_permission_dialogs(driver, timeout: int = 10) -> None:
     # try common text buttons
     buttons = ["Allow", "OK", "Confirm", "Continue", "Start"]
     end = time.time() + timeout
@@ -388,7 +421,7 @@ def start_pcapdroid_on_device_with_settings(appium_url: str,
                                            app_package: str,
                                            app_activity: str,
                                            start_locators: List[Dict],
-                                           settings_retries: int = 3,
+                                           settings_retries: int = 10,
                                            abort_on_settings_fail: bool = True,
                                            socks_ip: str = "",
                                            http_port: int = 54320) -> Dict:
@@ -414,17 +447,20 @@ def start_pcapdroid_on_device_with_settings(appium_url: str,
 
 
         # Set Dumping mode to 'HTTP server'
-        try:
-            for attempt in range(1, max(1, settings_retries) + 1):
-                dumping_mode_ok = set_dumping_mode(driver)
-                if not dumping_mode_ok:
-                    logging.error("configure_pcapdroid_settings: failed to set Dumping mode to 'HTTP server'")
-                else:
-                    break
-                if handle_crash_dialog(driver, timeout=2.0):
-                    result['messages'].append("Dismissed crash dialog after app start")
-        except Exception as e:
-            logging.error('configure_pcapdroid_settings: error setting Dumping mode: %s', e)
+        for attempt in range(1, max(1, settings_retries) + 1):
+            try:
+                    dumping_mode_ok = set_dumping_mode(driver)
+                    if not dumping_mode_ok:
+                        time.sleep(1)
+                        logging.error("configure_pcapdroid_settings: failed to set Dumping mode to 'HTTP server'")
+                    else:
+                        break
+                    if handle_crash_dialog(driver, timeout=2.0):
+                        result['messages'].append("Dismissed crash dialog after app start")
+            except Exception as e:
+                logging.error('configure_pcapdroid_settings: error setting Dumping mode: %s', e)
+                time.sleep(1)
+
         if not dumping_mode_ok and abort_on_settings_fail:
             msg = f"Could not configure dump mode to HTTP server; aborting per configuration"
             logging.error(msg)
@@ -479,40 +515,25 @@ def start_pcapdroid_on_device_with_settings(appium_url: str,
         except Exception:
             pass
 
-        # try to click start button
-        clicked = try_click_start(driver, start_locators, timeout=12)
-        if not clicked:
-            result['messages'].append("Could not find a Start control using provided locators")
-            # attempt additional heuristics
-            heuristics = [
-                {"strategy": "uiautomator", "value": 'new UiSelector().textContains("VPN")'},
-                {"strategy": "uiautomator", "value": 'new UiSelector().textContains("Capture")'},
-                {"strategy": "xpath", "value": '//*[@text]'},
-            ]
-            for h in heuristics:
-                try:
-                    if h['strategy'] == 'uiautomator':
-                        el = driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, h['value'])
-                    else:
-                        el = driver.find_element(AppiumBy.XPATH, '//*[contains(@text, "Start") or contains(@text, "VPN") or contains(@text, "Capture")]')
-                    if el:
-                        logging.info("Found heuristic element - clicking")
-                        el.click()
-                        clicked = True
-                        break
-                except Exception:
-                    continue
-        if clicked:
-            result['messages'].append("Clicked Start control; attempting to accept VPN permission dialogs")
-            handle_permission_dialogs(driver, timeout=6)
+        # try to click start button "READY"
+        # clicked = try_click_start(driver, start_locators, timeout=12)
+        for attempt in range(1, max(1, settings_retries) + 1):
             try:
                 if handle_crash_dialog(driver, timeout=1.0):
                     result['messages'].append("Dismissed crash dialog after starting capture")
+                el = driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, f'new UiSelector().text("Ready")')
+                el.click()
+                if handle_crash_dialog(driver, timeout=1.0):
+                    result['messages'].append("Dismissed crash dialog after starting capture")
+                handle_permission_dialogs(driver, timeout=6)
+                handle_permission_dialogs(driver, timeout=6)
+                result['messages'].append("Started capture")
+                result['ok'] = True
+                break
             except Exception as e:
-                logging.debug("Error while handling crash dialog after starting capture: %s", e)
-            result['ok'] = True
-        else:
-            result['ok'] = False
+                result['ok'] = False
+
+
     except Exception as e:
         logging.error(f"Error while starting PCAPdroid on {device_serial}: {e}")
         result['messages'].append(str(e))
@@ -530,67 +551,30 @@ def start_pcapdroid_on_device_with_settings(appium_url: str,
                 logging.warning(f"Failed to quit Appium session for device {device_serial}: {quit_err}")
     return result
 
-def set_vpn_ip_addresses(driver, label="VPN IP addresses", selection="IPv4 and IPv6", max_attempts=5):
+def set_vpn_ip_addresses(driver, label="addresses", selection="IPv4 and IPv6", max_attempts=20):
     """
     Scroll to the VPN IP addresses label and select the desired option.
     Uses multiple heuristics for robust detection.
     """
     attempts = 0
-    found_label = False
-    found_selection = False
-    last_error = None
-    while attempts < max_attempts and not found_label:
+    is_success = False
+    while attempts < max_attempts:
         try:
+            # elem = driver.find_element(AppiumBy.XPATH, f'//*[contains(@text, "{label}")]')
             scroll_cmd = f'new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("{label}"))'
-            driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, scroll_cmd)
-            found_label = True
-        except Exception as e:
-            last_error = e
-            attempts += 1
-            time.sleep(1)
-            # Try alternative scroll by full label
-            try:
-                scroll_cmd_full = f'new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().text("{label}"))'
-                driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, scroll_cmd_full)
-                found_label = True
-            except Exception as e2:
-                last_error = e2
-                attempts += 1
-                time.sleep(1)
-    if not found_label:
-        # Fallback: try to find element by XPath
-        try:
-            elem = driver.find_element(AppiumBy.XPATH, f'//*[contains(@text, "{label}")]')
-            found_label = True
-        except Exception as e:
-            last_error = e
-    if not found_label:
-        print(f"[ERROR] set_vpn_ip_addresses: Could not find label '{label}' after {max_attempts} attempts. Last error: {last_error}")
-        return False
-
-    # Try to click the label to open the selection list
-    try:
-        elem = driver.find_element(AppiumBy.XPATH, f'//*[contains(@text, "{label}")]')
-        elem.click()
-        time.sleep(2)
-    except Exception as e:
-        print(f"[WARN] set_vpn_ip_addresses: Could not click label '{label}': {e}")
-    # Try to select the desired option
-    attempts = 0
-    while attempts < max_attempts and not found_selection:
-        try:
+            elem = driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, scroll_cmd)
+            elem.click()
+            time.sleep(2)
             selection_elem = driver.find_element(AppiumBy.XPATH, f'//*[contains(@text, "{selection}")]')
             selection_elem.click()
-            found_selection = True
+            found_label = True
+            time.sleep(2)
+            is_success = True
+            break
         except Exception as e:
-            last_error = e
             attempts += 1
-            time.sleep(1)
-    if not found_selection:
-        print(f"[ERROR] set_vpn_ip_addresses: Could not select '{selection}' after {max_attempts} attempts. Last error: {last_error}")
-        return False
-    print(f"[INFO] set_vpn_ip_addresses: Successfully set '{label}' to '{selection}'")
-    return True
+            time.sleep(2)
+    return is_success
 
 
 def open_settings_page(driver, timeout: float = 5.0) -> bool:
@@ -715,15 +699,20 @@ def set_dumping_mode(driver, mode_label="HTTP", logger=None, timeout=10):
         except Exception as e:
             if logger:
                 logger.error(f"set_dumping_mode: could not find 'No dump' label: {e}")
-            return False
-        if no_dump_elem:
-            no_dump_elem.click()
-            if logger:
-                logger.info(f"set_dumping_mode: clicked 'No dump' label, waiting for mode selection pop-up")
+            # leave result as False
         else:
-            if logger:
-                logger.error(f"set_dumping_mode: 'No dump' label not found on main activity")
-            return False
+            if no_dump_elem:
+                try:
+                    no_dump_elem.click()
+                    if logger:
+                        logger.info(f"set_dumping_mode: clicked 'No dump' label, waiting for mode selection pop-up")
+                except Exception as e:
+                    if logger:
+                        logger.error(f"set_dumping_mode: failed to click 'No dump' label: {e}")
+            else:
+                if logger:
+                    logger.error(f"set_dumping_mode: 'No dump' label not found on main activity")
+
         # Wait for the pop-up and select the desired mode
         time.sleep(0.5)
         mode_elem = None
@@ -732,36 +721,58 @@ def set_dumping_mode(driver, mode_label="HTTP", logger=None, timeout=10):
         except Exception as e:
             if logger:
                 logger.error(f"set_dumping_mode: could not find mode '{mode_label}' in pop-up: {e}")
-            return False
+            mode_elem = None
+
         if mode_elem:
-            mode_elem.click()
-            if logger:
-                logger.info(f"set_dumping_mode: selected dumping mode '{mode_label}'")
-            return True
+            try:
+                mode_elem.click()
+                if logger:
+                    logger.info(f"set_dumping_mode: selected dumping mode '{mode_label}'")
+                result = True
+            except Exception as e:
+                if logger:
+                    logger.error(f"set_dumping_mode: failed to click mode element '{mode_label}': {e}")
+                result = False
         else:
             if logger:
                 logger.error(f"set_dumping_mode: mode '{mode_label}' not found in pop-up")
-            return False
+            result = False
     except Exception as e:
         if logger:
             logger.error(f"set_dumping_mode: unexpected error: {e}")
-        return False
+        result = False
+    return result
 
 
-def set_socks_5_proxy_setting(driver, socks_ip):
+def set_socks_5_proxy_setting(driver, socks_ip, max_retries=10):
     is_success = False
-    try:
-        socks_elem = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR,
-                                           value='new UiSelector().textContains("SOCKS5")')
-        socks_elem.click()
-        time.sleep(0.6)
-        set_toggle_by_label(driver, label="SOCKS5", max_scroll_attempts=5, wait_time=1.5)
-        host_elem = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR,
-                                           value='new UiSelector().textContains("host")')
-        host_elem.click()
-        set_text_field(driver, value=socks_ip)
-    except Exception as e:
-        is_success = False
+    is_toggled = False
+    first_clicked = False
+    for i in range(max_retries):
+        try:
+                handle_crash_dialog(driver, timeout=2.0)
+                socks_elem = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value='new UiSelector().textContains("SOCKS5")')
+                socks_elem.click()
+                first_clicked = True
+                time.sleep(0.6)
+                handle_crash_dialog(driver, timeout=2.0)
+                if not is_toggled:
+                    is_toggled = set_toggle_by_label(driver, label="SOCKS5", max_scroll_attempts=10, wait_time=1.5)
+                for x in range(max_retries):
+                    handle_crash_dialog(driver, timeout=2.0)
+                    host_elem = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value='new UiSelector().textContains("host")')
+                    host_elem.click()
+                    set_text_field(driver, value=socks_ip)
+                    is_success = True
+                    break
+                break
+        except Exception as e:
+            is_success = False
+            time.sleep(1)
+            if first_clicked:
+                driver.back()
+                first_clicked = False
+
 
     return is_success
 
@@ -800,7 +811,7 @@ def configure_pcapdroid_settings(driver, socks_ip, http_port) -> bool:
         try:
             if handle_crash_dialog(driver, timeout=2.0):
                 logging.info("Dismissed crash dialog after app start")
-            ok_vpn = set_http_server_port(driver, port=http_port, timeout=10)
+            ok_vpn = set_http_server_port(driver, port=http_port, max_attempts=10)
             logging.info('configure_pcapdroid_settings: set HTTP Port -> %s', ok_vpn)
         except Exception as e:
             logging.error('configure_pcapdroid_settings: error setting VPN IP addresses: %s', e)
@@ -885,20 +896,25 @@ def set_text_field(driver, value=""):
     return False
 
 
-def set_http_server_port(driver, port=54320, timeout=10):
+def set_http_server_port(driver, port=54320, max_attempts=5):
     """
     Set the HTTP server port in PCAPdroid settings by clicking the label, entering the port, and confirming with OK.
     """
+    is_success = False
     try:
         # Scroll to the HTTP server port label
-        scroll_cmd = 'new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("HTTP server port"))'
-        port_label = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value=scroll_cmd)
-        port_label.click()
-        time.sleep(1)
-        set_text_field(driver, value=str(port))
+        for i in range(max_attempts):
+            handle_crash_dialog(driver, timeout=2.0)
+            scroll_cmd = 'new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("HTTP server port"))'
+            port_label = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value=scroll_cmd)
+            port_label.click()
+            time.sleep(1)
+            set_text_field(driver, value=str(port))
+            is_success = True
+            break
     except Exception as e:
         print(f"set_http_server_port: error setting port: {e}")
-        return False
+    return is_success
 
 
 def parse_args():
@@ -928,8 +944,20 @@ def parse_args():
 
 
 def main():
+    """Main entrypoint for configuring PCAPdroid on all devices."""
+
     args = parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO, format=LOG_FORMAT)
+
+    # Start the crash watcher so transient ANR/crash dialogs won't block long-running setup
+    crash_watcher_was_started = False
+    if crash_watcher and hasattr(crash_watcher, 'start_crash_watcher'):
+        try:
+            logging.info('Starting crash watcher (background) in run_pcapdroid_on_all')
+            crash_watcher.start_crash_watcher(device=None, interval=3.0)
+            crash_watcher_was_started = True
+        except Exception:
+            logging.exception('Failed to start crash watcher')
 
     try:
         devices = list_connected_devices(adb_cmd=args.adb)
@@ -975,6 +1003,14 @@ def main():
                                                     socks_ip=args.socks5_address
                                                     )
         results.append(r)
+
+    # Stop crash watcher if we started it
+    if crash_watcher_was_started and crash_watcher and hasattr(crash_watcher, 'stop_crash_watcher'):
+        try:
+            logging.info('Stopping crash watcher (background) in run_pcapdroid_on_all')
+            crash_watcher.stop_crash_watcher()
+        except Exception:
+            logging.exception('Failed to stop crash watcher')
 
     # print summary
     summary = {"devices": devices, "results": results}
