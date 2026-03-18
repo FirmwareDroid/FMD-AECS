@@ -21,12 +21,12 @@ LOGFILE="/tmp/emulator_tcpdump.log"
 
 usage() {
   cat <<EOF
-Usage: $0 {start|stop|restart|status} [outdir]
+Usage: $0 {start|stop|restart|status} [outdir] [device]
 
 Commands:
-  start [outdir]   Wait for emulator boot, then start tcpdump and write pcap into outdir (default ./pcaps)
+  start [outdir] [device]   Wait for emulator boot (optionally on specified device), then start tcpdump and write pcap into outdir (default ./pcaps)
   stop             Stop the running tcpdump started by this script
-  restart [outdir] Stop (if running) then start tcpdump again
+  restart [outdir] [device] Stop (if running) then start tcpdump again (optionally target device)
   status           Show status of tcpdump and last pcap file created
 EOF
 }
@@ -41,11 +41,35 @@ find_adb() {
   fi
 }
 
+# Select a device serial. If a device serial is specified (non-empty), return it.
+# Otherwise return the first serial listed by `adb devices` (first non-empty device line).
+select_device() {
+  adb_bin="$1"
+  specified="$2"
+  if [ -n "$specified" ]; then
+    echo "$specified"
+    return 0
+  fi
+  # Pick the first non-empty device listed by `adb devices` (skip header)
+  serial=$("$adb_bin" devices | awk 'NR>1 && NF{print $1; exit}' || true)
+  echo "$serial"
+}
+
 wait_for_boot() {
   adb_bin="$1"
+  device="$2"
   echo "Waiting for emulator to fully boot..."
+  adb_cmd=("$adb_bin")
+  if [ -n "$device" ]; then
+    adb_cmd+=("-s" "$device")
+    echo "Using adb device: $device"
+  fi
   # Use the user's check loop
-  while [ "$("$adb_bin" shell getprop sys.boot_completed | tr -d '\r')" != "1" ]; do
+  while true; do
+    output=$("${adb_cmd[@]}" shell getprop sys.boot_completed 2>/dev/null || true)
+    if [ "$(printf '%s' "$output" | tr -d '\r')" = "1" ]; then
+      break
+    fi
     echo "Waiting for emulator to fully boot..."
     sleep 30
   done
@@ -154,16 +178,33 @@ fi
 
 cmd="$1"
 arg_outdir="${2:-./pcaps}"
+arg_device="${3:-}"    # optional device serial passed as 3rd positional argument
 
 adb_bin=$(find_adb)
 if [ -z "$adb_bin" ]; then
   echo "Warning: adb not found in PATH and ./adb not present. The script won't be able to wait for emulator boot." >&2
+else
+  # If ADB_DEVICE env var is set and no positional device passed, prefer it
+  if [ -z "$arg_device" ] && [ -n "${ADB_DEVICE:-}" ]; then
+    arg_device="$ADB_DEVICE"
+  fi
+  # If no explicit device, and more than one device connected, select the first
+  device_count=$("$adb_bin" devices | awk 'NR>1 && NF{count++}END{print count+0}')
+  if [ -z "$arg_device" ] && [ "$device_count" -gt 1 ]; then
+    echo "Multiple adb devices detected ($device_count). Selecting the first device reported by 'adb devices'."
+  fi
+  selected_device=$(select_device "$adb_bin" "$arg_device")
+  if [ -z "$selected_device" ]; then
+    echo "No adb device found." >&2
+  else
+    echo "Selected adb device: $selected_device"
+  fi
 fi
 
 case "$cmd" in
   start)
     if [ -n "$adb_bin" ]; then
-      wait_for_boot "$adb_bin"
+      wait_for_boot "$adb_bin" "$selected_device"
     else
       echo "Skipping emulator boot wait because adb was not found. Proceeding to start tcpdump..." >&2
     fi
@@ -175,7 +216,7 @@ case "$cmd" in
   restart)
     stop_tcpdump || true
     if [ -n "$adb_bin" ]; then
-      wait_for_boot "$adb_bin"
+      wait_for_boot "$adb_bin" "$selected_device"
     fi
     start_tcpdump "$arg_outdir"
     ;;

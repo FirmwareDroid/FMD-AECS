@@ -4,6 +4,7 @@ set -e
 # Docker entrypoint for emulator container
 # Starts sshd and fail2ban, then after a short delay starts emulator_start.sh in the background.
 
+
 # Allow overriding the delay (seconds) via EMULATOR_START_DELAY env var
 DELAY=${EMULATOR_START_DELAY:-5}
 
