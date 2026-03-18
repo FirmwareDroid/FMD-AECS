@@ -32,7 +32,8 @@
     "TetheringEntitlement",
     "TetheringGoogle",
     "CtsShimPrivPrebuilt",
-    "CtsShimPrebuilt"
+    "CtsShimPrebuilt",
+    "Launcher3"
   ],
   "DISALLOWED_APK_PACKAGES": [
     "MicrosoftOneDrive"
