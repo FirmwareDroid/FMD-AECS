@@ -53,6 +53,7 @@ services:
       - "8081:8081"
       - "8080:8080"
       - "8050:8050"
+      - "51821:51821"
     dns:
       - 172.31.250.2
     env_file:
@@ -63,8 +64,7 @@ services:
       - net.ipv4.ip_nonlocal_bind=1
       - net.ipv4.conf.all.rp_filter=0
       - net.ipv4.conf.default.rp_filter=0
-    command: "mitmweb --web-host 0.0.0.0 --mode transparent@8080 --mode socks5@8050 --mode regular@8081 --showhost"
-    # --mode wireguard@51821
+    command: "mitmweb --web-host 0.0.0.0 --mode transparent@8080 --mode socks5@8050 --mode regular@8081 --mode wireguard@51821 --showhost"
     volumes:
       - ./env/mitmproxy/config.yml:/home/mitmproxy/.mitmproxy/config.yml
       - ./mitmproxy-data:/home/mitmproxy/.mitmproxy

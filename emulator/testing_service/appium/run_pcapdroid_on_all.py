@@ -166,7 +166,13 @@ def resolve_appium_endpoint(base_url: str, timeout: float = 2.0) -> str:
     return base
 
 
-def start_appium_session_for_device(appium_url: str, udid: str, app_package: str, app_activity: str, timeout: int = 30):
+def start_appium_session_for_device(appium_url: str, udid: str, app_package: str, app_activity: str, timeout: int = 30, retries: int = 3, retry_delay: float = 5.0):
+    """
+    Create an Appium WebDriver session for a device, with retries on transient failures.
+
+    retries: number of attempts to establish a session (including first attempt)
+    retry_delay: seconds to wait between attempts
+    """
     opts = UiAutomator2Options()
     opts.platform_name = "Android"
     opts.automation_name = "uiautomator2"
@@ -195,23 +201,39 @@ def start_appium_session_for_device(appium_url: str, udid: str, app_package: str
 
     last_exc = None
     driver = None
-    # attempt primary
-    try:
-        logging.debug("Attempting Appium Remote with URL: %s", resolved_base)
-        driver = webdriver.Remote(command_executor=resolved_base, options=opts)
-    except Exception as e:
-        logging.warning("Appium session creation failed with base %s: %s", resolved_base, e)
-        last_exc = e
-    # attempt alternate with '/wd/hub' appended (for older Appium servers) if primary failed
-    if driver is None:
+
+    for attempt in range(1, max(1, retries) + 1):
         try:
-            alt = resolved_base + '/wd/hub'
-            logging.debug("Retrying Appium Remote with alt URL: %s", alt)
-            driver = webdriver.Remote(command_executor=alt, options=opts)
+            logging.debug("Attempt %d/%d: Trying Appium Remote with URL: %s", attempt, retries, resolved_base)
+            driver = webdriver.Remote(command_executor=resolved_base, options=opts)
+            logging.debug("Appium Remote succeeded on attempt %d with base %s", attempt, resolved_base)
         except Exception as e:
-            logging.error("Appium session creation failed with both URLs: %s and %s", resolved_base, resolved_base + '/wd/hub')
-            # raise the last exception to the caller
-            raise last_exc or e
+            logging.warning("Appium session creation failed with base %s on attempt %d: %s", resolved_base, attempt, e)
+            last_exc = e
+            driver = None
+
+        if driver is None:
+            try:
+                alt = resolved_base + '/wd/hub'
+                logging.debug("Attempt %d/%d: Trying Appium Remote with alt URL: %s", attempt, retries, alt)
+                driver = webdriver.Remote(command_executor=alt, options=opts)
+                logging.debug("Appium Remote succeeded on attempt %d with alt URL %s", attempt, alt)
+            except Exception as e:
+                logging.warning("Appium session creation failed with alt URL %s on attempt %d: %s", alt, attempt, e)
+                last_exc = last_exc or e
+                driver = None
+
+        if driver is not None:
+            break
+
+        # if not last attempt, wait and retry
+        if attempt < retries:
+            logging.info("Waiting %.1fs before next Appium session attempt...", retry_delay)
+            time.sleep(retry_delay)
+        else:
+            logging.error("Failed to create Appium session after %d attempts", retries)
+            # raise the last captured exception to the caller
+            raise last_exc or RuntimeError("Failed to create Appium session")
 
     # wait for activity (driver should be set here)
     end = time.time() + timeout
@@ -223,6 +245,7 @@ def start_appium_session_for_device(appium_url: str, udid: str, app_package: str
             break
         except Exception:
             time.sleep(0.5)
+
     return driver
 
 
