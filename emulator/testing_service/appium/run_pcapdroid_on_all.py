@@ -249,35 +249,7 @@ def start_appium_session_for_device(appium_url: str, udid: str, app_package: str
     return driver
 
 
-def try_click_start(driver, locators: List[Dict], timeout: int = 10) -> bool:
-    """Try list of locators until one succeeds. Locator dict has keys: strategy, value."""
-    end = time.time() + timeout
-    while time.time() < end:
-        for loc in locators:
-            try:
-                strategy = loc.get("strategy")
-                value = loc.get("value")
-                if strategy == "id":
-                    el = driver.find_element(AppiumBy.ID, value)
-                elif strategy == "accessibility_id":
-                    el = driver.find_element(AppiumBy.ACCESSIBILITY_ID, value)
-                elif strategy == "uiautomator":
-                    el = driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, value)
-                else:
-                    # default to text search using XPath
-                    el = driver.find_element(AppiumBy.XPATH, value)
-                if el:
-                    logging.info("Found start element using %s=%s - clicking", strategy, value)
-                    el.click()
-                    return True
-            except Exception:
-                # ignore and try next locator
-                continue
-        time.sleep(0.5)
-    return False
-
-
-def handle_permission_dialogs(driver, timeout: int = 10) -> None:
+def handle_permission_dialogs(driver, timeout: int = 5) -> None:
     # try common text buttons
     buttons = ["Allow", "OK", "Confirm", "Continue", "Start"]
     end = time.time() + timeout
@@ -292,7 +264,6 @@ def handle_permission_dialogs(driver, timeout: int = 10) -> None:
             except Exception:
                 continue
         time.sleep(0.3)
-
 
 def handle_pcapdroid_initial_prompts(driver, timeout: int = 6) -> None:
     """Handle PCAPdroid initial fragment that shows the title 'Viewing full screen' and buttons
@@ -376,7 +347,7 @@ def handle_crash_dialog(driver, timeout: float = 2.0) -> bool:
     """
     end = time.time() + timeout
     # common button texts to close a crash dialog
-    close_texts = ["Close app", "Close", "OK", "Dismiss", "Force close", "Close application"]
+    close_texts = ["Close app", "Close", "OK", "ok", "Dismiss", "Force close", "Close application"]
     # Some dialogs may include 'has stopped' or 'keeps stopping' in the message
     message_keywords = ["stopped", "has stopped", "keeps stopping", "isn't responding", "has stopped unexpectedly", "Unfortunately"]
     while time.time() < end:
@@ -539,22 +510,19 @@ def start_pcapdroid_on_device_with_settings(appium_url: str,
             pass
 
         # try to click start button "READY"
-        # clicked = try_click_start(driver, start_locators, timeout=12)
         for attempt in range(1, max(1, settings_retries) + 1):
             try:
-                if handle_crash_dialog(driver, timeout=1.0):
-                    result['messages'].append("Dismissed crash dialog after starting capture")
                 el = driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, f'new UiSelector().text("Ready")')
                 el.click()
-                if handle_crash_dialog(driver, timeout=1.0):
-                    result['messages'].append("Dismissed crash dialog after starting capture")
-                handle_permission_dialogs(driver, timeout=6)
-                handle_permission_dialogs(driver, timeout=6)
-                result['messages'].append("Started capture")
-                result['ok'] = True
-                break
+                time.sleep(1)
+                handle_permission_dialogs(driver, timeout=5)
             except Exception as e:
                 result['ok'] = False
+                continue
+            result['messages'].append("Started capture")
+            result['ok'] = True
+            time.sleep(1)
+
 
 
     except Exception as e:
@@ -774,9 +742,19 @@ def set_socks_5_proxy_setting(driver, socks_ip, max_retries=10):
     for i in range(max_retries):
         try:
                 handle_crash_dialog(driver, timeout=2.0)
-                socks_elem = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value='new UiSelector().textContains("SOCKS5")')
-                socks_elem.click()
-                first_clicked = True
+                try:
+                    socks_elem = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value='new UiSelector().textContains("SOCKS5")')
+                    socks_elem.click()
+                    first_clicked = True
+                except Exception as e:
+                    try:
+                        scroll_cmd = 'new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("SOCKS5"))'
+                        socks_elem = driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value=scroll_cmd)
+                        socks_elem.click()
+                        first_clicked = True
+                    except Exception as e:
+                        first_clicked = False
+                        continue
                 time.sleep(0.6)
                 handle_crash_dialog(driver, timeout=2.0)
                 if not is_toggled:
@@ -795,8 +773,6 @@ def set_socks_5_proxy_setting(driver, socks_ip, max_retries=10):
             if first_clicked:
                 driver.back()
                 first_clicked = False
-
-
     return is_success
 
 

@@ -146,6 +146,9 @@ def setup_devices(mode='basic', pcap_http_port=54320, socks5_address="127.0.0.1"
     # Install Appium driver
     run_script_capture(INSTALL_APPIUM, args=["--all"], description="Install Appium driver on all devices")
     # Configure PCAPdroid on all devices
+
+    cmd_clear_pcapdroid = "adb shell pm clear com.emanuelef.remote_capture"
+    run_script_capture(cmd_clear_pcapdroid, description="Clear PCAPdroid data on all devices before configuration")
     run_script_capture(RUN_PCAPDROID, args=["--http-port", str(pcap_http_port), "--socks5-address", socks5_address],
                        description="Configure PCAPdroid on all devices")
     if mode == 'droidrun':
@@ -321,6 +324,17 @@ def main():
     results_dir = os.path.join(BASE_DIR, 'out', 'launcher_test_results')
     os.makedirs(results_dir, exist_ok=True)
 
+
+
+    # Wait for boot animation (init.svc.bootanim) to stop (max 5 minutes) before running the launcher test
+    preflight_ok = False
+    try:
+        is_running = wait_for_bootanim_stop(max_wait_seconds=600, sleep_seconds=10)
+        if not is_running:
+            preflight_ok = run_launcher_test(results_dir)
+    except Exception:
+        logging.exception('Error while waiting for boot animation to stop;')
+
     # First: connectivity test
     try:
         if not run_connectivity_test(results_dir):
@@ -334,14 +348,12 @@ def main():
         logging.exception('Error while running connectivity test; aborting')
         sys.exit(2)
 
-    # Wait for boot animation (init.svc.bootanim) to stop (max 5 minutes) before running the launcher test
-    preflight_ok = False
-    try:
-        is_running = wait_for_bootanim_stop(max_wait_seconds=600, sleep_seconds=10)
-        if not is_running:
-            preflight_ok = run_launcher_test(results_dir)
-    except Exception:
-        logging.exception('Error while waiting for boot animation to stop;')
+    disable_anr_message = "adb shell settings put global show_annoying_receivers_in_background 0"
+    run_command(disable_anr_message, description='Disable show_annoying_receivers_in_background: This suppresses the "Application Not Responding" dialogs')
+    disable_anr_message = "adb shell settings put global anr_show_background 0"
+    run_command(disable_anr_message, description='Disable anr_show_background: This suppresses the "Application Not Responding" dialogs')
+    disable_anr_message = "adb shell settings put global hide_error_dialogs 1"
+    run_command(disable_anr_message, description='Disable hide_error_dialogs: This suppresses the "Application Not Responding" dialogs')
 
     if not preflight_ok:
         logging.error('Launcher preflight test failed; aborting experiment pipeline')
