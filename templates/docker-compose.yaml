@@ -64,7 +64,7 @@ services:
       - net.ipv4.ip_nonlocal_bind=1
       - net.ipv4.conf.all.rp_filter=0
       - net.ipv4.conf.default.rp_filter=0
-    command: "mitmweb --web-host 0.0.0.0 --mode transparent@8080 --mode socks5@8050 --mode regular@8081 --mode wireguard@51821 --showhost"
+    command: "mitmweb --web-host 0.0.0.0 --mode transparent@8080 --mode socks5@8050 --mode regular@8081 --mode wireguard@51821 --showhost --save-stream-file +/home/mitmproxy/.mitmproxy/flows.mitm"
     volumes:
       - ./env/mitmproxy/config.yml:/home/mitmproxy/.mitmproxy/config.yml
       - ./mitmproxy-data:/home/mitmproxy/.mitmproxy
