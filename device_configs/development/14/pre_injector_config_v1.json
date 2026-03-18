@@ -32,7 +32,9 @@
     "VpnDialogs",
     "CellBroadcast",
     "AccessibilityMenu",
-    "E2eeContactKeysProvider"
+    "E2eeContactKeysProvider",
+    "CtsShimPrivPrebuilt",
+    "CtsShimPrebuilt"
   ],
   "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
   "ALLOW_APP_KEYWORD_ALWAYS_LIST": [

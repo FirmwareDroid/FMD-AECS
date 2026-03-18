@@ -31,7 +31,9 @@
     "PixelConnectivityOverlay2021",
     "VpnDialogs",
     "CellBroadcast",
-    "CompOSPayloadApp"
+    "CompOSPayloadApp",
+    "CtsShimPrivPrebuilt",
+    "CtsShimPrebuilt"
   ],
   "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
   "ALLOW_APP_KEYWORD_ALWAYS_LIST": ["ExtServices", "ExtShared", "AndroidPlatformServices", "ServicesFramework", "SystemUIGoogle", "DocumentsUIGoogle", "NexusLauncherRelease"],

@@ -29,3 +29,6 @@ env/adb_streamer/*
 /testing_service/open-webui_data/
 /testing_service/trajectories/
 /testing_service/out/
+/emulator/testing_service/out/
+/emulator/testing_service/out/pcaps/
+/emulator/testing_service/out/pcaps/sslkeylog.log

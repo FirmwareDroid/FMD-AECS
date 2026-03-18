@@ -30,7 +30,9 @@
     "VpnDialogs",
     "CellBroadcast",
     "TetheringEntitlement",
-    "TetheringGoogle"
+    "TetheringGoogle",
+    "CtsShimPrivPrebuilt",
+    "CtsShimPrebuilt"
   ],
   "DISALLOWED_APK_PACKAGES": [
     "MicrosoftOneDrive"
