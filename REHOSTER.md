@@ -69,6 +69,18 @@ python3 ./aosp_build_injector.py -f "https://firmwaredroid.XXXX.com" -u "admin" 
 
 # Re-Hoster Installation Guide
 
+This guide assume that you work on a Linux system and that you store the AOSP source code in your home foler under a folder name ´aosp´. 
+For each version a subfolder needs to be created in the aosp folder. This guide gives you all the commands for each version in each step. Select the commands that correspond to your version.
+
+```
+mkdir -p ~/aosp/aosp12
+mkdir -p ~/aosp/aosp12_1
+mkdir -p ~/aosp/aosp13
+mkdir -p ~/aosp/aosp14
+```
+
+Download the AOSP Source code from the [official source](https://source.android.com/docs/setup/download). 
+
 ## AOSP Installation
 Download the AOSP Source Code:
 - Install necessary packages
