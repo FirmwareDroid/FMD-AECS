@@ -24,6 +24,7 @@ LOGCAT_COLLECTOR = os.path.join(BASE_DIR, 'coverage', 'collect_logcat.py')
 INSTALL_APPS = os.path.join(BASE_DIR, 'install_apps.py')
 START_APPS_BASIC = os.path.join(BASE_DIR, 'start_apps.py')
 LAUNCHER_TEST = os.path.join(BASE_DIR, 'launcher_test.py')
+CONNECTIVITY_TEST = os.path.join(BASE_DIR, 'connectivity_test.py')
 
 import glob
 try:
@@ -260,7 +261,7 @@ def start_experiment(mode='single', test_only_one=False):
 def run_launcher_test(results_dir):
     logging.info('Running launcher preflight test before any device setup')
 
-    preflight_name = 'preflight'
+    preflight_name = 'preflight_launcher'
     res = run_script_capture(LAUNCHER_TEST, args=['--output-dir', results_dir, '--name', preflight_name], description='Run launcher preflight test')
 
     # find the newest JSON file produced (preflight_*.json)
@@ -285,6 +286,24 @@ def run_launcher_test(results_dir):
         preflight_ok = (res.get('returncode', 1) == 0)
     return preflight_ok
 
+def run_connectivity_test(results_dir):
+    logging.info('Running connectivity test before any device setup')
+    # Run the connectivity test script and capture its output; write a small JSON report
+    args = ['--retries', '3', '--timeout', '10']
+    res = run_script_capture(CONNECTIVITY_TEST, args=args, description='Run connectivity test')
+
+    # Save the captured result for debugging/recording
+    os.makedirs(results_dir, exist_ok=True)
+    out_file = os.path.join(results_dir, 'connectivity_results.json')
+    try:
+        with open(out_file, 'w', encoding='utf-8') as of:
+            json.dump(res, of, indent=2)
+        logging.info('Wrote connectivity test results to %s', out_file)
+    except Exception:
+        logging.exception('Failed to write connectivity test results')
+
+    # Return True if the connectivity test reported success (exit code 0)
+    return (res.get('returncode', 1) == 0)
 
 
 def main():
@@ -301,6 +320,19 @@ def main():
 
     results_dir = os.path.join(BASE_DIR, 'out', 'launcher_test_results')
     os.makedirs(results_dir, exist_ok=True)
+
+    # First: connectivity test
+    try:
+        if not run_connectivity_test(results_dir):
+            logging.error('Connectivity test failed; aborting experiment pipeline')
+            out_file = os.path.join(results_dir, 'connectivity_results.json')
+            if os.path.exists(out_file):
+                with open(out_file, 'r', encoding='utf-8') as cf:
+                    logging.error('Connectivity details:\n%s', cf.read())
+            sys.exit(2)
+    except Exception:
+        logging.exception('Error while running connectivity test; aborting')
+        sys.exit(2)
 
     # Wait for boot animation (init.svc.bootanim) to stop (max 5 minutes) before running the launcher test
     preflight_ok = False
