@@ -303,9 +303,7 @@ def start_experiment(mode='single', test_only_one=False):
 
 def run_launcher_test(results_dir):
     logging.info('Running launcher preflight test before any device setup')
-
-    preflight_name = 'preflight_launcher'
-    res = run_script_capture(LAUNCHER_TEST, args=['--output-dir', results_dir, '--name', preflight_name], description='Run launcher preflight test')
+    res = run_script_capture(LAUNCHER_TEST, args=['--output-dir', results_dir], description='Run launcher preflight test')
 
     # find the newest JSON file produced (preflight_*.json)
     json_matches = glob.glob(os.path.join(results_dir, f"{preflight_name}_*.json"))
