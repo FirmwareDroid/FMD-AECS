@@ -171,8 +171,9 @@ def process_single_image(task_tuple):
         else:
             raise RuntimeError(f"Unsupported architecture in filename: {filename}")
 
+        image_artefact_path = os.path.join(f"./{IMAGE_ARTEFACTS_PATH}", name)
         logging.info(f"[worker] Building emulator image: {filename} for architecture: {docker_build_arch}")
-        build_ok = build_container_image(tag, docker_build_arch, extracted_image_dir=extracted_dir)
+        build_ok = build_container_image(tag, docker_build_arch, extracted_image_dir=image_artefact_path)
 
         if not build_ok:
             raise RuntimeError(f"Docker build failed for {tag}")
