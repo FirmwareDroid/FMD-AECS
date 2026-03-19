@@ -135,6 +135,75 @@ def extract_emulator_images_to_image_artefacts(emulator_image_path):
     logging.info(f"Extracted emulator images to {IMAGE_ARTEFACTS_ABS_PATH}")
 
 
+def process_single_image(task_tuple):
+    """Top-level worker to process a single emulator zip.
+
+    task_tuple: (emulator_zip_path, docker_repo_url, repository_username, repository_password, build_local, results_dir)
+    Returns a result dict.
+    """
+    emulator_zip_path, docker_repo_url, repository_username, repository_password, build_local, results_dir = task_tuple
+    filename = os.path.basename(emulator_zip_path)
+    tag = filename.replace('.zip', '')
+    result = {
+        'image': filename,
+        'tag': tag,
+        'start_time': datetime.datetime.utcnow().isoformat() + 'Z',
+        'success': False,
+        'error': None,
+    }
+    extracted_dir = None
+    try:
+        logging.info(f"[worker] Processing emulator image: {emulator_zip_path}")
+        # Create a per-image extraction dir
+        name = os.path.splitext(os.path.basename(emulator_zip_path))[0]
+        extracted_dir = os.path.join(IMAGE_ARTEFACTS_ABS_PATH, name)
+        os.makedirs(extracted_dir, exist_ok=True)
+        extract_zip(emulator_zip_path, extracted_dir)
+
+        # determine docker arch from filename
+        if 'arm64' in filename:
+            docker_build_arch = 'linux/arm64'
+        elif 'x86_64' in filename:
+            docker_build_arch = 'linux/amd64'
+        else:
+            raise RuntimeError(f"Unsupported architecture in filename: {filename}")
+
+        logging.info(f"[worker] Building emulator image: {filename} for architecture: {docker_build_arch}")
+        build_ok = build_container_image(tag, docker_build_arch)
+
+        if not build_ok:
+            raise RuntimeError(f"Docker build failed for {tag}")
+
+        if not build_local:
+            if not repository_password:
+                raise RuntimeError("Repository password not provided; cannot push")
+            authenticate_docker_registry(docker_repo_url, repository_username, repository_password)
+            push_container_image(docker_repo_url, tag)
+        else:
+            logging.info(f"[worker] Skipped pushing the image {tag} to the docker repository. Only local build.")
+
+        result['success'] = True
+    except Exception as e:
+        logging.error(f"[worker] Error processing {emulator_zip_path}: {e}")
+        result['error'] = str(e)
+    finally:
+        result['end_time'] = datetime.datetime.utcnow().isoformat() + 'Z'
+        # write per-image result
+        out_file = os.path.join(results_dir, f"{tag}.json")
+        try:
+            with open(out_file, 'w', encoding='utf-8') as of:
+                json.dump(result, of, indent=2)
+        except Exception:
+            logging.exception(f"Failed to write result for {tag} to {out_file}")
+        # cleanup extracted artifacts for this image
+        try:
+            if extracted_dir and os.path.exists(extracted_dir):
+                shutil.rmtree(extracted_dir)
+        except Exception:
+            logging.debug(f"[worker] Failed to remove extracted dir {extracted_dir}; continuing")
+        return result
+
+
 def authenticate_docker_registry(repo_url, docker_user, docker_password):
     """
     Authenticates to the docker registry via the docker login command.
@@ -299,72 +368,20 @@ def process_images(input_dir, docker_repo_url, repository_username, build_local)
     results_dir = os.path.join(ROOT_PATH, 'results', 'emulator_image_processing')
     os.makedirs(results_dir, exist_ok=True)
 
-    # Worker function for processing a single image
-    def _process_image(emulator_zip_path):
-        filename = os.path.basename(emulator_zip_path)
-        tag = filename.replace('.zip', '')
-        result = {
-            'image': filename,
-            'tag': tag,
-            'start_time': datetime.datetime.utcnow().isoformat() + 'Z',
-            'success': False,
-            'error': None,
-        }
-        try:
-            logging.info(f"[worker] Processing emulator image: {emulator_zip_path}")
-            extracted_dir = extract_emulator_images_to_image_artefacts(emulator_zip_path)
+    # Prepare tasks for worker processes
+    task_list = []
+    for p in emulator_zip_file_list:
+        task_list.append((p, docker_repo_url, repository_username, repository_password, build_local, results_dir))
 
-            # determine docker arch from filename
-            if 'arm64' in filename:
-                docker_build_arch = 'linux/arm64'
-            elif 'x86_64' in filename:
-                docker_build_arch = 'linux/amd64'
-            else:
-                raise RuntimeError(f"Unsupported architecture in filename: {filename}")
+    # Cap worker_count to number of images to avoid oversubscription
+    worker_count = min(worker_count, max(1, len(task_list)))
 
-            logging.info(f"[worker] Building emulator image: {filename} for architecture: {docker_build_arch}")
-            build_ok = build_container_image(tag, docker_build_arch)
-
-            if not build_ok:
-                raise RuntimeError(f"Docker build failed for {tag}")
-
-            if not build_local:
-                authenticate_docker_registry(docker_repo_url, repository_username, repository_password)
-                push_container_image(docker_repo_url, tag)
-            else:
-                logging.info(f"[worker] Skipped pushing the image {tag} to the docker repository. Only local build.")
-
-            result['success'] = True
-        except Exception as e:
-            logging.error(f"[worker] Error processing {emulator_zip_path}: {e}")
-            result['error'] = str(e)
-        finally:
-            result['end_time'] = datetime.datetime.utcnow().isoformat() + 'Z'
-            # write per-image result
-            out_file = os.path.join(results_dir, f"{tag}.json")
-            try:
-                with open(out_file, 'w', encoding='utf-8') as of:
-                    json.dump(result, of, indent=2)
-            except Exception:
-                logging.exception(f"Failed to write result for {tag} to {out_file}")
-            # cleanup extracted artifacts for this image
-            try:
-                if os.path.exists(extracted_dir):
-                    shutil.rmtree(extracted_dir)
-            except Exception:
-                logging.debug(f"[worker] Failed to remove extracted dir {extracted_dir}; continuing")
-            # Return result tuple for aggregator
-            return result
-
-    # Run workers in a multiprocessing pool
     if worker_count == 1:
-        aggregate = []
-        for p in emulator_zip_file_list:
-            aggregate.append(_process_image(p))
+        aggregate = [process_single_image(t) for t in task_list]
     else:
         logging.info(f"Starting multiprocessing pool with {worker_count} workers")
         with multiprocessing.Pool(processes=worker_count) as pool:
-            aggregate = pool.map(_process_image, emulator_zip_file_list)
+            aggregate = pool.map(process_single_image, task_list)
 
     # Summarize
     successes = [r for r in aggregate if r.get('success')]
