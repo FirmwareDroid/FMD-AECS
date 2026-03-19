@@ -147,7 +147,7 @@ def process_single_image(task_tuple):
     result = {
         'image': filename,
         'tag': tag,
-        'start_time': datetime.datetime.utcnow().isoformat() + 'Z',
+        'start_time': datetime.datetime.now(datetime.timezone.utc).isoformat(),
         'success': False,
         'error': None,
     }
@@ -187,7 +187,7 @@ def process_single_image(task_tuple):
         logging.error(f"[worker] Error processing {emulator_zip_path}: {e}")
         result['error'] = str(e)
     finally:
-        result['end_time'] = datetime.datetime.utcnow().isoformat() + 'Z'
+        result['end_time'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         # write per-image result
         out_file = os.path.join(results_dir, f"{tag}.json")
         try:
