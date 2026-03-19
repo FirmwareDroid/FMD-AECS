@@ -169,7 +169,7 @@ def process_single_image(task_tuple):
             raise RuntimeError(f"Unsupported architecture in filename: {filename}")
 
         logging.info(f"[worker] Building emulator image: {filename} for architecture: {docker_build_arch}")
-        build_ok = build_container_image(tag, docker_build_arch, extracted_dir=extracted_dir)
+        build_ok = build_container_image(tag, docker_build_arch, extracted_image_dir=extracted_dir)
 
         if not build_ok:
             raise RuntimeError(f"Docker build failed for {tag}")
@@ -241,7 +241,7 @@ def build_container_image(tag, build_arch, dockerfile_path=None, extracted_image
         else:
             dockerfile_path = EMULATOR_DOCKERFILE_X8664_ABS_PATH
     if extracted_image_dir:
-        p = subprocess.run(f"docker build -build-arg IMAGE_ARTEFACTS_SRC={extracted_image_dir} -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
+        p = subprocess.run(f"docker build --build-arg IMAGE_ARTEFACTS_SRC={extracted_image_dir} -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
                            shell=True, check=True)
     else:
         p = subprocess.run(f"docker build -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
