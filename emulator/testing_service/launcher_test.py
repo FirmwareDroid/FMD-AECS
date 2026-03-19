@@ -239,11 +239,10 @@ def analyze_screenshot(path: str, sample_size: int = 64, black_threshold: float 
 
 
 def make_output_paths(output_dir: str, base_name: Optional[str] = None) -> Tuple[str, str]:
-    now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
-    if base_name:
-        name = f"{base_name}_{now}"
+    if not base_name:
+        name = 'launcher_test'
     else:
-        name = f"launcher_test_{now}"
+        name = base_name
     png = os.path.join(output_dir, name + '.png')
     jn = os.path.join(output_dir, name + '.json')
     return png, jn

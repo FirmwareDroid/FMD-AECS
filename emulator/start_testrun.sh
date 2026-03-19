@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 echo "Starting monkey experiment in all running android_emulator containers..."
 for name in $(docker ps --format '{{.Names}}' | grep "android_emulator"); do
     echo "Running monkey experiment in $name..."
