@@ -158,7 +158,10 @@ def process_single_image(task_tuple):
         name = os.path.splitext(os.path.basename(emulator_zip_path))[0]
         extracted_dir = os.path.join(IMAGE_ARTEFACTS_ABS_PATH, name)
         os.makedirs(extracted_dir, exist_ok=True)
+        logging.info(f"[worker] Created extracted dir: {extracted_dir}")
         extract_zip(emulator_zip_path, extracted_dir)
+        if not os.path.isdir(extracted_dir) and not os.path.exists(extracted_dir):
+            raise RuntimeError(f"Directory {extracted_dir} does not exist")
 
         # determine docker arch from filename
         if 'arm64' in filename:
@@ -198,6 +201,7 @@ def process_single_image(task_tuple):
         # cleanup extracted artifacts for this image
         try:
             if extracted_dir and os.path.exists(extracted_dir):
+                logging.info(f"Deleting directory {extracted_dir}")
                 shutil.rmtree(extracted_dir)
         except Exception:
             logging.debug(f"[worker] Failed to remove extracted dir {extracted_dir}; continuing")
