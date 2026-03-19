@@ -223,6 +223,46 @@ def wait_for_bootanim_stop(max_wait_seconds=300, sleep_seconds=30):
     return is_running
 
 
+def wait_for_adb_available(max_wait_seconds=300, sleep_seconds=5):
+    """
+    Wait for adb to become available and for at least one device to be connected.
+
+    - Polls `adb devices` every `sleep_seconds` seconds up to `max_wait_seconds`.
+    - Returns True if at least one device in state 'device' is observed before timeout.
+    - Returns False on timeout.
+    """
+    max_tries = max(1, int(max_wait_seconds // sleep_seconds))
+    tries = 0
+    logging.info("Waiting for adb to be available and show at least one device (max %s seconds)...", max_wait_seconds)
+
+    while True:
+        try:
+            proc = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=10)
+            out = (proc.stdout or '').strip()
+            lines = [l.strip() for l in out.splitlines() if l.strip()]
+            device_lines = []
+            for l in lines:
+                if l.startswith('List of devices attached'):
+                    continue
+                parts = l.split()
+                if len(parts) >= 2 and parts[1] == 'device':
+                    device_lines.append(parts[0])
+
+            if device_lines:
+                logging.info('Found adb device(s): %s', device_lines)
+                return True
+        except Exception as e:
+            logging.debug('adb devices check failed: %s', e)
+
+        tries += 1
+        if tries >= max_tries:
+            logging.error('Timed out waiting for adb/devices after %s seconds', max_wait_seconds)
+            return False
+
+        logging.info('No adb device yet (try %d/%d). Sleeping %s seconds...', tries, max_tries, sleep_seconds)
+        time.sleep(sleep_seconds)
+
+
 def execute_app_with_coverage(package, mode):
     logging.info(f"Executing appium with package: {package}, mode: {mode}")
     run_script_capture(ACVTOOL, args=["flush", package, "--wd", OUT_DIR], description="Run ACVTool to flush coverage measurement.")
@@ -311,6 +351,21 @@ def run_connectivity_test(results_dir):
 
 def main():
     args = parse_args()
+    # Wait for adb to be available (max 5 minutes). If adb not available, fail early.
+    adb_ok = wait_for_adb_available(max_wait_seconds=300, sleep_seconds=5)
+    if not adb_ok:
+        logging.error('ADB not available - aborting experiment pipeline')
+        # Write a small json result for upstream consumers
+        results_dir = os.path.join(BASE_DIR, 'out', 'launcher_test_results')
+        os.makedirs(results_dir, exist_ok=True)
+        out_file = os.path.join(results_dir, 'adb_availability.json')
+        try:
+            with open(out_file, 'w', encoding='utf-8') as of:
+                json.dump({'success': False, 'error': 'adb not available within timeout'}, of, indent=2)
+            logging.info('Wrote adb availability failure to %s', out_file)
+        except Exception:
+            logging.exception('Failed to write adb availability result')
+        sys.exit(2)
 
     # Start crash watcher in background to dismiss random ANR/crash dialogs during the pipeline
     if crash_watcher:
@@ -323,6 +378,7 @@ def main():
 
     results_dir = os.path.join(BASE_DIR, 'out', 'launcher_test_results')
     os.makedirs(results_dir, exist_ok=True)
+    # Wait for adb to be available
 
 
 

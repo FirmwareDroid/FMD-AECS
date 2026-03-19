@@ -17,6 +17,8 @@
       - android
     dns:
       - 172.31.250.2
+    volumes:
+        - ./emulator_out/{{ image_name }}:/android/testing_service/out
 {%- for line in optional_settings %}
     {{ line }}
 {%- endfor %}
