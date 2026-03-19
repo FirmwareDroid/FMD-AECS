@@ -169,7 +169,7 @@ def process_single_image(task_tuple):
             raise RuntimeError(f"Unsupported architecture in filename: {filename}")
 
         logging.info(f"[worker] Building emulator image: {filename} for architecture: {docker_build_arch}")
-        build_ok = build_container_image(tag, docker_build_arch)
+        build_ok = build_container_image(tag, docker_build_arch, extracted_dir=extracted_dir)
 
         if not build_ok:
             raise RuntimeError(f"Docker build failed for {tag}")
@@ -228,7 +228,7 @@ def authenticate_docker_registry(repo_url, docker_user, docker_password):
         raise RuntimeError(f"Authentication to the docker registry failed. See logs for details.")
 
 
-def build_container_image(tag, build_arch, dockerfile_path=None):
+def build_container_image(tag, build_arch, dockerfile_path=None, extracted_image_dir=None):
     """
     Builds a docker container image that includes the image files from the image_artefacts directory.
     """
@@ -240,9 +240,12 @@ def build_container_image(tag, build_arch, dockerfile_path=None):
             dockerfile_path = EMULATOR_DOCKERFILE_ARM64_ABS_PATH
         else:
             dockerfile_path = EMULATOR_DOCKERFILE_X8664_ABS_PATH
-
-    p = subprocess.run(f"docker build -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
-                       shell=True, check=True)
+    if extracted_image_dir:
+        p = subprocess.run(f"docker build -build-arg IMAGE_ARTEFACTS_SRC={extracted_image_dir} -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
+                           shell=True, check=True)
+    else:
+        p = subprocess.run(f"docker build -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
+                           shell=True, check=True)
     return p.returncode == 0
 
 

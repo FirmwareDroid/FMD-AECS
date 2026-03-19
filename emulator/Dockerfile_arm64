@@ -3,7 +3,8 @@ FROM fmd-emulator_arm64
 ################################
 # Copy system image
 ################################
-COPY ./image_artefacts/ /android/sdk/system-images/android/
+ARG IMAGE_ARTEFACTS_SRC=./image_artefacts/
+COPY ${IMAGE_ARTEFACTS_SRC} /android/sdk/system-images/android/
 
 ###################################
 # Create start script
