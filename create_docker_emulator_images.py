@@ -13,8 +13,9 @@ import platform
 from common import extract_zip
 from fmd_backend_requests import download_file, fetch_emulator_image_list
 from setup_logger import setup_logger
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import multiprocessing
-import tempfile
+import datetime
 
 setup_logger()
 
@@ -286,22 +287,29 @@ def process_images(input_dir, docker_repo_url, repository_username, build_local)
     emulator_zip_file_list = get_image_file_list_form_disk(input_dir)
     logging.info(f"Processing images: {len(emulator_zip_file_list)}")
 
-    # Default number of workers equals CPU count
-    workers = getattr(process_images, '_workers', max(1, multiprocessing.cpu_count()))
+    # Determine worker count (can be changed by setting process_images._workers before calling)
+    worker_count = getattr(process_images, '_workers', max(1, multiprocessing.cpu_count()))
 
-    # Prepare arguments for worker tasks
-    tasks = []
-    for emulator_zip_path in emulator_zip_file_list:
-        tasks.append((emulator_zip_path, docker_repo_url, repository_username, None, build_local))
+    # If pushing remote, prompt for password once here so workers don't prompt
+    repository_password = None
+    if not build_local:
+        repository_password = get_repo_password(repository_username)
 
-    successful_images = []
-    failed_images = []
+    # Prepare result directory
+    results_dir = os.path.join(ROOT_PATH, 'results', 'emulator_image_processing')
+    os.makedirs(results_dir, exist_ok=True)
 
-    # Worker function will perform extraction, build and optional push
-    def _worker(task_tuple):
-        emulator_zip_path, docker_repo_url, repository_username, repository_password, build_local = task_tuple
+    # Worker function for processing a single image
+    def _process_image(emulator_zip_path):
         filename = os.path.basename(emulator_zip_path)
         tag = filename.replace('.zip', '')
+        result = {
+            'image': filename,
+            'tag': tag,
+            'start_time': datetime.datetime.utcnow().isoformat() + 'Z',
+            'success': False,
+            'error': None,
+        }
         try:
             logging.info(f"[worker] Processing emulator image: {emulator_zip_path}")
             extracted_dir = extract_emulator_images_to_image_artefacts(emulator_zip_path)
@@ -321,51 +329,47 @@ def process_images(input_dir, docker_repo_url, repository_username, build_local)
                 raise RuntimeError(f"Docker build failed for {tag}")
 
             if not build_local:
-                if not repository_password:
-                    # Should not prompt in worker; fail and let main handle prompting
-                    raise RuntimeError("Repository password not provided to worker process; cannot push image")
                 authenticate_docker_registry(docker_repo_url, repository_username, repository_password)
                 push_container_image(docker_repo_url, tag)
             else:
                 logging.info(f"[worker] Skipped pushing the image {tag} to the docker repository. Only local build.")
 
+            result['success'] = True
+        except Exception as e:
+            logging.error(f"[worker] Error processing {emulator_zip_path}: {e}")
+            result['error'] = str(e)
+        finally:
+            result['end_time'] = datetime.datetime.utcnow().isoformat() + 'Z'
+            # write per-image result
+            out_file = os.path.join(results_dir, f"{tag}.json")
+            try:
+                with open(out_file, 'w', encoding='utf-8') as of:
+                    json.dump(result, of, indent=2)
+            except Exception:
+                logging.exception(f"Failed to write result for {tag} to {out_file}")
             # cleanup extracted artifacts for this image
             try:
                 if os.path.exists(extracted_dir):
                     shutil.rmtree(extracted_dir)
             except Exception:
                 logging.debug(f"[worker] Failed to remove extracted dir {extracted_dir}; continuing")
+            # Return result tuple for aggregator
+            return result
 
-            return (True, tag, None)
-        except Exception as e:
-            logging.error(f"[worker] Error processing {emulator_zip_path}: {e}")
-            return (False, tag, str(e))
-
-    # If workers == 1, run sequentially to preserve existing behavior and simpler debug
-    if workers == 1:
-        for task in tasks:
-            success, tag, msg = _worker(task)
-            if success:
-                successful_images.append(tag)
-            else:
-                failed_images.append((tag, msg))
+    # Run workers in a multiprocessing pool
+    if worker_count == 1:
+        aggregate = []
+        for p in emulator_zip_file_list:
+            aggregate.append(_process_image(p))
     else:
-        # If pushing to remote registry, ensure password is obtained once and provided to workers
-        repository_password = None
-        if not build_local:
-            repository_password = get_repo_password(repository_username)
+        logging.info(f"Starting multiprocessing pool with {worker_count} workers")
+        with multiprocessing.Pool(processes=worker_count) as pool:
+            aggregate = pool.map(_process_image, emulator_zip_file_list)
 
-        # attach password to each task tuple
-        task_list = [(t[0], t[1], t[2], repository_password, t[4]) for t in tasks]
-
-        with multiprocessing.Pool(processes=workers) as pool:
-            for success, tag, msg in pool.imap_unordered(_worker, task_list):
-                if success:
-                    successful_images.append(tag)
-                else:
-                    failed_images.append((tag, msg))
-
-    logging.info(f"Finished processing images. Successful images: {successful_images}. Failed images: {failed_images}.")
+    # Summarize
+    successes = [r for r in aggregate if r.get('success')]
+    failures = [r for r in aggregate if not r.get('success')]
+    logging.info(f"Finished processing images. Successful: {len(successes)} Failed: {len(failures)}")
 
 
 def clear_environment(local_repo_path):
@@ -409,6 +413,12 @@ def parse_arguments():
                         required=False,
                         default="./emulator_images",
                         help="Path where the output files will be stored.")
+    parser.add_argument("-w",
+                        "--workers",
+                        type=int,
+                        required=False,
+                        default=None,
+                        help="Number of parallel workers to build images. Defaults to CPU count.")
     parser.add_argument("--file-list",
                         type=str,
                         required=False,
@@ -419,39 +429,84 @@ def parse_arguments():
 def main():
     args = parse_arguments()
 
+    # If workers provided, set attribute for process_images
+    if args.workers:
+        process_images._workers = max(1, int(args.workers))
+
     if not args.create_local:
         clear_environment(args.input_dir)
+        # Ensure the input directory exists for downloads (clear_environment may have removed it)
+        os.makedirs(args.input_dir, exist_ok=True)
         if not args.repository_url or not args.docker_repo_url or not args.repository_username:
             raise ValueError("Repository URL, Docker repository URL and repository username must be provided.")
         if not args.input_dir:
             raise ValueError("Download destination must be provided.")
-        if not args.file_list:
+        if args.file_list:
+            file_list = args.file_list.split(",")
+        else:
             file_list = []
-        file_list = args.file_list.split(",")
         filtered_image_list = get_filtered_emulator_image_list(args.repository_url, file_list)
-        failed_images = []
+        # Download all filtered images in parallel
+        download_failed = []
+        download_success = []
+        if filtered_image_list:
+            max_workers = min(len(filtered_image_list), max(2, multiprocessing.cpu_count() * 2))
+            logging.info(f"Downloading {len(filtered_image_list)} images in parallel using {max_workers} threads")
+
+            def _download_asset(asset):
+                try:
+                    dest_file = os.path.join(args.input_dir, asset['path'])
+                    logging.info(f"Downloading {asset['path']} -> {dest_file}")
+                    download_file(asset['downloadUrl'], dest_file)
+                    return (True, asset['path'], dest_file, None)
+                except Exception as e:
+                    logging.exception(f"Failed to download {asset.get('path')}: {e}")
+                    return (False, asset.get('path'), None, str(e))
+
+            with ThreadPoolExecutor(max_workers=max_workers) as ex:
+                futures = {ex.submit(_download_asset, asset): asset for asset in filtered_image_list}
+                for fut in as_completed(futures):
+                    ok, name, path, err = fut.result()
+                    if ok:
+                        download_success.append((name, path))
+                    else:
+                        download_failed.append((name, err))
+
+        logging.info(f"Downloaded {len(download_success)} images, {len(download_failed)} failed downloads")
+
+        if len(download_success) == 0:
+            logging.error("No images were downloaded successfully; aborting processing")
+            return
+
+        # Now process all images in input_dir (process_images is parallel internally)
+        start_time = time.time()
+        process_images(args.input_dir, args.docker_repo_url, args.repository_username, args.create_local)
+        end_time = time.time()
+        elapsed_time_seconds = end_time - start_time
+        elapsed_time_minutes = elapsed_time_seconds / 60
+        with open("results_docker_emulator_image_creation.log", "w") as log_file:
+            log_file.write(
+                f"Processing images took {elapsed_time_seconds:.2f} seconds ({elapsed_time_minutes:.2f} minutes).\n")
+
+        # Read per-image result JSONs and aggregate
+        results_dir = os.path.join(ROOT_PATH, 'results', 'emulator_image_processing')
         successful_images = []
-        for image in filtered_image_list:
-            try:
-                image_list = [image]
-                download_emulator_images(image_list, args.input_dir)
-                start_time = time.time()
-                process_images(args.input_dir, args.docker_repo_url, args.repository_username,
-                               args.create_local)
-                end_time = time.time()
-                elapsed_time_seconds = end_time - start_time
-                elapsed_time_minutes = elapsed_time_seconds / 60
-                with open("results_docker_emulator_image_creation.log", "w") as log_file:
-                    log_file.write(
-                        f"Processing images took {elapsed_time_seconds:.2f} seconds ({elapsed_time_minutes:.2f} minutes).\n")
-                successful_images.append(image)
-                logging.info(f"Successfully processed image: {image}")
-            except Exception as e:
-                logging.error(f"Error processing image {image['path']}: {e}")
-                failed_images.append(image['path'])
-            logging.info(f"Number of images done: {len(successful_images) + len(failed_images)} out of {len(filtered_image_list)}")
-        logging.info(
-            f"Finished processing images. Successful images: {successful_images}. Failed images: {failed_images}.")
+        failed_images = []
+        if os.path.exists(results_dir):
+            for fname in os.listdir(results_dir):
+                if not fname.endswith('.json'):
+                    continue
+                try:
+                    with open(os.path.join(results_dir, fname), 'r', encoding='utf-8') as rf:
+                        data = json.load(rf)
+                        if data.get('success'):
+                            successful_images.append(data.get('image'))
+                        else:
+                            failed_images.append({'image': data.get('image'), 'error': data.get('error')})
+                except Exception:
+                    logging.exception(f"Failed to read result file {fname}")
+
+        logging.info(f"Finished processing images. Successful images: {successful_images}. Failed images: {failed_images}.")
     else:
         logging.info("Skipping download of emulator images.")
         process_images(args.input_dir, args.docker_repo_url, args.repository_username, args.create_local)
