@@ -17,6 +17,13 @@ chmod 600 "$SSLKEYFILE" 2>/dev/null || true
 export SSLKEYLOGFILE="$SSLKEYFILE"
 echo "SSLKEYLOGFILE set -> $SSLKEYLOGFILE"
 
+# Centralize all runtime logs under BASEDIR/out/logs instead of /tmp
+LOG_DIR="$BASEDIR/out/logs"
+mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR/android-unknown"
+chmod 700 "$LOG_DIR" 2>/dev/null || true
+echo "Log directory set -> $LOG_DIR"
+
 cleanup() {
   trap - SIGINT SIGTERM EXIT
 
@@ -49,9 +56,9 @@ setup_stop_existing_emulator() {
   pkill -f "socat -d tcp-listen:5555"
   pkill -f "socat -d tcp-listen:8554"
   pkill -f "pulseaudio"
-  pkill -f "tail --retry -f /tmp/android-unknown/goldfish_rtc_0"
-  pkill -f "cat /tmp/android-unknown/kernel.log"
-  pkill -f "cat /tmp/android-unknown/logcat.log"
+  pkill -f "tail --retry -f $LOG_DIR/android-unknown/goldfish_rtc_0"
+  pkill -f "cat $LOG_DIR/android-unknown/kernel.log"
+  pkill -f "cat $LOG_DIR/android-unknown/logcat.log"
 }
 
 setup_pulse_audio() {
@@ -59,10 +66,10 @@ setup_pulse_audio() {
   export PULSE_SERVER=unix:/tmp/pulse-socket
 
   # Ensure log file exists so tail -F won't complain about missing file
-  touch /tmp/pulseverbose.log
+  touch "$LOG_DIR/pulseverbose.log"
 
   # start pulseaudio in daemon mode, but tolerate failures
-  pulseaudio -D -vvvv --log-time=1 --log-target=newfile:/tmp/pulseverbose.log --exit-idle-time=-1 2>>/tmp/pulseverbose.err || true
+  pulseaudio -D -vvvv --log-time=1 --log-target=newfile:$LOG_DIR/pulseverbose.log --exit-idle-time=-1 2>>$LOG_DIR/pulseverbose.err || true
   PA_PID=$!
   # give pulse some time to initialize and poll using pactl
   MAX_TRIES=10
@@ -79,41 +86,41 @@ setup_pulse_audio() {
 
   if [[ $AUDIO_OK -eq 1 && $PA_PID -ne 0 ]]; then
     # Use tail -F (follow and retry) and suppress stderr to avoid noisy messages
-    tail -F /tmp/pulseverbose.log -n +1 2>/dev/null | sed -u 's/^/pulse: /g' &
+    tail -F "$LOG_DIR/pulseverbose.log" -n +1 2>/dev/null | sed -u 's/^/pulse: /g' &
     PIDS+=($!)
   else
     echo "Warning: pulseaudio did not become available; audio disabled for this run." >&2
     # collect pulseaudio stderr for diagnostics but do not abort
-    if [[ -s /tmp/pulseverbose.err ]]; then
+    if [[ -s "$LOG_DIR/pulseverbose.err" ]]; then
       echo "pulseaudio stderr (first 20 lines):"
-      head -n 20 /tmp/pulseverbose.err || true
+      head -n 20 "$LOG_DIR/pulseverbose.err" || true
     fi
   fi
 }
 
 setup_logger_forwarding() {
-  mkdir -p /tmp/android-unknown
-  rm -f /tmp/android-unknown/kernel.log /tmp/android-unknown/logcat.log
+  mkdir -p "$LOG_DIR/android-unknown"
+  rm -f "$LOG_DIR/android-unknown/kernel.log" "$LOG_DIR/android-unknown/logcat.log"
   # create FIFOs for kernel and logcat streams; ignore errors if they already exist
-  mkfifo /tmp/android-unknown/kernel.log 2>/dev/null || true
-  mkfifo /tmp/android-unknown/logcat.log 2>/dev/null || true
+  mkfifo "$LOG_DIR/android-unknown/kernel.log" 2>/dev/null || true
+  mkfifo "$LOG_DIR/android-unknown/logcat.log" 2>/dev/null || true
   # For goldfish RTC data, use tail -F to avoid immediate failure if file not present yet
   # Redirect stderr to /dev/null to avoid noisy messages when emulator isn't producing the file yet
-  tail -F /tmp/android-unknown/goldfish_rtc_0 2>/dev/null | sed -u 's/^/video: /g' &
+  tail -F "$LOG_DIR/android-unknown/goldfish_rtc_0" 2>/dev/null | sed -u 's/^/video: /g' &
   PIDS+=($!)
   # read from FIFOs
-  (cat /tmp/android-unknown/kernel.log 2>/dev/null | sed -u 's/^/kernel: /g') &
+  (cat "$LOG_DIR/android-unknown/kernel.log" 2>/dev/null | sed -u 's/^/kernel: /g') &
   PIDS+=($!)
-  (cat /tmp/android-unknown/logcat.log 2>/dev/null | sed -u 's/^/logcat: /g') &
+  (cat "$LOG_DIR/android-unknown/logcat.log" 2>/dev/null | sed -u 's/^/logcat: /g') &
   PIDS+=($!)
 }
 
 setup_port_forwarding() {
   sleep 1
   # Redirect socat stderr to per-listener logs to keep console clean and capture diagnostics
-  socat -d tcp-listen:5555,reuseaddr,fork tcp:127.0.0.1:5557 2>/tmp/socat-5555.log &
+  socat -d tcp-listen:5555,reuseaddr,fork tcp:127.0.0.1:5557 2>"$LOG_DIR/socat-5555.log" &
   PIDS+=($!)
-  socat -d tcp-listen:8554,reuseaddr,fork tcp:127.0.0.1:8556 2>/tmp/socat-8554.log &
+  socat -d tcp-listen:8554,reuseaddr,fork tcp:127.0.0.1:8556 2>"$LOG_DIR/socat-8554.log" &
   PIDS+=($!)
 }
 
@@ -135,11 +142,13 @@ while true; do
 
   if [[ $architecture == "x86_64" ]]; then
     AVD="x86_64"
-    /android/sdk/emulator/emulator -avd $AVD -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -logcat-output "/tmp/android-unknown/logcat.log" -shell-serial "file:/tmp/android-unknown/kernel.log" -no-boot-anim -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1" &
+    # Redirect emulator stdout/stderr to a log file under LOG_DIR for diagnostics
+    /android/sdk/emulator/emulator -avd $AVD -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -logcat-output "$LOG_DIR/android-unknown/logcat.log" -shell-serial "file:$LOG_DIR/android-unknown/kernel.log" -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1" >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
     emulator_pid=$!
   elif [[ $architecture == "aarch64" ]]; then
     AVD="Arm64"
-    /android/sdk/emulator/emulator -avd $AVD -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "/tmp/android-unknown/logcat.log" -shell-serial "file:/tmp/android-unknown/kernel.log" -no-boot-anim -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max &
+    # Redirect emulator stdout/stderr to a log file under LOG_DIR for diagnostics
+    /android/sdk/emulator/emulator -avd $AVD -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "$LOG_DIR/android-unknown/logcat.log" -shell-serial "file:$LOG_DIR/android-unknown/kernel.log" -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
     emulator_pid=$!
   else
     echo "Unsupported architecture"
