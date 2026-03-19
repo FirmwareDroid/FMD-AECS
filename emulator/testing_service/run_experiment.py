@@ -351,13 +351,13 @@ def run_connectivity_test(results_dir):
 
 def main():
     args = parse_args()
+    results_dir = os.path.join(BASE_DIR, 'out')
+    os.makedirs(results_dir, exist_ok=True)
+
     # Wait for adb to be available (max 5 minutes). If adb not available, fail early.
     adb_ok = wait_for_adb_available(max_wait_seconds=300, sleep_seconds=5)
     if not adb_ok:
         logging.error('ADB not available - aborting experiment pipeline')
-        # Write a small json result for upstream consumers
-        results_dir = os.path.join(BASE_DIR, 'out', 'launcher_test_results')
-        os.makedirs(results_dir, exist_ok=True)
         out_file = os.path.join(results_dir, 'adb_availability.json')
         try:
             with open(out_file, 'w', encoding='utf-8') as of:
@@ -375,12 +375,6 @@ def main():
             logging.info('Started crash watcher (background)')
         except Exception:
             logging.exception('Failed to start crash watcher')
-
-    results_dir = os.path.join(BASE_DIR, 'out', 'launcher_test_results')
-    os.makedirs(results_dir, exist_ok=True)
-    # Wait for adb to be available
-
-
 
     # Wait for boot animation (init.svc.bootanim) to stop (max 5 minutes) before running the launcher test
     preflight_ok = False
