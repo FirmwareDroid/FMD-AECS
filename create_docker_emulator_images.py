@@ -13,6 +13,8 @@ import platform
 from common import extract_zip
 from fmd_backend_requests import download_file, fetch_emulator_image_list
 from setup_logger import setup_logger
+import multiprocessing
+import tempfile
 
 setup_logger()
 
@@ -280,30 +282,90 @@ def delete_emulator_images(local_repo_path):
 def process_images(input_dir, docker_repo_url, repository_username, build_local):
     if not check_if_base_images_exists():
         create_base_images()
+
     emulator_zip_file_list = get_image_file_list_form_disk(input_dir)
     logging.info(f"Processing images: {len(emulator_zip_file_list)}")
+
+    # Default number of workers equals CPU count
+    workers = getattr(process_images, '_workers', max(1, multiprocessing.cpu_count()))
+
+    # Prepare arguments for worker tasks
+    tasks = []
     for emulator_zip_path in emulator_zip_file_list:
-        logging.info(f"Processing emulator image: {emulator_zip_path}")
-        extract_emulator_images_to_image_artefacts(emulator_zip_path)
+        tasks.append((emulator_zip_path, docker_repo_url, repository_username, None, build_local))
+
+    successful_images = []
+    failed_images = []
+
+    # Worker function will perform extraction, build and optional push
+    def _worker(task_tuple):
+        emulator_zip_path, docker_repo_url, repository_username, repository_password, build_local = task_tuple
         filename = os.path.basename(emulator_zip_path)
-        if "arm64" in filename:
-            docker_build_arch = "linux/arm64"
-        elif "x86_64" in filename:
-            docker_build_arch = "linux/amd64"
-        else:
-            logging.error(f"Unsupported architecture in filename: {filename}. Skipping.")
-            continue
-        logging.info(f"Building emulator image: {filename} for architecture: {docker_build_arch}")
-        build_container_image(filename.replace(".zip", ""), docker_build_arch)
+        tag = filename.replace('.zip', '')
+        try:
+            logging.info(f"[worker] Processing emulator image: {emulator_zip_path}")
+            extracted_dir = extract_emulator_images_to_image_artefacts(emulator_zip_path)
+
+            # determine docker arch from filename
+            if 'arm64' in filename:
+                docker_build_arch = 'linux/arm64'
+            elif 'x86_64' in filename:
+                docker_build_arch = 'linux/amd64'
+            else:
+                raise RuntimeError(f"Unsupported architecture in filename: {filename}")
+
+            logging.info(f"[worker] Building emulator image: {filename} for architecture: {docker_build_arch}")
+            build_ok = build_container_image(tag, docker_build_arch)
+
+            if not build_ok:
+                raise RuntimeError(f"Docker build failed for {tag}")
+
+            if not build_local:
+                if not repository_password:
+                    # Should not prompt in worker; fail and let main handle prompting
+                    raise RuntimeError("Repository password not provided to worker process; cannot push image")
+                authenticate_docker_registry(docker_repo_url, repository_username, repository_password)
+                push_container_image(docker_repo_url, tag)
+            else:
+                logging.info(f"[worker] Skipped pushing the image {tag} to the docker repository. Only local build.")
+
+            # cleanup extracted artifacts for this image
+            try:
+                if os.path.exists(extracted_dir):
+                    shutil.rmtree(extracted_dir)
+            except Exception:
+                logging.debug(f"[worker] Failed to remove extracted dir {extracted_dir}; continuing")
+
+            return (True, tag, None)
+        except Exception as e:
+            logging.error(f"[worker] Error processing {emulator_zip_path}: {e}")
+            return (False, tag, str(e))
+
+    # If workers == 1, run sequentially to preserve existing behavior and simpler debug
+    if workers == 1:
+        for task in tasks:
+            success, tag, msg = _worker(task)
+            if success:
+                successful_images.append(tag)
+            else:
+                failed_images.append((tag, msg))
+    else:
+        # If pushing to remote registry, ensure password is obtained once and provided to workers
+        repository_password = None
         if not build_local:
             repository_password = get_repo_password(repository_username)
-            authenticate_docker_registry(docker_repo_url, repository_username, repository_password)
-            push_container_image(docker_repo_url, filename.replace(".zip", ""))
-        else:
-            logging.info("Skipped pushing the image to the docker repository. Only local build.")
-        clear_image_artefacts()
-        clear_docker_builder()
-    logging.info("Finished processing images.")
+
+        # attach password to each task tuple
+        task_list = [(t[0], t[1], t[2], repository_password, t[4]) for t in tasks]
+
+        with multiprocessing.Pool(processes=workers) as pool:
+            for success, tag, msg in pool.imap_unordered(_worker, task_list):
+                if success:
+                    successful_images.append(tag)
+                else:
+                    failed_images.append((tag, msg))
+
+    logging.info(f"Finished processing images. Successful images: {successful_images}. Failed images: {failed_images}.")
 
 
 def clear_environment(local_repo_path):
@@ -379,7 +441,7 @@ def main():
                 end_time = time.time()
                 elapsed_time_seconds = end_time - start_time
                 elapsed_time_minutes = elapsed_time_seconds / 60
-                with open("results.log", "a") as log_file:
+                with open("results_docker_emulator_image_creation.log", "w") as log_file:
                     log_file.write(
                         f"Processing images took {elapsed_time_seconds:.2f} seconds ({elapsed_time_minutes:.2f} minutes).\n")
                 successful_images.append(image)

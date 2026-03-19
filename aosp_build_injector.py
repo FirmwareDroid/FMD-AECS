@@ -1377,7 +1377,7 @@ def write_text_output(result, output_file):
     """
     try:
         with open(output_file, "a") as file:
-            file.write(result + ",")
+            file.write("\"" + result + "\",")
     except Exception as err:
         logging.error(f"Error writing to file: {err}")
 
@@ -1405,6 +1405,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     download_url_list = []
     clear_environment(args.aosp_path, aosp_packages_abs_path, args.version)
     logging.info(f"Building for lunch target: {lunch_target} with aosp version: {aosp_version}")
+    os.remove(PATH_BUILD_FILE_ARTEFACT_LOG)
     for firmware_id in tqdm(firmware_id_list):
         try:
             logging.info(f"Start fetching build files for firmware-id: {firmware_id}")
