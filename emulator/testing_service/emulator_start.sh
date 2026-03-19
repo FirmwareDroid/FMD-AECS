@@ -8,8 +8,8 @@ BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 # Ensure SSL keylog file so TLS keys from processes that honor SSLKEYLOGFILE
 # (e.g. BoringSSL/OpenSSL-based apps) are written to a persistent file. We
 # place it under BASEDIR/pcaps so it lives with captures.
-SSLKEY_DIR="$BASEDIR/pcaps"
-SSLKEYFILE="$SSLKEY_DIR/sslkeylog.log"
+SSLKEY_DIR="$BASEDIR/out/pcaps"
+SSLKEYFILE="$SSLKEY_DIR/out/sslkeylog.log"
 mkdir -p "$SSLKEY_DIR"
 touch "$SSLKEYFILE" 2>/dev/null || true
 # make it readable/writable by the current user only
