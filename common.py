@@ -194,8 +194,12 @@ def get_path_up_to_first_term(path, term):
 
 
 def get_md5_from_file(file_path):
-    hash_md5 = hashlib.md5()
     with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
+        digest = hashlib.file_digest(f, "md5")
+    return digest.hexdigest()
+
+    # hash_md5 = hashlib.md5()
+    #with open(file_path, "rb") as f:
+    #    for chunk in iter(lambda: f.read(4096), b""):
+    #        hash_md5.update(chunk)
+    #return hash_md5.hexdigest()

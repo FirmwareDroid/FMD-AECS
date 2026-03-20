@@ -16,8 +16,9 @@ import os
 import stat
 import traceback
 from collections import defaultdict
-from concurrent.futures import ProcessPoolExecutor as Executor, as_completed
+from concurrent.futures import ThreadPoolExecutor as Executor, as_completed
 from http import cookies
+from types import MappingProxyType
 
 from filelock import FileLock
 from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file, \
@@ -40,6 +41,8 @@ else:
 
 
 processed_files_lock = threading.Lock()
+# Immutable mapping of md5 -> tuple(file_paths). Built once before worker tasks start.
+INTERMEDIATE_MD5_MAP = None
 
 
 def write_json_output(data, output_file):
@@ -488,14 +491,34 @@ def delete_intermediate_cached_files(target_file_injection_path, aosp_version, a
 
 
 def find_intermediate_file(aosp_path, md5_original_file):
+    """
+    Find intermediate files matching the provided MD5.
+
+    If an immutable precomputed mapping (INTERMEDIATE_MD5_MAP) exists it will be used
+    for fast lookups. Otherwise, the function will walk the intermediates folder and
+    compute MD5s on the fly (legacy fallback).
+    """
+    global INTERMEDIATE_MD5_MAP
+
+    # Normalize md5 to lowercase for comparison
+    target_md5 = (md5_original_file or '').strip().lower()
+
+    # If a precomputed mapping exists, use it for O(1) lookup
+    if INTERMEDIATE_MD5_MAP:
+        try:
+            matched = INTERMEDIATE_MD5_MAP.get(target_md5, ())
+            # Return a mutable list for compatibility with callers
+            return list(matched)
+        except Exception:
+            logging.debug("Error while using INTERMEDIATE_MD5_MAP, falling back to on-the-fly search")
+
+    # Fallback: walk and compute md5s as before
     intermediates_path = str(os.path.join(aosp_path, "out/soong/.intermediates/"))
     matching_intermediate_file_list = []
     if not os.path.exists(intermediates_path):
         logging.debug(f"Intermediates path does not exist: {intermediates_path}")
         return matching_intermediate_file_list
 
-    # Normalize md5 to lowercase for comparison
-    target_md5 = (md5_original_file or '').strip().lower()
 
     for root, dirs, files in os.walk(intermediates_path):
         for fname in files:
@@ -512,6 +535,36 @@ def find_intermediate_file(aosp_path, md5_original_file):
                 logging.warning(f"Error while checking intermediate file {fname} in {root}: {e}")
                 continue
     return matching_intermediate_file_list
+
+
+def build_intermediate_md5_map(aosp_path):
+    """
+    Build a mapping of md5 -> tuple(paths) for all files under out/soong/.intermediates/.
+    The returned mapping is a read-only MappingProxyType where values are tuples to ensure immutability.
+    """
+    intermediates_path = str(os.path.join(aosp_path, "out/soong/.intermediates/"))
+    md5_map = defaultdict(list)
+    if not os.path.exists(intermediates_path):
+        logging.debug(f"Intermediates path does not exist (build map): {intermediates_path}")
+        return MappingProxyType({})
+
+    logging.info(f"Building intermediate md5 map from: {intermediates_path}")
+    for root, dirs, files in os.walk(intermediates_path):
+        for fname in files:
+            try:
+                file_path = os.path.join(root, fname)
+                md5sum = get_md5_from_file(file_path)
+                if not md5sum:
+                    continue
+                md5_key = md5sum.strip().lower()
+                md5_map[md5_key].append(file_path)
+            except Exception as e:
+                logging.warning(f"Error while hashing intermediate file {fname} in {root}: {e}")
+                continue
+
+    # Convert lists to tuples for immutability and wrap mapping in MappingProxyType
+    immutable_map = {k: tuple(v) for k, v in md5_map.items()}
+    return MappingProxyType(immutable_map)
 
 def indirect_injection(target_file_injection_path, file_name, target_out_path, partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version):
     file_ext = os.path.splitext(file_name)[1]
@@ -656,6 +709,13 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     inj_partition_list = []
     processed_files = set()
     partition_name = os.path.basename(folder_path)
+    # Build the intermediate md5 map once before starting worker tasks. This map is immutable.
+    global INTERMEDIATE_MD5_MAP
+    try:
+        INTERMEDIATE_MD5_MAP = build_intermediate_md5_map(aosp_path)
+        logging.info(f"Initialized INTERMEDIATE_MD5_MAP with {len(INTERMEDIATE_MD5_MAP)} entries")
+    except Exception as e:
+        logging.warning(f"Failed to build INTERMEDIATE_MD5_MAP: {e}")
     file_paths = list(set(os.path.join(root, file_name.strip()) for root, _, file_name_list in scandir_walk(folder_path)
                           for file_name in file_name_list))
     logging.debug(f"Found {len(file_paths)} files in {folder_path} for post-injection...")
@@ -701,6 +761,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     progress_bar.close()
     #handle_duplicated_permissions(target_out_path)
     cleanup_files(folder_path)
+    INTERMEDIATE_MD5_MAP = None
 
     return error_list, inj_obj_list, inj_partition_list
 
