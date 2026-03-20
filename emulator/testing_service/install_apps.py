@@ -270,7 +270,9 @@ def main():
     if args.output:
         out_obj = {
             "timestamp": datetime.datetime.utcnow().isoformat() + 'Z',
-            "overall": overall,
+            "success_count": overall['success'],
+            "failures_count": overall['failures'],
+            "total_app_count": overall['success'] + overall['failures'],
             "per_device": per_device_summary
         }
         try:

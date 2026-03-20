@@ -286,14 +286,15 @@ def start_experiment(mode='single', test_only_one=False):
         logging.info('No packages found to test')
         return
 
+    install_output_path = os.path.join(OUT_DIR, 'install_results.json')
     if test_only_one:
         app_package_names = get_testing_apps()
         first_pkg = app_package_names[0]
         logging.info('Test-only-one enabled; testing only first package: %s', first_pkg)
-        run_script_capture(INSTALL_APPS, args=["--package", first_pkg], description=f"Install app {first_pkg} on devices.")
+        run_script_capture(INSTALL_APPS, args=["--package", first_pkg, "--output", install_output_path], description=f"Install app {first_pkg} on devices.")
         execute_app_with_coverage(first_pkg, mode)
     else:
-        run_script_capture(INSTALL_APPS, args=["-a"], description=f"Install all apps on devices.")
+        run_script_capture(INSTALL_APPS, args=["-a", "--output", install_output_path], description=f"Install all apps on devices.")
         for package in app_package_names:
             logging.info(f"Starting {package}")
             #TODO Filter apps that have an Activity

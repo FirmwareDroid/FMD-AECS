@@ -391,18 +391,14 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
     # frequency analysis for failures
     freq = dict(failure_reasons)
 
-    # write outputs
-    out_summary = {
-        'summary': summary,
-        'failure_frequency': freq,
-        "failures": failures
-    }
+    summary['failure_frequency'] = freq
+    summary["failures"] = failures
 
     try:
         os.makedirs(DEFAULT_OUT_DIR, exist_ok=True)
         out_path = os.path.join(DEFAULT_OUT_DIR, 'app_start_summary.json')
         with open(out_path, 'w') as f:
-            json.dump(out_summary, f, indent=2)
+            json.dump(summary, f, indent=2)
         logging.info('Wrote summary to %s', out_path)
     except Exception as e:
         logging.error('Failed to write output files: %s', e)
