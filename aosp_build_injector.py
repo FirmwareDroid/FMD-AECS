@@ -1431,6 +1431,10 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                     "hostname": os.uname()[1],
                     "firmware_id": firmware_id,
                     "duration": round(duration, 2),
+                    "android_version": aosp_version,
+                    "lunch_target": lunch_target,
+                    "pre_inj_config": PRE_INJECTOR_CONFIG_PATH,
+                    "post_inj_config": POST_INJECTOR_CONFIG_PATH,
                     "status": status
                 }
                 write_json_output(result, PATH_BUILD_FILE_LOG)
