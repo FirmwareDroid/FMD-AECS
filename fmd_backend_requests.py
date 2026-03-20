@@ -3,6 +3,8 @@ import json
 import logging
 import os
 import re
+import time
+
 import requests
 from werkzeug.utils import secure_filename
 from string import Template
@@ -145,6 +147,7 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
     total_size_in_bytes = 0
     attempt = 0
     is_successful = False
+    timeout = 30
     while attempt < max_attempts and not is_successful:
         try:
             logging.info(f"Attempt {attempt} to download build file from {download_url}...")
@@ -174,6 +177,8 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
             is_successful = True
         except Exception as err:
             logging.error(f"Attempt {attempt} failed: {err}")
+            time.sleep(timeout)
+            timeout += 120
             if attempt == max_attempts:
                 raise RuntimeError(f"Failed to download firmware build files after {max_attempts} attempts.")
         attempt += 1
