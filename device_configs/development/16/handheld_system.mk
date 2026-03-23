@@ -51,12 +51,13 @@ $(call inherit-product-if-exists, frameworks/webview/chromium/chromium.mk)
 #    PrintRecommendationService \
 #    PrintSpooler \
 
-#
+# Disabled due to build errors
 #ifeq ($(RELEASE_ACONFIG_INCLUDE_EYE_DROPPER_APP),true)
 #  PRODUCT_PACKAGES += EyeDropper
 #endif
 
 PRODUCT_PACKAGES += \
+	EyeDropper \
     android.software.window_magnification.prebuilt.xml \
     cameraserver \
     CameraExtensionsProxy \
