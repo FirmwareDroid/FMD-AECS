@@ -33,7 +33,7 @@ PRODUCT_PACKAGES += \
     preinstalled-packages-platform-handheld-product.xml \
     QuickSearchBox \
     SettingsIntelligence \
-    frameworks-base-overlays
+    frameworks-base-overlays \
 {% for line in package_name_list -%}{{ line }}{%- endfor %}
 
 PRODUCT_PACKAGES_DEBUG += \
