@@ -20,7 +20,6 @@ echo "SSLKEYLOGFILE set -> $SSLKEYLOGFILE"
 # Centralize all runtime logs under BASEDIR/out/logs instead of /tmp
 LOG_DIR="$BASEDIR/out/logs"
 mkdir -p "$LOG_DIR"
-mkdir -p "$LOG_DIR/android-unknown"
 chmod 700 "$LOG_DIR" 2>/dev/null || true
 echo "Log directory set -> $LOG_DIR"
 
@@ -56,9 +55,9 @@ setup_stop_existing_emulator() {
   pkill -f "socat -d tcp-listen:5555"
   pkill -f "socat -d tcp-listen:8554"
   pkill -f "pulseaudio"
-  pkill -f "tail --retry -f $LOG_DIR/android-unknown/goldfish_rtc_0"
-  pkill -f "cat $LOG_DIR/android-unknown/kernel.log"
-  pkill -f "cat $LOG_DIR/android-unknown/logcat.log"
+  pkill -f "tail --retry -f $LOG_DIR/goldfish_rtc_0"
+  pkill -f "cat $LOG_DIR/kernel.log"
+  pkill -f "cat $LOG_DIR/logcat.log"
 }
 
 setup_pulse_audio() {
@@ -99,19 +98,19 @@ setup_pulse_audio() {
 }
 
 setup_logger_forwarding() {
-  mkdir -p "$LOG_DIR/android-unknown"
-  rm -f "$LOG_DIR/android-unknown/kernel.log" "$LOG_DIR/android-unknown/logcat.log"
+  mkdir -p "$LOG_DIR"
+  rm -f "$LOG_DIR/kernel.log" "$LOG_DIR/logcat.log"
   # create FIFOs for kernel and logcat streams; ignore errors if they already exist
-  mkfifo "$LOG_DIR/android-unknown/kernel.log" 2>/dev/null || true
-  mkfifo "$LOG_DIR/android-unknown/logcat.log" 2>/dev/null || true
+  mkfifo "$LOG_DIR/kernel.log" 2>/dev/null || true
+  mkfifo "$LOG_DIR/logcat.log" 2>/dev/null || true
   # For goldfish RTC data, use tail -F to avoid immediate failure if file not present yet
   # Redirect stderr to /dev/null to avoid noisy messages when emulator isn't producing the file yet
-  tail -F "$LOG_DIR/android-unknown/goldfish_rtc_0" 2>/dev/null | sed -u 's/^/video: /g' &
+  tail -F "$LOG_DIR/goldfish_rtc_0" 2>/dev/null | sed -u 's/^/video: /g' &
   PIDS+=($!)
   # read from FIFOs
-  (cat "$LOG_DIR/android-unknown/kernel.log" 2>/dev/null | sed -u 's/^/kernel: /g') &
+  (cat "$LOG_DIR/kernel.log" 2>/dev/null | sed -u 's/^/kernel: /g') &
   PIDS+=($!)
-  (cat "$LOG_DIR/android-unknown/logcat.log" 2>/dev/null | sed -u 's/^/logcat: /g') &
+  (cat "$LOG_DIR/logcat.log" 2>/dev/null | sed -u 's/^/logcat: /g') &
   PIDS+=($!)
 }
 
@@ -143,12 +142,12 @@ while true; do
   if [[ $architecture == "x86_64" ]]; then
     AVD="x86_64"
     # Redirect emulator stdout/stderr to a log file under LOG_DIR for diagnostics
-    /android/sdk/emulator/emulator -avd $AVD -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -logcat-output "$LOG_DIR/android-unknown/logcat.log" -shell-serial "file:$LOG_DIR/android-unknown/kernel.log" -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1" >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
+    /android/sdk/emulator/emulator -avd $AVD -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -logcat-output "$LOG_DIR/logcat.log" -shell-serial "file:$LOG_DIR/kernel.log" -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1" >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
     emulator_pid=$!
   elif [[ $architecture == "aarch64" ]]; then
     AVD="Arm64"
     # Redirect emulator stdout/stderr to a log file under LOG_DIR for diagnostics
-    /android/sdk/emulator/emulator -avd $AVD -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "$LOG_DIR/android-unknown/logcat.log" -shell-serial "file:$LOG_DIR/android-unknown/kernel.log" -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
+    /android/sdk/emulator/emulator -avd $AVD -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "$LOG_DIR/logcat.log" -shell-serial "file:$LOG_DIR/kernel.log" -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
     emulator_pid=$!
   else
     echo "Unsupported architecture"
