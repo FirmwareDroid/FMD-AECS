@@ -507,11 +507,13 @@ def find_intermediate_file(aosp_path, md5_original_file):
     if INTERMEDIATE_MD5_MAP:
         try:
             matched = INTERMEDIATE_MD5_MAP.get(target_md5, ())
+            logging.info(f"Found intermediate candidates with same md5 hash: {matched}")
             # Return a mutable list for compatibility with callers
             return list(matched)
         except Exception:
             logging.debug("Error while using INTERMEDIATE_MD5_MAP, falling back to on-the-fly search")
 
+    logging.info("Using fallback intermediate file overwrite")
     # Fallback: walk and compute md5s as before
     intermediates_path = str(os.path.join(aosp_path, "out/soong/.intermediates/"))
     matching_intermediate_file_list = []
@@ -1178,8 +1180,8 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
             # Fîle should not already exist, but if it does, we overwrite it, but it is not recommended.
             try:
                 if os.path.isfile(source_file_path):
-                    inj_md5 = compute_file_hash(source_file_path)
-                    org_md5 = compute_file_hash(target_file_injection_path)
+                    inj_md5 = get_md5_from_file(source_file_path)
+                    org_md5 = get_md5_from_file(target_file_injection_path)
                     shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
                     logging.warning(f"File overwrite: {source_file_path}:{inj_md5} into {target_file_injection_path}:{org_md5}")
                     if not set_executable_permission(target_file_injection_path):
@@ -1215,15 +1217,6 @@ def handle_special_matching(source_file_injection_path):
         logging.info(f"Special matching app_process32 replace with app_process64: {source_file_injection_path}")
     return source_file_injection_path
 
-
-def compute_file_hash(file_path):
-    """Compute the MD5 hash of a file."""
-    hash_md5 = hashlib.md5()
-    with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
-
 def find_and_remove_duplicates(folder_paths):
     """Find and remove duplicate files in the given folders."""
     file_hashes = {}
@@ -1231,7 +1224,7 @@ def find_and_remove_duplicates(folder_paths):
         for root, _, files in os.walk(folder_path):
             for file in files:
                 file_path = os.path.join(root, file)
-                file_hash = compute_file_hash(file_path)
+                file_hash = get_md5_from_file(file_path)
                 if file_hash in file_hashes:
                     logging.warning(f"Duplicate found: {file_path} (duplicate of {file_hashes[file_hash]})")
                     os.remove(file_path)
@@ -1304,8 +1297,8 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
     Injects a file into the AOSP source code directly without matching to existing files.
     """
     filename = os.path.basename(source_file_path)
-    inj_md5 = compute_file_hash(source_file_path)
-    org_md5 = compute_file_hash(original_file_path)
+    inj_md5 = get_md5_from_file(source_file_path)
+    org_md5 = get_md5_from_file(original_file_path)
 
     matching_intermediate_file_list = find_intermediate_file(aosp_path, org_md5)
 
