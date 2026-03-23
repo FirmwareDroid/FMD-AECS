@@ -198,23 +198,23 @@ def get_md5_from_file(file_path):
         # Python 3.11
         with open(file_path, "rb") as f:
             digest = hashlib.file_digest(f, "md5")
+            digest.hexdigest()
     except Exception as e:
         try:
-            h = hashlib.md5()
+            digest = hashlib.md5()
             # A 128KB buffer is usually the sweet spot for disk I/O
             buffer = bytearray(128 * 1024)
             mv = memoryview(buffer)
-
             with open(file_path, 'rb', buffering=0) as f:
                 # We use a zero-buffer file object to manage our own buffering
                 for n in iter(lambda: f.readinto(mv), 0):
-                    h.update(mv[:n])
+                    digest.update(mv[:n])
         except Exception as e1:
             # Python 3.10
-            hash_md5 = hashlib.md5()
+            digest = hashlib.md5()
             with open(file_path, "rb") as f:
                 for chunk in iter(lambda: f.read(4096), b""):
-                    hash_md5.update(chunk)
-            return hash_md5.hexdigest()
+                    digest.update(chunk)
+            return digest.hexdigest()
     return digest.hexdigest()
 
