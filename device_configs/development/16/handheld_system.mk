@@ -51,13 +51,7 @@ $(call inherit-product-if-exists, frameworks/webview/chromium/chromium.mk)
 #    PrintRecommendationService \
 #    PrintSpooler \
 
-# Disabled due to build errors
-#ifeq ($(RELEASE_ACONFIG_INCLUDE_EYE_DROPPER_APP),true)
-#  PRODUCT_PACKAGES += EyeDropper
-#endif
-
 PRODUCT_PACKAGES += \
-	EyeDropper \
     android.software.window_magnification.prebuilt.xml \
     cameraserver \
     CameraExtensionsProxy \
@@ -89,9 +83,9 @@ ifeq ($(RELEASE_ACONFIG_INCLUDE_CONTACTS_PICKER_APP),true)
   PRODUCT_PACKAGES += ContactsPicker
 endif
 
-#ifeq ($(RELEASE_ACONFIG_INCLUDE_EYE_DROPPER_APP),true)
-#  PRODUCT_PACKAGES += EyeDropper
-#endif
+ifeq ($(RELEASE_ACONFIG_INCLUDE_EYE_DROPPER_APP),true)
+  PRODUCT_PACKAGES += EyeDropper \
+endif
 
 # Choose the correct products based on HSUM status
 ifeq ($(PRODUCT_USE_HSUM),true)

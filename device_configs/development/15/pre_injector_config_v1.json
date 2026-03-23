@@ -2524,6 +2524,6 @@
     "wireguard_toolbox": "./toolbox/wireguard_app",
     "PCAPdroid_toolbox": "./toolbox/pcapdroid"
   },
-  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r487747c/runtimes_ndk_cxx/aarch64/lldb-server",
+  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r536225/runtimes_ndk_cxx/aarch64/lldb-server",
   "ENABLE_ACVTOOL_INSTRUMENTATION": false
 }
