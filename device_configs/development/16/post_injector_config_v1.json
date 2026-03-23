@@ -309,7 +309,8 @@
     "profiling": "packages/modules/Profiling/apex",
     "threadnetwork": "packages/modules/ThreadNetwork/apex",
     "uprobestats": "packages/modules/UprobeStats/apex",
-    "nfc": "packages/apps/Nfc/apex"
+    "nfc": "packages/apps/Nfc/apex",
+    "telecom": "packages/modules/Telecom/apex"
   },
   "APEX_DEFAULT_EMULATOR_PATHS_DICT": {
     "appsearch": "com.android.appsearch",
@@ -356,7 +357,8 @@
     "rebootescrow": "com.android.hardware.rebootescrow",
     "cas": "com.android.hardware.cas",
     "uprobestats": "com.android.uprobestats",
-    "nfc": "com.android.nfcservices"
+    "nfc": "com.android.nfcservices",
+    "telecom": "com.android.telecom"
   },
   "LIST_SINGLETON_APPS": [
     "PackageInstaller.apk",
