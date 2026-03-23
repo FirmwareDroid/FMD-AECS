@@ -35,3 +35,4 @@ PRODUCT_PACKAGES_SHIPPING_API_LEVEL_34 += \
 # AppFunction Extensions
 ifneq (,$(RELEASE_APPFUNCTION_SIDECAR))
     $(call inherit-product, $(SRC_TARGET_DIR)/product/app_function_extensions.mk)
+endif
