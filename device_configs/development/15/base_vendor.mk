@@ -120,3 +120,4 @@ ifneq (,$(filter userdebug eng,$(TARGET_BUILD_VARIANT)))
 PRODUCT_PACKAGES += \
     perf-setup-sh
 endif
+
