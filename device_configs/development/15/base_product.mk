@@ -28,7 +28,6 @@ PRODUCT_PACKAGES += \
     product-build.prop \
 {% for line in package_name_list -%}{{ line }}{%- endfor %}
 
-
 # Packages included only for eng or userdebug builds, previously debug tagged
 PRODUCT_PACKAGES_DEBUG += \
     adb_keys \
