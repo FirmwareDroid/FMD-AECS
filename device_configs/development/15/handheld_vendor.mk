@@ -27,3 +27,5 @@ PRODUCT_PACKAGES += \
     power.default \
     vibrator.default \
 {% for line in package_name_list -%}{{ line }}{%- endfor %}
+
+
