@@ -13,14 +13,14 @@ SSLKEYFILE="$SSLKEY_DIR/out/sslkeylog.log"
 mkdir -p "$SSLKEY_DIR"
 touch "$SSLKEYFILE" 2>/dev/null || true
 # make it readable/writable by the current user only
-chmod 600 "$SSLKEYFILE" 2>/dev/null || true
+chmod 777 "$SSLKEYFILE" 2>/dev/null || true
 export SSLKEYLOGFILE="$SSLKEYFILE"
 echo "SSLKEYLOGFILE set -> $SSLKEYLOGFILE"
 
 # Centralize all runtime logs under BASEDIR/out/logs instead of /tmp
 LOG_DIR="$BASEDIR/out/logs"
 mkdir -p "$LOG_DIR"
-chmod 700 "$LOG_DIR" 2>/dev/null || true
+chmod 777 "$LOG_DIR" 2>/dev/null || true
 echo "Log directory set -> $LOG_DIR"
 
 cleanup() {
