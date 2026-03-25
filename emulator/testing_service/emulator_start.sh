@@ -3,6 +3,43 @@
 # All background pids for the current iteration
 PIDS=()
 emulator_pid=0
+# Save original args so we can re-exec with the same arguments if requested
+ORIG_ARGS=("$@")
+
+# Behavior flags (can be set via command-line)
+ATTACH=0   # if 1, run the emulator in the foreground attached to this terminal
+REEXEC=0   # if 1, when emulator exits re-exec this script (restarts attached)
+
+# Simple CLI parsing (we only remove the flags from $@ but keep ORIG_ARGS intact)
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --attach)
+      ATTACH=1
+      shift
+      ;;
+    --reexec)
+      REEXEC=1
+      shift
+      ;;
+    --attach-reexec)
+      ATTACH=1
+      REEXEC=1
+      shift
+      ;;
+    -h|--help)
+      echo "Usage: $0 [--attach] [--reexec]"
+      echo "  --attach        Run emulator in foreground attached to this console"
+      echo "  --reexec        When emulator exits, re-exec this script (keeps attachment)"
+      echo "  --attach-reexec Combination of both"
+      exit 0
+      ;;
+    *)
+      # ignore other args for now
+      shift
+      ;;
+  esac
+done
+
 BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Ensure SSL keylog file so TLS keys from processes that honor SSLKEYLOGFILE
@@ -49,6 +86,31 @@ cleanup() {
 }
 
 trap cleanup SIGINT SIGTERM EXIT
+
+# Cleanup iteration helpers without exiting (used before re-exec)
+cleanup_iteration() {
+  # don't run trap handlers
+  trap - SIGINT SIGTERM EXIT
+
+  echo "Cleaning up iteration subprocesses..."
+  [[ $emulator_pid -ne 0 ]] && kill -TERM "$emulator_pid" 2>/dev/null || true
+  if [[ ${#PIDS[@]} -gt 0 ]]; then
+    kill -TERM "${PIDS[@]}" 2>/dev/null || true
+    sleep 1
+    kill -KILL "${PIDS[@]}" 2>/dev/null || true
+  fi
+
+  # best-effort fallback kills for known long-running commands
+  pkill -f "emulator -avd" 2>/dev/null || true
+  pkill -f "socat -d tcp-listen:5555" 2>/dev/null || true
+  pkill -f "socat -d tcp-listen:8554" 2>/dev/null || true
+  pkill -f "pulseaudio" 2>/dev/null || true
+
+  # Stop tcpdump started by this script (ignore errors)
+  if [[ -x "$BASEDIR/tcpdump.sh" ]]; then
+    "$BASEDIR/tcpdump.sh" stop >/dev/null 2>&1 || true
+  fi
+}
 
 setup_stop_existing_emulator() {
   pkill -f "emulator -avd"
@@ -141,19 +203,16 @@ while true; do
 
   if [[ $architecture == "x86_64" ]]; then
     AVD="x86_64"
-    # Redirect emulator stdout/stderr to a log file under LOG_DIR for diagnostics
-    /android/sdk/emulator/emulator -avd $AVD -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -logcat-output "$LOG_DIR/logcat.log" -shell-serial "file:$LOG_DIR/kernel.log" -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1" >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
-    emulator_pid=$!
+    # Prepare command for emulator
+    EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -logcat-output "$LOG_DIR/logcat.log" -shell-serial "file:$LOG_DIR/kernel.log" -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1")
   elif [[ $architecture == "aarch64" ]]; then
     AVD="Arm64"
-    # Redirect emulator stdout/stderr to a log file under LOG_DIR for diagnostics
-    /android/sdk/emulator/emulator -avd $AVD -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "$LOG_DIR/logcat.log" -shell-serial "file:$LOG_DIR/kernel.log" -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
-    emulator_pid=$!
+    # Prepare command for emulator
+    EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "$LOG_DIR/logcat.log" -shell-serial "file:$LOG_DIR/kernel.log" -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max)
   else
     echo "Unsupported architecture"
     cleanup
   fi
-
   # Start tcpdump capture on host once emulator is launched. Use a pcaps subdir next to this script.
   if [[ -x "$BASEDIR/tcpdump.sh" ]]; then
     echo "Starting tcpdump helper to capture emulator traffic..."
@@ -163,8 +222,22 @@ while true; do
     echo "tcpdump helper not found at $BASEDIR/tcpdump.sh; skipping tcpdump start." >&2
   fi
 
-  # wait for emulator to stop; when it does, kill the iteration subprocesses and restart
-  wait "$emulator_pid" 2>/dev/null || true
+  # Launch emulator either attached to this terminal (foreground) or as background process
+  if [[ $ATTACH -eq 1 ]]; then
+    echo "Starting emulator attached to this terminal (logs also written to $LOG_DIR/emulator_${AVD}.log)"
+    # Run emulator in foreground and tee its output to the log file
+    # shellcheck disable=SC2086
+    ${EMU_CMD[@]} 2>&1 | tee "$LOG_DIR/emulator_${AVD}.log"
+    # When the pipeline exits, emulator has stopped. No background pid to wait on.
+  else
+    echo "Starting emulator in background (logs -> $LOG_DIR/emulator_${AVD}.log)"
+    # Redirect emulator stdout/stderr to a log file under LOG_DIR for diagnostics
+    # shellcheck disable=SC2086
+    ${EMU_CMD[@]} >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
+    emulator_pid=$!
+    # wait for emulator to stop; when it does, kill the iteration subprocesses and restart
+    wait "$emulator_pid" 2>/dev/null || true
+  fi
 
   echo "Emulator crashed or exited, stopping subprocesses and restarting..."
   # Stop tcpdump associated with this emulator run
@@ -176,6 +249,25 @@ while true; do
     kill -TERM "${PIDS[@]}" 2>/dev/null || true
     sleep 1
     kill -KILL "${PIDS[@]}" 2>/dev/null || true
+  fi
+
+  # If re-exec requested, clean up and re-exec this script attaching to current console
+  if [[ $REEXEC -eq 1 ]]; then
+    echo "Re-exec requested: cleaning up iteration and restarting attached to this console..."
+    cleanup_iteration
+    # Ensure --attach is present in args for the restarted instance
+    NEW_ARGS=("${ORIG_ARGS[@]}")
+    HAS_ATTACH=0
+    for a in "${NEW_ARGS[@]}"; do
+      if [[ "$a" == "--attach" || "$a" == "--attach-reexec" ]]; then
+        HAS_ATTACH=1
+        break
+      fi
+    done
+    if [[ $HAS_ATTACH -eq 0 ]]; then
+      NEW_ARGS+=("--attach")
+    fi
+    exec "$0" "${NEW_ARGS[@]}"
   fi
 
   # ensure emulator pid cleared
