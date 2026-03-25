@@ -9,6 +9,7 @@ ORIG_ARGS=("$@")
 # Behavior flags (can be set via command-line)
 ATTACH=0   # if 1, run the emulator in the foreground attached to this terminal
 REEXEC=0   # if 1, when emulator exits re-exec this script (restarts attached)
+ENABLE_TCPDUMP=0  # if 1, start tcpdump helper to capture traffic
 
 # Simple CLI parsing (we only remove the flags from $@ but keep ORIG_ARGS intact)
 while [[ $# -gt 0 ]]; do
@@ -26,10 +27,19 @@ while [[ $# -gt 0 ]]; do
       REEXEC=1
       shift
       ;;
+    --tcpdump|--enable-tcpdump)
+      ENABLE_TCPDUMP=1
+      shift
+      ;;
+    --no-tcpdump|--disable-tcpdump)
+      ENABLE_TCPDUMP=0
+      shift
+      ;;
     -h|--help)
       echo "Usage: $0 [--attach] [--reexec]"
       echo "  --attach        Run emulator in foreground attached to this console"
       echo "  --reexec        When emulator exits, re-exec this script (keeps attachment)"
+      echo "  --tcpdump       Enable tcpdump helper to capture emulator traffic (disabled by default)"
       echo "  --attach-reexec Combination of both"
       exit 0
       ;;
@@ -78,7 +88,7 @@ cleanup() {
   pkill -f "pulseaudio" 2>/dev/null || true
 
   # Stop tcpdump started by this script (ignore errors)
-  if [[ -x "$BASEDIR/tcpdump.sh" ]]; then
+  if [[ $ENABLE_TCPDUMP -eq 1 && -x "$BASEDIR/tcpdump.sh" ]]; then
     "$BASEDIR/tcpdump.sh" stop >/dev/null 2>&1 || true
   fi
 
@@ -107,7 +117,7 @@ cleanup_iteration() {
   pkill -f "pulseaudio" 2>/dev/null || true
 
   # Stop tcpdump started by this script (ignore errors)
-  if [[ -x "$BASEDIR/tcpdump.sh" ]]; then
+  if [[ $ENABLE_TCPDUMP -eq 1 && -x "$BASEDIR/tcpdump.sh" ]]; then
     "$BASEDIR/tcpdump.sh" stop >/dev/null 2>&1 || true
   fi
 }
@@ -214,12 +224,14 @@ while true; do
     cleanup
   fi
   # Start tcpdump capture on host once emulator is launched. Use a pcaps subdir next to this script.
-  if [[ -x "$BASEDIR/tcpdump.sh" ]]; then
-    echo "Starting tcpdump helper to capture emulator traffic..."
-    # start will wait for adb boot completion inside tcpdump.sh; provide outdir under emulator/pcaps
-    "$BASEDIR/tcpdump.sh" start "$BASEDIR/pcaps" >/dev/null 2>&1 || true
-  else
-    echo "tcpdump helper not found at $BASEDIR/tcpdump.sh; skipping tcpdump start." >&2
+  if [[ $ENABLE_TCPDUMP -eq 1 ]]; then
+    if [[ -x "$BASEDIR/tcpdump.sh" ]]; then
+      echo "Starting tcpdump helper to capture emulator traffic..."
+      # start will wait for adb boot completion inside tcpdump.sh; provide outdir under emulator/pcaps
+      "$BASEDIR/tcpdump.sh" start "$BASEDIR/pcaps" >/dev/null 2>&1 || true
+    else
+      echo "tcpdump helper not found at $BASEDIR/tcpdump.sh; skipping tcpdump start." >&2
+    fi
   fi
 
   # Launch emulator either attached to this terminal (foreground) or as background process
@@ -241,7 +253,7 @@ while true; do
 
   echo "Emulator crashed or exited, stopping subprocesses and restarting..."
   # Stop tcpdump associated with this emulator run
-  if [[ -x "$BASEDIR/tcpdump.sh" ]]; then
+  if [[ $ENABLE_TCPDUMP -eq 1 && -x "$BASEDIR/tcpdump.sh" ]]; then
     "$BASEDIR/tcpdump.sh" stop >/dev/null 2>&1 || true
   fi
   # cleanup iteration processes but keep trap active for signals
