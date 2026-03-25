@@ -3,5 +3,6 @@ cc_prebuilt_binary {
     stem: "frida-server",
     srcs: ["frida-server"],
     shared_libs: ["liblog"],
-    init_rc: ["frida-server.rc"]
+    init_rc: ["frida-server.rc"],
+    ldflags: ["-Wl,-z,max-page-size=16384"],
 }
