@@ -173,8 +173,8 @@ setup_logger_forwarding() {
   mkdir -p "$LOG_DIR"
   rm -f "$LOG_DIR/kernel.log" "$LOG_DIR/logcat.log"
   # create FIFOs for kernel and logcat streams; ignore errors if they already exist
-  mkfifo "$LOG_DIR/kernel.log" 2>/dev/null || true
-  mkfifo "$LOG_DIR/logcat.log" 2>/dev/null || true
+  touch "$LOG_DIR/kernel.log" 2>/dev/null || true
+  touch "$LOG_DIR/logcat.log" 2>/dev/null || true
   # For goldfish RTC data, use tail -F to avoid immediate failure if file not present yet
   # Redirect stderr to /dev/null to avoid noisy messages when emulator isn't producing the file yet
   tail -F "$LOG_DIR/goldfish_rtc_0" 2>/dev/null | sed -u 's/^/video: /g' &
