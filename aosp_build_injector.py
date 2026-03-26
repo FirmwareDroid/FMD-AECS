@@ -113,7 +113,7 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
     # decide number of workers
     if max_workers is None:
         try:
-            max_workers = os.cpu_count() or 4
+            max_workers = os.cpu_count() * 6 or 4
         except Exception:
             max_workers = 4
 
