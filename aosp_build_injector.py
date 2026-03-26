@@ -156,120 +156,13 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
 
     # write timing JSON to firmware folder
     try:
-        time_json_path = os.path.join(firmware_folder, "time.json")
-        with open(time_json_path, "w") as jf:
-            json.dump(summary, jf, indent=2)
-        logging.info(f"ACVTool parallel timing written to: {time_json_path}")
+        logging.info(f"Writing ACVTool instrumentation result: {summary}")
+        write_json_output(summary, PATH_BUILD_ACV_LOG)
     except Exception as err:
         logging.error(f"Failed to write timing JSON: {err}")
 
     logging.info(f"ACVTool instrumentation parallel result: {result_dict}")
     return result_dict
-
-
-def add_acvtool_instrumentation(firmware_id):
-    """
-    Adds ACVTool instrumentation to the AOSP source code and measures duration.
-
-    Writes a JSON file `time.json` into the current working directory with the
-    overall duration in seconds plus per-file timings and a summary of successes
-    and failures.
-    """
-    result_dict = {"success": [], "failed": []}
-
-    # Check if `acv` is available either on PATH or in a local ./venv/bin/acv
-    venv_acv = os.path.join(os.getcwd(), "venv", "bin", "acv")
-    if shutil.which("acv") is None and not os.path.exists(venv_acv):
-        logging.error("ACVTool `acv` not found in PATH and no local `venv/bin/acv` found. Skipping ACVTool instrumentation.")
-        return result_dict
-
-    apk_path_list = glob.glob(os.path.join(EXTRACTED_PACKAGES_PATH, "**", "*.apk"), recursive=True)
-    logging.info(f"Found {len(apk_path_list)} APK files for ACVTool instrumentation.")
-
-    per_file_times = {}
-    start_time = time.time()
-
-    current_cwd = os.getcwd()
-    firmware_folder = os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation", firmware_id)
-    shutil.rmtree(firmware_folder, ignore_errors=True)
-    os.makedirs(firmware_folder, exist_ok=True)
-    logging.info(f"Deleting ACVTool instrumentation folder: {firmware_folder}")
-    for apk_path in apk_path_list:
-        if not os.path.exists(apk_path):
-            logging.warning(f"Skipping {apk_path} because it doesn't exist.")
-            continue
-        base_dir = Path(apk_path).parent.name
-        filename = os.path.basename(apk_path)
-        out_folder = os.path.join(str(firmware_folder), base_dir)
-        os.makedirs(out_folder, exist_ok=True)
-        if not os.path.exists(out_folder):
-            raise OSError(f"Could not create output folder for ACVTool: {out_folder}")
-        os.chdir(firmware_folder)
-        logging.info(f"Created output folder for ACVTool: {firmware_folder}")
-
-        file_start = time.time()
-        try:
-            apk_in_path = os.path.join(str(firmware_folder), filename)
-            shutil.copy(apk_path, apk_in_path)
-            if not os.path.exists(apk_in_path):
-                raise OSError(f"Could not copy {apk_path} to output folder: {apk_in_path}")
-
-            acv_executable = shutil.which("acv") or venv_acv
-            acvtool_instrument_command = [acv_executable, "instrument", "-f", apk_in_path, "--wd", out_folder]
-            logging.info(f"Starting ACVTool instrumentation with command: {' '.join(acvtool_instrument_command)}")
-            with subprocess.Popen(acvtool_instrument_command,
-                                  stdout=subprocess.PIPE,
-                                  stderr=subprocess.STDOUT,
-                                  cwd=firmware_folder,
-                                  text=True) as proc:
-                for line in proc.stdout:
-                    logging.info(line.rstrip())
-                if proc.wait() != 0:
-                    raise subprocess.CalledProcessError(proc.returncode, acvtool_instrument_command)
-            file_end = time.time()
-            elapsed = round(file_end - file_start, 2)
-            per_file_times[filename] = {"duration_seconds": elapsed, "status": "success"}
-            logging.info(f"ACVTool instrumentation for {filename} completed successfully in {elapsed} seconds.")
-            result_dict["success"].append(filename)
-        except subprocess.CalledProcessError as e:
-            file_end = time.time()
-            elapsed = round(file_end - file_start, 2)
-            per_file_times[filename] = {"duration_seconds": elapsed, "status": "failed", "error": str(e)}
-            logging.error(f"ACVTool instrumentation failed for {filename}: {e}.")
-            result_dict["failed"].append(filename)
-        except Exception as e:
-            file_end = time.time()
-            elapsed = round(file_end - file_start, 2)
-            per_file_times[filename] = {"duration_seconds": elapsed, "status": "failed", "error": str(e)}
-            logging.error(f"Unexpected error during ACVTool instrumentation for {filename}: {e}")
-            result_dict["failed"].append(filename)
-    os.chdir(current_cwd)
-    end_time = time.time()
-    total_duration = round(end_time - start_time, 2)
-
-    summary = {
-        "hostname": os.uname()[1],
-        "firmware_id": firmware_id,
-        "start_time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time)),
-        "end_time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)),
-        "acv_instrumentation_duration_seconds": total_duration,
-        "per_file_durations": per_file_times,
-        "result": result_dict,
-    }
-
-    # write timing JSON to firmware folder
-    try:
-        time_json_path = os.path.join(str(firmware_folder), "time.json")
-        os.makedirs(firmware_folder, exist_ok=True)
-        with open(time_json_path, "w") as jf:
-            json.dump(summary, jf, indent=2)
-        logging.info(f"ACVTool timing written to: {time_json_path}")
-    except Exception as err:
-        logging.error(f"Failed to write timing JSON: {err}")
-
-    logging.info(f"ACVTool instrumentation result: {result_dict}")
-    return result_dict
-
 
 
 def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering, cookies):
