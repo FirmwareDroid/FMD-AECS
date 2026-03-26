@@ -27,8 +27,9 @@ from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
     check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file
-from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH
+from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, MEASURE_LOOKUP_PERFORMANCE
 from config_post_injector import *
+from config_post_injector import PATH_INJECTION_TIME_LOG
 from fmd_backend_requests import get_csrf_token, authenticate_fmd
 from setup_logger import setup_logger
 from tqdm import tqdm
@@ -541,22 +542,23 @@ def find_intermediate_file(aosp_path, md5_original_file):
             matched = INTERMEDIATE_MD5_MAP.get(target_md5, ())
             logging.info(f"Found intermediate candidates with same md5 hash: {matched}")
             # record timing for the map lookup
-            try:
-                write_json_output({
-                    "function": "find_intermediate_file",
-                    "method": "map_lookup",
-                    "target_md5": target_md5,
-                    "matches": len(matched) if matched is not None else 0,
-                    "duration_seconds": time.time() - start_time,
-                    "timestamp": time.time()
-                }, PATH_EXECUTION_TIME_LOG)
-            except Exception:
-                logging.debug("Could not write find_intermediate_file timing to log")
+            if MEASURE_LOOKUP_PERFORMANCE:
+                try:
+                    write_json_output({
+                        "function": "find_intermediate_file",
+                        "method": "map_lookup",
+                        "target_md5": target_md5,
+                        "matches": len(matched) if matched is not None else 0,
+                        "duration_seconds": time.time() - start_time,
+                        "timestamp": time.time()
+                    }, PATH_MAPPING_EXECUTION_TIME_LOG)
+                except Exception:
+                    logging.warning("Could not write find_intermediate_file timing to log")
 
             # Return a mutable list for compatibility with callers
             return list(matched)
         except Exception:
-            logging.debug("Error while using INTERMEDIATE_MD5_MAP, falling back to on-the-fly search")
+            logging.warning("Error while using INTERMEDIATE_MD5_MAP, falling back to on-the-fly search")
 
     logging.info("Using fallback intermediate file overwrite")
     # Fallback: walk and compute md5s as before
@@ -565,17 +567,18 @@ def find_intermediate_file(aosp_path, md5_original_file):
     if not os.path.exists(intermediates_path):
         logging.debug(f"Intermediates path does not exist: {intermediates_path}")
         # record timing (no files)
-        try:
-            write_json_output({
-                "function": "find_intermediate_file",
-                "method": "walk",
-                "target_md5": target_md5,
-                "matches": 0,
-                "duration_seconds": time.time() - start_time,
-                "timestamp": time.time()
-            }, PATH_EXECUTION_TIME_LOG)
-        except Exception:
-            logging.debug("Could not write find_intermediate_file timing to log")
+        if MEASURE_LOOKUP_PERFORMANCE:
+            try:
+                write_json_output({
+                    "function": "find_intermediate_file",
+                    "method": "walk",
+                    "target_md5": target_md5,
+                    "matches": 0,
+                    "duration_seconds": time.time() - start_time,
+                    "timestamp": time.time()
+                }, PATH_EXECUTION_TIME_LOG)
+            except Exception:
+                logging.warning("Could not write find_intermediate_file timing to log")
         return matching_intermediate_file_list
 
 
@@ -594,17 +597,18 @@ def find_intermediate_file(aosp_path, md5_original_file):
                 logging.warning(f"Error while checking intermediate file {fname} in {root}: {e}")
                 continue
     # record timing for the walk-based search
-    try:
-        write_json_output({
-            "function": "find_intermediate_file",
-            "method": "walk",
-            "target_md5": target_md5,
-            "matches": len(matching_intermediate_file_list),
-            "duration_seconds": time.time() - start_time,
-            "timestamp": time.time()
-        }, PATH_EXECUTION_TIME_LOG)
-    except Exception:
-        logging.debug("Could not write find_intermediate_file timing to log")
+    if MEASURE_LOOKUP_PERFORMANCE:
+        try:
+            write_json_output({
+                "function": "find_intermediate_file",
+                "method": "walk",
+                "target_md5": target_md5,
+                "matches": len(matching_intermediate_file_list),
+                "duration_seconds": time.time() - start_time,
+                "timestamp": time.time()
+            }, PATH_MAPPING_EXECUTION_TIME_LOG)
+        except Exception:
+            logging.warning("Could not write find_intermediate_file timing to log")
 
     return matching_intermediate_file_list
 
@@ -673,6 +677,8 @@ def build_intermediate_md5_map(aosp_path):
     return MappingProxyType(immutable_map)
 
 def indirect_injection(target_file_injection_path, file_name, target_out_path, partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version):
+    start_time = time.time()
+
     file_ext = os.path.splitext(file_name)[1]
     if file_ext in POST_INJECTOR_CONFIG["SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION"]:
         logging.info(f"Skipped indirect injection for file: {file_path} with extension: {file_ext}")
@@ -728,6 +734,20 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
         error_message = f"Original file not found for indirect injection: {file_path} | {file_name}"
         logging.error(error_message)
         inj_obj = (error_message, None, module_type)
+
+    # record timing
+    try:
+        write_json_output({
+            'function': 'indirect_injection',
+            'file': file_path,
+            'target_file': target_file_injection_path,
+            'method': 'indirect',
+            'duration_seconds': time.time() - start_time,
+            'timestamp': time.time(),
+            'injected': bool(is_injected)
+        }, PATH_INJECTION_TIME_LOG)
+    except Exception:
+        logging.debug('Could not write indirect_injection timing to log')
 
     return inj_obj, inj_partition, is_injected
 
@@ -1285,6 +1305,7 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
 # Direct Injection
 def inject_file_into_partition(source_file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version):
     is_injected = False
+    start_time = time.time()
     filename = os.path.basename(target_file_injection_path)
     if POST_INJECTOR_CONFIG["OVERWRITE_APP_PROCESS_32"]:
         # TODO : Remove this workaround in the future -> This does not work for all cases.
@@ -1362,6 +1383,19 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
 
         if not set_executable_permission(target_file_injection_path):
             raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
+    try:
+        write_json_output({
+            'function': 'inject_file_into_partition',
+            'source_file': source_file_path,
+            'target_file': target_file_injection_path,
+            'method': 'direct',
+            'duration_seconds': time.time() - start_time,
+            'timestamp': time.time(),
+            'injected': bool(is_injected)
+        }, PATH_INJECTION_TIME_LOG)
+    except Exception:
+        logging.debug('Could not write inject_file_into_partition timing to log')
+
     return target_file_injection_path
 
 
@@ -1458,6 +1492,8 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
 
     logging.info(f"Overwriting Obj file: {source_file_path}:{inj_md5} into {original_file_path}:{org_md5}")
     file_name = os.path.basename(original_file_path)
+    start_time = time.time()
+    is_injected = False
     try:
         if "/apex/" in original_file_path:
             #TODO Remove this check
@@ -1487,6 +1523,21 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
     except Exception as e:
         logging.error(f"Error injecting file: {source_file_path} into {original_file_path} | {e}")
         is_injected = False
+    finally:
+        # record timing for this obj-level injection
+        try:
+            write_json_output({
+                'function': 'inject_file_into_obj',
+                'source_file': source_file_path,
+                'target_file': original_file_path,
+                'method': 'indirect_obj',
+                'duration_seconds': time.time() - start_time,
+                'timestamp': time.time(),
+                'injected': bool(is_injected)
+            }, PATH_INJECTION_TIME_LOG)
+        except Exception:
+            logging.debug('Could not write inject_file_into_obj timing to log')
+
     return is_injected
 
 def parse_arguments():
