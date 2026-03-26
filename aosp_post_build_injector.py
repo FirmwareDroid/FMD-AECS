@@ -210,9 +210,41 @@ def count_number_of_extracted_files(source_folder_path):
     return file_count_per_partition
 
 
+def build_intermediate_file_index(aosp_path, target_out_path):
+    # Build the intermediate md5 map once before starting worker tasks. This map is immutable.
+    global INTERMEDIATE_MD5_MAP
+    try:
+        INTERMEDIATE_MD5_MAP = build_intermediate_md5_map(aosp_path)
+        logging.info(f"Initialized INTERMEDIATE_MD5_MAP with {len(INTERMEDIATE_MD5_MAP)} entries")
+    except Exception as e:
+        logging.warning(f"Failed to build INTERMEDIATE_MD5_MAP: {e}")
+
+
+    # Build a file basename -> paths index for the target obj path to avoid repeated os.walk
+    target_obj_path = None
+    try:
+        target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
+        # Build index if not present (protect with lock to avoid races)
+        with FILE_INDEX_LOCK:
+            if target_obj_path not in FILE_INDEX_CACHE:
+                idx = defaultdict(list)
+                if os.path.exists(target_obj_path):
+                    for root, dirs, files in scandir_walk(target_obj_path):
+                        for f in files:
+                            idx[f].append(os.path.join(root, f))
+                FILE_INDEX_CACHE[target_obj_path] = idx
+                logging.info(f"Built file index for {target_obj_path} with {sum(len(v) for v in idx.values())} entries")
+    except Exception as e:
+        logging.warning(f"Failed to build file index for target objects: {e}")
+    return target_obj_path
+
+
 def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list, cookies, aosp_version):
     start_time = time.time()
     logging.info(f"Injection started at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
+
+    target_obj_path = build_intermediate_file_index(aosp_path, target_out_path)
+
     error_list, inj_obj_list, inj_partition_list = process_partitions(aosp_path,
                                                                       source_folder_path,
                                                                       target_out_path,
@@ -223,6 +255,18 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
                                                                       cookies,
                                                                       aosp_version)
     end_time = time.time()
+
+    # free caches
+    INTERMEDIATE_MD5_MAP = None
+
+    try:
+        if 'target_obj_path' in locals():
+            with FILE_INDEX_LOCK:
+                if target_obj_path in FILE_INDEX_CACHE:
+                    del FILE_INDEX_CACHE[target_obj_path]
+    except Exception:
+        pass
+
     logging.info(f"Injection ended at {end_time}")
     execution_time = end_time - start_time
     execution_time_minutes = execution_time / 60
@@ -844,29 +888,6 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     inj_partition_list = []
     processed_files = set()
     partition_name = os.path.basename(folder_path)
-    # Build the intermediate md5 map once before starting worker tasks. This map is immutable.
-    global INTERMEDIATE_MD5_MAP
-    try:
-        INTERMEDIATE_MD5_MAP = build_intermediate_md5_map(aosp_path)
-        logging.info(f"Initialized INTERMEDIATE_MD5_MAP with {len(INTERMEDIATE_MD5_MAP)} entries")
-    except Exception as e:
-        logging.warning(f"Failed to build INTERMEDIATE_MD5_MAP: {e}")
-    # Build a file basename -> paths index for the target obj path to avoid repeated os.walk
-    target_obj_path = None
-    try:
-        target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
-        # Build index if not present (protect with lock to avoid races)
-        with FILE_INDEX_LOCK:
-            if target_obj_path not in FILE_INDEX_CACHE:
-                idx = defaultdict(list)
-                if os.path.exists(target_obj_path):
-                    for root, dirs, files in scandir_walk(target_obj_path):
-                        for f in files:
-                            idx[f].append(os.path.join(root, f))
-                FILE_INDEX_CACHE[target_obj_path] = idx
-                logging.info(f"Built file index for {target_obj_path} with {sum(len(v) for v in idx.values())} entries")
-    except Exception as e:
-        logging.warning(f"Failed to build file index for target objects: {e}")
 
     file_paths = list(set(os.path.join(root, file_name.strip()) for root, _, file_name_list in scandir_walk(folder_path)
                           for file_name in file_name_list))
@@ -919,15 +940,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     except Exception as e:
         logging.warning(f"Error waiting for copy tasks to finish: {e}")
 
-    # free caches for this partition
-    INTERMEDIATE_MD5_MAP = None
-    try:
-        if 'target_obj_path' in locals():
-            with FILE_INDEX_LOCK:
-                if target_obj_path in FILE_INDEX_CACHE:
-                    del FILE_INDEX_CACHE[target_obj_path]
-    except Exception:
-        pass
+
 
     return error_list, inj_obj_list, inj_partition_list
 

@@ -124,8 +124,8 @@ def load_configs(pre_injector_config_path, post_injector_config_path):
 
     pre_injector_config = ConfigManager.get_config("PRE_INJECTOR_CONFIG")
     post_injector_config = ConfigManager.get_config("POST_INJECTOR_CONFIG")
-    logging.info(f"Loaded pre-injector config from {pre_injector_config_path}. Keys: {list(pre_injector_config.keys())}")
-    logging.info(f"Loaded post injector config from {post_injector_config_path}. Keys: {list(post_injector_config.keys())}")
+    logging.debug(f"Loaded pre-injector config from {pre_injector_config_path}. Keys: {list(pre_injector_config.keys())}")
+    logging.debug(f"Loaded post injector config from {post_injector_config_path}. Keys: {list(post_injector_config.keys())}")
     if not pre_injector_config or not post_injector_config:
         logging.error("Pre-injector or post-injector config is empty. Please check the config files.")
         raise ValueError("Configuration files are empty or not loaded correctly.")
