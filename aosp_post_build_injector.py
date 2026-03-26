@@ -1091,7 +1091,7 @@ def search_original_file_in_obj(partition_name,
             file_extension = os.path.splitext(file_name)[1]
             # flatten all paths with the extension
             file_path_list = [p for paths in idx.values() for p in paths if os.path.splitext(p)[1] == file_extension]
-            logging.debug(f"File Matcher: No exact matches found for {file_name}. Filtered by extension ({file_extension}) using index")
+            logging.debug("File Matcher: No exact matches found for %s. Filtered by extension (%s) using index", file_name, file_extension)
     else:
         # Fallback: expensive full walk
         file_path_list = get_all_files(search_folder_path)
@@ -1102,66 +1102,66 @@ def search_original_file_in_obj(partition_name,
             if matches:
                 for matching_file in matches[:]:
                     if not check_file_compatibility(file_path, matching_file, module_type):
-                        logging.debug(f"File Matcher: File not compatible: {file_path}|{matching_file}")
+                        logging.debug("File Matcher: File not compatible: %s|%s", file_path, matching_file)
                         matches.remove(matching_file)
-                logging.debug(f"File Matcher: Found exact matches for {file_name}: {matches}")
+                logging.debug("File Matcher: Found exact matches for %s: %s", file_name, matches)
                 file_path_list = matches
             else:
                 file_extension = os.path.splitext(file_name)[1]
                 file_path_list = [file for file in file_path_list if os.path.splitext(file)[1] == file_extension]
-                logging.debug(f"File Matcher: No exact matches found for {file_name}. "
-                              f"Filtered by extension ({file_extension})")
+                logging.debug("File Matcher: No exact matches found for %s. Filtered by extension (%s)", file_name, file_extension)
     duration_first_part = time.time() - start_time
 
     module_name = os.path.splitext(file_name)[0]
-    logging.debug(f"File Matcher:{module_type} Searching in {search_folder_path} for module_name: {module_name} and file_name: {file_name}")
+    logging.debug("File Matcher:%s Searching in %s for module_name: %s and file_name: %s", module_type, search_folder_path, module_name, file_name)
+
+    contains_vndk = "vndk" in file_path
+    contains_ndk = "ndk" in file_path
     for file in file_path_list:
         candidates_examined += 1
-        root = os.path.dirname(file)
         candidate_path = file
         candidate_file_name = os.path.basename(candidate_path)
         # Strip the root folder name to match the module name
+        root = os.path.dirname(file)
         root_folder_name_stripped = root.replace(replace_intermediate, "")
         root_folder_name_stripped = root_folder_name_stripped.replace(f"_{partition_name}","")
         root_folder_name_stripped = root_folder_name_stripped.replace("v1_prebuilt","")
         root_folder_name_stripped = os.path.basename(root_folder_name_stripped)
-        logging.debug(f"File Matcher: {module_name}:{file_name} - Root Folder Name stripped: {root_folder_name_stripped}")
+        logging.debug("File Matcher: %s:%s - Root Folder Name stripped: %s", module_name, file_name, root_folder_name_stripped)
 
-        if ("vndk" in candidate_path and "vndk" not in file_path) or ("ndk" in candidate_path and "ndk" not in file_path):
-            logging.debug(f"File Matcher: VNDK/NDK Rule enforced -> "
-                          f"Candidate: {candidate_path} has vndk but target not: {file_path}")
+        if ("vndk" in candidate_path and not contains_vndk) or ("ndk" in candidate_path and not contains_ndk):
+            logging.debug("File Matcher: VNDK/NDK Rule enforced -> Candidate: %s has vndk but target not: %s", candidate_path, file_path)
             continue
 
         if not check_file_compatibility(file_path, candidate_path, module_type):
-            logging.debug(f"File Matcher: File not compatible: {file_path}|{candidate_path}")
+            logging.debug("File Matcher: File not compatible: %s|%s", file_path, candidate_path)
             continue
 
         # Check if there is an exact match for the file name
         if candidate_file_name == file_name:
-            logging.debug(f"File Matcher test exact match:{file_name} Found {candidate_path} in {root}")
+            logging.debug("File Matcher test exact match:%s Found %s in %s", file_name, candidate_path, root)
 
             # Verify if it matches the partition criteria
             if not partition_name or partition_name in root:
-                logging.debug(f"File Matcher: Found file that matches partition: {file_name}, candidate_path: {candidate_path}")
+                logging.debug("File Matcher: Found file that matches partition: %s, candidate_path: %s", file_name, candidate_path)
 
                 if "com.android" in candidate_path and "com.android" not in file_path:
-                    logging.debug(f"File Matcher: com.android rule enforced -> "
-                                  f"Candidate: {candidate_path} has com.android but target not: {file_path}")
+                    logging.debug("File Matcher: com.android rule enforced -> Candidate: %s has com.android but target not: %s", candidate_path, file_path)
                     continue
 
-                logging.debug(f"File Matcher: File found via direct match: {file_path}|{candidate_path}")
+                logging.debug("File Matcher: File found via direct match: %s|%s", file_path, candidate_path)
                 result_file_path = candidate_path
                 result_file_path_list.append(result_file_path)
                 matches_found += 1
         # Check if the folder has the same name but the file within the folder is named differently
         elif module_name == root_folder_name_stripped and partition_name in root:
-            logging.debug(f"File Matcher: Found module name: {module_name}:{file_name}:{root} with partition {partition_name}")
+            logging.debug("File Matcher: Found module name: %s:%s:%s with partition %s", module_name, file_name, root, partition_name)
             file_extension_src = os.path.splitext(file_name)[1]
             file_extension_obj = os.path.splitext(file)[1]
 
             if file_extension_src.lower().strip() == file_extension_obj.lower().strip():
-                logging.debug(f"File Matcher: Found file: {file_name}, candidate_path: {candidate_path}")
-                logging.debug(f"File Matcher: File found via module name: {file_path}|{candidate_path}")
+                logging.debug("File Matcher: Found file: %s, candidate_path: %s", file_name, candidate_path)
+                logging.debug("File Matcher: File found via module name: %s|%s", file_path, candidate_path)
                 result_file_path = candidate_path
                 result_file_path_list.append(result_file_path)
             elif ((file_extension_src == ".apex" and file_extension_obj == ".capex")
@@ -1169,11 +1169,11 @@ def search_original_file_in_obj(partition_name,
                 # Matching apex to capex files
                 if POST_INJECTOR_CONFIG["ALLOW_APEX_INJECTION_MERGE"]:
                     result_file_path = candidate_path
-                    logging.debug(f"File Matcher: Found APEX file2: {file_name}, result_file_path: {result_file_path}")
+                    logging.debug("File Matcher: Found APEX file2: %s, result_file_path: %s", file_name, result_file_path)
                     result_file_path_list.append(result_file_path)
                     matches_found += 1
         else:
-            logging.debug(f"File Matcher: File not found: {file_name}")
+            logging.debug("File Matcher: File not found: %s", file_name)
 
     duration_second_part = time.time() - start_time
 
@@ -1199,10 +1199,10 @@ def search_original_file_in_obj(partition_name,
         logging.debug('Could not write search_original_file_in_obj timing to log')
 
     if len(result_file_path_list) > 0:
-        logging.debug(f"File Matcher: Found file for {file_name} in {search_folder_path} with partition {partition_name}")
+        logging.debug("File Matcher: Found file for %s in %s with partition %s", file_name, search_folder_path, partition_name)
         return result_file_path_list
     else:
-        logging.debug(f"File Matcher: No file found for {file_name} in {search_folder_path} with partition {partition_name}")
+        logging.debug("File Matcher: No file found for %s in %s with partition %s", file_name, search_folder_path, partition_name)
         return None
 
 
