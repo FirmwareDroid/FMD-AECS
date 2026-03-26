@@ -32,7 +32,8 @@ from config_post_injector import *
 from fmd_backend_requests import get_csrf_token, authenticate_fmd
 from setup_logger import setup_logger
 from tqdm import tqdm
-from copy import copy_fast
+from copy_helper import copy_fast
+from fast_copy import schedule_copy, wait_for_all_copy_tasks
 
 
 if os.environ.get("FMD_DEBUG") == "True":
@@ -822,6 +823,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     except Exception as e:
         logging.warning(f"Failed to build INTERMEDIATE_MD5_MAP: {e}")
     # Build a file basename -> paths index for the target obj path to avoid repeated os.walk
+    target_obj_path = None
     try:
         target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
         # Build index if not present (protect with lock to avoid races)
@@ -881,6 +883,12 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     progress_bar.close()
     #handle_duplicated_permissions(target_out_path)
     cleanup_files(folder_path)
+    # Wait for any scheduled non-blocking copy tasks to finish before moving on
+    try:
+        wait_for_all_copy_tasks()
+    except Exception as e:
+        logging.warning(f"Error waiting for copy tasks to finish: {e}")
+
     # free caches for this partition
     INTERMEDIATE_MD5_MAP = None
     try:
@@ -1462,18 +1470,19 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
             else:
                 new_file_path = "/etc/" + file_name
                 logging.info(f"Injecting /etc/ file from apex: {source_file_path} into {new_file_path}")
-            shutil.copyfile(source_file_path, new_file_path)
+            copy_fast(source_file_path, new_file_path)
             is_injected = True
         elif filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
             logging.info(f"Indirect Injection via APEX symlink file: {filename} with path {source_file_path} into {original_file_path}")
             is_injected = inject_apex_symlink_file(filename, source_file_path, original_file_path, aosp_path, partition_name, lunch_target, aosp_version)
         else:
-            shutil.copyfile(source_file_path, original_file_path)
+            copy_fast(source_file_path, original_file_path)
             is_injected = True
             set_executable_permission(original_file_path)
             for file_path in matching_intermediate_file_list:
-                copy_fast(source_file_path, file_path)
-                logging.info(f"Indirect Injection of .intermediate file: {file_path} with {source_file_path}")
+                # schedule non-blocking copy for intermediate files and log
+                schedule_copy(source_file_path, file_path)
+                logging.debug(f"Scheduled indirect injection of .intermediate file: {file_path} with {source_file_path}")
             #os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
     except Exception as e:
         logging.error(f"Error injecting file: {source_file_path} into {original_file_path} | {e}")
