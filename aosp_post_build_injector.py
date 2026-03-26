@@ -29,7 +29,6 @@ from common import extract_vendor_name, remove_vendor_name_from_path, load_confi
     check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file
 from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, MEASURE_LOOKUP_PERFORMANCE
 from config_post_injector import *
-from config_post_injector import PATH_INJECTION_TIME_LOG
 from fmd_backend_requests import get_csrf_token, authenticate_fmd
 from setup_logger import setup_logger
 from tqdm import tqdm
@@ -620,6 +619,10 @@ def build_intermediate_md5_map(aosp_path):
     """
     intermediates_path = str(os.path.join(aosp_path, "out/soong/.intermediates/"))
     md5_map = defaultdict(list)
+    start_time = time.time()
+    total_bytes_hashed = 0
+    files_hashed = 0
+    method = "parallel"
     if not os.path.exists(intermediates_path):
         logging.debug(f"Intermediates path does not exist (build map): {intermediates_path}")
         return MappingProxyType({})
@@ -654,11 +657,19 @@ def build_intermediate_md5_map(aosp_path):
                         continue
                     md5_key = md5sum.strip().lower()
                     md5_map[md5_key].append(src_path)
+                    # update counters
+                    try:
+                        sz = os.path.getsize(src_path)
+                        total_bytes_hashed += sz
+                    except Exception:
+                        sz = 0
+                    files_hashed += 1
                 except Exception as e:
                     logging.warning(f"Error while hashing intermediate file {src_path}: {e}")
     except Exception:
         # Fallback to serial processing if parallel execution fails for any reason
         logging.warning("Parallel hashing failed, falling back to serial md5 computation")
+        method = "serial"
         for root, dirs, files in os.walk(intermediates_path):
             for fname in files:
                 try:
@@ -668,12 +679,39 @@ def build_intermediate_md5_map(aosp_path):
                         continue
                     md5_key = md5sum.strip().lower()
                     md5_map[md5_key].append(file_path)
+                    try:
+                        sz = os.path.getsize(file_path)
+                        total_bytes_hashed += sz
+                    except Exception:
+                        pass
+                    files_hashed += 1
                 except Exception as e:
                     logging.warning(f"Error while hashing intermediate file {fname} in {root}: {e}")
                     continue
 
     # Convert lists to tuples for immutability and wrap mapping in MappingProxyType
     immutable_map = {k: tuple(v) for k, v in md5_map.items()}
+    # record timing and throughput metrics for building the md5 map
+    try:
+        duration = time.time() - start_time
+        mb_hashed = total_bytes_hashed / (1024.0 * 1024.0)
+        files_per_sec = files_hashed / duration if duration > 0 else None
+        mb_per_sec = mb_hashed / duration if duration > 0 else None
+        write_json_output({
+            "function": "build_intermediate_md5_map",
+            "aosp_path": aosp_path,
+            "intermediates_path": intermediates_path,
+            "method": method,
+            "workers": workers,
+            "files_hashed": files_hashed,
+            "total_bytes_hashed": total_bytes_hashed,
+            "duration_seconds": duration,
+            "throughput_files_per_second": files_per_sec,
+            "throughput_mb_per_second": mb_per_sec,
+            "timestamp": time.time()
+        }, PATH_MAPPING_EXECUTION_TIME_LOG)
+    except Exception:
+        logging.debug('Could not write build_intermediate_md5_map timing to log')
     return MappingProxyType(immutable_map)
 
 def indirect_injection(target_file_injection_path, file_name, target_out_path, partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version):
@@ -745,7 +783,7 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
             'duration_seconds': time.time() - start_time,
             'timestamp': time.time(),
             'injected': bool(is_injected)
-        }, PATH_INJECTION_TIME_LOG)
+        }, PATH_MAPPING_EXECUTION_TIME_LOG)
     except Exception:
         logging.debug('Could not write indirect_injection timing to log')
 
@@ -1015,31 +1053,6 @@ def get_all_files(directory):
     return all_files
 
 
-def find_intermediate_apex(aosp_path, merged_apex_file_path, md5sum_replaced_apex):
-    intermediata_path = os.path.join(aosp_path, "out/soong/.intermediates/")
-    is_success = False
-    message = "Did not found any intermediate APEX file to replace with the merged APEX file."
-    for file, dir in os.walk(intermediata_path):
-        if file.endswith(".apex"):
-            logging.info(f"Found intermediate APEX file: {file} in {dir}")
-            file_path = os.path.join(dir, file)
-            md5sum = get_md5_from_file(file_path)
-            if md5sum == md5sum_replaced_apex:
-                try:
-                    shutil.copy(merged_apex_file_path, file_path)
-                    logging.info(f"Replaced intermediate APEX file: {file_path} with merged APEX: {merged_apex_file_path}")
-                    is_success = True
-                except Exception as e:
-                    message = f"Error replacing intermediate APEX file: {file_path} with merged APEX: {merged_apex_file_path} | {e}"
-                    logging.error(message)
-                    return False, f"Error replacing intermediate APEX file: {e}"
-    return is_success, message
-
-
-
-
-# ./obj/APPS/framework-res__auto_generated_rro_vendor_intermediates
-# framework-res__auto_generated_rro_vendor.apk
 def search_original_file_in_obj(partition_name,
                                 module_type,
                                 file_path,
@@ -1073,6 +1086,11 @@ def search_original_file_in_obj(partition_name,
         partition_name = ""
 
     result_file_path_list = []
+    # instrumentation
+    start_time = time.time()
+    candidates_examined = 0
+    matches_found = 0
+    lookup_method = "unknown"
     # Try to use pre-built basename -> paths index for the target_obj_path to avoid repeated os.walk
     idx = None
     try:
@@ -1085,6 +1103,7 @@ def search_original_file_in_obj(partition_name,
     if idx is not None:
         # Gather candidate file paths for this basename
         file_path_list = list(idx.get(file_name, []))
+        lookup_method = "index"
         if exact_match_files and not file_path_list:
             # No exact basename matches: filter by extension across the whole index
             file_extension = os.path.splitext(file_name)[1]
@@ -1094,6 +1113,7 @@ def search_original_file_in_obj(partition_name,
     else:
         # Fallback: expensive full walk
         file_path_list = get_all_files(search_folder_path)
+        lookup_method = "walk"
         file_name_list = [os.path.basename(file) for file in file_path_list]
         if exact_match_files:
             matches = [file_path_list[i] for i, name in enumerate(file_name_list) if name == file_name]
@@ -1114,6 +1134,7 @@ def search_original_file_in_obj(partition_name,
     module_name = os.path.splitext(file_name)[0]
     logging.debug(f"File Matcher:{module_type} Searching in {search_folder_path} for module_name: {module_name} and file_name: {file_name}")
     for file in file_path_list:
+        candidates_examined += 1
         root = os.path.dirname(file)
         candidate_path = file
         candidate_file_name = os.path.basename(candidate_path)
@@ -1149,6 +1170,7 @@ def search_original_file_in_obj(partition_name,
                 logging.debug(f"File Matcher: File found via direct match: {file_path}|{candidate_path}")
                 result_file_path = candidate_path
                 result_file_path_list.append(result_file_path)
+                matches_found += 1
         # Check if the folder has the same name but the file within the folder is named differently
         elif module_name == root_folder_name_stripped and partition_name in root:
             logging.debug(f"File Matcher: Found module name: {module_name}:{file_name}:{root} with partition {partition_name}")
@@ -1168,8 +1190,28 @@ def search_original_file_in_obj(partition_name,
                     result_file_path = candidate_path
                     logging.debug(f"File Matcher: Found APEX file2: {file_name}, result_file_path: {result_file_path}")
                     result_file_path_list.append(result_file_path)
+                    matches_found += 1
         else:
             logging.debug(f"File Matcher: File not found: {file_name}")
+
+    # record timing and counts
+    try:
+        duration = time.time() - start_time
+        write_json_output({
+            "function": "search_original_file_in_obj",
+            "target_out_path": target_out_path,
+            "search_folder_path": search_folder_path,
+            "partition_name": partition_name,
+            "module_type": module_type,
+            "file_name": file_name,
+            "lookup_method": lookup_method,
+            "candidates_examined": candidates_examined,
+            "matches_found": matches_found,
+            "duration_seconds": duration,
+            "timestamp": time.time()
+        }, PATH_MAPPING_EXECUTION_TIME_LOG)
+    except Exception:
+        logging.debug('Could not write search_original_file_in_obj timing to log')
 
     if len(result_file_path_list) > 0:
         logging.debug(f"File Matcher: Found file for {file_name} in {search_folder_path} with partition {partition_name}")
@@ -1324,11 +1366,6 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
                                                   )
         logging.info(f"Direct Injection via specific target path overwrite "
                      f"for file: {filename} into {target_file_injection_path}")
-        #if "phone64" in  lunch_target:
-        #else:
-        #    target_file_injection_path = os.path.join(aosp_path, "out/target/product/emulator_arm64", POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"][filename])
-        #    logging.info(f"Direct Injection via specific target path overwrite for file: {filename} into {target_file_injection_path}")
-
 
     if (filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in
             POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]):
@@ -1392,7 +1429,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
             'duration_seconds': time.time() - start_time,
             'timestamp': time.time(),
             'injected': bool(is_injected)
-        }, PATH_INJECTION_TIME_LOG)
+        }, PATH_MAPPING_EXECUTION_TIME_LOG)
     except Exception:
         logging.debug('Could not write inject_file_into_partition timing to log')
 
@@ -1534,7 +1571,7 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
                 'duration_seconds': time.time() - start_time,
                 'timestamp': time.time(),
                 'injected': bool(is_injected)
-            }, PATH_INJECTION_TIME_LOG)
+            }, PATH_MAPPING_EXECUTION_TIME_LOG)
         except Exception:
             logging.debug('Could not write inject_file_into_obj timing to log')
 
@@ -1602,11 +1639,6 @@ def main():
 
     if aosp_version in ["12", "12.1"]:
         lunch_target = "sdk_phone64_arm64-userdebug"
-        #test = os.environ.get("FMD_PHONE64_TEST_BUILD") == "True"
-        #if test and aosp_version == "12":
-        #    lunch_target = "sdk_phone64_arm64-userdebug"
-        #else:
-        #    lunch_target = "sdk_phone_arm64-userdebug"
     elif aosp_version == "13":
         lunch_target = "sdk_phone64_arm64-userdebug"
     elif aosp_version == "14":
