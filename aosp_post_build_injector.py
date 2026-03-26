@@ -32,6 +32,7 @@ from config_post_injector import *
 from fmd_backend_requests import get_csrf_token, authenticate_fmd
 from setup_logger import setup_logger
 from tqdm import tqdm
+from copy import copy_fast
 
 
 if os.environ.get("FMD_DEBUG") == "True":
@@ -1471,7 +1472,7 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
             is_injected = True
             set_executable_permission(original_file_path)
             for file_path in matching_intermediate_file_list:
-                shutil.copyfile(source_file_path, file_path)
+                copy_fast(source_file_path, file_path)
                 logging.info(f"Indirect Injection of .intermediate file: {file_path} with {source_file_path}")
             #os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
     except Exception as e:
