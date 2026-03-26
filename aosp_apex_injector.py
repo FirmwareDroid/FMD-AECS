@@ -833,7 +833,7 @@ def replace_emulator_apex_folder(input_apex, aosp_path, aosp_version, apex_merge
                                     apex_filename_no_ext
                                     )
     try:
-        if aosp_version and int(aosp_version) > 13:
+        if aosp_version and float(aosp_version) > 13:
             apex_folder_path = os.path.join(aosp_path,
                                             AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14,
                                             "apex/",
@@ -1619,7 +1619,7 @@ def get_signing_key_from_filename(apk_file, aosp_version):
     else:
         key = "platform"
 
-    if aosp_version and int(aosp_version) >= 13 and "bluetooth" in file_name:
+    if aosp_version and float(aosp_version) >= 13 and "bluetooth" in file_name:
         key = "bluetooth"
 
     return key

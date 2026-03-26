@@ -1063,7 +1063,7 @@ def clear_environment(aosp_path, aosp_packages_apps_path, aosp_version):
     clear_intermediate_files(aosp_path)
     clear_extracted_packages()
     clear_base_files(aosp_path, aosp_version)
-    if aosp_version and int(aosp_version) == 12:
+    if aosp_version and float(aosp_version) == 12:
         replace_build_image_file(aosp_path)
 
 

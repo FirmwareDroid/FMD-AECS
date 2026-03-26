@@ -389,7 +389,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                     if "tzdata" in file_path or "tzdata" in filename:
                         new_name = re.sub(r'tzdata\d+', 'tzdata', filename)
                         file_path = rename_file(file_path, new_name)
-                    if aosp_version and int(aosp_version) > 12:
+                    if aosp_version and float(aosp_version) > 12:
                         if "bluetooth" in filename:
                             new_name = filename.replace("bluetooth", "btservices")
                             file_path = rename_file(file_path, new_name)
@@ -1318,9 +1318,9 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
     root_path = get_path_up_to_first_term(source_file_path, partition_name)
     logging.info(f"{source_file_path} - Root path: {root_path}")
     relative_source_path = source_file_path.replace(root_path, "")
-    if aosp_version and int(aosp_version) in ["12", "12.1", "13"]:
+    if aosp_version and float(aosp_version) in ["12", "12.1", "13"]:
         abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64", relative_source_path)
-    elif aosp_version and int(aosp_version) >= 14:
+    elif aosp_version and float(aosp_version) >= 14:
         abs_source_path = os.path.join(aosp_path, "out/target/product/emu64a", relative_source_path)
     else:
         abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64", relative_source_path)
