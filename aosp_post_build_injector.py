@@ -1117,16 +1117,26 @@ def search_original_file_in_obj(partition_name,
 
     contains_vndk = "vndk" in file_path
     contains_ndk = "ndk" in file_path
+    root_cache = {}
     for file in file_path_list:
         candidates_examined += 1
         candidate_path = file
         candidate_file_name = os.path.basename(candidate_path)
         # Strip the root folder name to match the module name
         root = os.path.dirname(file)
-        root_folder_name_stripped = root.replace(replace_intermediate, "")
-        root_folder_name_stripped = root_folder_name_stripped.replace(f"_{partition_name}","")
-        root_folder_name_stripped = root_folder_name_stripped.replace("v1_prebuilt","")
-        root_folder_name_stripped = os.path.basename(root_folder_name_stripped)
+        if root not in root_cache:
+            # Perform the expensive stripping logic only once per unique directory
+            stripped = root.replace(replace_intermediate, "")
+            stripped = stripped.replace(f"_{partition_name}", "")
+            stripped = stripped.replace("v1_prebuilt", "")
+            root_cache[root] = os.path.basename(stripped)
+
+        root_folder_name_stripped = root_cache[root]
+
+        # root_folder_name_stripped = root.replace(replace_intermediate, "")
+        # root_folder_name_stripped = root_folder_name_stripped.replace(f"_{partition_name}","")
+        # root_folder_name_stripped = root_folder_name_stripped.replace("v1_prebuilt","")
+        # root_folder_name_stripped = os.path.basename(root_folder_name_stripped)
         logging.debug("File Matcher: %s:%s - Root Folder Name stripped: %s", module_name, file_name, root_folder_name_stripped)
 
         if ("vndk" in candidate_path and not contains_vndk) or ("ndk" in candidate_path and not contains_ndk):
