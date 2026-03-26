@@ -47,14 +47,22 @@ def copy_fast(src_path, dst_path,
                     # Loop until EOF
                     while True:
                         # copy up to bufsize each call
-                        n = os.copy_file_range(src_fd, None, dst_fd, None, bufsize)
+                        try:
+                            n = os.copy_file_range(src_fd, None, dst_fd, None, bufsize)
+                        except TypeError:
+                            # Some platforms/Python builds reject None offsets. Try explicit 0 offsets.
+                            try:
+                                n = os.copy_file_range(src_fd, 0, dst_fd, 0, bufsize)
+                            except Exception:
+                                # give up on this method for this platform
+                                raise
                         if n == 0:
                             break
                 # success if we reach here; copy_file_range preserves data, fall through to finalize
                 copied = True
             else:
                 copied = False
-        except (AttributeError, OSError, NotImplementedError):
+        except (AttributeError, OSError, NotImplementedError, TypeError):
             copied = False
 
         # Try sendfile (zero-copy, works well on Linux; macOS has different semantics but Python exposes os.sendfile)
@@ -67,13 +75,17 @@ def copy_fast(src_path, dst_path,
                     st = os.fstat(sfd)
                     remaining = st.st_size
                     while remaining > 0:
-                        sent = os.sendfile(dfd, sfd, offset, remaining)
+                        try:
+                            sent = os.sendfile(dfd, sfd, offset, remaining)
+                        except TypeError:
+                            # Some platforms may have different sendfile signatures; re-raise to fall back
+                            raise
                         if sent == 0:
                             break
                         offset += sent
                         remaining -= sent
                 copied = True
-            except (OSError, NotImplementedError):
+            except (OSError, NotImplementedError, TypeError):
                 copied = False
 
         # Try cp --reflink=auto on POSIX when requested and cp exists (fast copy-on-write when supported)
