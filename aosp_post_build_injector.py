@@ -1493,11 +1493,15 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
             set_executable_permission(original_file_path)
             for file_path in matching_intermediate_file_list:
                 # schedule non-blocking copy for intermediate files and log
-                schedule_copy(source_file_path, file_path)
-                logging.debug(f"Scheduled indirect injection of .intermediate file: {file_path} with {source_file_path}")
+                try:
+                    schedule_copy(source_file_path, file_path)
+                    logging.debug(f"Scheduled indirect injection of .intermediate file: {file_path} with {source_file_path}")
+                except Exception as e:
+                    logging.error(f"Error scheduling copy for intermediate file: {file_path} with {source_file_path} | {e}")
             #os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
     except Exception as e:
         logging.error(f"Error injecting file: {source_file_path} into {original_file_path} | {e}")
+        traceback.print_exc()
         is_injected = False
     finally:
         # record timing for this obj-level injection
