@@ -291,7 +291,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     is_successful = False
     logging.debug(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path)
-    if aosp_version in ["11", "12"]:
+    if aosp_version in ["11", "12", "12.1"]:
         blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static'"
     else:
         blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static apexer deapexer avbtool'"
@@ -419,7 +419,7 @@ def get_emulator_image_path(aosp_path, lunch_target, aosp_version):
     """
     image_source_path = None
     is_phone_64 = "phone64" in lunch_target
-    if aosp_version in ["11", "12"]:
+    if aosp_version in ["11", "12", "12.1"]:
         if is_phone_64:
             image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
         else:
@@ -975,7 +975,7 @@ def get_aosp_build_command(lunch_target, aosp_version, aosp_root):
     if lunch_target not in SUPPORTED_LUNCH_TARGETS:
         raise RuntimeError("Unsupported build CPU architecture specified.")
 
-    if aosp_version in ["11", "12"]:
+    if aosp_version in ["11", "12", "12.1"]:
         command = f"bash -c 'cd {aosp_root} && source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
                   "&& m " \
@@ -993,7 +993,7 @@ def get_aosp_repo_build_command(aosp_root, lunch_target, aosp_version):
                   f"&& lunch {lunch_target} " \
                   "&& m sdk_repo " \
                   "&& m dist'"
-    elif aosp_version in ["12"]:
+    elif aosp_version in ["12", "12.1"]:
         command = f"bash -c 'cd {aosp_root} && source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
                   "&& m sdk_repo " \
@@ -1389,7 +1389,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     if args.arch == SUPPORTED_ARCHITECTURES[0]:
         lunch_target = SUPPORTED_LUNCH_TARGETS[0]
     else:
-        if aosp_version in ["11", "12"]:
+        if aosp_version in ["11", "12", "12.1"]:
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]
         elif aosp_version in ["13"]:
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]

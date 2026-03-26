@@ -513,7 +513,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
 
     file_contexts_path = os.path.join(aosp_path, "system", "sepolicy", "apex", f"com.android.fmd.{filename}-file_contexts")
 
-    if aosp_version == "12":
+    if aosp_version in ["12", "12.1"]:
         apex_out_file = os.path.join(aosp_path, "out", "target", "product", "emulator64_arm64", partition_name, "apex",
                                      apex_file_name)
     elif aosp_version == "13":

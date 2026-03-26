@@ -53,25 +53,49 @@ def write_json_output(data, output_file):
     :param output_file: str - Path to the JSON output file.
     """
     try:
-        # Read existing data if the file exists
+        # Ensure output directory exists
+        out_dir = os.path.dirname(output_file)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+
+        # Use a file lock to avoid concurrent write conflicts
+        lock_path = f"{output_file}.lock"
         try:
-            with open(output_file, "r") as file:
-                existing_data = json.load(file)
-        except (FileNotFoundError, json.JSONDecodeError):
-            existing_data = []
+            with FileLock(lock_path):
+                # Read existing data if the file exists
+                try:
+                    with open(output_file, "r") as file:
+                        existing_data = json.load(file)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    existing_data = []
 
-        # Ensure the existing data is a list
-        if not isinstance(existing_data, list):
-            existing_data = []
+                # Ensure the existing data is a list
+                if not isinstance(existing_data, list):
+                    existing_data = []
 
-        # Append the new data
-        existing_data.append(data)
+                # Append the new data
+                existing_data.append(data)
 
-        # Write the updated data back to the file
-        with open(output_file, "w") as file:
-            json.dump(existing_data, file, indent=4)
+                # Write the updated data back to the file atomically
+                tmp_path = f"{output_file}.tmp"
+                with open(tmp_path, "w") as tmpf:
+                    json.dump(existing_data, tmpf, indent=4)
+                os.replace(tmp_path, output_file)
+        except Exception as e:
+            # If locking fails for any reason, fall back to best-effort write
+            try:
+                with open(output_file, "r") as file:
+                    existing_data = json.load(file)
+            except (FileNotFoundError, json.JSONDecodeError):
+                existing_data = []
+            if not isinstance(existing_data, list):
+                existing_data = []
+            existing_data.append(data)
+            with open(output_file, "w") as file:
+                json.dump(existing_data, file, indent=4)
     except Exception as e:
-        print(f"Error writing JSON output: {e}")
+        # Avoid raising here to not interfere with the main injection flow
+        logging.debug(f"Error writing JSON output: {e}")
 
 
 def start_post_build_injector(aosp_path,
@@ -503,11 +527,27 @@ def find_intermediate_file(aosp_path, md5_original_file):
     # Normalize md5 to lowercase for comparison
     target_md5 = (md5_original_file or '').strip().lower()
 
+    # Start timing measurement for this lookup
+    start_time = time.time()
+
     # If a precomputed mapping exists, use it for O(1) lookup
     if INTERMEDIATE_MD5_MAP:
         try:
             matched = INTERMEDIATE_MD5_MAP.get(target_md5, ())
             logging.info(f"Found intermediate candidates with same md5 hash: {matched}")
+            # record timing for the map lookup
+            try:
+                write_json_output({
+                    "function": "find_intermediate_file",
+                    "method": "map_lookup",
+                    "target_md5": target_md5,
+                    "matches": len(matched) if matched is not None else 0,
+                    "duration_seconds": time.time() - start_time,
+                    "timestamp": time.time()
+                }, PATH_EXECUTION_TIME_LOG)
+            except Exception:
+                logging.debug("Could not write find_intermediate_file timing to log")
+
             # Return a mutable list for compatibility with callers
             return list(matched)
         except Exception:
@@ -519,6 +559,18 @@ def find_intermediate_file(aosp_path, md5_original_file):
     matching_intermediate_file_list = []
     if not os.path.exists(intermediates_path):
         logging.debug(f"Intermediates path does not exist: {intermediates_path}")
+        # record timing (no files)
+        try:
+            write_json_output({
+                "function": "find_intermediate_file",
+                "method": "walk",
+                "target_md5": target_md5,
+                "matches": 0,
+                "duration_seconds": time.time() - start_time,
+                "timestamp": time.time()
+            }, PATH_EXECUTION_TIME_LOG)
+        except Exception:
+            logging.debug("Could not write find_intermediate_file timing to log")
         return matching_intermediate_file_list
 
 
@@ -536,6 +588,19 @@ def find_intermediate_file(aosp_path, md5_original_file):
             except Exception as e:
                 logging.warning(f"Error while checking intermediate file {fname} in {root}: {e}")
                 continue
+    # record timing for the walk-based search
+    try:
+        write_json_output({
+            "function": "find_intermediate_file",
+            "method": "walk",
+            "target_md5": target_md5,
+            "matches": len(matching_intermediate_file_list),
+            "duration_seconds": time.time() - start_time,
+            "timestamp": time.time()
+        }, PATH_EXECUTION_TIME_LOG)
+    except Exception:
+        logging.debug("Could not write find_intermediate_file timing to log")
+
     return matching_intermediate_file_list
 
 
@@ -1253,7 +1318,7 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
     root_path = get_path_up_to_first_term(source_file_path, partition_name)
     logging.info(f"{source_file_path} - Root path: {root_path}")
     relative_source_path = source_file_path.replace(root_path, "")
-    if aosp_version and int(aosp_version) in ["12", "13"]:
+    if aosp_version and int(aosp_version) in ["12", "12.1", "13"]:
         abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64", relative_source_path)
     elif aosp_version and int(aosp_version) >= 14:
         abs_source_path = os.path.join(aosp_path, "out/target/product/emu64a", relative_source_path)
@@ -1391,10 +1456,10 @@ def main():
         raise RuntimeError(f"Please enter your FMD username/password ({args.fmd_username}): ")
 
     aosp_version = args.aosp_version
-    if aosp_version not in ["12", "13", "14"]:
+    if aosp_version not in ["12", "12.1", "13", "14"]:
         raise RuntimeError("Please provide a valid AOSP version argument (12, 13, 14).")
 
-    if aosp_version in ["12"]:
+    if aosp_version in ["12", "12.1"]:
         lunch_target = "sdk_phone64_arm64-userdebug"
         #test = os.environ.get("FMD_PHONE64_TEST_BUILD") == "True"
         #if test and aosp_version == "12":
