@@ -43,6 +43,9 @@ else:
 processed_files_lock = threading.Lock()
 # Immutable mapping of md5 -> tuple(file_paths). Built once before worker tasks start.
 INTERMEDIATE_MD5_MAP = None
+# Cache of file indexes: target_obj_path -> { basename -> [fullpaths] }
+FILE_INDEX_CACHE = {}
+FILE_INDEX_LOCK = threading.Lock()
 
 
 def write_json_output(data, output_file):
@@ -616,18 +619,52 @@ def build_intermediate_md5_map(aosp_path):
         return MappingProxyType({})
 
     logging.info(f"Building intermediate md5 map from: {intermediates_path}")
-    for root, dirs, files in os.walk(intermediates_path):
-        for fname in files:
-            try:
-                file_path = os.path.join(root, fname)
-                md5sum = get_md5_from_file(file_path)
-                if not md5sum:
+    # Try to parallelize hashing to utilize multiple cores and overlap I/O
+    # Determine worker count conservatively
+    try:
+        cpu = os.cpu_count() or 1
+        workers = min(32, max(2, cpu * 2))
+    except Exception:
+        workers = 4
+
+    # We will submit hashing tasks while scanning to avoid building a huge list first
+    futures = {}
+    try:
+        with Executor(max_workers=workers) as ex:
+            for root, dirs, files in os.walk(intermediates_path):
+                for fname in files:
+                    file_path = os.path.join(root, fname)
+                    try:
+                        futures[ex.submit(get_md5_from_file, file_path)] = file_path
+                    except Exception as e:
+                        logging.warning(f"Failed to submit hashing job for {file_path}: {e}")
+
+            # Collect results as they complete
+            for fut in as_completed(futures):
+                src_path = futures.get(fut)
+                try:
+                    md5sum = fut.result()
+                    if not md5sum:
+                        continue
+                    md5_key = md5sum.strip().lower()
+                    md5_map[md5_key].append(src_path)
+                except Exception as e:
+                    logging.warning(f"Error while hashing intermediate file {src_path}: {e}")
+    except Exception:
+        # Fallback to serial processing if parallel execution fails for any reason
+        logging.warning("Parallel hashing failed, falling back to serial md5 computation")
+        for root, dirs, files in os.walk(intermediates_path):
+            for fname in files:
+                try:
+                    file_path = os.path.join(root, fname)
+                    md5sum = get_md5_from_file(file_path)
+                    if not md5sum:
+                        continue
+                    md5_key = md5sum.strip().lower()
+                    md5_map[md5_key].append(file_path)
+                except Exception as e:
+                    logging.warning(f"Error while hashing intermediate file {fname} in {root}: {e}")
                     continue
-                md5_key = md5sum.strip().lower()
-                md5_map[md5_key].append(file_path)
-            except Exception as e:
-                logging.warning(f"Error while hashing intermediate file {fname} in {root}: {e}")
-                continue
 
     # Convert lists to tuples for immutability and wrap mapping in MappingProxyType
     immutable_map = {k: tuple(v) for k, v in md5_map.items()}
@@ -783,6 +820,21 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
         logging.info(f"Initialized INTERMEDIATE_MD5_MAP with {len(INTERMEDIATE_MD5_MAP)} entries")
     except Exception as e:
         logging.warning(f"Failed to build INTERMEDIATE_MD5_MAP: {e}")
+    # Build a file basename -> paths index for the target obj path to avoid repeated os.walk
+    try:
+        target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
+        # Build index if not present (protect with lock to avoid races)
+        with FILE_INDEX_LOCK:
+            if target_obj_path not in FILE_INDEX_CACHE:
+                idx = defaultdict(list)
+                if os.path.exists(target_obj_path):
+                    for root, dirs, files in scandir_walk(target_obj_path):
+                        for f in files:
+                            idx[f].append(os.path.join(root, f))
+                FILE_INDEX_CACHE[target_obj_path] = idx
+                logging.info(f"Built file index for {target_obj_path} with {sum(len(v) for v in idx.values())} entries")
+    except Exception as e:
+        logging.warning(f"Failed to build file index for target objects: {e}")
     file_paths = list(set(os.path.join(root, file_name.strip()) for root, _, file_name_list in scandir_walk(folder_path)
                           for file_name in file_name_list))
     logging.debug(f"Found {len(file_paths)} files in {folder_path} for post-injection...")
@@ -828,7 +880,15 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     progress_bar.close()
     #handle_duplicated_permissions(target_out_path)
     cleanup_files(folder_path)
+    # free caches for this partition
     INTERMEDIATE_MD5_MAP = None
+    try:
+        if 'target_obj_path' in locals():
+            with FILE_INDEX_LOCK:
+                if target_obj_path in FILE_INDEX_CACHE:
+                    del FILE_INDEX_CACHE[target_obj_path]
+    except Exception:
+        pass
 
     return error_list, inj_obj_list, inj_partition_list
 
@@ -984,22 +1044,42 @@ def search_original_file_in_obj(partition_name,
         partition_name = ""
 
     result_file_path_list = []
-    file_path_list = get_all_files(search_folder_path)
-    file_name_list = [os.path.basename(file) for file in file_path_list]
-    if exact_match_files:
-        matches = [file_path_list[i] for i, name in enumerate(file_name_list) if name == file_name]
-        if matches:
-            for matching_file in matches:
-                if not check_file_compatibility(file_path, matching_file, module_type):
-                    logging.debug(f"File Matcher: File not compatible: {file_path}|{matching_file}")
-                    matches.remove(matching_file)
-            logging.debug(f"File Matcher: Found exact matches for {file_name}: {matches}")
-            file_path_list = matches
-        else:
+    # Try to use pre-built basename -> paths index for the target_obj_path to avoid repeated os.walk
+    idx = None
+    try:
+        # FILE_INDEX_CACHE stores indexes keyed by the base target_obj_path
+        base_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
+        idx = FILE_INDEX_CACHE.get(base_obj_path)
+    except Exception:
+        idx = None
+
+    if idx is not None:
+        # Gather candidate file paths for this basename
+        file_path_list = list(idx.get(file_name, []))
+        if exact_match_files and not file_path_list:
+            # No exact basename matches: filter by extension across the whole index
             file_extension = os.path.splitext(file_name)[1]
-            file_path_list = [file for file in file_path_list if os.path.splitext(file)[1] == file_extension]
-            logging.debug(f"File Matcher: No exact matches found for {file_name}. "
-                          f"Filtered by extension ({file_extension})")
+            # flatten all paths with the extension
+            file_path_list = [p for paths in idx.values() for p in paths if os.path.splitext(p)[1] == file_extension]
+            logging.debug(f"File Matcher: No exact matches found for {file_name}. Filtered by extension ({file_extension}) using index")
+    else:
+        # Fallback: expensive full walk
+        file_path_list = get_all_files(search_folder_path)
+        file_name_list = [os.path.basename(file) for file in file_path_list]
+        if exact_match_files:
+            matches = [file_path_list[i] for i, name in enumerate(file_name_list) if name == file_name]
+            if matches:
+                for matching_file in matches[:]:
+                    if not check_file_compatibility(file_path, matching_file, module_type):
+                        logging.debug(f"File Matcher: File not compatible: {file_path}|{matching_file}")
+                        matches.remove(matching_file)
+                logging.debug(f"File Matcher: Found exact matches for {file_name}: {matches}")
+                file_path_list = matches
+            else:
+                file_extension = os.path.splitext(file_name)[1]
+                file_path_list = [file for file in file_path_list if os.path.splitext(file)[1] == file_extension]
+                logging.debug(f"File Matcher: No exact matches found for {file_name}. "
+                              f"Filtered by extension ({file_extension})")
 
 
     module_name = os.path.splitext(file_name)[0]
