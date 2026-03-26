@@ -449,8 +449,6 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         with open(processed_marker, 'w') as marker:
             marker.write("")
 
-    check_file_is_really_injected(file_path, aosp_path)
-
     result = error_message, inj_obj, inj_partition
     return result
 
@@ -471,24 +469,7 @@ def rename_file(file_path, new_name):
         logging.error(f"Error renaming file {file_path} to {new_name}: {e}")
         raise
 
-def check_file_is_really_injected(file_path, aosp_path):
-    """
-    Check if the file is already injected into the AOSP source code.
 
-    :param file_path: str - path to the file.
-    :param aosp_path: str - path to the AOSP source code.
-    :return: bool - True if the file is already injected, False otherwise.
-    """
-    partition_folders = ["system", "vendor", "product", "system_ext"]
-    for partition in partition_folders:
-        search_path = os.path.join(aosp_path, partition)
-        if os.path.exists(search_path):
-            for root, file, dirs in os.walk(search_path):
-                for file_name in file:
-                    if file_name == os.path.basename(file_path):
-                        return True
-    logging.debug(f"Maybe file was not correctly injected. Filename not found in AOSP out folders: {file_path}")
-    return False
 
 def handle_app_modules(file_path, aosp_path, firmware_id, cookies):
     error_message = None
@@ -832,16 +813,6 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
 
     return inj_obj, inj_partition
 
-def handle_file_modification(file_path, target_out_path):
-    """
-    Handles file modification for the emulator.
-    """
-    with open(file_path, 'r+') as file:
-        content = file.read()
-        content = content.replace("/system", "")
-        file.seek(0)
-        file.write(content)
-        file.truncate()
 
 def cleanup_files(directory):
     """
@@ -896,6 +867,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
                 logging.info(f"Built file index for {target_obj_path} with {sum(len(v) for v in idx.values())} entries")
     except Exception as e:
         logging.warning(f"Failed to build file index for target objects: {e}")
+
     file_paths = list(set(os.path.join(root, file_name.strip()) for root, _, file_name_list in scandir_walk(folder_path)
                           for file_name in file_name_list))
     logging.debug(f"Found {len(file_paths)} files in {folder_path} for post-injection...")
@@ -1019,10 +991,6 @@ def is_abi_compatible(candidate_path, file_path):
     else:
         is_same_architecture = True
     return is_same_architecture
-
-
-
-
 
 def is_parent_dir_arm_and_target_arm(file_path, candidate_path):
     """
@@ -1441,35 +1409,6 @@ def handle_special_matching(source_file_injection_path):
         source_file_injection_path = source_file_injection_path.replace("app_process32", "app_process64")
         logging.info(f"Special matching app_process32 replace with app_process64: {source_file_injection_path}")
     return source_file_injection_path
-
-def find_and_remove_duplicates(folder_paths):
-    """Find and remove duplicate files in the given folders."""
-    file_hashes = {}
-    for folder_path in folder_paths:
-        for root, _, files in os.walk(folder_path):
-            for file in files:
-                file_path = os.path.join(root, file)
-                file_hash = get_md5_from_file(file_path)
-                if file_hash in file_hashes:
-                    logging.warning(f"Duplicate found: {file_path} (duplicate of {file_hashes[file_hash]})")
-                    os.remove(file_path)
-                else:
-                    file_hashes[file_hash] = file_path
-
-
-def handle_duplicated_permissions(target_out_path):
-    """
-    Deletes the duplicated permission files in the AOSP build. Checks if the filenames in the permissions folder
-    already exist and deletes the duplicated files. Keeps the
-    """
-    system_permission_path = os.path.join(target_out_path, "system/etc/permissions")
-    system_ext_permission_path =  os.path.join(target_out_path, "system_ext/etc/permissions")
-    vendor_permission_path =  os.path.join(target_out_path, "vendor/etc/permissions")
-    product_permission_path =  os.path.join(target_out_path, "product/etc/permissions")
-    permission_path_list = [system_permission_path, system_ext_permission_path, vendor_permission_path, product_permission_path]
-    logging.info(f"Checking for duplicated permissions in {permission_path_list}")
-    find_and_remove_duplicates(permission_path_list)
-
 
 def inject_apex_symlink_file(filename, source_file_path, original_file_path, aosp_path, partition_name, lunch_target, aosp_version):
     # Special case for isolated namespace binaries - Replacing Binary with symlink to apex binary
