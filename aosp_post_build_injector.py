@@ -799,13 +799,14 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
         inj_obj = (error_message, None, module_type)
 
     # record timing
+    duration = time.time() - start_time
     try:
         write_json_output({
             'function': 'indirect_injection',
             'file': file_path,
             'target_file': target_file_injection_path,
             'method': 'indirect',
-            'duration_seconds': time.time() - start_time,
+            'duration_seconds': duration,
             'timestamp': time.time(),
             'injected': bool(is_injected)
         }, PATH_MAPPING_EXECUTION_TIME_LOG)
@@ -1110,7 +1111,7 @@ def search_original_file_in_obj(partition_name,
                 file_path_list = [file for file in file_path_list if os.path.splitext(file)[1] == file_extension]
                 logging.debug(f"File Matcher: No exact matches found for {file_name}. "
                               f"Filtered by extension ({file_extension})")
-
+    duration_first_part = time.time() - start_time
 
     module_name = os.path.splitext(file_name)[0]
     logging.debug(f"File Matcher:{module_type} Searching in {search_folder_path} for module_name: {module_name} and file_name: {file_name}")
@@ -1158,7 +1159,6 @@ def search_original_file_in_obj(partition_name,
             file_extension_src = os.path.splitext(file_name)[1]
             file_extension_obj = os.path.splitext(file)[1]
 
-
             if file_extension_src.lower().strip() == file_extension_obj.lower().strip():
                 logging.debug(f"File Matcher: Found file: {file_name}, candidate_path: {candidate_path}")
                 logging.debug(f"File Matcher: File found via module name: {file_path}|{candidate_path}")
@@ -1175,6 +1175,8 @@ def search_original_file_in_obj(partition_name,
         else:
             logging.debug(f"File Matcher: File not found: {file_name}")
 
+    duration_second_part = time.time() - start_time
+
     # record timing and counts
     try:
         duration = time.time() - start_time
@@ -1189,6 +1191,8 @@ def search_original_file_in_obj(partition_name,
             "candidates_examined": candidates_examined,
             "matches_found": matches_found,
             "duration_seconds": duration,
+            "duration_seconds_first_part": duration_first_part,
+            "duration_seconds_second_part": duration_second_part,
             "timestamp": time.time()
         }, PATH_MAPPING_EXECUTION_TIME_LOG)
     except Exception:
@@ -1203,6 +1207,8 @@ def search_original_file_in_obj(partition_name,
 
 
 def check_file_compatibility(file_path, candidate_path, module_type):
+    # Start high-resolution timer for compatibility check
+    start_tc = time.perf_counter()
     is_match = True
     logging.debug(f"check_file_compatibility: {module_type}:{file_path}|{candidate_path}")
 
@@ -1228,6 +1234,21 @@ def check_file_compatibility(file_path, candidate_path, module_type):
 
     if module_type == "JAVA_LIBRARIES":
         is_match = True
+
+    # record timing for check_file_compatibility
+    try:
+        duration = time.perf_counter() - start_tc
+        write_json_output({
+            "function": "check_file_compatibility",
+            "module_type": module_type,
+            "file_path": file_path,
+            "candidate_path": candidate_path,
+            "is_match": bool(is_match),
+            "duration_seconds": duration,
+            "timestamp": time.time()
+        }, PATH_MAPPING_EXECUTION_TIME_LOG)
+    except Exception:
+        logging.debug('Could not write check_file_compatibility timing to log')
 
     return is_match
 
