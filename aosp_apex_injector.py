@@ -9,8 +9,6 @@ import tempfile
 import traceback
 import zipfile
 from asyncore import write
-import time
-
 from jinja2 import Environment, FileSystemLoader
 from ConfigManager import ConfigManager
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
@@ -18,7 +16,6 @@ from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, ve
 from common import extract_vendor_name, remove_vendor_name_from_filename, check_shared_object_architecture, \
     get_path_up_to_first_term, get_md5_from_file, remove_vendor_name_from_path
 from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A
-#from conv_apex_manifest import convert_manifest_from_json
 from parse_lddtree_to_json import run_lddtree
 from shell_command import execute_shell_command
 from config_post_injector import *
@@ -35,12 +32,9 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aos
         raise Exception("No POST_INJECTOR_CONFIG found")
     logging.info(f"Handling APEX merge modules: {file_path} | {aosp_path} | {lunch_target} | {target_out_path}")
     is_merge_success = False
-    log_message = ""
     apex_out_file, org_apex_file = backup_original_apex_file(file_path)
-
-    start_time = time.time()
     try:
-        apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path)
+        apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path, aosp_version)
         if apex_emulator_folder and os.path.exists(apex_emulator_folder):
             logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
             is_merge_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path, aosp_version)
@@ -672,8 +666,12 @@ def copy_keys_to_apex_folder(input_apex, apex_main_folder, avb_pub_key_path):
     return is_success, log_message, public_key_name
 
 
-def get_apex_build_intermediate_folder(target_out_path):
-    apex_folder_path = os.path.join(target_out_path, "apex")
+def get_apex_build_intermediate_folder(target_out_path, aosp_version):
+
+    if float(aosp_version) >= 15:
+        apex_folder_path = os.path.join(target_out_path, "symbols", "apex")
+    else:
+        apex_folder_path = os.path.join(target_out_path, "apex")
     logging.info(f"APEX build intermediate folder to look for: {apex_folder_path}")
     if os.path.exists(apex_folder_path):
         apex_folder = apex_folder_path
@@ -697,12 +695,12 @@ def get_match_existing_emulator_folders(filename_no_vendor):
     return None
 
 
-def find_emulator_apex_folder(target_out_path, file_path):
+def find_emulator_apex_folder(target_out_path, file_path, aosp_version):
     filename = str(os.path.basename(file_path))
     filename_no_vendor = remove_vendor_name_from_filename(filename)
     filename_no_vendor = filename_no_vendor.replace(".apex", "").replace(".capex", "")
 
-    apex_emulator_folder_root = get_apex_build_intermediate_folder(target_out_path)
+    apex_emulator_folder_root = get_apex_build_intermediate_folder(target_out_path, aosp_version)
     logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
     apex_emulator_folder_name = get_match_existing_emulator_folders(filename_no_vendor)
     apex_module_folder = os.path.join(apex_emulator_folder_root, apex_emulator_folder_name)
@@ -933,18 +931,6 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                cert_apex_apk_path,
                                                                lunch_target)
                     logging.info(f"Completed APEX merge successfully: {apex_out_file}")
-
-
-
-                    # is_success, error_message = replace_emulator_apex_folder(input_apex, aosp_path, aosp_version, merged_apex_extract_dir_path)
-                    # if is_success:
-                    #     logging.info(f"Replaced emulator APEX folder with merged APEX folder successfully: {apex_out_file}")
-                    # else:
-                    #     log_message = (f"Error replacing emulator APEX folder "
-                    #                    f"with merged APEX folder: {error_message}")
-                    #     logging.error(f"Error replacing emulator APEX folder "
-                    #                   f"with merged APEX folder: {apex_out_file} | {error_message}")
-
                     if POST_INJECTOR_CONFIG["REPLACE_AVB_KEYS"]:
                         logging.info(f"Overwriting AVB keys for APEX: {apex_out_file}")
                         is_success, log_message = inject_apex_avb_public_key(input_apex,
