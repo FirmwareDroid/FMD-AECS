@@ -1313,7 +1313,7 @@ def search_original_file_in_obj(partition_name,
         logging.debug('Could not write search_original_file_in_obj timing to log')
 
     if len(result_file_path_list) > 0:
-        logging.info("File Matcher: Found file for %s in %s with partition %s", file_name, search_folder_path, partition_name)
+        logging.info("File Matcher: Found file for %s in %s with partition %s and results: %s", file_name, search_folder_path, partition_name, result_file_path_list)
         return result_file_path_list
     else:
         logging.info("File Matcher: No file found for %s in %s with partition %s", file_name, search_folder_path, partition_name)
