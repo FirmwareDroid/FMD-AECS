@@ -735,12 +735,11 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
                                                          target_out_path)
 
     is_injected = False
-    # Log the runtime type of original_file_path (e.g., 'list', 'str', 'NoneType') using lazy logging
-    try:
-        logging.info("Original file path type: %s", type(original_file_path).__name__)
-    except Exception:
-        logging.debug("Could not determine original_file_path type")
     if original_file_path:
+        try:
+            logging.info(f"Original file path type: {type(original_file_path).__name__}: {original_file_path}")
+        except Exception:
+            logging.debug("Could not determine original_file_path type")
         if isinstance(original_file_path, list):
             original_file_path_list = original_file_path
             logging.info(f"Indirect injection with multiples files: {original_file_path_list} ")
