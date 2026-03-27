@@ -735,6 +735,11 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
                                                          target_out_path)
 
     is_injected = False
+    # Log the runtime type of original_file_path (e.g., 'list', 'str', 'NoneType') using lazy logging
+    try:
+        logging.info("Original file path type: %s", type(original_file_path).__name__)
+    except Exception:
+        logging.debug("Could not determine original_file_path type")
     if original_file_path:
         if isinstance(original_file_path, list):
             original_file_path_list = original_file_path
@@ -743,6 +748,7 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
                 is_injected = inject_file_into_obj(file_path, overwrite_path, module_type, aosp_path, partition_name, lunch_target, aosp_version)
                 inj_obj = (file_path, overwrite_path, module_type)
         else:
+            logging.info(f"Indirect injection with singles file: {original_file_path} ")
             is_injected = inject_file_into_obj(file_path, original_file_path, module_type, aosp_path, partition_name, lunch_target, aosp_version)
             inj_obj = (file_path, original_file_path, module_type)
     else:
