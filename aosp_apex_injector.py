@@ -68,7 +68,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aos
             duration = time.time() - start_time
             # lazy import write_json_output to avoid circular import during module load
             try:
-                from aosp_post_build_injector import write_json_output
+                from aosp_post_build_injector import write_json_nd_output
             except Exception:
                 write_json_output = None
 
@@ -83,9 +83,9 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aos
                 "merge_success": bool(is_merge_success),
                 "log_message": str(log_message)[:1000]
             }
-            if write_json_output:
+            if write_json_nd_output:
                 try:
-                    write_json_output(entry, PATH_MAPPING_EXECUTION_TIME_LOG)
+                    write_json_nd_output(entry, PATH_MAPPING_EXECUTION_TIME_LOG)
                 except Exception:
                     logging.debug('Could not write handle_apex_modules timing to log')
         except Exception:

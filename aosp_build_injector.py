@@ -25,6 +25,7 @@ from common import extract_zip, load_configs
 from config import *
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
+from json_writer import write_json_output, write_text_output
 from setup_logger import setup_logger
 
 
@@ -1233,46 +1234,6 @@ def setup_firmware_logger(firmware_id):
 
     return file_handler
 
-
-def write_json_output(result, output_file):
-    """
-    Writes the build result to a JSON file.
-
-    :param result: dict - The result to write to the JSON file.
-    :param output_file: str - Path to the JSON output file.
-    """
-
-    # Append the result to the JSON file
-    try:
-        with open(output_file, "r") as file:
-            data = json.load(file)
-    except FileNotFoundError:
-        data = []
-    except Exception as err:
-        logging.error(f"Error writing to file: {err}")
-        data = []
-
-    data.append(result)
-    try:
-        with open(output_file, "w") as file:
-            json.dump(data, file, indent=4)
-            file.write("\n")  # Add a newline
-    except Exception as err:
-        logging.error(f"Error writing to file: {err}")
-
-
-def write_text_output(result, output_file):
-    """
-    Writes the build result to a text file.
-
-    :param result: str - The result to write to the text file.
-    :param output_file: str - Path to the text output file.
-    """
-    try:
-        with open(output_file, "a") as file:
-            file.write("\"" + result + "\",")
-    except Exception as err:
-        logging.error(f"Error writing to file: {err}")
 
 
 

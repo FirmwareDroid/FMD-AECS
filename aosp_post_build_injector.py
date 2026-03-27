@@ -21,8 +21,7 @@ from http import cookies
 from types import MappingProxyType
 
 from filelock import FileLock
-import atexit
-from queue import Queue, Empty
+
 from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file, \
     POST_INJECTOR_CONFIG, add_new_apex_file
 from aosp_module_type import get_module_type
@@ -32,6 +31,7 @@ from common import extract_vendor_name, remove_vendor_name_from_path, load_confi
 from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, MEASURE_LOOKUP_PERFORMANCE
 from config_post_injector import *
 from fmd_backend_requests import get_csrf_token, authenticate_fmd
+from json_writer import write_json_nd_output, write_json_output
 from setup_logger import setup_logger
 from tqdm import tqdm
 from copy_helper import copy_fast
@@ -51,165 +51,6 @@ INTERMEDIATE_MD5_MAP = None
 FILE_INDEX_CACHE = {}
 FILE_INDEX_LOCK = threading.Lock()
 
-
-def write_json_output(data, output_file):
-    """
-    Writes the measurement data to a JSON file.
-
-    :param data: dict - The measurement data to write.
-    :param output_file: str - Path to the JSON output file.
-    """
-    # New async append-only writer: put the JSON object into a background queue and return immediately.
-    # This avoids repeatedly reading and rewriting the full JSON file which is very slow.
-    try:
-        _ensure_json_writer()
-        # Use a minimal payload: JSON followed by newline (NDJSON). The writer will append the line.
-        line = json.dumps(data, separators=(',', ':')) + "\n"
-        _json_write_queue.put((output_file, line))
-    except Exception as e:
-        # On any error fallback to best-effort synchronous append (still faster than rewrite)
-        try:
-            out_dir = os.path.dirname(output_file)
-            if out_dir:
-                os.makedirs(out_dir, exist_ok=True)
-            with open(output_file, 'a', encoding='utf-8') as f:
-                f.write(json.dumps(data, indent=None, separators=(',', ':')) + "\n")
-        except Exception:
-            logging.debug("Error writing JSON output: %s", e)
-
-
-# --- Async JSON writer implementation ---
-_json_write_queue = Queue()
-_json_writer_thread = None
-_json_writer_thread_lock = threading.Lock()
-_json_writer_stop = False
-_open_file_handles = {}
-
-# Batching configuration: write up to this many lines per file in one syscall
-_JSON_BATCH_SIZE = int(os.environ.get('FMD_JSON_BATCH_SIZE', '32'))
-# Fsync interval (seconds). If 0, never fsync. Otherwise fsync at least this often.
-_JSON_FSYNC_INTERVAL = float(os.environ.get('FMD_JSON_FSYNC_INTERVAL', '5.0'))
-
-
-def _json_writer_worker():
-    """Background worker that consumes (filepath, json_line) tuples and appends them."""
-    global _json_writer_stop, _open_file_handles
-    # Keep a simple in-memory map of open file handles per output path to avoid open/close overhead
-    try:
-        # Batch lines per file to reduce syscall overhead
-        batches = defaultdict(list)  # output_file -> [lines]
-        last_fsync = time.time()
-        while not _json_writer_stop or not _json_write_queue.empty():
-            try:
-                output_file, line = _json_write_queue.get(timeout=0.25)
-            except Empty:
-                # No item: flush batches if any pending and timeout reached
-                now = time.time()
-                if batches:
-                    # flush all batches
-                    for ofile, lines in list(batches.items()):
-                        try:
-                            out_dir = os.path.dirname(ofile)
-                            if out_dir and not os.path.exists(out_dir):
-                                try:
-                                    os.makedirs(out_dir, exist_ok=True)
-                                except Exception:
-                                    pass
-
-                            fh = _open_file_handles.get(ofile)
-                            if fh is None:
-                                fh = open(ofile, 'a', encoding='utf-8')
-                                _open_file_handles[ofile] = fh
-
-                            fh.write(''.join(lines))
-                            fh.flush()
-                        except Exception:
-                            logging.debug('Error in async json writer while flushing batch to %s', ofile)
-                        finally:
-                            batches.pop(ofile, None)
-
-                # possibly perform fsync if enough time passed
-                if _JSON_FSYNC_INTERVAL > 0 and (time.time() - last_fsync) >= _JSON_FSYNC_INTERVAL:
-                    for fh in list(_open_file_handles.values()):
-                        try:
-                            os.fsync(fh.fileno())
-                        except Exception:
-                            pass
-                    last_fsync = time.time()
-
-                continue
-
-            try:
-                batches[output_file].append(line)
-                # flush if batch size reached
-                if len(batches[output_file]) >= _JSON_BATCH_SIZE:
-                    lines = batches.pop(output_file)
-                    try:
-                        out_dir = os.path.dirname(output_file)
-                        if out_dir and not os.path.exists(out_dir):
-                            try:
-                                os.makedirs(out_dir, exist_ok=True)
-                            except Exception:
-                                pass
-
-                        fh = _open_file_handles.get(output_file)
-                        if fh is None:
-                            fh = open(output_file, 'a', encoding='utf-8')
-                            _open_file_handles[output_file] = fh
-
-                        fh.write(''.join(lines))
-                        fh.flush()
-                    except Exception:
-                        logging.debug('Error in async json writer while writing batch to %s', output_file)
-            except Exception:
-                logging.debug('Error in async json writer while processing queue')
-            finally:
-                try:
-                    _json_write_queue.task_done()
-                except Exception:
-                    pass
-    finally:
-        # Close open file handles on exit
-        for fh in _open_file_handles.values():
-            try:
-                fh.flush()
-                fh.close()
-            except Exception:
-                pass
-        _open_file_handles = {}
-
-
-def _ensure_json_writer():
-    """Start the background writer thread lazily."""
-    global _json_writer_thread
-    if _json_writer_thread and _json_writer_thread.is_alive():
-        return
-    with _json_writer_thread_lock:
-        if _json_writer_thread and _json_writer_thread.is_alive():
-            return
-        _json_writer_thread = threading.Thread(target=_json_writer_worker, name='fmd-json-writer', daemon=True)
-        _json_writer_thread.start()
-
-
-def _shutdown_json_writer():
-    """Signal the writer to stop and wait briefly for queue to drain."""
-    global _json_writer_stop, _json_writer_thread
-    _json_writer_stop = True
-    try:
-        # Wait a short time for the background thread to finish queued work
-        if _json_write_queue is not None:
-            _json_write_queue.join()
-    except Exception:
-        pass
-    try:
-        if _json_writer_thread:
-            _json_writer_thread.join(timeout=1.0)
-    except Exception:
-        pass
-
-
-# Register shutdown to flush queued entries at process exit
-atexit.register(_shutdown_json_writer)
 
 
 def start_post_build_injector(aosp_path,
@@ -471,6 +312,7 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
         "errors_file_type_frequencies": file_type_frequencies,
         "errors_grouped": grouped_errors,
     }
+
     write_json_output(result, PATH_EXECUTION_TIME_LOG)
 
 
@@ -677,7 +519,7 @@ def find_intermediate_file(aosp_path, md5_original_file):
             # record timing for the map lookup
             if MEASURE_LOOKUP_PERFORMANCE and ENABLE_INJECTION_PERFORMANCE_LOG:
                 try:
-                    write_json_output({
+                    write_json_nd_output({
                         "function": "find_intermediate_file",
                         "method": "map_lookup",
                         "target_md5": target_md5,
@@ -702,7 +544,7 @@ def find_intermediate_file(aosp_path, md5_original_file):
         # record timing (no files)
         if MEASURE_LOOKUP_PERFORMANCE:
             try:
-                write_json_output({
+                write_json_nd_output({
                     "function": "find_intermediate_file",
                     "method": "walk",
                     "target_md5": target_md5,
@@ -732,7 +574,7 @@ def find_intermediate_file(aosp_path, md5_original_file):
     # record timing for the walk-based search
     if MEASURE_LOOKUP_PERFORMANCE and ENABLE_INJECTION_PERFORMANCE_LOG:
         try:
-            write_json_output({
+            write_json_nd_output({
                 "function": "find_intermediate_file",
                 "method": "walk",
                 "target_md5": target_md5,
@@ -832,7 +674,7 @@ def build_intermediate_md5_map(aosp_path):
             mb_hashed = total_bytes_hashed / (1024.0 * 1024.0)
             files_per_sec = files_hashed / duration if duration > 0 else None
             mb_per_sec = mb_hashed / duration if duration > 0 else None
-            write_json_output({
+            write_json_nd_output({
                 "function": "build_intermediate_md5_map",
                 "aosp_path": aosp_path,
                 "intermediates_path": intermediates_path,
@@ -912,7 +754,7 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
     if ENABLE_INJECTION_PERFORMANCE_LOG:
         duration = time.time() - start_time
         try:
-            write_json_output({
+            write_json_nd_output({
                 'function': 'indirect_injection',
                 'file': file_path,
                 'target_file': target_file_injection_path,
@@ -1297,7 +1139,7 @@ def search_original_file_in_obj(partition_name,
     if ENABLE_INJECTION_PERFORMANCE_LOG:
         try:
             duration = time.time() - start_time
-            write_json_output({
+            write_json_nd_output({
                 "function": "search_original_file_in_obj",
                 "target_out_path": target_out_path,
                 "search_folder_path": search_folder_path,
@@ -1357,7 +1199,7 @@ def check_file_compatibility(file_path, candidate_path, module_type):
         # record timing for check_file_compatibility
         try:
             duration = time.perf_counter() - start_tc
-            write_json_output({
+            write_json_nd_output({
                 "function": "check_file_compatibility",
                 "module_type": module_type,
                 "file_path": file_path,
@@ -1543,7 +1385,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
             raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
     try:
         if ENABLE_INJECTION_PERFORMANCE_LOG:
-            write_json_output({
+            write_json_nd_output({
                 'function': 'inject_file_into_partition',
                 'source_file': source_file_path,
                 'target_file': target_file_injection_path,
@@ -1661,7 +1503,7 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
         if ENABLE_INJECTION_PERFORMANCE_LOG:
             # record timing for this obj-level injection
             try:
-                write_json_output({
+                write_json_nd_output({
                     'function': 'inject_file_into_obj',
                     'source_file': source_file_path,
                     'target_file': original_file_path,
