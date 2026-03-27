@@ -1,9 +1,0 @@
-// Installs frida-server to /system/bin
-cc_prebuilt_binary {
-    name: "fsmon_toolbox",
-    stem: "fsmon",
-    srcs: ["fsmon"],
-    ldflags: ["-Wl,-z,max-page-size=16384"],
-    ignore_max_page_size: true
-}
-

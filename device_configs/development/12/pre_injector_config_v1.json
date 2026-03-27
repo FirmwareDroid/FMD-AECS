@@ -2514,8 +2514,8 @@
     "./toolbox/ca_certificates/c8750f0d.0"
   ],
   "TOOLBOX_PACKAGE_DICT": {
-    "frida-server_toolbox": "./toolbox/frida",
-    "fsmon_toolbox": "./toolbox/fsmon",
+    "frida-server_toolbox": "./toolbox/12_13_14/frida",
+    "fsmon_toolbox": "./toolbox/12_13_14/fsmon",
     "lldb-server_toolbox": "./toolbox/lldb-server",
     "wireguard_toolbox": "./toolbox/wireguard_app",
     "PCAPdroid_toolbox": "./toolbox/pcapdroid"
