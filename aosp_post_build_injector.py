@@ -742,12 +742,12 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
             logging.debug("Could not determine original_file_path type")
         if isinstance(original_file_path, list):
             original_file_path_list = original_file_path
-            logging.info(f"Indirect injection with multiples files: {original_file_path_list} ")
+            logging.info(f"Indirect injection with multiples files: {original_file_path_list} | {file_path} | {file_name}")
             for overwrite_path in original_file_path_list:
                 is_injected = inject_file_into_obj(file_path, overwrite_path, module_type, aosp_path, partition_name, lunch_target, aosp_version)
                 inj_obj = (file_path, overwrite_path, module_type)
         else:
-            logging.info(f"Indirect injection with singles file: {original_file_path} ")
+            logging.info(f"Indirect injection with singles file: {original_file_path} | {file_path} | {file_name} ")
             is_injected = inject_file_into_obj(file_path, original_file_path, module_type, aosp_path, partition_name, lunch_target, aosp_version)
             inj_obj = (file_path, original_file_path, module_type)
     else:
@@ -1494,8 +1494,10 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
             is_injected = True
             set_executable_permission(original_file_path)
             for file_path in matching_intermediate_file_list:
-                # schedule non-blocking copy for intermediate files and log
                 try:
+                    # Skip file, if path contains specific keyword
+                    if any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST"]):
+                        continue
                     schedule_copy(source_file_path, file_path)
                     logging.debug(f"Scheduled indirect injection of .intermediate file: {file_path} with {source_file_path}")
                 except Exception as e:

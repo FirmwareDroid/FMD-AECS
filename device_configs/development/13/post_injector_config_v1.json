@@ -403,6 +403,9 @@
     "adb",
     "vndk"
   ],
+  "SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST": [
+    "/telephony-common/android_common/hiddenapi/telephony-common.jar"
+  ],
   "ALLOWED_FILE_OVERWRITE_EXTENSION_LIST": [
   ],
   "ALLOWED_APP_INJECTION_KEYWORD": [
