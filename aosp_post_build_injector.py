@@ -1390,8 +1390,8 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
 
         if not set_executable_permission(target_file_injection_path):
             raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
-    try:
-        if ENABLE_INJECTION_PERFORMANCE_LOG:
+    if ENABLE_INJECTION_PERFORMANCE_LOG:
+        try:
             write_json_nd_output({
                 'function': 'inject_file_into_partition',
                 'source_file': source_file_path,
@@ -1401,8 +1401,8 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
                 'timestamp': time.time(),
                 'injected': bool(is_injected)
             }, PATH_MAPPING_EXECUTION_TIME_LOG)
-    except Exception:
-        logging.debug('Could not write inject_file_into_partition timing to log')
+        except Exception:
+            logging.debug('Could not write inject_file_into_partition timing to log')
 
     return target_file_injection_path
 
@@ -1508,7 +1508,6 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
         is_injected = False
     finally:
         if ENABLE_INJECTION_PERFORMANCE_LOG:
-            # record timing for this obj-level injection
             try:
                 write_json_nd_output({
                     'function': 'inject_file_into_obj',

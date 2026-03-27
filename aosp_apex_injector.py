@@ -62,34 +62,6 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aos
     except Exception as e:
         log_message = f"Unexpected error while handling APEX modules: {e}"
         logging.error(log_message)
-    finally:
-        # record timing into PATH_MAPPING_EXECUTION_TIME_LOG
-        try:
-            duration = time.time() - start_time
-            # lazy import write_json_output to avoid circular import during module load
-            try:
-                from aosp_post_build_injector import write_json_nd_output
-            except Exception:
-                write_json_output = None
-
-            entry = {
-                "function": "handle_apex_modules",
-                "file": file_path,
-                "aosp_path": aosp_path,
-                "target_out_path": target_out_path,
-                "method": "apex_merge",
-                "duration_seconds": duration,
-                "timestamp": time.time(),
-                "merge_success": bool(is_merge_success),
-                "log_message": str(log_message)[:1000]
-            }
-            if write_json_nd_output:
-                try:
-                    write_json_nd_output(entry, PATH_MAPPING_EXECUTION_TIME_LOG)
-                except Exception:
-                    logging.debug('Could not write handle_apex_modules timing to log')
-        except Exception:
-            logging.debug('Could not prepare handle_apex_modules timing entry')
 
     return is_merge_success, log_message
 
