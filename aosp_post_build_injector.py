@@ -675,7 +675,7 @@ def find_intermediate_file(aosp_path, md5_original_file):
             matched = INTERMEDIATE_MD5_MAP.get(target_md5, ())
             logging.info(f"Found intermediate candidates with same md5 hash: {matched}")
             # record timing for the map lookup
-            if MEASURE_LOOKUP_PERFORMANCE:
+            if MEASURE_LOOKUP_PERFORMANCE and ENABLE_INJECTION_PERFORMANCE_LOG:
                 try:
                     write_json_output({
                         "function": "find_intermediate_file",
@@ -730,7 +730,7 @@ def find_intermediate_file(aosp_path, md5_original_file):
                 logging.warning(f"Error while checking intermediate file {fname} in {root}: {e}")
                 continue
     # record timing for the walk-based search
-    if MEASURE_LOOKUP_PERFORMANCE:
+    if MEASURE_LOOKUP_PERFORMANCE and ENABLE_INJECTION_PERFORMANCE_LOG:
         try:
             write_json_output({
                 "function": "find_intermediate_file",
@@ -826,26 +826,27 @@ def build_intermediate_md5_map(aosp_path):
     # Convert lists to tuples for immutability and wrap mapping in MappingProxyType
     immutable_map = {k: tuple(v) for k, v in md5_map.items()}
     # record timing and throughput metrics for building the md5 map
-    try:
-        duration = time.time() - start_time
-        mb_hashed = total_bytes_hashed / (1024.0 * 1024.0)
-        files_per_sec = files_hashed / duration if duration > 0 else None
-        mb_per_sec = mb_hashed / duration if duration > 0 else None
-        write_json_output({
-            "function": "build_intermediate_md5_map",
-            "aosp_path": aosp_path,
-            "intermediates_path": intermediates_path,
-            "method": method,
-            "workers": workers,
-            "files_hashed": files_hashed,
-            "total_bytes_hashed": total_bytes_hashed,
-            "duration_seconds": duration,
-            "throughput_files_per_second": files_per_sec,
-            "throughput_mb_per_second": mb_per_sec,
-            "timestamp": time.time()
-        }, PATH_MAPPING_EXECUTION_TIME_LOG)
-    except Exception:
-        logging.debug('Could not write build_intermediate_md5_map timing to log')
+    if ENABLE_INJECTION_PERFORMANCE_LOG:
+        try:
+            duration = time.time() - start_time
+            mb_hashed = total_bytes_hashed / (1024.0 * 1024.0)
+            files_per_sec = files_hashed / duration if duration > 0 else None
+            mb_per_sec = mb_hashed / duration if duration > 0 else None
+            write_json_output({
+                "function": "build_intermediate_md5_map",
+                "aosp_path": aosp_path,
+                "intermediates_path": intermediates_path,
+                "method": method,
+                "workers": workers,
+                "files_hashed": files_hashed,
+                "total_bytes_hashed": total_bytes_hashed,
+                "duration_seconds": duration,
+                "throughput_files_per_second": files_per_sec,
+                "throughput_mb_per_second": mb_per_sec,
+                "timestamp": time.time()
+            }, PATH_MAPPING_EXECUTION_TIME_LOG)
+        except Exception:
+            logging.debug('Could not write build_intermediate_md5_map timing to log')
     return MappingProxyType(immutable_map)
 
 def indirect_injection(target_file_injection_path, file_name, target_out_path, partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version):
@@ -908,19 +909,20 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
         inj_obj = (error_message, None, module_type)
 
     # record timing
-    duration = time.time() - start_time
-    try:
-        write_json_output({
-            'function': 'indirect_injection',
-            'file': file_path,
-            'target_file': target_file_injection_path,
-            'method': 'indirect',
-            'duration_seconds': duration,
-            'timestamp': time.time(),
-            'injected': bool(is_injected)
-        }, PATH_MAPPING_EXECUTION_TIME_LOG)
-    except Exception:
-        logging.debug('Could not write indirect_injection timing to log')
+    if ENABLE_INJECTION_PERFORMANCE_LOG:
+        duration = time.time() - start_time
+        try:
+            write_json_output({
+                'function': 'indirect_injection',
+                'file': file_path,
+                'target_file': target_file_injection_path,
+                'method': 'indirect',
+                'duration_seconds': duration,
+                'timestamp': time.time(),
+                'injected': bool(is_injected)
+            }, PATH_MAPPING_EXECUTION_TIME_LOG)
+        except Exception:
+            logging.debug('Could not write indirect_injection timing to log')
 
     return inj_obj, inj_partition, is_injected
 
@@ -1292,25 +1294,26 @@ def search_original_file_in_obj(partition_name,
     duration_second_part = time.time() - start_time
 
     # record timing and counts
-    try:
-        duration = time.time() - start_time
-        write_json_output({
-            "function": "search_original_file_in_obj",
-            "target_out_path": target_out_path,
-            "search_folder_path": search_folder_path,
-            "partition_name": partition_name,
-            "module_type": module_type,
-            "file_name": file_name,
-            "lookup_method": lookup_method,
-            "candidates_examined": candidates_examined,
-            "matches_found": matches_found,
-            "duration_seconds": duration,
-            "duration_seconds_first_part": duration_first_part,
-            "duration_seconds_second_part": duration_second_part,
-            "timestamp": time.time()
-        }, PATH_MAPPING_EXECUTION_TIME_LOG)
-    except Exception:
-        logging.debug('Could not write search_original_file_in_obj timing to log')
+    if ENABLE_INJECTION_PERFORMANCE_LOG:
+        try:
+            duration = time.time() - start_time
+            write_json_output({
+                "function": "search_original_file_in_obj",
+                "target_out_path": target_out_path,
+                "search_folder_path": search_folder_path,
+                "partition_name": partition_name,
+                "module_type": module_type,
+                "file_name": file_name,
+                "lookup_method": lookup_method,
+                "candidates_examined": candidates_examined,
+                "matches_found": matches_found,
+                "duration_seconds": duration,
+                "duration_seconds_first_part": duration_first_part,
+                "duration_seconds_second_part": duration_second_part,
+                "timestamp": time.time()
+            }, PATH_MAPPING_EXECUTION_TIME_LOG)
+        except Exception:
+            logging.debug('Could not write search_original_file_in_obj timing to log')
 
     if len(result_file_path_list) > 0:
         logging.info("File Matcher: Found file for %s in %s with partition %s and results: %s", file_name, search_folder_path, partition_name, result_file_path_list)
@@ -1349,20 +1352,22 @@ def check_file_compatibility(file_path, candidate_path, module_type):
     if module_type == "JAVA_LIBRARIES":
         is_match = True
 
-    # record timing for check_file_compatibility
-    try:
-        duration = time.perf_counter() - start_tc
-        write_json_output({
-            "function": "check_file_compatibility",
-            "module_type": module_type,
-            "file_path": file_path,
-            "candidate_path": candidate_path,
-            "is_match": bool(is_match),
-            "duration_seconds": duration,
-            "timestamp": time.time()
-        }, PATH_MAPPING_EXECUTION_TIME_LOG)
-    except Exception:
-        logging.debug('Could not write check_file_compatibility timing to log')
+
+    if ENABLE_INJECTION_PERFORMANCE_LOG:
+        # record timing for check_file_compatibility
+        try:
+            duration = time.perf_counter() - start_tc
+            write_json_output({
+                "function": "check_file_compatibility",
+                "module_type": module_type,
+                "file_path": file_path,
+                "candidate_path": candidate_path,
+                "is_match": bool(is_match),
+                "duration_seconds": duration,
+                "timestamp": time.time()
+            }, PATH_MAPPING_EXECUTION_TIME_LOG)
+        except Exception:
+            logging.debug('Could not write check_file_compatibility timing to log')
 
     return is_match
 
@@ -1537,15 +1542,16 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
         if not set_executable_permission(target_file_injection_path):
             raise PermissionError(f"Permission denied for not existing file inject: {target_file_injection_path}")
     try:
-        write_json_output({
-            'function': 'inject_file_into_partition',
-            'source_file': source_file_path,
-            'target_file': target_file_injection_path,
-            'method': 'direct',
-            'duration_seconds': time.time() - start_time,
-            'timestamp': time.time(),
-            'injected': bool(is_injected)
-        }, PATH_MAPPING_EXECUTION_TIME_LOG)
+        if ENABLE_INJECTION_PERFORMANCE_LOG:
+            write_json_output({
+                'function': 'inject_file_into_partition',
+                'source_file': source_file_path,
+                'target_file': target_file_injection_path,
+                'method': 'direct',
+                'duration_seconds': time.time() - start_time,
+                'timestamp': time.time(),
+                'injected': bool(is_injected)
+            }, PATH_MAPPING_EXECUTION_TIME_LOG)
     except Exception:
         logging.debug('Could not write inject_file_into_partition timing to log')
 
@@ -1652,19 +1658,20 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
         traceback.print_exc()
         is_injected = False
     finally:
-        # record timing for this obj-level injection
-        try:
-            write_json_output({
-                'function': 'inject_file_into_obj',
-                'source_file': source_file_path,
-                'target_file': original_file_path,
-                'method': 'indirect_obj',
-                'duration_seconds': time.time() - start_time,
-                'timestamp': time.time(),
-                'injected': bool(is_injected)
-            }, PATH_MAPPING_EXECUTION_TIME_LOG)
-        except Exception:
-            logging.debug('Could not write inject_file_into_obj timing to log')
+        if ENABLE_INJECTION_PERFORMANCE_LOG:
+            # record timing for this obj-level injection
+            try:
+                write_json_output({
+                    'function': 'inject_file_into_obj',
+                    'source_file': source_file_path,
+                    'target_file': original_file_path,
+                    'method': 'indirect_obj',
+                    'duration_seconds': time.time() - start_time,
+                    'timestamp': time.time(),
+                    'injected': bool(is_injected)
+                }, PATH_MAPPING_EXECUTION_TIME_LOG)
+            except Exception:
+                logging.debug('Could not write inject_file_into_obj timing to log')
 
     return is_injected
 
