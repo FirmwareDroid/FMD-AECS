@@ -176,24 +176,58 @@ def write_json_output(result, output_file):
     :param output_file: str - Path to the JSON output file.
     """
 
-    # Append the result to the JSON file
+    # Append the result to the JSON file.
     try:
-        with open(output_file, "r") as file:
-            data = json.load(file)
-    except FileNotFoundError:
-        data = []
-    except Exception as err:
-        logging.error(f"Error writing to file: {err}")
-        traceback.print_exc()
-        data = []
+        out_dir = os.path.dirname(output_file)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
 
-    try:
-        data.append(result)
-        with open(output_file, "w") as file:
-            json.dump(data, file, indent=4)
-            file.write("\n")  # Add a newline
+        data_list = []
+        if os.path.exists(output_file):
+            try:
+                with open(output_file, 'r', encoding='utf-8') as file:
+                    text = file.read()
+                    if not text or not text.strip():
+                        data_list = []
+                    else:
+                        try:
+                            loaded = json.loads(text)
+                            # If the file contains a list, use it; if it's a dict/object, wrap it in a list
+                            if isinstance(loaded, list):
+                                data_list = loaded
+                            else:
+                                data_list = [loaded]
+                        except json.JSONDecodeError:
+                            # Possibly NDJSON (one JSON object per line) — try to parse line by line
+                            data_list = []
+                            for line in text.splitlines():
+                                line = line.strip()
+                                if not line:
+                                    continue
+                                try:
+                                    data_list.append(json.loads(line))
+                                except Exception:
+                                    logging.debug("Skipping malformed json line in %s", output_file)
+                                    continue
+            except FileNotFoundError:
+                data_list = []
+            except Exception as err:
+                logging.error("Error reading existing output file %s: %s", output_file, err)
+                traceback.print_exc()
+                data_list = []
+
+        # Append the new result and write back as a JSON array (compatibility with previous behavior)
+        data_list.append(result)
+        try:
+            with open(output_file, 'w', encoding='utf-8') as file:
+                json.dump(data_list, file, indent=4)
+                file.write('\n')
+        except Exception as err:
+            logging.error("Error writing to file %s: %s", output_file, err)
+            traceback.print_exc()
+
     except Exception as err:
-        logging.error(f"Error writing to file: {err}")
+        logging.error("Error writing to file: %s", err)
         traceback.print_exc()
 
 
