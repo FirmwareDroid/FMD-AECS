@@ -17,7 +17,7 @@ from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, ve
     sign_apex_container_apksigner, sign_apex_container_signapk
 from common import extract_vendor_name, remove_vendor_name_from_filename, check_shared_object_architecture, \
     get_path_up_to_first_term, get_md5_from_file, remove_vendor_name_from_path
-from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14
+from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A
 #from conv_apex_manifest import convert_manifest_from_json
 from parse_lddtree_to_json import run_lddtree
 from shell_command import execute_shell_command
@@ -865,7 +865,7 @@ def replace_emulator_apex_folder(input_apex, aosp_path, aosp_version, apex_merge
     try:
         if aosp_version and float(aosp_version) > 13:
             apex_folder_path = os.path.join(aosp_path,
-                                            AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14,
+                                            AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A,
                                             "apex/",
                                             apex_filename_no_ext)
         shutil.rmtree(apex_folder_path)

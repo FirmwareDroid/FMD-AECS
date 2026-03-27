@@ -28,7 +28,7 @@ from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
     check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file
-from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, MEASURE_LOOKUP_PERFORMANCE
+from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, MEASURE_LOOKUP_PERFORMANCE
 from config_post_injector import *
 from fmd_backend_requests import get_csrf_token, authenticate_fmd
 from json_writer import write_json_nd_output, write_json_output

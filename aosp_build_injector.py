@@ -294,8 +294,8 @@ def get_target_out_path(aosp_path, lunch_target):
         return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH)
     elif lunch_target == SUPPORTED_LUNCH_TARGETS[2]:
         return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH)
-    elif lunch_target == SUPPORTED_LUNCH_TARGETS[3]:
-        return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14)
+    elif lunch_target == SUPPORTED_LUNCH_TARGETS[3] or lunch_target == SUPPORTED_LUNCH_TARGETS[4]:
+        return os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A)
     else:
         logging.error(f"Unknown lunch target: {lunch_target}")
         raise RuntimeError(f"Unsupported build architecture: {lunch_target}")
@@ -325,7 +325,7 @@ def get_emulator_image_path(aosp_path, lunch_target, aosp_version):
     elif aosp_version == "13":
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
     elif aosp_version in ["14", "15", "16"]:
-        image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_A14, AOSP_EMU_ZIP_FILENAME)
+        image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A, AOSP_EMU_ZIP_FILENAME)
 
     if not os.path.exists(image_source_path):
         raise RuntimeError(f"Could not find image zip file: {image_source_path}. Something went wrong.")
