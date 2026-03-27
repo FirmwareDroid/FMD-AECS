@@ -1,6 +1,7 @@
 import atexit
 import threading
 import time
+import traceback
 from collections import defaultdict
 from queue import Queue, Empty
 import os
@@ -183,15 +184,17 @@ def write_json_output(result, output_file):
         data = []
     except Exception as err:
         logging.error(f"Error writing to file: {err}")
+        traceback.print_exc()
         data = []
 
-    data.append(result)
     try:
+        data.append(result)
         with open(output_file, "w") as file:
             json.dump(data, file, indent=4)
             file.write("\n")  # Add a newline
     except Exception as err:
         logging.error(f"Error writing to file: {err}")
+        traceback.print_exc()
 
 
 def write_text_output(result, output_file):
