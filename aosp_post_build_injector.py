@@ -1200,7 +1200,7 @@ def search_original_file_in_obj(partition_name,
             file_extension = os.path.splitext(file_name)[1]
             # flatten all paths with the extension
             file_path_list = [p for paths in idx.values() for p in paths if os.path.splitext(p)[1] == file_extension]
-            logging.debug("File Matcher: No exact matches found for %s. Filtered by extension (%s) using index", file_name, file_extension)
+            logging.info("File Matcher: No exact matches found for %s. Filtered by extension (%s) using index", file_name, file_extension)
     else:
         # Fallback: expensive full walk
         file_path_list = get_all_files(search_folder_path)
@@ -1213,7 +1213,7 @@ def search_original_file_in_obj(partition_name,
                     if not check_file_compatibility(file_path, matching_file, module_type):
                         logging.debug("File Matcher: File not compatible: %s|%s", file_path, matching_file)
                         matches.remove(matching_file)
-                logging.debug("File Matcher: Found exact matches for %s: %s", file_name, matches)
+                logging.info("File Matcher: Found exact matches for %s: %s", file_name, matches)
                 file_path_list = matches
             else:
                 file_extension = os.path.splitext(file_name)[1]
@@ -1241,11 +1241,6 @@ def search_original_file_in_obj(partition_name,
             root_cache[root] = os.path.basename(stripped)
 
         root_folder_name_stripped = root_cache[root]
-
-        # root_folder_name_stripped = root.replace(replace_intermediate, "")
-        # root_folder_name_stripped = root_folder_name_stripped.replace(f"_{partition_name}","")
-        # root_folder_name_stripped = root_folder_name_stripped.replace("v1_prebuilt","")
-        # root_folder_name_stripped = os.path.basename(root_folder_name_stripped)
         logging.debug("File Matcher: %s:%s - Root Folder Name stripped: %s", module_name, file_name, root_folder_name_stripped)
 
         if ("vndk" in candidate_path and not contains_vndk) or ("ndk" in candidate_path and not contains_ndk):
@@ -1318,10 +1313,10 @@ def search_original_file_in_obj(partition_name,
         logging.debug('Could not write search_original_file_in_obj timing to log')
 
     if len(result_file_path_list) > 0:
-        logging.debug("File Matcher: Found file for %s in %s with partition %s", file_name, search_folder_path, partition_name)
+        logging.info("File Matcher: Found file for %s in %s with partition %s", file_name, search_folder_path, partition_name)
         return result_file_path_list
     else:
-        logging.debug("File Matcher: No file found for %s in %s with partition %s", file_name, search_folder_path, partition_name)
+        logging.info("File Matcher: No file found for %s in %s with partition %s", file_name, search_folder_path, partition_name)
         return None
 
 
