@@ -4,5 +4,6 @@ cc_prebuilt_binary {
     stem: "fsmon",
     srcs: ["fsmon"],
     ldflags: ["-Wl,-z,max-page-size=16384"],
+    ignore_max_page_size: true
 }
 

@@ -33,7 +33,6 @@ $(call inherit-product-if-exists, external/hyphenation-patterns/patterns.mk)
 $(call inherit-product-if-exists, frameworks/base/data/keyboards/keyboards.mk)
 $(call inherit-product-if-exists, frameworks/webview/chromium/chromium.mk)
 
-
 #	BasicDreams \
 #   BlockedNumberProvider \
 #   BluetoothMidiService \
