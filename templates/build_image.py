@@ -882,9 +882,11 @@ def GlobalDictFromImageProp(image_prop, mount_point):
     copy_prop("partition_size", "system_ext_size")
   return d
 
-def create_fmd_symlink():
+def create_fmd_symlink(glob_dict, mount_point):
   try:
     print("Python Execute FMD Injection")
+    print("mount_point is: ", mount_point)
+    print("Glob Dict is: ", glob_dict)
 ####### FMD INJECTION MARKER #######
   except Exception as e:
     print(e)
@@ -939,7 +941,7 @@ def main(argv):
     image_properties = ImagePropFromGlobalDict(glob_dict, mount_point)
 
   try:
-    create_fmd_symlink()
+    create_fmd_symlink(glob_dict, mount_point)
     BuildImage(in_dir, image_properties, out_file, target_out)
   except:
     logger.error("Failed to build %s from %s", out_file, in_dir)
