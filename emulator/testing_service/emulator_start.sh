@@ -172,19 +172,35 @@ setup_pulse_audio() {
 
 setup_logger_forwarding() {
   mkdir -p "$LOG_DIR"
-  #rm -f "$LOG_DIR/kernel.log" "$LOG_DIR/logcat.log"
-  # create FIFOs for kernel and logcat streams; ignore errors if they already exist
-  #mkfifo "$LOG_DIR/kernel.log" 2>/dev/null || true
-  #mkfifo "$LOG_DIR/logcat.log" 2>/dev/null || true
+  # We use named pipes for live forwarding (to stdout) but keep persistent
+  # regular files for archival. This prevents the FIFO from appearing empty
+  # (FIFOs are not regular files and reads consume data).
+  rm -f "$LOG_DIR/kernel.log.pipe" "$LOG_DIR/logcat.log.pipe"
+  mkfifo "$LOG_DIR/kernel.log.pipe" 2>/dev/null || true
+  mkfifo "$LOG_DIR/logcat.log.pipe" 2>/dev/null || true
+
+  # Persistent log file paths
+  REAL_KERNEL_LOG="$LOG_DIR/kernel.log"
+  REAL_LOGCAT_LOG="$LOG_DIR/logcat.log"
+  # Ensure persistent files exist and are writable
+  : > "$REAL_KERNEL_LOG" 2>/dev/null || true
+  : > "$REAL_LOGCAT_LOG" 2>/dev/null || true
+
   # For goldfish RTC data, use tail -F to avoid immediate failure if file not present yet
   # Redirect stderr to /dev/null to avoid noisy messages when emulator isn't producing the file yet
-  #tail -F "$LOG_DIR/goldfish_rtc_0" 2>/dev/null | sed -u 's/^/video: /g' &
-  #PIDS+=($!)
-  # read from FIFOs
-  (cat "$LOG_DIR/kernel.log" 2>/dev/null | sed -u 's/^/kernel: /g') &
+  tail -F "$LOG_DIR/goldfish_rtc_0" 2>/dev/null | sed -u 's/^/video: /g' &
   PIDS+=($!)
-  (cat "$LOG_DIR/logcat.log" 2>/dev/null | sed -u 's/^/logcat: /g') &
+
+  # read from named pipes, prefix, tee into persistent file and stdout for diagnostics
+  (cat "$LOG_DIR/kernel.log.pipe" 2>/dev/null | sed -u 's/^/kernel: /g' | tee -a "$REAL_KERNEL_LOG") &
   PIDS+=($!)
+
+  (cat "$LOG_DIR/logcat.log.pipe" 2>/dev/null | sed -u 's/^/logcat: /g' | tee -a "$REAL_LOGCAT_LOG") &
+  PIDS+=($!)
+
+  # Export pipe variable names so EMU_CMD can reference them when constructed later
+  PIPE_KERNEL="$LOG_DIR/kernel.log.pipe"
+  PIPE_LOGCAT="$LOG_DIR/logcat.log.pipe"
 }
 
 setup_port_forwarding() {
@@ -215,11 +231,13 @@ while true; do
   if [[ $architecture == "x86_64" ]]; then
     AVD="x86_64"
     # Prepare command for emulator
-    EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -logcat-output "$LOG_DIR/logcat.log" -shell-serial "file:$LOG_DIR/kernel.log" -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1")
+    # Use the named pipes for log forwarding so our tee readers capture output
+    EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -logcat-output "$PIPE_LOGCAT" -shell-serial "file:$PIPE_KERNEL" -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1")
   elif [[ $architecture == "aarch64" ]]; then
     AVD="Arm64"
     # Prepare command for emulator
-    EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "$LOG_DIR/logcat.log" -shell-serial "file:$LOG_DIR/kernel.log" -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max)
+    # Use the named pipes for log forwarding so our tee readers capture output
+    EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "$PIPE_LOGCAT" -shell-serial "file:$PIPE_KERNEL" -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max)
   else
     echo "Unsupported architecture"
     cleanup
