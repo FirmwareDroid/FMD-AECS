@@ -45,6 +45,7 @@
     "CellBroadcast",
     "HbmSVManager"
   ],
+  "SKIPPED_MISC_KEYWORD_LIST": [],
   "USE_ISOLATED_NAMESPACE": false,
   "ISOLATED_NAMESPACE_LIST": [],
   "APEX_BINARY_ISOLATED_NAMESPACE_LIST": [""],
