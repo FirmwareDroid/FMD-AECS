@@ -172,17 +172,10 @@ setup_pulse_audio() {
 
 setup_logger_forwarding() {
   mkdir -p "$LOG_DIR"
-  # We use named pipes for live forwarding (to stdout) but keep persistent
-  # regular files for archival. This prevents the FIFO from appearing empty
-  # (FIFOs are not regular files and reads consume data).
-  rm -f "$LOG_DIR/kernel.log.pipe" "$LOG_DIR/logcat.log.pipe"
-  mkfifo "$LOG_DIR/kernel.log.pipe" 2>/dev/null || true
-  mkfifo "$LOG_DIR/logcat.log.pipe" 2>/dev/null || true
-
-  # Persistent log file paths
+  # Ensure persistent log files exist and are writable. We'll make the emulator
+  # write directly to these REAL_* files and stream them to stdout using tail -F.
   REAL_KERNEL_LOG="$LOG_DIR/kernel.log"
   REAL_LOGCAT_LOG="$LOG_DIR/logcat.log"
-  # Ensure persistent files exist and are writable
   : > "$REAL_KERNEL_LOG" 2>/dev/null || true
   : > "$REAL_LOGCAT_LOG" 2>/dev/null || true
 
@@ -191,16 +184,12 @@ setup_logger_forwarding() {
   tail -F "$LOG_DIR/goldfish_rtc_0" 2>/dev/null | sed -u 's/^/video: /g' &
   PIDS+=($!)
 
-  # read from named pipes, prefix, tee into persistent file and stdout for diagnostics
-  (cat "$LOG_DIR/kernel.log.pipe" 2>/dev/null | sed -u 's/^/kernel: /g' | tee -a "$REAL_KERNEL_LOG") &
+  # Stream the persistent files to stdout (prefix lines) so they appear in docker logs
+  (tail -F "$REAL_KERNEL_LOG" 2>/dev/null | sed -u 's/^/kernel: /g') &
   PIDS+=($!)
 
-  (cat "$LOG_DIR/logcat.log.pipe" 2>/dev/null | sed -u 's/^/logcat: /g' | tee -a "$REAL_LOGCAT_LOG") &
+  (tail -F "$REAL_LOGCAT_LOG" 2>/dev/null | sed -u 's/^/logcat: /g') &
   PIDS+=($!)
-
-  # Export pipe variable names so EMU_CMD can reference them when constructed later
-  PIPE_KERNEL="$LOG_DIR/kernel.log.pipe"
-  PIPE_LOGCAT="$LOG_DIR/logcat.log.pipe"
 }
 
 setup_port_forwarding() {
@@ -230,14 +219,12 @@ while true; do
 
   if [[ $architecture == "x86_64" ]]; then
     AVD="x86_64"
-    # Prepare command for emulator
-    # Use the named pipes for log forwarding so our tee readers capture output
-    EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -logcat-output "$PIPE_LOGCAT" -shell-serial "file:$PIPE_KERNEL" -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1")
+    # Prepare command for emulator (fallback: write logs to persistent files)
+    EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -logcat-output "$REAL_LOGCAT_LOG" -shell-serial "file:$REAL_KERNEL_LOG" -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1")
   elif [[ $architecture == "aarch64" ]]; then
     AVD="Arm64"
-    # Prepare command for emulator
-    # Use the named pipes for log forwarding so our tee readers capture output
-    EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "$PIPE_LOGCAT" -shell-serial "file:$PIPE_KERNEL" -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max)
+    # Prepare command for emulator (fallback: write logs to persistent files)
+    EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "$REAL_LOGCAT_LOG" -shell-serial "file:$REAL_KERNEL_LOG" -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max)
   else
     echo "Unsupported architecture"
     cleanup
