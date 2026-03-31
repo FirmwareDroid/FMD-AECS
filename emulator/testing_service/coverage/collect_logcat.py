@@ -67,18 +67,27 @@ def clear_logcat(device: Optional[str]):
             raise RuntimeError(f'logcat clear failed: {proc.stderr.strip() or proc2.stderr.strip()}')
 
 
-def dump_uid_logcat(uid: Optional[int], device: Optional[str]):
+def dump_uid_logcat(uid: Optional[int], device: Optional[str], delimited=False):
     adb_args = ['-s', device] if device else []
-    proc = run_adb((adb_args or []) + ['logcat', '-d', '-b', 'all', '-v', 'uid', "--uid", uid])
+    if delimited:
+        cmd = ['logcat', '-d', '-b', 'all', '-v', 'uid', "--uid", uid, "-D"]
+    else:
+        cmd = ['logcat', '-d', '-b', 'all', '-v', 'uid', "--uid", uid]
+
+    proc = run_adb((adb_args or []) + cmd)
     if proc.returncode != 0:
         # include stderr for debugging
         raise RuntimeError(f'logcat failed: {proc.stderr.strip()}')
     return proc.stdout or ''
 
 
-def dump_full_logcat(device: Optional[str]) -> str:
+def dump_full_logcat(device: Optional[str], delimited=False) -> str:
     adb_args = ['-s', device] if device else []
-    proc = run_adb((adb_args or []) + ['logcat', '-d', '-b', 'all', '-v', 'uid'])
+    if delimited:
+        cmd = ['logcat', '-d', '-b', 'all', '-v', 'uid', "-D"]
+    else:
+        cmd = ['logcat', '-d', '-b', 'all', '-v', 'uid']
+    proc = run_adb((adb_args or []) + cmd)
     if proc.returncode != 0:
         # include stderr for debugging
         raise RuntimeError(f'logcat failed: {proc.stderr.strip()}')
@@ -236,22 +245,26 @@ def main():
         else:
             # ensure parent dir exists
             os.makedirs(os.path.dirname(out_path) or '.', exist_ok=True)
+        if not out_path.endswith('.json'):
+            out_path += '.json'
 
         print(f'Querying UID for package {args.package} on device {args.device or "default"}...')
         uid = get_package_uid(args.device, args.package)
         if uid is not None:
             print(f'Found UID: {uid}')
             full_log = dump_full_logcat(args.device)
+            full_log_delimited = dump_full_logcat(args.device)
         else:
             full_log = dump_uid_logcat(uid, args.device)
+            full_log_delimited = dump_uid_logcat(args.device)
             print('UID not found for package; continuing to dump full logcat')
         write_json_output(out_path, args.package, uid, full_log)
+        out_path_2 = os.path.join(out_path.replace('.json', '_delimited_2.json'))
+        write_json_output(out_path_2, args.package, uid, full_log_delimited)
         
         if args.clear:
             print('Clearing device logcat before collection...')
             clear_logcat(args.device)
-
-
 
         if args.flush:
             try:
