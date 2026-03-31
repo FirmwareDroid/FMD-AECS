@@ -357,15 +357,22 @@ def main():
 
     # Wait for adb to be available (max 5 minutes). If adb not available, fail early.
     adb_ok = wait_for_adb_available(max_wait_seconds=300, sleep_seconds=5)
-    if not adb_ok:
-        logging.error('ADB not available - aborting experiment pipeline')
+    try:
         out_file = os.path.join(results_dir, 'adb_availability.json')
-        try:
-            with open(out_file, 'w', encoding='utf-8') as of:
-                json.dump({'success': False, 'error': 'adb not available within timeout'}, of, indent=2)
-            logging.info('Wrote adb availability failure to %s', out_file)
-        except Exception:
-            logging.exception('Failed to write adb availability result')
+        if adb_ok:
+            message = {'success': adb_ok}
+        else:
+            message = {'success': adb_ok, 'error': 'adb not available within timeout'}
+        with open(out_file, 'w', encoding='utf-8') as of:
+            json.dump(message, of, indent=2)
+        logging.info('Wrote adb availability failure to %s', out_file)
+        if not adb_ok:
+            logging.error('ADB not available - aborting experiment pipeline')
+            sys.exit(2)
+        else:
+            logging.info('ADB available')
+    except Exception:
+        logging.exception('Failed to write adb availability result')
         sys.exit(2)
 
     # Start crash watcher in background to dismiss random ANR/crash dialogs during the pipeline
