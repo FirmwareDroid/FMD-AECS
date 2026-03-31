@@ -914,6 +914,7 @@ def main(argv):
     mount_point = ""
     if image_filename == "system.img":
       mount_point = "system"
+      create_fmd_symlink(glob_dict, mount_point)
     elif image_filename == "system_other.img":
       mount_point = "system_other"
     elif image_filename == "userdata.img":
@@ -941,7 +942,6 @@ def main(argv):
     image_properties = ImagePropFromGlobalDict(glob_dict, mount_point)
 
   try:
-    create_fmd_symlink(glob_dict, mount_point)
     BuildImage(in_dir, image_properties, out_file, target_out)
   except:
     logger.error("Failed to build %s from %s", out_file, in_dir)
