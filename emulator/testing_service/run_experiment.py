@@ -388,10 +388,18 @@ def main():
     preflight_ok = False
     try:
         is_running = wait_for_bootanim_stop(max_wait_seconds=600, sleep_seconds=10)
+        message = {'success': is_running}
+        out_file = os.path.join(results_dir, 'bootanim_results.json')
+        with open(out_file, 'w', encoding='utf-8') as of:
+            json.dump(message, of, indent=2)
         if not is_running:
             preflight_ok = run_launcher_test(results_dir)
+        else:
+            logging.info('Bootanim timeout reached. Stopping.')
+            sys.exit(2)
     except Exception:
         logging.exception('Error while waiting for boot animation to stop;')
+        sys.exit(2)
 
     # First: connectivity test
     try:
