@@ -69,7 +69,7 @@ def clear_logcat(device: Optional[str]):
 
 def dump_uid_logcat(uid: Optional[int], device: Optional[str]):
     adb_args = ['-s', device] if device else []
-    proc = run_adb((adb_args or []) + ['logcat', '-d', '-b', 'all', '-v', 'uid', '-D', "--uid", uid])
+    proc = run_adb((adb_args or []) + ['logcat', '-d', '-b', 'all', '-v', 'uid', "--uid", uid])
     if proc.returncode != 0:
         # include stderr for debugging
         raise RuntimeError(f'logcat failed: {proc.stderr.strip()}')
@@ -78,7 +78,7 @@ def dump_uid_logcat(uid: Optional[int], device: Optional[str]):
 
 def dump_full_logcat(device: Optional[str]) -> str:
     adb_args = ['-s', device] if device else []
-    proc = run_adb((adb_args or []) + ['logcat', '-d', '-b', 'all', '-v', 'uid', '-D'])
+    proc = run_adb((adb_args or []) + ['logcat', '-d', '-b', 'all', '-v', 'uid'])
     if proc.returncode != 0:
         # include stderr for debugging
         raise RuntimeError(f'logcat failed: {proc.stderr.strip()}')
