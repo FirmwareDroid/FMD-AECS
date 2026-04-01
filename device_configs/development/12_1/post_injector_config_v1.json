@@ -57,7 +57,8 @@
     "libhwui.so",
     "libgui.so",
     "libgui_vendor.so",
-    "libz.so"
+    "libz.so",
+    "libandroid_runtime.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay.apk",
