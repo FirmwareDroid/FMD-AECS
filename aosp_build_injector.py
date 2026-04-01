@@ -1371,7 +1371,7 @@ def main():
     if (not os.path.exists(args.aosp_path)
             or not os.path.exists(args.pre_injector_config)
             or not os.path.exists(args.post_injector_config)):
-        raise RuntimeError(f"Files or directories do not exist for Pre- or Post-Injector Configuration.")
+        raise RuntimeError(f"Files or directories do not exist for Pre- or Post-Injector Configuration or AOSP source code.")
 
 
     pre_injector_config, post_injector_config = load_configs(args.pre_injector_config, args.post_injector_config)
