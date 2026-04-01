@@ -3,6 +3,7 @@
   "GRAPHQL_API_URL": "https://firmwaredroid.cloudlab.zhaw.ch/graphql",
   "ENABLE_INJECTION": true,
   "DISABLE_MISC_INJECTION": false,
+  "ENABLE_MISC_INJECTION_IF_NOT_EXISTS": true,
   "SHARED_USER_ID_MAPPING_DICT":{
     "media": ["android.media", "android.uid.media"],
     "shared":["android.shared", "android.uid.shared"],
@@ -19,8 +20,7 @@
   "ALLOW_APEX_INJECTION_MERGE": true,
   "ALLOW_DIRECT_INJECTION_LIB_OVERWRITE": false,
   "DISABLE_BINARY_INJECTION": true,
-  "SKIPPED_APP_KEYWORDLIST": [
-  ],
+  "SKIPPED_APP_KEYWORDLIST": [],
   "USE_ISOLATED_NAMESPACE": false,
   "ISOLATED_NAMESPACE_LIST": [],
   "APEX_BINARY_ISOLATED_NAMESPACE_LIST": [],
@@ -71,7 +71,8 @@
     "system/etc/security/cacerts_google/"
   ],
   "SKIPPED_APP_LIST": [],
-  "SKIPPED_MISC_KEYWORD_LIST": ["keystore"],
+  "SKIPPED_MISC_KEYWORD_LIST": ["keystore", "strongbox"],
+  "SKIPPED_MISC_EXTENSION_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [],
   "ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS": true,
   "SKIPPED_SHARED_LIBRARIES_EVEN_IF_NOT_EXISTS_LIST": [],

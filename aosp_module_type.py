@@ -154,7 +154,10 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
     elif module_type == "JAVA_LIBRARIES" and POST_INJECTOR_CONFIG["ALLOW_ALL_JAVA_LIBRARIES_INJECTION"]:
         module_type = tmp_module_type
 
-    if module_type == "MISC" and (POST_INJECTOR_CONFIG["DISABLE_MISC_INJECTION"] or any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_MISC_KEYWORD_LIST"])):
+    if module_type == "MISC" and (POST_INJECTOR_CONFIG["DISABLE_MISC_INJECTION"]
+                            or any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_MISC_KEYWORD_LIST"])
+                            or file_extension in POST_INJECTOR_CONFIG["SKIPPED_MISC_EXTENSION_LIST"]
+    ):
         module_type = "SKIPPED"
 
     if file_extension in [".apk"] and (file_name in POST_INJECTOR_CONFIG["ALLOW_APP_INJECT_ALWAYS"] or any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST"])):
