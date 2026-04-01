@@ -22,7 +22,15 @@
   "SKIPPED_APP_KEYWORDLIST": [
   ],
   "SKIPPED_MISC_KEYWORD_LIST": [],
-  "SKIPPED_MISC_EXTENSION_LIST": [],
+  "SKIPPED_MISC_EXTENSION_LIST": [
+    ".kl",
+    ".vdex",
+    ".odex",
+    ".oat",
+    ".art",
+    ".idc",
+    ".fsv_meta"
+  ],
   "USE_ISOLATED_NAMESPACE": false,
   "ISOLATED_NAMESPACE_LIST": [],
   "APEX_BINARY_ISOLATED_NAMESPACE_LIST": [],

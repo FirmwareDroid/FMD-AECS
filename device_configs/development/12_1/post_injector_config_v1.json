@@ -163,7 +163,15 @@
   ],
   "SKIPPED_APP_LIST": [],
   "SKIPPED_MISC_KEYWORD_LIST": [],
-  "SKIPPED_MISC_EXTENSION_LIST": [],
+  "SKIPPED_MISC_EXTENSION_LIST": [
+    ".kl",
+    ".vdex",
+    ".odex",
+    ".oat",
+    ".art",
+    ".idc",
+    ".fsv_meta"
+  ],
   "ALLOW_ONLY_EXTENSION_LIST": [],
   "ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS": true,
   "SKIPPED_SHARED_LIBRARIES_EVEN_IF_NOT_EXISTS_LIST": [],
