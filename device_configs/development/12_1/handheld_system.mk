@@ -32,7 +32,6 @@ $(call inherit-product-if-exists, frameworks/webview/chromium/chromium.mk)
     #BuiltInPrintService \
     #CalendarProvider \
     #CaptivePortalLogin \
-    #
     #DownloadProviderUi \
     #EasterEgg \
     #ExternalStorageProvider \
@@ -42,6 +41,7 @@ $(call inherit-product-if-exists, frameworks/webview/chromium/chromium.mk)
     #PacProcessor \
     #PrintRecommendationService \
     #PrintSpooler \
+    #DocumentsUI \
 
 PRODUCT_PACKAGES += \
     cameraserver \
@@ -67,7 +67,7 @@ PRODUCT_PACKAGES += \
     Bluetooth \
     UserDictionaryProvider \
     SimAppDialog \
-    DocumentsUI \
+
 
 
 PRODUCT_SYSTEM_SERVER_APPS += \
