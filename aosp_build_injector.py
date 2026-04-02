@@ -630,8 +630,11 @@ def inject_toolbox_packages_to_aosp(aosp_path):
     filtered and always injected when activated. The toolbox modules contain custom tools for debugging,
     analysis, or additional functionalities that enhance the AOSP build.
     """
-    toolbox_packages_dict = PRE_INJECTOR_CONFIG.get("TOOLBOX_PACKAGE_DICT", [])
-    for module_name, toolbox_dir in toolbox_packages_dict.items():
+    toolbox_packages_list = PRE_INJECTOR_CONFIG.get("TOOLBOX_PACKAGE_LIST", [])
+    toolbox_injected_list = []
+    for module_dict in toolbox_packages_list:
+        toolbox_dir = module_dict["path"]
+        module_name = module_dict["name"]
         if not os.path.exists(toolbox_dir):
             logging.debug(f"No toolbox directory found at {toolbox_dir}. Skipping toolbox injection.")
             return []
@@ -645,7 +648,8 @@ def inject_toolbox_packages_to_aosp(aosp_path):
             shutil.copyfile(lldb_path, dst_file_path)
             logging.info(f"Copied LLDB binary from {lldb_path} to {dst_file_path}")
         logging.info(f"Injected toolbox packages from {toolbox_dir} into AOSP source code at {dst_dir}.")
-    return list(toolbox_packages_dict.keys())
+        toolbox_injected_list.append(module_name)
+    return toolbox_injected_list
 
 
 def add_toolbox_packages_to_meta_file(toolbox_list):

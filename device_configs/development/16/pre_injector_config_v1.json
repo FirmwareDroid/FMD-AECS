@@ -2517,13 +2517,33 @@
     "./toolbox/ca_certificates/9a5ba575.0",
     "./toolbox/ca_certificates/c8750f0d.0"
   ],
-  "TOOLBOX_PACKAGE_DICT": {
-    "frida-server_toolbox": "./toolbox/15_16/frida",
-    "fsmon_toolbox": "./toolbox/15_16/fsmon",
-    "lldb-server_toolbox": "./toolbox/lldb-server",
-    "wireguard_toolbox": "./toolbox/wireguard_app",
-    "PCAPdroid_toolbox": "./toolbox/pcapdroid"
-  },
+  "TOOLBOX_PACKAGE_LIST": [
+    {
+      "name": "frida_toolbox",
+      "enable": false,
+      "path":"./toolbox/15_16/frida"
+    },
+    {
+        "name": "fsmon_toolbox",
+      "enable": false,
+      "path":"./toolbox/15_16/fsmon"
+    },
+    {
+      "name": "lldb-server_toolbox",
+      "enable": false,
+      "path":"./toolbox/lldb-server"
+    },
+    {
+      "name": "wireguard_toolbox",
+      "enable": false,
+      "path": "./toolbox/wireguard_app"
+    },
+    {
+      "name": "PCAPdroid_toolbox",
+      "enable": false,
+      "path": "./toolbox/pcapdroid"
+    }
+  ],
   "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r574158/runtimes_ndk_cxx/aarch64/lldb-server",
   "ENABLE_ACVTOOL_INSTRUMENTATION": false
 }
