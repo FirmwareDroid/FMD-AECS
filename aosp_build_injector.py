@@ -633,6 +633,9 @@ def inject_toolbox_packages_to_aosp(aosp_path):
     toolbox_packages_list = PRE_INJECTOR_CONFIG.get("TOOLBOX_PACKAGE_LIST", [])
     toolbox_injected_list = []
     for module_dict in toolbox_packages_list:
+        is_enabled = module_dict["enable"]
+        if not is_enabled:
+            continue
         toolbox_dir = module_dict["path"]
         module_name = module_dict["name"]
         if not os.path.exists(toolbox_dir):
