@@ -86,6 +86,8 @@
   "SKIPPED_SHARED_LIBRARIES_EVEN_IF_NOT_EXISTS_LIST": [],
   "SKIPPED_KEYWORD_SHARED_LIBRARIES_EVEN_IF_NOT_EXISTS_LIST": [
     "android.hardware.graphics",
+    "android.hardware.security",
+    "android.hardware.gatekeeper",
     "keymaster",
     "keystore",
     "strongbox"
