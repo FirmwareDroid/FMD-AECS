@@ -71,7 +71,10 @@
     "system/etc/security/cacerts_google/"
   ],
   "SKIPPED_APP_LIST": [],
-  "SKIPPED_MISC_KEYWORD_LIST": ["keystore", "strongbox"],
+  "SKIPPED_MISC_KEYWORD_LIST": [
+    "keystore",
+    "strongbox"
+  ],
   "SKIPPED_MISC_EXTENSION_LIST": [
     ".kl",
     ".vdex",
