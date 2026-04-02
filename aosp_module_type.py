@@ -74,6 +74,9 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
 
     is_apex = file_extension in [".apex", ".capex"]
 
+    #elif file_extension in [".xml"]:
+    #    module_type = "STATIC_CONFIG"
+
     if file_extension in ["", None] and (is_elf_binary(source_file_path) or "bin" in parent_dir or "xbin" in parent_dir):
         module_type = "EXECUTABLES"
     elif file_extension in [".jar"]:
@@ -82,8 +85,6 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
         module_type = "SHARED_LIBRARIES"
     elif file_extension in [".apk"]:
         module_type = "APPS"
-    elif file_extension in [".xml"]:
-        module_type = "STATIC_CONFIG"
     elif "/etc/" in source_file_path:
         module_type = "ETC"
     elif file_extension in [".apex", ".capex"]:

@@ -2520,7 +2520,7 @@
       "path":"./toolbox/12_13_14/frida"
     },
     {
-        "name": "fsmon_toolbox",
+      "name": "fsmon_toolbox",
       "enable": false,
       "path":"./toolbox/12_13_14/fsmon"
     },
