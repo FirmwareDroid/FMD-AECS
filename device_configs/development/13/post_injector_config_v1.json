@@ -257,7 +257,10 @@
   "SKIPPED_KEYWORD_SHARED_LIBRARIES_EVEN_IF_NOT_EXISTS_LIST": [
     "android.hardware.graphics",
     "android.hardware.audio",
-    "audio"
+    "audio",
+    "keymaster",
+    "keystore",
+    "strongbox"
   ],
   "ENABLE_ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST": true,
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST": [
