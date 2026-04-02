@@ -81,7 +81,9 @@
     "android.hardware.security",
     "keymaster",
     "keystore",
-    "strongbox"
+    "strongbox",
+    "vendor/",
+    "product/"
   ],
   "ENABLE_ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST": true,
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST": [

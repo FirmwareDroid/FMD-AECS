@@ -378,7 +378,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 error_message = f"Skipped File post-inject (Keyword/Extension/Filename): {file_path} | module_type: {module_type}"
                 logging.info(error_message)
             else:
-                logging.info(f"Processing file {file_path}")
+                logging.debug(f"Processing file {file_path}")
                 filename = os.path.basename(file_path)
                 file_extension = os.path.splitext(file_path)[1]
                 if module_type == "APPS" and file_extension.lower() == ".apk":
