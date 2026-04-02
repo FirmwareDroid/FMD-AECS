@@ -76,6 +76,13 @@
     "libandroid_runtime.so",
     "libhbmsvmanager_jni.so"
   ],
+  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
+    "system/framework",
+    "system_ext/framework",
+    "system_other/framework",
+    "vendor/framework",
+    "product/framework"
+  ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay.apk",
     "ExtServices.apk",
@@ -151,14 +158,6 @@
     "Chrome.apk",
     "TrichromeLibrary.apk",
     "WebViewGoogle.apk"
-  ],
-  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
-    "system/framework",
-    "system_ext/framework",
-    "system_other/framework",
-    "vendor/framework",
-    "product/framework",
-    "android.extservices.apex"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [],

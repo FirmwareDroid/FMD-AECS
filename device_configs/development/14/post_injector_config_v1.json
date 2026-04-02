@@ -42,6 +42,13 @@
     "libandroid_runtime.so",
     "libhbmsvmanager_jni.so"
   ],
+  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
+    "system/framework",
+    "system_ext/framework",
+    "system_other/framework",
+    "vendor/framework",
+    "product/framework"
+  ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "Overlay",
     "ExtServices",
@@ -53,28 +60,6 @@
     "GoogleExtServices.apk",
     "GoogleExtShared.apk",
     "GoogleConfigOverlay.apk"
-  ],
-  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
-    "system/framework",
-    "system_ext/framework",
-    "system_ext/etc/permissions",
-    "system_ext/etc/default-permissions/",
-    "system_other/framework",
-    "system_other/etc/permissions",
-    "vendor/framework",
-    "vendor/etc/permissions",
-    "vendor/etc/database/",
-    "product/framework",
-    "product/app/Chrome/",
-    "product/tts/",
-    "product/media/",
-    "product/app/WebViewGoogle",
-    "product/etc/permissions",
-    "system_ext/apex/etc/fs/include/",
-    "system/fonts/",
-    "system/etc/security/cacerts",
-    "system/etc/permissions/",
-    "system/etc/security/cacerts_google/"
   ],
   "SKIPPED_APP_LIST": [],
   "SKIPPED_MISC_KEYWORD_LIST": [
