@@ -43,7 +43,8 @@
     "libhbmsvmanager_jni.so",
     "libbluetooth_jni.so",
     "TrichromeLibrary.apk.gz",
-    "Chrome.apk.gz"
+    "Chrome.apk.gz",
+    "libandroid_runtime.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
