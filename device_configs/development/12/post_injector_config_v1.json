@@ -183,7 +183,7 @@
     "media",
     "mediaprovider",
     "statsd",
-    "resolv",
+
     "scheduling",
     "tethering",
     "vndk",
@@ -208,7 +208,8 @@
     "extservices",
     "sdkext",
     "primary",
-    "telephony"
+    "telephony",
+    "resolv"
   ],
   "SKIPPED_FILE_EXTENSION_LIST_GENERAL": [
     ".rc",
