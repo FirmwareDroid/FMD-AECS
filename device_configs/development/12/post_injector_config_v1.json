@@ -183,7 +183,6 @@
     "media",
     "mediaprovider",
     "statsd",
-
     "scheduling",
     "tethering",
     "vndk",

@@ -2498,7 +2498,7 @@
     "libgui.so",
     "libfs_mgr.so"
   ],
-  "ENABLE_TOOLBOX_INJECTION": false,
+  "ENABLE_TOOLBOX_INJECTION": true,
   "CA_CERTIFICATE_PATH_LIST": [
     "./toolbox/ca_certificates/9a5ba575.0",
     "./toolbox/ca_certificates/c8750f0d.0"
@@ -2510,7 +2510,7 @@
       "path":"./toolbox/12_13_14/frida"
     },
     {
-        "name": "fsmon_toolbox",
+      "name": "fsmon_toolbox",
       "enable": false,
       "path":"./toolbox/12_13_14/fsmon"
     },
@@ -2526,10 +2526,10 @@
     },
     {
       "name": "PCAPdroid_toolbox",
-      "enable": false,
+      "enable": true,
       "path": "./toolbox/pcapdroid"
     }
   ],
   "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r416183b/runtimes_ndk_cxx/aarch64/lldb-server",
-  "ENABLE_ACVTOOL_INSTRUMENTATION": false
+  "ENABLE_ACVTOOL_INSTRUMENTATION": true
 }
