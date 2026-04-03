@@ -52,7 +52,6 @@
   "DISABLE_APEX_BINARY_INJECTION": false,
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
-    "app_process32",
     "libhbmsvmanager_jni.so",
     "libbluetooth_jni.so",
     "TrichromeLibrary.apk.gz",
