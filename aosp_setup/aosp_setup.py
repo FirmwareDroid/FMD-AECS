@@ -345,7 +345,7 @@ def disable_cleango(version: str, base_path: str, dry_run: bool = False, verbose
     """Disable cleanOldFiles behaviour by returning early in cleanbuild.go."""
     print(f"--- Disable cleanOldFiles behaviour by returning early in cleanbuild.go. ---")
     if verbose or dry_run:
-        print(f"[SKIP] cleanOldFiles already disabled in: {t}")
+        print(f"[SKIP] cleanOldFiles dry-run")
     else:
         cleango = os.path.join(base_path, "build/soong/ui/build/cleanbuild.go")
         replacement = "func cleanOldFiles(ctx Context, basePath, newFile string) {\n        return\n"
