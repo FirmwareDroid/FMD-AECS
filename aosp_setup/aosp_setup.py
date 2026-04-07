@@ -175,7 +175,24 @@ def add_build_properties(version: str, base_path: str, dry_run: bool = False, ve
     )
 
     for t in targets:
-        modify_file(os.path.join(base_path, t), "", append_block, append=True, dry_run=dry_run, verbose=verbose)
+        target_path = os.path.join(base_path, t)
+        # If a rule exists that sets the property to 'enforce', replace it with the safer '?=log' form
+        #  - handle the common form: PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions=enforce
+        modify_file(target_path,
+                    r"PRODUCT_PROPERTY_OVERRIDES\s*\+=\s*ro\.control_privapp_permissions\s*(?:\?|:)?=\s*enforce",
+                    "PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions?=log",
+                    flags=re.MULTILINE, dry_run=dry_run, verbose=verbose)
+        #  - also handle any bare assignment like ro.control_privapp_permissions=enforce (replace by the override line)
+        modify_file(target_path,
+                    r"ro\.control_privapp_permissions\s*(?:\?|:)?=\s*enforce",
+                    "PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions?=log",
+                    flags=re.MULTILINE, dry_run=dry_run, verbose=verbose)
+
+        # Ensure the other helpful build flags are present; append_block contains the override too
+        modify_file(target_path, "", append_block, append=True, dry_run=dry_run, verbose=verbose)
+
+
+
 
 
 def disable_platform_tests(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
@@ -345,8 +362,6 @@ def main(args: argparse.Namespace):
 
     # 4. Artifact Path Requirements
     system_mk = "build/make/target/product/generic_system.mk"
-    if ver == "11":
-        system_mk = "build/make/target/product/mainline_system.mk"
     modify_file(os.path.join(full_path, system_mk),
                 r"\$\(call require-artifacts-in-path", r"# $(call require-artifacts-in-path",
                 dry_run=args.dry_run, verbose=args.verbose)
@@ -369,7 +384,6 @@ def main(args: argparse.Namespace):
 
     # 10. Generate missing keys for DNSResolver apex
     generate_missing_dns_keys(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
-
 
     # 11. Disable cleanOldFiles behaviour in soong's cleanbuild
     disable_cleango(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
