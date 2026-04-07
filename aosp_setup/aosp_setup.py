@@ -344,16 +344,17 @@ def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = Fals
 def disable_cleango(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Disable cleanOldFiles behaviour by returning early in cleanbuild.go."""
     print(f"--- Disable cleanOldFiles behaviour by returning early in cleanbuild.go. ---")
-    if verbose or dry_run:
+    if dry_run:
         print(f"[SKIP] cleanOldFiles dry-run")
-    else:
-        cleango = os.path.join(base_path, "build/soong/ui/build/cleanbuild.go")
-        replacement = "\n        return\n"
-        modify_file(cleango, r"newFile = filepath.Join(basePath, newFile)", replacement, flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
+        return
 
-        testgo = os.path.join(base_path, "build/soong/ui/build/cleanbuild_test.go")
-        replacement2 = "\n        return\n"
-        modify_file(testgo, r"dir, err := ioutil.TempDir(\"\", \"testcleanoldfiles\")", replacement2, flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
+    cleango = os.path.join(base_path, "build/soong/ui/build/cleanbuild.go")
+    replacement = "\n        return\n"
+    modify_file(cleango, r"newFile = filepath.Join(basePath, newFile)", replacement, flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
+
+    testgo = os.path.join(base_path, "build/soong/ui/build/cleanbuild_test.go")
+    replacement2 = "\n        return\n"
+    modify_file(testgo, r"dir, err := ioutil.TempDir(\"\", \"testcleanoldfiles\")", replacement2, flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
