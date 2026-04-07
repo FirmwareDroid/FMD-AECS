@@ -108,7 +108,7 @@ def disable_selinux(base_path, dry_run: bool = False, verbose: bool = False):
     print(f"--- Disable Selinux ---")
     target = os.path.join(base_path, "system/core/init/selinux.cpp")
     # Skip if the file already contains our permissive replacement
-    if file_has_any(target, ["SELINUX_PERMISSIVE", "IsEnforcing() { return false; }"]):
+    if file_has_any(target, ["EnforcingStatus StatusFromProperty() { return SELINUX_PERMISSIVE;", "IsEnforcing() { return false; "]):
         if verbose or dry_run:
             print(f"[SKIP] SELinux already configured in: {target}")
         return
@@ -116,10 +116,10 @@ def disable_selinux(base_path, dry_run: bool = False, verbose: bool = False):
     # Replace the body of StatusFromProperty and IsEnforcing
     # This is a simplified replacement; logic can be tuned for regex accuracy
     modify_file(target, r"EnforcingStatus StatusFromProperty\(\) \{[\s\S]*?\}",
-                "EnforcingStatus StatusFromProperty() { return SELINUX_PERMISSIVE; }",
+                "EnforcingStatus StatusFromProperty() { return SELINUX_PERMISSIVE; ",
                 flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
     modify_file(target, r"bool IsEnforcing\(\) \{[\s\S]*?\}",
-                "bool IsEnforcing() { return false; }",
+                "bool IsEnforcing() { return false; ",
                 flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
 
 
@@ -348,7 +348,7 @@ def disable_cleango(version: str, base_path: str, dry_run: bool = False, verbose
         os.path.join(base_path, "build/soong/ui/build/cleanbuild.go"),
         os.path.join(base_path, "build/soong/ui/build/cleanbuild_test.go"),
     ]
-    replacement = "func cleanOldFiles(ctx Context, basePath, newFile string) {\n        return\n}"
+    replacement = "func cleanOldFiles(ctx Context, basePath, newFile string) {\n        return\n"
     for t in targets:
         if not os.path.exists(t):
             continue
