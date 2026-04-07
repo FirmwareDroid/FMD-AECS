@@ -344,25 +344,16 @@ def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = Fals
 def disable_cleango(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Disable cleanOldFiles behaviour by returning early in cleanbuild.go."""
     print(f"--- Disable cleanOldFiles behaviour by returning early in cleanbuild.go. ---")
-    targets = [
-        os.path.join(base_path, "build/soong/ui/build/cleanbuild.go"),
-        os.path.join(base_path, "build/soong/ui/build/cleanbuild_test.go"),
-    ]
-    replacement = "func cleanOldFiles(ctx Context, basePath, newFile string) {\n        return\n"
-    for t in targets:
-        if not os.path.exists(t):
-            continue
-        # Skip if we've already applied the replacement
-        try:
-            with open(t, 'r') as f:
-                content = f.read()
-        except Exception:
-            content = ''
-        if replacement in content:
-            if verbose or dry_run:
-                print(f"[SKIP] cleanOldFiles already disabled in: {t}")
-            continue
-        modify_file(t, r"func cleanOldFiles\(ctx Context, basePath, newFile string\) \{[\s\S]*?\}", replacement, flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
+    if verbose or dry_run:
+        print(f"[SKIP] cleanOldFiles already disabled in: {t}")
+    else:
+        cleango = os.path.join(base_path, "build/soong/ui/build/cleanbuild.go")
+        replacement = "func cleanOldFiles(ctx Context, basePath, newFile string) {\n        return\n"
+        modify_file(cleango, r"func cleanOldFiles\(ctx Context, basePath, newFile string\) \{[\s\S]*?\}", replacement, flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
+
+        testgo = os.path.join(base_path, "build/soong/ui/build/cleanbuild_test.go")
+        replacement2 = "\n        return\n"
+        modify_file(testgo, r"dir, err := ioutil.TempDir(\"\", \"testcleanoldfiles\")", replacement2, flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
