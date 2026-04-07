@@ -71,7 +71,8 @@
     "libgui.so",
     "libgui_vendor.so",
     "libz.so",
-    "libhbmsvmanager_jni.so"
+    "libhbmsvmanager_jni.so",
+    "libgraphicsenv.so"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
