@@ -296,7 +296,7 @@ def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = Fals
     if dry_run:
         print(f"Replace DNS Resolve testcert with newly generated certificate: {dns_apex_android_bp}")
         return
-    modify_file(dns_apex_android_bp, r"\"testcert\",", r"\"com.android.resolv\",", flags=0, dry_run=dry_run, verbose=verbose)
+    modify_file(dns_apex_android_bp, r"\"testcert\",", r'"com.android.resolv"', flags=0, dry_run=dry_run, verbose=verbose)
 
 
 
