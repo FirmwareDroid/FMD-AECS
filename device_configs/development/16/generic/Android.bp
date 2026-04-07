@@ -1,3 +1,5 @@
+// build/make/target/product/generic/Android.bp
+
 generic_rootdirs = [
     "apex",
     "bootstrap-apex",
