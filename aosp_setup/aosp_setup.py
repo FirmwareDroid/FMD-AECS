@@ -81,7 +81,7 @@ def setup_certificates(version, base_path, dry_run: bool = False, verbose: bool 
 
     if version in ["12", "12_1"]:
         cmd = (f"cp ./platform.pem ./bluetooth.pem "
-               f"&&  cp ./platform.pk8 ./bluetooth.pk8 "
+               f"&& cp ./platform.pk8 ./bluetooth.pk8 "
                f"&& cp ./platform.x509.pem ./bluetooth.x509.pem "
                f"&& cp ./platform.p12 ./bluetooth.p12")
         run_command(cmd, cwd=os.path.expanduser(sec_path), dry_run=dry_run, verbose=verbose)
@@ -89,6 +89,7 @@ def setup_certificates(version, base_path, dry_run: bool = False, verbose: bool 
 
 def disable_selinux(base_path, dry_run: bool = False, verbose: bool = False):
     """Forces SELinux to Permissive in C++ source."""
+    print(f"--- Disable Selinux ---")
     target = os.path.join(base_path, "system/core/init/selinux.cpp")
     # Replace the body of StatusFromProperty and IsEnforcing
     # This is a simplified replacement; logic can be tuned for regex accuracy
@@ -119,6 +120,7 @@ def ensure_apksigner(verbose: bool = False, dry_run: bool = False):
 
 def add_boardconfig_flags(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Append BUILD_BROKEN_DUP_RULES and SELINUX_IGNORE_NEVERALLOWS to appropriate BoardConfig.mk files."""
+    print(f"--- Add Board config Flags ---")
     paths = []
     if version in ("12", "12_1"):
         paths = [
@@ -140,6 +142,7 @@ def add_boardconfig_flags(version: str, base_path: str, dry_run: bool = False, v
 
 def add_build_properties(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Add property overrides and other build flags to product/vendor files as required."""
+    print(f"--- Add Board Properties ---")
     targets = []
     if version in ("12", "12_1"):
         targets = [
@@ -197,6 +200,7 @@ def add_build_properties(version: str, base_path: str, dry_run: bool = False, ve
 
 def disable_platform_tests(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Comment out specific platform tests (ApiDemos, BusinessCard)"""
+    print(f"--- Disable certain platform tests ---")
     path = os.path.join(base_path, "platform_testing/build/tasks/tests/platform_test_list.mk")
     # Comment out ApiDemos and BusinessCard lines
     modify_file(path, r"^\s*ApiDemos \\", r"#ApiDemos \\", flags=re.MULTILINE, dry_run=dry_run, verbose=verbose)
@@ -207,6 +211,7 @@ def disable_boringssl_checks(version: str, base_path: str, dry_run: bool = False
     """Disable reboot_on_failure and add BORINGSSL env where appropriate."""
 
     if version in ("12", "12_1"):
+        print(f"--- Disable BoringSSL checks ---")
         # init.rc modifications (may not exist for all versions)
         init_rc = os.path.join(base_path, "system/core/rootdir/init.rc")
         modify_file(init_rc, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
@@ -260,6 +265,7 @@ def disable_build_tests(version: str, base_path: str, dry_run: bool = False, ver
 
 def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Generate missing testcert keys for DNSResolver APEX and extract public key using avbtool if available."""
+    print(f"--- Setup DNS Resolver APEX ---")
     # location for DnsResolver apex
     dns_apex = os.path.join(base_path, "packages/modules/DnsResolver/apex")
     if not os.path.exists(dns_apex):
@@ -297,6 +303,7 @@ def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = Fals
 
 def disable_cleango(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Disable cleanOldFiles behaviour by returning early in cleanbuild.go."""
+    print(f"--- Disable cleanOldFiles behaviour by returning early in cleanbuild.go. ---")
     targets = [
         os.path.join(base_path, "build/soong/ui/build/cleanbuild.go"),
         os.path.join(base_path, "build/soong/ui/build/cleanbuild_test.go"),
@@ -361,12 +368,31 @@ def main(args: argparse.Namespace):
     disable_selinux(full_path, dry_run=args.dry_run, verbose=args.verbose)
 
     # 4. Artifact Path Requirements
+    print(f"--- Disable Artifact Path Requirements ---")
     system_mk = "build/make/target/product/generic_system.mk"
     modify_file(os.path.join(full_path, system_mk),
                 r"\$\(call require-artifacts-in-path", r"# $(call require-artifacts-in-path",
                 dry_run=args.dry_run, verbose=args.verbose)
 
     # 5. Disable APEX Compression (sed logic)
+    print(f"--- Disable APEX Compression ---")
+    # First, list files that contain the pattern so verbose output can show what will be changed
+    list_cmd = "find . -name 'Android.bp' -exec grep -l \"compressible: true,\" {} + || true"
+    try:
+        res = subprocess.run(list_cmd, shell=True, check=False, cwd=full_path, executable='/bin/bash', stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        files = [f for f in res.stdout.splitlines() if f]
+    except Exception:
+        files = []
+
+    if args.verbose:
+        if files:
+            print("[INFO] Android.bp files containing 'compressible: true,':")
+            for f in files:
+                print(f"  {f}")
+        else:
+            print("[INFO] No Android.bp files with 'compressible: true,' found")
+
+    # Now perform the replacement (run_command will honor dry_run)
     run_command("find . -name 'Android.bp' -exec sed -i 's/compressible: true,/compressible: false,/g' {} +",
                 cwd=full_path, dry_run=args.dry_run, verbose=args.verbose)
 
