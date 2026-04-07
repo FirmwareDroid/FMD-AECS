@@ -1127,6 +1127,8 @@ def parse_arguments():
                         help='Specifies the CPU architecture ("arm64" or "x86_64") to use for the build process.')
     parser.add_argument("-e", "--version", type=str, default="12",
                         help='Specifies Android version to build for. Example: "12"')
+    parser.add_argument("-t", "--tag", type=str, default=None,
+                        help='Optional tag to append to the uploaded artefact filename.')
     parser.add_argument("-n", "--skip-filtering", action='store_true', default=False,
                         help='If set, the filtering of the packages will be skipped.')
     parser.add_argument("-z", "--reset-aosp", action='store_true', default=False,
@@ -1314,7 +1316,14 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
             if is_build_success:
                 logging.info(f"Build process for firmware-id: {firmware_id} was successful.")
                 emulator_image_zip_path = get_emulator_image_path(args.aosp_path, lunch_target, args.version)
-                filename = f"{firmware_id}_v{args.version}_{lunch_target}.zip".replace('-', '_')
+                # If a tag is provided, sanitize it and append to the filename before the extension
+                if getattr(args, 'tag', None):
+                    sanitized_tag = re.sub(r"\W+", "_", args.tag)
+                    tag_part = f"_{sanitized_tag}"
+                else:
+                    tag_part = ""
+                filename = f"{firmware_id}_v{args.version}_{lunch_target}{tag_part}.zip".replace('-', '_')
+
                 is_upload_success, download_url = upload_build_artefact(args.docker_repo_url,
                                                           args.docker_repo_username,
                                                           docker_repo_password,
