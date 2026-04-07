@@ -189,7 +189,15 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static'"
     else:
         blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static apexer deapexer avbtool'"
-    execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path)
+    try:
+        execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path)
+    except Exception as err:
+        if aosp_version in ["14"]:
+            logging.warning(f"Downgrading lunch target")
+            lunch_target = SUPPORTED_LUNCH_TARGETS[2]
+            execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path)
+        else:
+            raise err
     logging.debug(f"Environment setup for {lunch_target} completed. Moving packages to aosp source code next.")
     acv_result_dict = {}
     try:
