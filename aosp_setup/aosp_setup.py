@@ -28,6 +28,22 @@ def run_command(cmd: str, cwd: Optional[str] = None, dry_run: bool = False, verb
         print(f"Error executing: {cmd}\n{e}")
 
 
+def file_has_any(full_path: str, substrings: Sequence[str]) -> bool:
+    """Return True if the file contains any of the given substrings.
+
+    Non-fatal: if the file doesn't exist, returns False.
+    """
+    try:
+        with open(os.path.expanduser(full_path), 'r') as f:
+            content = f.read()
+    except Exception:
+        return False
+    for s in substrings:
+        if s in content:
+            return True
+    return False
+
+
 def modify_file(file_path: str, search_pattern: str, replacement: str, append: bool = False,
                 flags: int = 0, dry_run: bool = False, verbose: bool = False):
     """Replaces text in a file or appends to the end.
@@ -91,12 +107,18 @@ def disable_selinux(base_path, dry_run: bool = False, verbose: bool = False):
     """Forces SELinux to Permissive in C++ source."""
     print(f"--- Disable Selinux ---")
     target = os.path.join(base_path, "system/core/init/selinux.cpp")
+    # Skip if the file already contains our permissive replacement
+    if file_has_any(target, ["SELINUX_PERMISSIVE", "IsEnforcing() { return false; }"]):
+        if verbose or dry_run:
+            print(f"[SKIP] SELinux already configured in: {target}")
+        return
+
     # Replace the body of StatusFromProperty and IsEnforcing
     # This is a simplified replacement; logic can be tuned for regex accuracy
-    modify_file(target, r"EnforcingStatus StatusFromProperty\(\) \{.*?\n\}",
+    modify_file(target, r"EnforcingStatus StatusFromProperty\(\) \{[\s\S]*?\}",
                 "EnforcingStatus StatusFromProperty() { return SELINUX_PERMISSIVE; }",
                 flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
-    modify_file(target, r"bool IsEnforcing\(\) \{.*?\n\}",
+    modify_file(target, r"bool IsEnforcing\(\) \{[\s\S]*?\}",
                 "bool IsEnforcing() { return false; }",
                 flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
 
@@ -179,6 +201,16 @@ def add_build_properties(version: str, base_path: str, dry_run: bool = False, ve
 
     for t in targets:
         target_path = os.path.join(base_path, t)
+        # If the file already contains our canonical override, skip configuration for this file
+        try:
+            with open(os.path.expanduser(target_path), 'r') as f:
+                content = f.read()
+        except Exception:
+            content = ''
+        if 'PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions?=log' in content:
+            if verbose or dry_run:
+                print(f"[SKIP] Build properties already present in: {target_path}")
+            continue
         # If a rule exists that sets the property to 'enforce', replace it with the safer '?=log' form
         #  - handle the common form: PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions=enforce
         modify_file(target_path,
@@ -214,7 +246,11 @@ def disable_boringssl_checks(version: str, base_path: str, dry_run: bool = False
         print(f"--- Disable BoringSSL checks ---")
         # init.rc modifications (may not exist for all versions)
         init_rc = os.path.join(base_path, "system/core/rootdir/init.rc")
-        modify_file(init_rc, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
+        if file_has_any(init_rc, ["#reboot_on_failure reboot,boringssl-self-check-failed"]):
+            if verbose or dry_run:
+                print(f"[SKIP] boringssl reboot_on_failure already commented in: {init_rc}")
+        else:
+            modify_file(init_rc, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
 
         # boringssl self test rc files
         candidates = [
@@ -222,7 +258,11 @@ def disable_boringssl_checks(version: str, base_path: str, dry_run: bool = False
             os.path.join(base_path, "external/boringssl/selftest/boringssl_self_test.rc"),
         ]
         for c in candidates:
-            modify_file(c, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
+            if file_has_any(c, ["#reboot_on_failure reboot,boringssl-self-check-failed"]):
+                if verbose or dry_run:
+                    print(f"[SKIP] boringssl reboot_on_failure already commented in: {c}")
+            else:
+                modify_file(c, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
 
 
 def disable_vndk_checks(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
@@ -308,9 +348,21 @@ def disable_cleango(version: str, base_path: str, dry_run: bool = False, verbose
         os.path.join(base_path, "build/soong/ui/build/cleanbuild.go"),
         os.path.join(base_path, "build/soong/ui/build/cleanbuild_test.go"),
     ]
+    replacement = "func cleanOldFiles(ctx Context, basePath, newFile string) {\n        return\n}"
     for t in targets:
-        if os.path.exists(t):
-            modify_file(t, r"func cleanOldFiles\(ctx Context, basePath, newFile string\) \{[\s\S]*?\}", "func cleanOldFiles(ctx Context, basePath, newFile string) {\n        return\n}", flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
+        if not os.path.exists(t):
+            continue
+        # Skip if we've already applied the replacement
+        try:
+            with open(t, 'r') as f:
+                content = f.read()
+        except Exception:
+            content = ''
+        if replacement in content:
+            if verbose or dry_run:
+                print(f"[SKIP] cleanOldFiles already disabled in: {t}")
+            continue
+        modify_file(t, r"func cleanOldFiles\(ctx Context, basePath, newFile string\) \{[\s\S]*?\}", replacement, flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
