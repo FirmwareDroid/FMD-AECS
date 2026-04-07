@@ -100,8 +100,15 @@ def disable_selinux(base_path, dry_run: bool = False, verbose: bool = False):
                 flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
 
 
-def ensure_apksigner(verbose: bool = False):
-    """Check for apksigner availability and warn if missing."""
+def ensure_apksigner(verbose: bool = False, dry_run: bool = False):
+    """Check for apksigner availability and warn if missing.
+
+    When dry_run is True, do not execute any subprocess; just log the intended check.
+    """
+    if dry_run:
+        # In dry-run mode we always log that we would perform this check.
+        print("[DRY-RUN] Would check for 'apksigner' in PATH")
+        return
     try:
         subprocess.run(["apksigner", "--version"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if verbose:
@@ -181,17 +188,19 @@ def disable_platform_tests(version: str, base_path: str, dry_run: bool = False, 
 
 def disable_boringssl_checks(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Disable reboot_on_failure and add BORINGSSL env where appropriate."""
-    # init.rc modifications (may not exist for all versions)
-    init_rc = os.path.join(base_path, "system/core/rootdir/init.rc")
-    modify_file(init_rc, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
 
-    # boringssl self test rc files
-    candidates = [
-        os.path.join(base_path, "external/boringssl/selftest/boringssl_self_test.rc"),
-        os.path.join(base_path, "external/boringssl/selftest/boringssl_self_test.rc"),
-    ]
-    for c in candidates:
-        modify_file(c, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
+    if version in ("12", "12_1"):
+        # init.rc modifications (may not exist for all versions)
+        init_rc = os.path.join(base_path, "system/core/rootdir/init.rc")
+        modify_file(init_rc, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
+
+        # boringssl self test rc files
+        candidates = [
+            os.path.join(base_path, "external/boringssl/selftest/boringssl_self_test.rc"),
+            os.path.join(base_path, "external/boringssl/selftest/boringssl_self_test.rc"),
+        ]
+        for c in candidates:
+            modify_file(c, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
 
 
 def disable_vndk_checks(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
@@ -232,7 +241,7 @@ def disable_build_tests(version: str, base_path: str, dry_run: bool = False, ver
         modify_file(path, r"\"TvSystemUITests\",", r"//\"TvSystemUITests\",", flags=0, dry_run=dry_run, verbose=verbose)
 
 
-def generate_missing_keys(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
+def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Generate missing testcert keys for DNSResolver APEX and extract public key using avbtool if available."""
     # location for DnsResolver apex
     dns_apex = os.path.join(base_path, "packages/modules/DnsResolver/apex")
@@ -253,8 +262,20 @@ def generate_missing_keys(version: str, base_path: str, dry_run: bool = False, v
     if avb:
         cmds.append(f"{avb} extract_public_key --key testcert.pem --output com.android.resolv.avbpubkey")
 
+    if dry_run:
+        print(f"[DRY-RUN] Would execute command for DNS Apex Key Generation: {cmds}")
+        return
+
     for c in cmds:
         run_command(c, cwd=dns_apex, dry_run=dry_run, verbose=verbose)
+
+    dns_apex_android_bp = os.path.join(base_path, "packages/modules/DnsResolver/apex/Android.bp")
+    if dry_run:
+        print(f"Replace DNS Resolve testcert with newly generated certificate: {dns_apex_android_bp}")
+        return
+    modify_file(dns_apex_android_bp, r"\"testcert\",", r"\"com.android.resolv\",", flags=0, dry_run=dry_run, verbose=verbose)
+
+
 
 
 def disable_cleango(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
@@ -307,8 +328,8 @@ def main(args: argparse.Namespace):
             return
 
     print(f"=== Customizing AOSP {ver} at {path} ===")
-    # Ensure apksigner available (warn if not)
-    ensure_apksigner(verbose=args.verbose)
+    # Ensure apksigner available (warn if not). Respect dry-run.
+    ensure_apksigner(verbose=args.verbose, dry_run=args.dry_run)
 
     # 1. Certificates
     setup_certificates(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
@@ -341,13 +362,14 @@ def main(args: argparse.Namespace):
     disable_boringssl_checks(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
 
     # 8. Disable VNDK checks for older versions
-    disable_vndk_checks(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
+    #disable_vndk_checks(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
 
     # 9. Add privapp permission for Launcher3 where applicable
-    add_privapp_permission(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
+    #add_privapp_permission(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
 
     # 10. Generate missing keys for DNSResolver apex
-    generate_missing_keys(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
+    generate_missing_dns_keys(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
+
 
     # 11. Disable cleanOldFiles behaviour in soong's cleanbuild
     disable_cleango(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
