@@ -293,6 +293,8 @@ def main(args: argparse.Namespace):
         if not os.path.exists(full_path):
             print(f"Provided path does not exist: {full_path}")
             return
+        # keep a `path` variable for backwards-compatible messaging (was used below)
+        path = full_path
     else:
         path = AOSP_PATHS.get(ver)
         if path is None:
