@@ -235,8 +235,8 @@ def disable_platform_tests(version: str, base_path: str, dry_run: bool = False, 
     print(f"--- Disable certain platform tests ---")
     path = os.path.join(base_path, "platform_testing/build/tasks/tests/platform_test_list.mk")
     # Comment out ApiDemos and BusinessCard lines
-    modify_file(path, r"^\s*ApiDemos \\", r"", flags=re.MULTILINE, dry_run=dry_run, verbose=verbose)
-    modify_file(path, r"^\s*BusinessCard \\", r"", flags=re.MULTILINE, dry_run=dry_run, verbose=verbose)
+    modify_file(path, r"^\s*ApiDemos \\", r"    #ApiDemos", flags=re.MULTILINE, dry_run=dry_run, verbose=verbose)
+    modify_file(path, r"^\s*BusinessCard \\", r"    #BusinessCard", flags=re.MULTILINE, dry_run=dry_run, verbose=verbose)
 
 
 def disable_boringssl_checks(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
