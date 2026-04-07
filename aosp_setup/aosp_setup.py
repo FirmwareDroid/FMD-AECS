@@ -116,10 +116,10 @@ def disable_selinux(base_path, dry_run: bool = False, verbose: bool = False):
     # Replace the body of StatusFromProperty and IsEnforcing
     # This is a simplified replacement; logic can be tuned for regex accuracy
     modify_file(target, r"EnforcingStatus StatusFromProperty\(\) \{[\s\S]*?\}",
-                "EnforcingStatus StatusFromProperty() { \nreturn SELINUX_PERMISSIVE;\n ",
+                "EnforcingStatus StatusFromProperty() { \n    return SELINUX_PERMISSIVE;\n ",
                 flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
     modify_file(target, r"bool IsEnforcing\(\) \{[\s\S]*?\}",
-                "bool IsEnforcing() { \nreturn false;\n ",
+                "bool IsEnforcing() { \n    return false;\n ",
                 flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
 
 
