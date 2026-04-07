@@ -348,8 +348,8 @@ def disable_cleango(version: str, base_path: str, dry_run: bool = False, verbose
         print(f"[SKIP] cleanOldFiles dry-run")
     else:
         cleango = os.path.join(base_path, "build/soong/ui/build/cleanbuild.go")
-        replacement = "func cleanOldFiles(ctx Context, basePath, newFile string) {\n        return\n"
-        modify_file(cleango, r"func cleanOldFiles\(ctx Context, basePath, newFile string\) \{[\s\S]*?\}", replacement, flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
+        replacement = "\n        return\n"
+        modify_file(cleango, r"newFile = filepath.Join(basePath, newFile)", replacement, flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
 
         testgo = os.path.join(base_path, "build/soong/ui/build/cleanbuild_test.go")
         replacement2 = "\n        return\n"
