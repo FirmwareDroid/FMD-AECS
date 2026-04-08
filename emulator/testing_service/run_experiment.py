@@ -13,8 +13,6 @@ import shutil
 import atexit
 import time
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INSTALL_APPIUM = os.path.join(BASE_DIR, 'appium', 'install_appium.py')
 RUN_PCAPDROID = os.path.join(BASE_DIR, 'appium', 'run_pcapdroid_on_all.py')
@@ -33,6 +31,42 @@ except Exception:
     crash_watcher = None
     
 OUT_DIR = os.path.join(BASE_DIR, 'out')
+
+
+def configure_logging(out_dir: str, log_filename: str = 'run_experiment.log', level: int = logging.INFO):
+    """Configure root logger to log to both stdout and a file in out_dir.
+
+    Ensures out_dir exists and creates/uses the file 'log_filename' inside it.
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    log_path = os.path.join(out_dir, log_filename)
+
+    logger = logging.getLogger()
+    logger.setLevel(level)
+
+    # Remove any existing handlers to avoid duplicate logs when re-importing
+    for h in list(logger.handlers):
+        logger.removeHandler(h)
+
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+    # Console handler (stdout)
+    sh = logging.StreamHandler(sys.stdout)
+    sh.setLevel(level)
+    sh.setFormatter(formatter)
+    logger.addHandler(sh)
+
+    # File handler (append)
+    fh = logging.FileHandler(log_path, encoding='utf-8')
+    fh.setLevel(level)
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
+    logger.info('Logging initialized: stdout + %s', log_path)
+
+
+# Initialize logging now that BASE_DIR/OUT_DIR are known
+configure_logging(OUT_DIR)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run experiment pipeline')
