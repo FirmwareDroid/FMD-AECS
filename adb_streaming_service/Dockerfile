@@ -3,10 +3,13 @@ FROM ubuntu:24.04 AS builder
 
 # Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
+# Allow controlling apt retry attempts in case of flaky network
+ARG APT_RETRIES=3
+ENV APT_RETRIES=${APT_RETRIES}
 
 # Install build dependencies required for native modules and git
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=${APT_RETRIES} update && \
+    apt-get -o Acquire::Retries=${APT_RETRIES} install -y --no-install-recommends \
       ca-certificates \
       curl \
       gnupg \
@@ -25,8 +28,8 @@ WORKDIR /app
 
 # ---- Install Node.js 22 (NodeSource) ----
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends nodejs && \
+    apt-get -o Acquire::Retries=${APT_RETRIES} update && \
+    apt-get -o Acquire::Retries=${APT_RETRIES} install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
 
 # ---- Install pnpm ----
