@@ -257,7 +257,7 @@ def wait_for_bootanim_stop(max_wait_seconds=300, sleep_seconds=30):
     return is_running
 
 
-def wait_for_adb_available(max_wait_seconds=300, sleep_seconds=5):
+def wait_for_adb_available(max_wait_seconds=600, sleep_seconds=5):
     """
     Wait for adb to become available and for at least one device to be connected.
 
@@ -268,6 +268,11 @@ def wait_for_adb_available(max_wait_seconds=300, sleep_seconds=5):
     max_tries = max(1, int(max_wait_seconds // sleep_seconds))
     tries = 0
     logging.info("Waiting for adb to be available and show at least one device (max %s seconds)...", max_wait_seconds)
+
+    # Ensure adb binary exists on PATH before polling. If it's missing, fail fast with a clear error.
+    if not shutil.which('adb'):
+        logging.error("adb binary not found in PATH; please install Android platform-tools and ensure 'adb' is on your PATH")
+        return False
 
     while True:
         try:
