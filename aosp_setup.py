@@ -349,11 +349,11 @@ def disable_cleango(version: str, base_path: str, dry_run: bool = False, verbose
         return
 
     cleango = os.path.join(base_path, "build/soong/ui/build/cleanbuild.go")
-    replacement = "\n        return\n"
+    replacement = "        newFile = filepath.Join(basePath, newFile)\n        return\n"
     modify_file(cleango, r"newFile = filepath.Join\(basePath, newFile\)", replacement, flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
 
     testgo = os.path.join(base_path, "build/soong/ui/build/cleanbuild_test.go")
-    replacement2 = "\n        return\n"
+    replacement2 = "        dir, err := os.MkdirTemp(\"\", \"test-clean-old-files\")\n        return\n"
     modify_file(testgo, r"dir, err := ioutil.TempDir\(\"\", \"testcleanoldfiles\"\)", replacement2, flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
 
 
