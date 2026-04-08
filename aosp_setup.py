@@ -118,7 +118,7 @@ def disable_selinux(base_path, dry_run: bool = False, verbose: bool = False):
     modify_file(target, r"EnforcingStatus status = SELINUX_ENFORCING;",
                 "return SELINUX_PERMISSIVE;\n    EnforcingStatus status = SELINUX_ENFORCING;\n",
                 flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
-    modify_file(target, r"if (ALLOW_PERMISSIVE_SELINUX) {",
+    modify_file(target, r"if \(ALLOW_PERMISSIVE_SELINUX\) \{",
                 "return false;\n    if (ALLOW_PERMISSIVE_SELINUX) {\n ",
                 flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
 
