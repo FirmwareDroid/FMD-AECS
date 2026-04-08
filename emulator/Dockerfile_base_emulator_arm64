@@ -6,8 +6,8 @@ FROM debian:12-slim AS fmd-emulator_arm64
 #RUN apt update
 
 RUN apt update && apt install -y --no-install-recommends \
-    libc6 libdbus-1-3 libfontconfig1 libgcc1 nano \
-    libpulse0 libtinfo5 libx11-6 libxcb1 libxdamage1 \
+    libc6 libdbus-1-3 libfontconfig1 libgcc-s1 nano \
+    libpulse0 libtinfo6 libx11-6 libxcb1 libxdamage1 \
     libnss3 libxcomposite1 libxcursor1 libxi6 \
     libxext6 libxfixes3 zlib1g libgl1 pulseaudio pulseaudio-utils socat \
     iputils-ping curl ca-certificates wget unzip procps rsync net-tools \
