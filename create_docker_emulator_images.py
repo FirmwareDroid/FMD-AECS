@@ -246,10 +246,10 @@ def build_container_image(tag, build_arch, dockerfile_path=None, extracted_image
         else:
             dockerfile_path = EMULATOR_DOCKERFILE_X8664_ABS_PATH
     if extracted_image_dir:
-        p = subprocess.run(f"docker build --build-arg IMAGE_ARTEFACTS_SRC={extracted_image_dir} -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
+        p = subprocess.run(f"docker build ---network=host -build-arg IMAGE_ARTEFACTS_SRC={extracted_image_dir} -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
                            shell=True, check=True)
     else:
-        p = subprocess.run(f"docker build -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
+        p = subprocess.run(f"docker build --network=host -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
                            shell=True, check=True)
     return p.returncode == 0
 

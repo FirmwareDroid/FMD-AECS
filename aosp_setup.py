@@ -304,7 +304,7 @@ def disable_build_tests(version: str, base_path: str, dry_run: bool = False, ver
 
 
 def disable_tvsystem_test(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
-    """omment out TvSystemUITests lines in the instrumentation test list."""
+    """Comment out TvSystemUITests lines in the instrumentation test list."""
 
     if version in ["15"]:
         path = os.path.join(base_path, "platform_testing/build/tasks/tests/instrumentation_test_list.mk")
