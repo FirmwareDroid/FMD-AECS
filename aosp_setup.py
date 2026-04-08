@@ -512,7 +512,7 @@ def main(args: argparse.Namespace):
     disable_build_tests(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
     disable_avatarpicker(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
     disable_eyedropper(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
-    disable_dex_preopt(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
+    #disable_dex_preopt(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
 
 
 if __name__ == "__main__":
