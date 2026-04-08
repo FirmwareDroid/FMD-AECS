@@ -295,33 +295,15 @@ def add_privapp_permission(version: str, base_path: str, dry_run: bool = False, 
 
 def disable_build_tests(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Comment out TvSystemUITests in test lists for newer versions where applicable."""
+    if version not in ("11", "12", "12_1", "13"):
+        return
     if version == "14":
         path = os.path.join(base_path, "platform_testing/build/tasks/tests/instrumentation_test_list.mk")
-        modify_file(path, r"^\s*#?TvSystemUITests \\", r"#TvSystemUITests \\", flags=re.MULTILINE, dry_run=dry_run, verbose=verbose)
-    elif version in ("15", "16"):
-        path = os.path.join(base_path, "platform_testing/Android.bp")
-        modify_file(path, r"\"TvSystemUITests\",", r"//\"TvSystemUITests\",", flags=0, dry_run=dry_run, verbose=verbose)
-
-
-def disable_tvsystem_test(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
-    """Comment out TvSystemUITests lines in the instrumentation test list."""
-
-    if version in ["15"]:
+    elif version in ["15"]:
         path = os.path.join(base_path, "platform_testing/build/tasks/tests/instrumentation_test_list.mk")
-        if not os.path.exists(path):
-            if dry_run:
-                print(f"Warning: File not found: {path}")
-            return
-
-        # If already commented, skip
-        if file_has_any(path, ["#TvSystemUITests \\", "#TvSystemUITests"]):
-            if verbose or dry_run:
-                print(f"[SKIP] TvSystemUITests already commented in: {path}")
-            return
-
-        # Comment out lines that list TvSystemUITests (keep existing indentation)
-        # Replacement uses a normal Python string where trailing backslash is encoded as '\\'
-        modify_file(path, r"^\s*TvSystemUITests\s*\\", "#TvSystemUITests \\", flags=re.MULTILINE, dry_run=dry_run, verbose=verbose)
+    elif version in ["16"]:
+        path = os.path.join(base_path, "platform_testing/Android.bp")
+    modify_file(path, r"^\s*#?TvSystemUITests \\", r"#TvSystemUITests \\", flags=0, dry_run=dry_run, verbose=verbose)
 
 
 def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
@@ -482,7 +464,7 @@ def main(args: argparse.Namespace):
     # 11. Disable cleanOldFiles behaviour in soong's cleanbuild
     disable_cleango(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
 
-    disable_tvsystem_test(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
+    disable_build_tests(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
 
 
 if __name__ == "__main__":
