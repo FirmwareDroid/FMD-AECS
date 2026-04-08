@@ -303,6 +303,27 @@ def disable_build_tests(version: str, base_path: str, dry_run: bool = False, ver
         modify_file(path, r"\"TvSystemUITests\",", r"//\"TvSystemUITests\",", flags=0, dry_run=dry_run, verbose=verbose)
 
 
+def disable_tvsystem_test(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
+    """omment out TvSystemUITests lines in the instrumentation test list."""
+
+    if version in ["15"]:
+        path = os.path.join(base_path, "platform_testing/build/tasks/tests/instrumentation_test_list.mk")
+        if not os.path.exists(path):
+            if dry_run:
+                print(f"Warning: File not found: {path}")
+            return
+
+        # If already commented, skip
+        if file_has_any(path, ["#TvSystemUITests \\", "#TvSystemUITests"]):
+            if verbose or dry_run:
+                print(f"[SKIP] TvSystemUITests already commented in: {path}")
+            return
+
+        # Comment out lines that list TvSystemUITests (keep existing indentation)
+        # Replacement uses a normal Python string where trailing backslash is encoded as '\\'
+        modify_file(path, r"^\s*TvSystemUITests\s*\\", "#TvSystemUITests \\", flags=re.MULTILINE, dry_run=dry_run, verbose=verbose)
+
+
 def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Generate missing testcert keys for DNSResolver APEX and extract public key using avbtool if available."""
     print(f"--- Setup DNS Resolver APEX ---")
@@ -460,6 +481,8 @@ def main(args: argparse.Namespace):
 
     # 11. Disable cleanOldFiles behaviour in soong's cleanbuild
     disable_cleango(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
+
+    disable_tvsystem_test(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
 
 
 if __name__ == "__main__":
