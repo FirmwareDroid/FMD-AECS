@@ -305,6 +305,7 @@ PRODUCT_PACKAGES += \
     wificond \
     wifi.rc \
     wm \
+    AvatarPicker \
 {% for line in package_name_list -%}{{ line }}{%- endfor %}
 
 # When we release crashrecovery module
