@@ -295,6 +295,7 @@ def add_privapp_permission(version: str, base_path: str, dry_run: bool = False, 
 
 def disable_build_tests(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Comment out TvSystemUITests in test lists for newer versions where applicable."""
+    print(f"--- Disable Platform TVSystemUITests ---")
     if version == "14":
         path = os.path.join(base_path, "platform_testing/build/tasks/tests/instrumentation_test_list.mk")
     elif version in ["15"]:
