@@ -307,7 +307,7 @@ def disable_build_tests(version: str, base_path: str, dry_run: bool = False, ver
     if dry_run:
         print(f"--- DRY RUN changes file: {path} ---")
         return
-    modify_file(path, r"^\s*#?TvSystemUITests \\", r"#TvSystemUITests \\", flags=0, dry_run=dry_run, verbose=verbose)
+    modify_file(path, r"TvSystemUITests \\", r"#TvSystemUITests \\", flags=0, dry_run=dry_run, verbose=verbose)
 
 
 def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
