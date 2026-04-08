@@ -436,6 +436,8 @@ ifeq ($(FORCE_AUDIO_SILENT), true)
     PRODUCT_SYSTEM_PROPERTIES += ro.audio.silent=1
 endif
 
+# pbtombstone \
+
 # Host tools to install
 PRODUCT_HOST_PACKAGES += \
     BugReport \
@@ -457,7 +459,6 @@ PRODUCT_HOST_PACKAGES += \
     lpdump \
     mke2fs \
     mkfs.erofs \
-    pbtombstone \
     resize2fs \
     sgdisk \
     sqlite3 \
