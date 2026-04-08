@@ -59,7 +59,13 @@ WORKDIR /android
 RUN wget https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip
 RUN unzip commandlinetools-mac-11076708_latest.zip  -d /android/tmp
 RUN mv /android/tmp/cmdline-tools/* /android/sdk/cmdline-tools/latest/
-RUN apt install -y android-sdk-platform-tools
+# Install android platform-tools with retry wrapper
+RUN set -eux; \
+    retry_cmd() { n=0; until "$@"; do n=$((n+1)); echo "Attempt $n/${APT_RETRIES} failed for: $*"; if [ $n -ge ${APT_RETRIES} ]; then echo "Giving up on: $*"; return 1; fi; sleep 5; done; }; \
+    apt-get update -o Acquire::Retries=${APT_RETRIES}; \
+    retry_cmd apt-get install -y --no-install-recommends android-sdk-platform-tools; \
+    rm -rf /var/lib/apt/lists/*; \
+    apt-get clean
 RUN cp /usr/lib/android-sdk/platform-tools/* /android/sdk/platform-tools/
 
 ENV ANDROID_HOME=/android/sdk
@@ -88,7 +94,12 @@ COPY ./emulator/avd/ /android/sdk/avd/
 ################################
 # Install and configure SSH and fail2ban packages (do NOT start services at build time)
 ################################
-RUN apt-get update && apt-get install -y --no-install-recommends openssh-server fail2ban
+RUN set -eux; \
+    retry_cmd() { n=0; until "$@"; do n=$((n+1)); echo "Attempt $n/${APT_RETRIES} failed for: $*"; if [ $n -ge ${APT_RETRIES} ]; then echo "Giving up on: $*"; return 1; fi; sleep 5; done; }; \
+    apt-get update -o Acquire::Retries=${APT_RETRIES}; \
+    retry_cmd apt-get install -y --no-install-recommends openssh-server fail2ban; \
+    rm -rf /var/lib/apt/lists/*; \
+    apt-get clean
 RUN mkdir /var/run/sshd
 RUN mkdir -p /root/.ssh && \
     touch /root/.ssh/authorized_keys && \
