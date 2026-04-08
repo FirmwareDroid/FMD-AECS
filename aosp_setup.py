@@ -395,6 +395,19 @@ def disable_cleango(version: str, base_path: str, dry_run: bool = False, verbose
     modify_file(testgo, r"dir, err := ioutil.TempDir\(\"\", \"testcleanoldfiles\"\)", replacement2, flags=re.DOTALL, dry_run=dry_run, verbose=verbose)
 
 
+def disable_dex_preopt(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
+    print(f"--- Disable WITH_DEXPREOPT ---")
+    if version not in ["14"]:
+        return
+    path = os.path.join(base_path, "build/make/core/board_config.mk")
+    replacement = "WITH_DEXPREOPT := false\n"
+    if dry_run:
+        print(f"--- Disable Dex Preopt by adding WITH_DEXPREOPT := false to {path} ---")
+        return
+    modify_file(path, r"WITH_DEXPREOPT := true", replacement, flags=0, dry_run=dry_run, verbose=verbose)
+
+
+
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="AOSP repository tweaks and helpers")
     parser.add_argument(
@@ -499,6 +512,7 @@ def main(args: argparse.Namespace):
     disable_build_tests(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
     disable_avatarpicker(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
     disable_eyedropper(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
+    disable_dex_preopt(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
 
 
 if __name__ == "__main__":
