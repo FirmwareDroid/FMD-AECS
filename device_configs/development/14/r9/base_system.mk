@@ -404,10 +404,11 @@ ifeq ($(FORCE_AUDIO_SILENT), true)
 endif
 
 # Host tools to install
+# adevice \
+
 PRODUCT_HOST_PACKAGES += \
     BugReport \
     adb \
-    adevice \
     art-tools \
     atest \
     bcc \
