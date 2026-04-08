@@ -309,6 +309,34 @@ def disable_build_tests(version: str, base_path: str, dry_run: bool = False, ver
         return
     modify_file(path, r"TvSystemUITests \\", r"#TvSystemUITests \\", flags=0, dry_run=dry_run, verbose=verbose)
 
+def disable_avatarpicker(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
+    """Comment out Avatarpicker """
+    print(f"--- Disable Platform Avatarpicker ---")
+    if version in ["15"]:
+        path = os.path.join(base_path, "build/make/target/product/generic_system.mk")
+        path2 = os.path.join(base_path, "device/google/cuttlefish/system_image/Android.bp")
+    else:
+        return
+    if dry_run:
+        print(f"--- DRY RUN changes file: {path} ---")
+        return
+    modify_file(path, r"AvatarPicker", r"#AvatarPicker", flags=0, dry_run=dry_run, verbose=verbose)
+    modify_file(path2, r'"AvatarPicker"', r'//"AvatarPicker"', flags=0, dry_run=dry_run, verbose=verbose)
+
+
+def disable_eyedropper(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
+    """Comment out EyeDropper """
+    print(f"--- Disable EyeDropper ---")
+    if version in ["16"]:
+        path = os.path.join(base_path, "build/make/target/product/generic/Android.bp")
+    else:
+        return
+    if dry_run:
+        print(f"--- DRY RUN changes file: {path} ---")
+        return
+    # Comment out the EyeDropper entry (replace "EyeDropper" with #"EyeDropper")
+    modify_file(path, r'"EyeDropper"', r'// EyeDropper"', flags=0, dry_run=dry_run, verbose=verbose)
+
 
 def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Generate missing testcert keys for DNSResolver APEX and extract public key using avbtool if available."""
