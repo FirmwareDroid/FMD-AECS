@@ -304,6 +304,9 @@ def disable_build_tests(version: str, base_path: str, dry_run: bool = False, ver
         path = os.path.join(base_path, "platform_testing/Android.bp")
     else:
         return
+    if dry_run:
+        print(f"--- DRY RUN changes file: {path} ---")
+        return
     modify_file(path, r"^\s*#?TvSystemUITests \\", r"#TvSystemUITests \\", flags=0, dry_run=dry_run, verbose=verbose)
 
 
