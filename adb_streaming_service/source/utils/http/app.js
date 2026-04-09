@@ -143,14 +143,15 @@ class App {
 					this.token = token;
 					message = `Server is listening on: ${this.protocol}://${this.host}:${this.port} 🔥`;
 					this.logger.info(message);
-					// this.shutdownHandler();
 					resolve(token);
+					this.shutdownHandler();
 				}
 			});
 		});
 	}
 
 	shutdownHandler() {
+		// On Windows, readline is needed to translate Ctrl-C into SIGINT
 		if (process.platform === "win32") {
 			const rl = readline.createInterface({
 				input: process.stdin,
@@ -164,50 +165,35 @@ class App {
 				this.logger.info("SIGTERM");
 				process.emit("SIGTERM");
 			});
-			rl.on("SIGUSR2", () => {
-				this.logger.info("SIGUSR2");
-				process.emit("SIGUSR2");
+		}
+
+		// Only intercept orderly termination signals — never catch program errors
+		// (SIGABRT, SIGSEGV, SIGILL, SIGFPE, SIGBUS) because they indicate corrupt
+		// process state and must be allowed to produce a core dump / non-zero exit.
+		const signals = ["SIGHUP", "SIGINT", "SIGQUIT", "SIGTERM"];
+		for (const sig of signals) {
+			process.once(sig, async () => {
+				this.logger.info(`Received ${sig} — initiating graceful shutdown…`);
+				try {
+					await this.stop();
+				} catch (e) {
+					this.logger.error("Graceful shutdown error", e);
+				}
+				this.logger.info("Graceful shutdown complete");
+				process.exit(0);
 			});
 		}
-		const signals = [
-			"beforeExit",
-			"uncaughtException",
-			"unhandledRejection",
-			"SIGHUP",
-			"SIGINT",
-			"SIGQUIT",
-			"SIGILL",
-			"SIGTRAP",
-			"SIGABRT",
-			"SIGBUS",
-			"SIGFPE",
-			"SIGUSR1",
-			"SIGSEGV",
-			"SIGUSR2",
-			"SIGTERM",
-		];
-		// biome-ignore lint/complexity/noForEach: <explanation>
-		signals.forEach((evt) =>
-			process.on(evt, async (evtOrExitCodeOrError) => {
-				try {
-					await this.stop();
-				} catch (e) {
-					this.logger.error("EXIT HANDLER ERROR", e);
-				}
-				this.logger.info("Graceful shutdown was successful");
-				process.exit(
-					Number.isNaN(+evtOrExitCodeOrError) ? 0 : +evtOrExitCodeOrError,
-				);
-			}),
-		);
+
+		// PM2 cluster shutdown message
 		process.on("message", async (msg) => {
 			if (msg === "shutdown") {
+				this.logger.info("PM2 shutdown message received — initiating graceful shutdown…");
 				try {
 					await this.stop();
 				} catch (e) {
-					this.logger.error("EXIT HANDLER ERROR", e);
+					this.logger.error("Graceful shutdown error (PM2)", e);
 				}
-				this.logger.info("Graceful shutdown was successful");
+				this.logger.info("Graceful shutdown complete");
 				process.exit(0);
 			}
 		});

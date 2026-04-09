@@ -69,8 +69,9 @@ export function normalizeScrollPayload(user, payload) {
         const normX = videoWidth > 0 ? scrollX / videoWidth : 0;
         const normY = videoHeight > 0 ? scrollY / videoHeight : 0;
         const clamp = (v) => Math.max(-1, Math.min(1, v));
-        const finalScrollX = Number(clamp(-normX));
-        const finalScrollY = Number(clamp(-normY));
+        // Add 0 to normalise IEEE-754 negative-zero (-0) to plain 0
+        const finalScrollX = Number(clamp(-normX)) + 0;
+        const finalScrollY = Number(clamp(-normY)) + 0;
 
         return {
             pointerId,
