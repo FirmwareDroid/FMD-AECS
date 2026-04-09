@@ -203,7 +203,6 @@ setup_port_forwarding
 setup_pulse_audio
 setup_logger_forwarding
 
-#/android/sdk/platform-tools/adb -a -P 5037 start-server &
 /android/sdk/platform-tools/adb -a -P 5037 nodaemon server &
 PIDS+=($!)
 
@@ -230,126 +229,9 @@ if [[ $ENABLE_TCPDUMP -eq 1 ]]; then
   fi
 fi
 
-
 # Launch emulator in background (single-run)
 echo "Starting emulator in background (logs -> $LOG_DIR/emulator_${AVD}.log)"
 # Redirect emulator stdout/stderr to a log file under LOG_DIR for diagnostics
 # shellcheck disable=SC2086
 ${EMU_CMD[@]} >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
 emulator_pid=$!
-
-# wait for emulator to stop; when it does, capture its exit status so we
-# can log whether it stopped cleanly or was terminated by a signal.
-# Monitor the emulator runtime. The wrapper `/android/sdk/emulator/emulator`
-# may spawn a long-running qemu child and then exit; waiting on the wrapper
-# PID is therefore unreliable. Instead attempt to detect and monitor the
-# qemu subprocess (or other descendant) and poll until it exits. If we
-# cannot locate a qemu subprocess within a short timeout, fall back to
-# waiting on the wrapper process.
-{
-  QEMU_PID=""
-  FIND_DEADLINE=$((SECONDS+10))
-  # Try multiple heuristics to locate the qemu process spawned by the emulator
-  while [[ -z "$QEMU_PID" && SECONDS -lt $FIND_DEADLINE ]]; do
-    # 1) Immediate children of the wrapper
-    for c in $(pgrep -P "$emulator_pid" 2>/dev/null || true); do
-      cmd=$(ps -p "$c" -o comm= 2>/dev/null || true)
-      if [[ "$cmd" == *qemu* ]]; then
-        QEMU_PID=$c
-        break
-      fi
-    done
-
-    # 2) Global qemu-system processes (pick one that mentions the emulator or AVD)
-    if [[ -z "$QEMU_PID" ]]; then
-      for c in $(pgrep -f 'qemu-system' 2>/dev/null || true); do
-        cmdline=$(ps -p "$c" -o args= 2>/dev/null || true)
-        if [[ "$cmdline" == *"$AVD"* || "$cmdline" == *qemu-system-* ]]; then
-          QEMU_PID=$c
-          break
-        fi
-      done
-    fi
-
-    sleep 0.5
-  done
-
-  if [[ -n "$QEMU_PID" ]]; then
-    echo "Monitoring qemu subprocess pid $QEMU_PID (emulator wrapper pid $emulator_pid)"
-    # Poll until the qemu process exits
-    while ps -p "$QEMU_PID" >/dev/null 2>&1; do
-      sleep 1
-    done
-    echo "qemu subprocess pid $QEMU_PID has exited."
-  else
-    echo "Could not locate qemu subprocess for wrapper pid $emulator_pid; falling back to waiting on wrapper."
-    wait "$emulator_pid"
-    EMU_EXIT_STATUS=$?
-    if [[ $EMU_EXIT_STATUS -eq 0 ]]; then
-      echo "Emulator wrapper process (pid $emulator_pid) exited normally (exit code 0)."
-    else
-      if [[ $EMU_EXIT_STATUS -gt 128 ]]; then
-        SIG=$((EMU_EXIT_STATUS - 128))
-        if [[ $SIG -eq 11 ]]; then
-          echo "Emulator wrapper (pid $emulator_pid) terminated by SIGSEGV (segmentation fault). (exit status $EMU_EXIT_STATUS)"
-          COREFILES=(core core.* "core.$emulator_pid" "core.$AVD")
-          COREFOUND=0
-          for cf in "${COREFILES[@]}"; do
-            if ls "$cf" >/dev/null 2>&1; then
-              echo "Found core file: $cf"
-              COREFOUND=1
-              break
-            fi
-          done
-          if [[ $COREFOUND -eq 0 ]]; then
-            echo "No core file found in $(pwd). Core dumps may be disabled (check 'ulimit -c')."
-            ulimit -c || true
-          fi
-        else
-          echo "Emulator wrapper (pid $emulator_pid) terminated by signal $SIG (exit status $EMU_EXIT_STATUS)."
-        fi
-      else
-        echo "Emulator wrapper (pid $emulator_pid) stopped with exit code $EMU_EXIT_STATUS."
-      fi
-    fi
-  fi
-
-  # ensure block returns success so the catch branch runs only on unexpected failures
-  true
-} || {
-  CATCH_RC=$?
-  echo "Unexpected error while monitoring emulator/qemu processes (emulator pid $emulator_pid). return=$CATCH_RC"
-  echo "Attempting diagnostics..."
-  if ps -p "$emulator_pid" >/dev/null 2>&1; then
-    echo "Emulator wrapper process (pid $emulator_pid) still exists according to ps."
-  else
-    echo "Emulator wrapper process (pid $emulator_pid) not found by ps. It may have exited abruptly."
-  fi
-  if command -v dmesg >/dev/null 2>&1; then
-    echo "--- last dmesg (tail 40) ---"
-    dmesg | tail -n 40 || true
-  fi
-  echo "Looking for qemu/core files in $(pwd):"
-  ls -l core* 2>/dev/null || echo "(no core files found)"
-  pgrep -a qemu-system || true
-}
-
-echo "Emulator crashed or exited, stopping subprocesses and exiting..."
-# Stop tcpdump associated with this emulator run
-if [[ $ENABLE_TCPDUMP -eq 1 && -x "$BASEDIR/tcpdump.sh" ]]; then
-  "$BASEDIR/tcpdump.sh" stop >/dev/null 2>&1 || true
-fi
-# cleanup iteration processes but keep trap active for signals
-if [[ ${#PIDS[@]} -gt 0 ]]; then
-  kill -TERM "${PIDS[@]}" 2>/dev/null || true
-  sleep 1
-  kill -KILL "${PIDS[@]}" 2>/dev/null || true
-fi
-
-# ensure emulator pid cleared
-emulator_pid=0
-
-# Single-run behavior: stop subprocesses and exit (do not restart emulator)
-echo "Exiting after single run."
-exit 0
-
