@@ -340,7 +340,7 @@ def get_emulator_image_path(aosp_path, lunch_target, aosp_version):
     elif aosp_version in ["14", "15", "16"]:
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A, AOSP_EMU_ZIP_FILENAME)
 
-    if not os.path.exists(image_source_path):
+    if not image_source_path or not os.path.exists(image_source_path):
         raise RuntimeError(f"Could not find image zip file: {image_source_path}. Something went wrong.")
 
     return image_source_path
