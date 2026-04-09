@@ -52,6 +52,17 @@ done
 
 BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Centralize all runtime logs under BASEDIR/out/logs instead of /tmp
+# Create the log directory early so subsequent echo output can be captured.
+LOG_DIR="$BASEDIR/out/logs"
+mkdir -p "$LOG_DIR"
+chmod -R 777 "$LOG_DIR" 2>/dev/null || true
+# Script-wide logfile (captures all stdout/stderr from this script while
+# still printing to the console). We use process substitution with tee so
+# normal console output is preserved and a persistent copy is kept.
+LOGFILE="$LOG_DIR/emulator_start.log"
+exec > >(tee -a "$LOGFILE") 2> >(tee -a "$LOGFILE" >&2)
+
 # Ensure SSL keylog file so TLS keys from processes that honor SSLKEYLOGFILE
 # (e.g. BoringSSL/OpenSSL-based apps) are written to a persistent file. We
 # place it under BASEDIR/pcaps so it lives with captures.
@@ -64,10 +75,6 @@ chmod 777 "$SSLKEYFILE" 2>/dev/null || true
 export SSLKEYLOGFILE="$SSLKEYFILE"
 echo "SSLKEYLOGFILE set -> $SSLKEYLOGFILE"
 
-# Centralize all runtime logs under BASEDIR/out/logs instead of /tmp
-LOG_DIR="$BASEDIR/out/logs"
-mkdir -p "$LOG_DIR"
-chmod -R 777 "$LOG_DIR" 2>/dev/null || true
 echo "Log directory set -> $LOG_DIR"
 chmod -R 777 "/tmp/"
 
@@ -205,91 +212,97 @@ setup_stop_existing_emulator
 
 architecture=$(uname -m)
 
-while true; do
-  # reset iteration PIDs so we only track processes started for this run
-  PIDS=()
+# Single-run mode: perform setup and start emulator once
+# reset iteration PIDs so we only track processes started for this run
+PIDS=()
 
-  setup_port_forwarding
-  setup_pulse_audio
-  setup_logger_forwarding
+setup_port_forwarding
+setup_pulse_audio
+setup_logger_forwarding
 
-  #/android/sdk/platform-tools/adb -a -P 5037 start-server &
-  /android/sdk/platform-tools/adb -a -P 5037 nodaemon server &
-  PIDS+=($!)
+#/android/sdk/platform-tools/adb -a -P 5037 start-server &
+/android/sdk/platform-tools/adb -a -P 5037 nodaemon server &
+PIDS+=($!)
 
-  if [[ $architecture == "x86_64" ]]; then
-    AVD="x86_64"
-    # Prepare command for emulator (fallback: write logs to persistent files)
-    EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -logcat-output "$REAL_LOGCAT_LOG" -shell-serial "file:$REAL_KERNEL_LOG" -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1")
-  elif [[ $architecture == "aarch64" ]]; then
-    AVD="Arm64"
-    # Prepare command for emulator (fallback: write logs to persistent files)
-    EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "$REAL_LOGCAT_LOG" -shell-serial "file:$REAL_KERNEL_LOG" -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max)
+if [[ $architecture == "x86_64" ]]; then
+  AVD="x86_64"
+  # Prepare command for emulator (fallback: write logs to persistent files)
+  EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -wipe-data -show-kernel -logcat-output "$REAL_LOGCAT_LOG" -shell-serial "file:$REAL_KERNEL_LOG" -gpu swiftshader_indirect -turncfg "${TURN}" -qemu -append "panic=1")
+elif [[ $architecture == "aarch64" ]]; then
+  AVD="Arm64"
+  # Prepare command for emulator (fallback: write logs to persistent files)
+  EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "$REAL_LOGCAT_LOG" -shell-serial "file:$REAL_KERNEL_LOG" -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max)
+else
+  echo "Unsupported architecture"
+  cleanup
+fi
+# Start tcpdump capture on host once emulator is launched. Use a pcaps subdir next to this script.
+if [[ $ENABLE_TCPDUMP -eq 1 ]]; then
+  if [[ -x "$BASEDIR/tcpdump.sh" ]]; then
+    echo "Starting tcpdump helper to capture emulator traffic..."
+    # start will wait for adb boot completion inside tcpdump.sh; provide outdir under emulator/pcaps
+    "$BASEDIR/tcpdump.sh" start "$BASEDIR/pcaps" >/dev/null 2>&1 || true
   else
-    echo "Unsupported architecture"
-    cleanup
+    echo "tcpdump helper not found at $BASEDIR/tcpdump.sh; skipping tcpdump start." >&2
   fi
-  # Start tcpdump capture on host once emulator is launched. Use a pcaps subdir next to this script.
-  if [[ $ENABLE_TCPDUMP -eq 1 ]]; then
-    if [[ -x "$BASEDIR/tcpdump.sh" ]]; then
-      echo "Starting tcpdump helper to capture emulator traffic..."
-      # start will wait for adb boot completion inside tcpdump.sh; provide outdir under emulator/pcaps
-      "$BASEDIR/tcpdump.sh" start "$BASEDIR/pcaps" >/dev/null 2>&1 || true
+fi
+
+# Launch emulator either attached to this terminal (foreground) or as background process
+if [[ $ATTACH -eq 1 ]]; then
+  echo "Starting emulator attached to this terminal (logs also written to $LOG_DIR/emulator_${AVD}.log)"
+  # Run emulator in foreground and tee its output to the log file
+  # shellcheck disable=SC2086
+  ${EMU_CMD[@]} 2>&1 | tee "$LOG_DIR/emulator_${AVD}.log"
+  # When the pipeline exits, emulator has stopped. Capture the emulator
+  # process exit status from PIPESTATUS[0] so we can log a clear message.
+  EMU_EXIT_STATUS=${PIPESTATUS[0]:-0}
+  if [[ $EMU_EXIT_STATUS -eq 0 ]]; then
+    echo "Emulator process exited normally (exit code 0)."
+  else
+    if [[ $EMU_EXIT_STATUS -gt 128 ]]; then
+      SIG=$((EMU_EXIT_STATUS - 128))
+      echo "Emulator process terminated by signal $SIG (exit status $EMU_EXIT_STATUS)."
     else
-      echo "tcpdump helper not found at $BASEDIR/tcpdump.sh; skipping tcpdump start." >&2
+      echo "Emulator process stopped with exit code $EMU_EXIT_STATUS."
     fi
   fi
-
-  # Launch emulator either attached to this terminal (foreground) or as background process
-  if [[ $ATTACH -eq 1 ]]; then
-    echo "Starting emulator attached to this terminal (logs also written to $LOG_DIR/emulator_${AVD}.log)"
-    # Run emulator in foreground and tee its output to the log file
-    # shellcheck disable=SC2086
-    ${EMU_CMD[@]} 2>&1 | tee "$LOG_DIR/emulator_${AVD}.log"
-    # When the pipeline exits, emulator has stopped. No background pid to wait on.
+else
+  echo "Starting emulator in background (logs -> $LOG_DIR/emulator_${AVD}.log)"
+  # Redirect emulator stdout/stderr to a log file under LOG_DIR for diagnostics
+  # shellcheck disable=SC2086
+  ${EMU_CMD[@]} >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
+  emulator_pid=$!
+  # wait for emulator to stop; when it does, capture its exit status so we
+  # can log whether it stopped cleanly or was terminated by a signal.
+  wait "$emulator_pid"
+  EMU_EXIT_STATUS=$?
+  if [[ $EMU_EXIT_STATUS -eq 0 ]]; then
+    echo "Emulator process (pid $emulator_pid) exited normally (exit code 0)."
   else
-    echo "Starting emulator in background (logs -> $LOG_DIR/emulator_${AVD}.log)"
-    # Redirect emulator stdout/stderr to a log file under LOG_DIR for diagnostics
-    # shellcheck disable=SC2086
-    ${EMU_CMD[@]} >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
-    emulator_pid=$!
-    # wait for emulator to stop; when it does, kill the iteration subprocesses and restart
-    wait "$emulator_pid" 2>/dev/null || true
-  fi
-
-  echo "Emulator crashed or exited, stopping subprocesses and restarting..."
-  # Stop tcpdump associated with this emulator run
-  if [[ $ENABLE_TCPDUMP -eq 1 && -x "$BASEDIR/tcpdump.sh" ]]; then
-    "$BASEDIR/tcpdump.sh" stop >/dev/null 2>&1 || true
-  fi
-  # cleanup iteration processes but keep trap active for signals
-  if [[ ${#PIDS[@]} -gt 0 ]]; then
-    kill -TERM "${PIDS[@]}" 2>/dev/null || true
-    sleep 1
-    kill -KILL "${PIDS[@]}" 2>/dev/null || true
-  fi
-
-  # If re-exec requested, clean up and re-exec this script attaching to current console
-  if [[ $REEXEC -eq 1 ]]; then
-    echo "Re-exec requested: cleaning up iteration and restarting attached to this console..."
-    cleanup_iteration
-    # Ensure --attach is present in args for the restarted instance
-    NEW_ARGS=("${ORIG_ARGS[@]}")
-    HAS_ATTACH=0
-    for a in "${NEW_ARGS[@]}"; do
-      if [[ "$a" == "--attach" || "$a" == "--attach-reexec" ]]; then
-        HAS_ATTACH=1
-        break
-      fi
-    done
-    if [[ $HAS_ATTACH -eq 0 ]]; then
-      NEW_ARGS+=("--attach")
+    if [[ $EMU_EXIT_STATUS -gt 128 ]]; then
+      SIG=$((EMU_EXIT_STATUS - 128))
+      echo "Emulator process (pid $emulator_pid) terminated by signal $SIG (exit status $EMU_EXIT_STATUS)."
+    else
+      echo "Emulator process (pid $emulator_pid) stopped with exit code $EMU_EXIT_STATUS."
     fi
-    exec "$0" "${NEW_ARGS[@]}"
   fi
+fi
 
-  # ensure emulator pid cleared
-  emulator_pid=0
+echo "Emulator crashed or exited, stopping subprocesses and restarting..."
+# Stop tcpdump associated with this emulator run
+if [[ $ENABLE_TCPDUMP -eq 1 && -x "$BASEDIR/tcpdump.sh" ]]; then
+  "$BASEDIR/tcpdump.sh" stop >/dev/null 2>&1 || true
+fi
+# cleanup iteration processes but keep trap active for signals
+if [[ ${#PIDS[@]} -gt 0 ]]; then
+  kill -TERM "${PIDS[@]}" 2>/dev/null || true
+  sleep 1
+  kill -KILL "${PIDS[@]}" 2>/dev/null || true
+fi
 
-  sleep 10
-done
+# ensure emulator pid cleared
+emulator_pid=0
+
+# Single-run behavior: stop subprocesses and exit (do not restart emulator)
+echo "Exiting after single run."
+exit 0
