@@ -43,32 +43,6 @@ class AdbShellService {
     return result;
   }
 
-    const log = {
-      logs: [],
-      errors: [],
-      finished: false,
-    };
-    const result = await new Promise((resolve, reject) => {
-      const child = spawn("adb", commandArgs);
-      child.stdout.on("data", (data) => {
-        const msg = data.toString();
-        log.logs.push(msg);
-      });
-      child.stderr.on("data", (data) => {
-        const msg = data.toString();
-        logger.error(msg);
-        log.errors.push(msg);
-        reject(log);
-      });
-      child.on("exit", () => {
-        logger.info("INSTALL FINISHED!");
-        log.finished = true;
-        resolve(log);
-      });
-    });
-    return result;
-  }
-
   async installMultiple(
     app = "de.heinekingmedia.stashcat.apkm",
     device = null,
