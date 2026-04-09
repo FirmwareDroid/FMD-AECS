@@ -272,20 +272,58 @@ else
   # shellcheck disable=SC2086
   ${EMU_CMD[@]} >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
   emulator_pid=$!
-  # wait for emulator to stop; when it does, capture its exit status so we
-  # can log whether it stopped cleanly or was terminated by a signal.
-  wait "$emulator_pid"
-  EMU_EXIT_STATUS=$?
-  if [[ $EMU_EXIT_STATUS -eq 0 ]]; then
-    echo "Emulator process (pid $emulator_pid) exited normally (exit code 0)."
-  else
-    if [[ $EMU_EXIT_STATUS -gt 128 ]]; then
-      SIG=$((EMU_EXIT_STATUS - 128))
-      echo "Emulator process (pid $emulator_pid) terminated by signal $SIG (exit status $EMU_EXIT_STATUS)."
-    else
-      echo "Emulator process (pid $emulator_pid) stopped with exit code $EMU_EXIT_STATUS."
-    fi
-  fi
+    # wait for emulator to stop; when it does, capture its exit status so we
+    # can log whether it stopped cleanly or was terminated by a signal.
+    # Run this in a block and catch unexpected failures (try/catch-like).
+    {
+      wait "$emulator_pid"
+      EMU_EXIT_STATUS=$?
+      if [[ $EMU_EXIT_STATUS -eq 0 ]]; then
+        echo "Emulator process (pid $emulator_pid) exited normally (exit code 0)."
+      else
+        if [[ $EMU_EXIT_STATUS -gt 128 ]]; then
+          SIG=$((EMU_EXIT_STATUS - 128))
+          # If SIG is 11 (SIGSEGV), provide extra diagnostics and check for core files
+          if [[ $SIG -eq 11 ]]; then
+            echo "Emulator process (pid $emulator_pid) terminated by SIGSEGV (segmentation fault). (exit status $EMU_EXIT_STATUS)"
+            COREFILES=(core core.* "core.$emulator_pid" "core.$AVD")
+            COREFOUND=0
+            for cf in "${COREFILES[@]}"; do
+              if ls "$cf" >/dev/null 2>&1; then
+                echo "Found core file: $cf"
+                COREFOUND=1
+                break
+              fi
+            done
+            if [[ $COREFOUND -eq 0 ]]; then
+              echo "No core file found in $(pwd). Core dumps may be disabled (check 'ulimit -c')."
+              ulimit -c || true
+            fi
+          else
+            echo "Emulator process (pid $emulator_pid) terminated by signal $SIG (exit status $EMU_EXIT_STATUS)."
+          fi
+        else
+          echo "Emulator process (pid $emulator_pid) stopped with exit code $EMU_EXIT_STATUS."
+        fi
+      fi
+      # ensure block returns success so the catch branch runs only on unexpected failures
+      true
+    } || {
+      CATCH_RC=$?
+      echo "Unexpected error while waiting for emulator process (pid $emulator_pid). return=$CATCH_RC"
+      echo "Attempting diagnostics..."
+      if ps -p "$emulator_pid" >/dev/null 2>&1; then
+        echo "Emulator process (pid $emulator_pid) still exists according to ps."
+      else
+        echo "Emulator process (pid $emulator_pid) not found by ps. It may have exited abruptly."
+      fi
+      if command -v dmesg >/dev/null 2>&1; then
+        echo "--- last dmesg (tail 40) ---"
+        dmesg | tail -n 40 || true
+      fi
+      echo "Looking for core files in $(pwd):"
+      ls -l core* 2>/dev/null || echo "(no core files found)"
+    }
 fi
 
 echo "Emulator crashed or exited, stopping subprocesses and restarting..."

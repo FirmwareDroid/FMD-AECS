@@ -15,6 +15,7 @@ services:
 
   envoy:
     platform: {{ platform }}
+    container_name: envoy
     image: envoyproxy/envoy:v1.27-latest
     restart: unless-stopped
     command: /docker-entrypoint-initdb.d/init_envoy.sh
@@ -95,6 +96,7 @@ services:
 
   coturn:
     platform: {{ platform }}
+    container_name: coturn
     image: coturn/coturn
     restart: unless-stopped
     volumes:
