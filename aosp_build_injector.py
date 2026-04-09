@@ -333,6 +333,10 @@ def get_emulator_image_path(aosp_path, lunch_target, aosp_version):
                 image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
     elif aosp_version == "13":
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
+    elif aosp_version in ["14"]:
+        image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A, AOSP_EMU_ZIP_FILENAME)
+        if not os.path.exists(image_source_path):
+            image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_EMU_ZIP_FILENAME_A12_A13)
     elif aosp_version in ["14", "15", "16"]:
         image_source_path = os.path.join(aosp_path, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A, AOSP_EMU_ZIP_FILENAME)
 
