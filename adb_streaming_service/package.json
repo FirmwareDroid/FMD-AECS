@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Not Implemented\" && exit 1"
+    "test": "node --experimental-vm-modules --test source/tests/*.test.js"
   },
   "author": "Thomas Sutter",
   "license": "MIT",

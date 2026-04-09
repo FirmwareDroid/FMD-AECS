@@ -11,6 +11,19 @@ import {global} from "./state/global.js";
 import App from "./utils/http/app.js";
 import {routes} from "./routes/index.js";
 import {cors} from "./utils/http/middie/cors.js";
+import {serializeError} from "./utils/error.js";
+import {withTimeout} from "./utils/timeout.js";
+import {
+    isAuthEnabled,
+    validateBasicAuthHeader,
+    getAuthHeaderFromRequest,
+    requireAuthForHttp,
+    requireAuthForUpgrade,
+    httpAuthMiddleware,
+} from "./utils/auth.js";
+import {normalizeTouchPayload, fallbackNormalizePayload} from "./utils/normalizers/touch.js";
+import {normalizeScrollPayload} from "./utils/normalizers/scroll.js";
+import {validateAudioPacket, extractAudioBuffer} from "./utils/normalizers/audio.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -74,6 +87,7 @@ if (!envFile) {
 loadEnvFile(envFile);
 
 // Now that env vars are loaded, dynamically import logger and adb-tcp-service so they pick up env values
+let evictPushedSerial = () => {}; // will be replaced after import
 try {
     const loggerModule = await import("./services/logger.js");
     logger = loggerModule.logger;
@@ -81,6 +95,9 @@ try {
     logger.info(`Env values: SSL=${process.env.SSL} AUTH_ENABLED=${process.env.AUTH_ENABLED} PORT=${process.env.PORT} HOST=${process.env.HOST}`);
     const adbModule = await import("./services/adb/adb-tcp-service.js");
     adbTcpService = adbModule.service;
+    if (typeof adbModule.evictPushedSerial === 'function') {
+        evictPushedSerial = adbModule.evictPushedSerial;
+    }
 } catch (e) {
     console.error('Failed to initialize logger or adb service after loading env:', e);
     throw e;
@@ -118,38 +135,6 @@ const msgpackOptions = {
 const packer = new Packr(msgpackOptions);
 const unpacker = new Unpackr(msgpackOptions);
 
-// Serialize Error objects (including non-enumerable properties) into plain objects
-function serializeError(err) {
-    if (!err) return null;
-    try {
-        const out = {
-            name: err.name || 'Error',
-            message: err.message || String(err),
-            stack: err.stack || null,
-        };
-        // include other own properties (e.g., code, errno, cause)
-        for (const k of Object.getOwnPropertyNames(err)) {
-            if (k === 'name' || k === 'message' || k === 'stack') continue;
-            try {
-                out[k] = err[k];
-            } catch (e) {
-                out[k] = `unserializable(${String(e)})`;
-            }
-        }
-        // if err has a cause that's an Error, include it serialized
-        if (err.cause && typeof err.cause === 'object') {
-            try {
-                out.cause = serializeError(err.cause);
-            } catch (e) {
-                out.cause = String(err.cause);
-            }
-        }
-        return out;
-    } catch (e) {
-        return {name: 'Error', message: String(err), stack: err && err.stack ? err.stack : null};
-    }
-}
-
 const host = process.env.HOST || "0.0.0.0";
 const port = process.env.PORT || 9001;
 const sslEnabled = process.env.SSL === "true" || process.env.SSL === "1";
@@ -173,101 +158,6 @@ if (sslEnabled) {
 }
 
 global.users = new Map();
-
-// Simple Basic auth helper
-function isAuthEnabled() {
-    return (process.env.AUTH_ENABLED === "true" || process.env.AUTH_ENABLED === "1");
-}
-
-// Accept header-like "Basic xxxx" or just the base64 payload; return true only if credentials match env
-function validateBasicAuthHeader(authHeader) {
-    if (!authHeader) return false;
-    let header = String(authHeader).trim();
-    // If it's just a base64 payload (no space, likely only [A-Za-z0-9+/=]), normalize to "Basic <payload>"
-    if (!header.includes(' ')) {
-        // ensure it looks like base64 (quick heuristic)
-        if (/^[A-Za-z0-9+/=]+$/.test(header)) {
-            header = `Basic ${header}`;
-        } else {
-            return false;
-        }
-    }
-    const parts = header.split(' ');
-    if (parts.length !== 2) return false;
-    const scheme = parts[0];
-    const payload = parts[1];
-    if (!/^Basic$/i.test(scheme)) return false;
-    let decoded;
-    try {
-        decoded = Buffer.from(payload, 'base64').toString('utf8');
-    } catch (e) {
-        return false;
-    }
-    const idx = decoded.indexOf(':');
-    if (idx === -1) return false;
-    const user = decoded.slice(0, idx);
-    const pass = decoded.slice(idx + 1);
-    const expectedUser = process.env.AUTH_USER || '';
-    const expectedPass = process.env.AUTH_PASS || '';
-    // simple constant time compare
-    return (user === expectedUser && pass === expectedPass);
-}
-
-// Extract/normalize an Authorization header value from multiple possible transports:
-//  - actual Authorization header
-//  - auth query parameter (either "Basic <base64>" or just "<base64>")
-//  - origin URL userinfo: wss://user:pass@host  (parses origin and builds Basic token)
-function getAuthHeaderFromRequest(req) {
-    try {
-        // header first
-        const h = req.getHeader ? (req.getHeader('authorization') || req.getHeader('Authorization')) : null;
-        if (h) return String(h).trim();
-
-        // query param next
-        try {
-            const q = req.getQuery ? req.getQuery('auth') : null;
-            if (q) {
-                let v = String(q).trim();
-                // If it's already "Basic ..." return as-is
-                if (/^\s*Basic\s+/i.test(v)) return v;
-                // If it looks like a base64 payload, normalize
-                if (/^[A-Za-z0-9+/=]+$/.test(v)) return `Basic ${v}`;
-                // If it was url-encoded "Basic%20..." allow decoding
-                try {
-                    const dec = decodeURIComponent(v);
-                    if (/^\s*Basic\s+/i.test(dec)) return dec;
-                } catch (_) {
-                }
-                // otherwise ignore
-            }
-        } catch (e) { /* ignore query parse errors */
-        }
-
-        // Finally, try to parse origin for userinfo (userinfo may be present: wss://user:pass@host)
-        try {
-            const origin = req.getHeader ? (req.getHeader('origin') || req.getHeader('Origin')) : null;
-            if (origin) {
-                // origin may contain ws/wss or http/https; use URL parser
-                try {
-                    const u = new URL(origin);
-                    if (u.username) {
-                        const user = decodeURIComponent(u.username);
-                        const pass = decodeURIComponent(u.password || '');
-                        const payload = Buffer.from(`${user}:${pass}`, 'utf8').toString('base64');
-                        return `Basic ${payload}`;
-                    }
-                } catch (e) {
-                    // origin might be a host-only string; ignore parse errors
-                }
-            }
-        } catch (e) { /* ignore */
-        }
-
-        return null;
-    } catch (e) {
-        return null;
-    }
-}
 
 // Helper to send packed bytes to a user's websocket safely.
 // Accepts user object (with .ws) and packed (Uint8Array/Buffer/ArrayBuffer).
@@ -323,191 +213,6 @@ function sendToUser(user, packed, allowCloseOnError = false) {
             try { console.error('sendToUser fallback error', e); } catch (_) {}
         }
         return false;
-    }
-}
-
-function requireAuthForHttp(res, req) {
-    if (!isAuthEnabled()) return true;
-    const authHeader = getAuthHeaderFromRequest(req) || req.getHeader && (req.getHeader('authorization') || req.getHeader('Authorization'));
-    if (validateBasicAuthHeader(authHeader)) return true;
-    res.writeStatus('401 Unauthorized');
-    res.writeHeader('WWW-Authenticate', 'Basic realm="FirmwareDroid"');
-    res.end('Unauthorized');
-    return false;
-}
-
-// HTTP middleware wrapper to be used with app.use(...) — enforces auth on all routes
-// except health endpoints (those under '/api/health'). This runs before route handlers.
-function httpAuthMiddleware(response, request) {
-    try {
-        // Allow preflight OPTIONS without auth
-        try {
-            if (request && request.route && String(request.route.method).toLowerCase() === 'options') return true;
-        } catch (e) {
-        }
-
-        // If auth is disabled, allow through
-        if (!isAuthEnabled()) return true;
-
-        // Allow unauthenticated access to health endpoints
-        try {
-            const routeUrl = request && request.route && request.route.url ? String(request.route.url) : null;
-            const reqUrl = request && typeof request.getUrl === 'function' ? request.getUrl() : null;
-            if (routeUrl && routeUrl.startsWith('/api/health')) return true;
-            if (reqUrl && String(reqUrl).startsWith('/api/health')) return true;
-        } catch (e) {
-            // ignore and fall through to auth check
-        }
-
-        // Delegate to existing low-level helper using raw uWS objects
-        return requireAuthForHttp(response.res, request.req);
-    } catch (e) {
-        try {
-            logger.error('httpAuthMiddleware error', e?.message || e);
-        } catch (ex) {
-        }
-        // On unexpected errors, deny access
-        try {
-            response.writeStatus('500 Internal Server Error');
-            response.end('Internal server error');
-        } catch (e) {
-        }
-        return false;
-    }
-}
-
-// WebSocket upgrade authentication helper — validates Basic auth on raw uWS req/res
-function requireAuthForUpgrade(res, req) {
-    try {
-        if (!isAuthEnabled()) return true;
-        // getAuthHeaderFromRequest works with objects exposing getHeader/getQuery (uWS HttpRequest has those)
-        const authHeader = getAuthHeaderFromRequest(req) || (req.getHeader && (req.getHeader('authorization') || req.getHeader('Authorization')));
-        if (validateBasicAuthHeader(authHeader)) return true;
-        // Deny the upgrade with a 401 response and the WWW-Authenticate header
-        try {
-            res.writeStatus('401 Unauthorized');
-            res.writeHeader('WWW-Authenticate', 'Basic realm="FirmwareDroid"');
-            res.end('Unauthorized');
-        } catch (e) {
-            // best-effort: if writing fails, just close the response
-            try {
-                res.close();
-            } catch (ee) {
-            }
-        }
-        return false;
-    } catch (e) {
-        try {
-            logger.error('requireAuthForUpgrade error', e?.message || e);
-        } catch (ex) {
-        }
-        try {
-            res.writeStatus('500 Internal Server Error');
-            res.end('Internal server error');
-        } catch (er) {
-        }
-        return false;
-    }
-}
-
-// Normalize scroll payload into scrcpy expected shape (scrollX/scrollY in [-1,1])
-function normalizeScrollPayload(user, payload) {
-    try {
-        if (!payload || typeof payload !== 'object') return null;
-        // prefer explicit device coords
-        const deviceX = payload.deviceX ?? payload.device_x ?? null;
-        const deviceY = payload.deviceY ?? payload.device_y ?? null;
-
-        // pointer coords (device space if provided)
-        let x = deviceX ?? payload.pointerX ?? payload.clientX ?? payload.client_x ?? payload.x ?? null;
-        let y = deviceY ?? payload.pointerY ?? payload.clientY ?? payload.client_y ?? payload.y ?? null;
-
-        // display/video size
-        let videoWidth = payload.displayWidth ?? payload.display_width ?? payload.screenWidth ?? payload.screen_width ?? (user && user.videoMetadata ? user.videoMetadata.width : null) ?? 1;
-        let videoHeight = payload.displayHeight ?? payload.display_height ?? payload.screenHeight ?? payload.screen_height ?? (user && user.videoMetadata ? user.videoMetadata.height : null) ?? 1;
-
-        // parse numbers
-        x = (typeof x === 'string') ? Number(x) : x;
-        y = (typeof y === 'string') ? Number(y) : y;
-        if (!isFinite(Number(x))) x = NaN;
-        if (!isFinite(Number(y))) y = NaN;
-
-        // try to infer coordinates from clientX/clientY if necessary
-        if ((x === null || Number.isNaN(x)) && (payload.clientX || payload.client_x)) {
-            const cx = payload.clientX ?? payload.client_x;
-            const cy = payload.clientY ?? payload.client_y;
-            if (typeof cx === 'number' && typeof cy === 'number' && user && user.videoMetadata) {
-                const metaW = user.clientWidth || user.videoMetadata.width || videoWidth;
-                const metaH = user.clientHeight || user.videoMetadata.height || videoHeight;
-                if (metaW > 0 && metaH > 0) {
-                    x = Math.round(cx * (videoWidth / metaW));
-                    y = Math.round(cy * (videoHeight / metaH));
-                }
-            }
-        }
-
-        if (!isFinite(x)) x = 0;
-        if (!isFinite(y)) y = 0;
-        x = Math.round(x);
-        y = Math.round(y);
-
-        // pointerId handling similar to touch normalizer
-        let pointerId = payload.pointerId ?? payload.pointer_id ?? payload.pid ?? payload.pointer ?? -2n;
-        try {
-            if (pointerId === null || typeof pointerId === 'undefined') pointerId = -2n;
-            else if (typeof pointerId === 'bigint') { /* ok */
-            } else if (typeof pointerId === 'number') pointerId = BigInt(Math.trunc(pointerId));
-            else if (typeof pointerId === 'string') {
-                const s = pointerId.trim().replace(/n$/i, '');
-                const num = Number(s);
-                pointerId = Number.isNaN(num) ? BigInt(-2) : BigInt(Math.trunc(num));
-            } else pointerId = BigInt(-2);
-        } catch (e) {
-            pointerId = BigInt(-2);
-        }
-
-        // scroll deltas: accept multiple names
-        let scrollX = payload.scrollX ?? payload.scroll_x ?? payload.deltaX ?? payload.delta_x ?? payload.amountX ?? payload.amount_x ?? 0;
-        let scrollY = payload.scrollY ?? payload.scroll_y ?? payload.deltaY ?? payload.delta_y ?? payload.amountY ?? payload.amount_y ?? 0;
-        scrollX = (typeof scrollX === 'string') ? Number(scrollX) : scrollX;
-        scrollY = (typeof scrollY === 'string') ? Number(scrollY) : scrollY;
-        if (!isFinite(Number(scrollX))) scrollX = 0;
-        if (!isFinite(Number(scrollY))) scrollY = 0;
-
-        // Convert pixel deltas into normalized floats in [-1,1]
-        videoWidth = Number(videoWidth) || 1;
-        videoHeight = Number(videoHeight) || 1;
-        const normX = videoWidth > 0 ? (scrollX / videoWidth) : 0;
-        const normY = videoHeight > 0 ? (scrollY / videoHeight) : 0;
-        const clamp = (v) => Math.max(-1, Math.min(1, v));
-        // NOTE: invert sign to match scrcpy expected scroll direction (pixel positive -> negative scroll in control protocol in many implementations)
-        const finalScrollX = Number(clamp(-normX));
-        const finalScrollY = Number(clamp(-normY));
-
-        return {
-            pointerId: pointerId,
-            pointerX: Number(x),
-            pointerY: Number(y),
-            x: Number(x),
-            y: Number(y),
-            scrollX: finalScrollX,
-            scrollY: finalScrollY,
-            scroll_x: finalScrollX,
-            scroll_y: finalScrollY,
-            hscroll: finalScrollX,
-            vscroll: finalScrollY,
-            deltaX: Number(scrollX) || 0,
-            deltaY: Number(scrollY) || 0,
-            // include optional metadata to assist controller implementations
-            buttons: Number(payload.buttons ?? payload.button ?? 0) || 0,
-            action: Number(payload.action ?? payload.type ?? 0) || 0,
-        };
-    } catch (e) {
-        try {
-            logger.debug('normalizeScrollPayload error', e?.message || e);
-        } catch (ex) {
-        }
-        return null;
     }
 }
 
@@ -1794,6 +1499,11 @@ const run = async () => {
                             }
                             user.abortController = undefined;
                         }
+                        // Evict the scrcpy-server push cache for this device so the next session re-validates
+                        try {
+                            const serial = user.device?.serial || user.device?.original || user.device;
+                            if (serial) evictPushedSerial(serial);
+                        } catch (e) { /* ignore */ }
                         user.ws = null;
                         global.users.delete(id);
                         if (user.client) {
@@ -1845,359 +1555,6 @@ const run = async () => {
 
     await app.start();
 };
-
-// Utility: await a promise with timeout
-function withTimeout(promiseOrFactory, ms = 5000, name = 'operation') {
-    // promiseOrFactory can be a Promise or a function returning a Promise
-    try {
-        const promise = (typeof promiseOrFactory === 'function') ? promiseOrFactory() : promiseOrFactory;
-        return Promise.race([
-            promise,
-            new Promise((_, reject) => setTimeout(() => reject(new Error(`${name} timed out after ${ms}ms`)), ms))
-        ]);
-    } catch (e) {
-        return Promise.reject(e);
-    }
-}
-
-// Normalize touch payload into ScrcpyInjectTouchControlMessage shape
-async function normalizeTouchPayload(user, payload) {
-    try {
-        if (!payload || typeof payload !== 'object') return null;
-        // New client fields: deviceX/deviceY are absolute device pixel coords
-        // displayWidth/displayHeight are the device display size
-        const deviceX = payload.deviceX ?? payload.device_x ?? null;
-        const deviceY = payload.deviceY ?? payload.device_y ?? null;
-        const rotation = (typeof payload.rotation !== 'undefined') ? Number(payload.rotation) : (typeof payload.rot !== 'undefined' ? Number(payload.rot) : null);
-
-        // accept many possible names for general coords
-        let x = deviceX ?? payload.x ?? payload.clientX ?? payload.cx ?? payload.posX ?? payload.pointerX ?? payload.pointer_x ?? payload.screenX ?? payload.screen_x;
-        let y = deviceY ?? payload.y ?? payload.clientY ?? payload.cy ?? payload.posY ?? payload.pointerY ?? payload.pointer_y ?? payload.screenY ?? payload.screen_y;
-
-        let action = payload.action ?? payload.type ?? payload.event ?? payload.actionButton ?? payload.actionType ?? null;
-        let pointerId = payload.pointerId ?? payload.pointer_id ?? payload.pid ?? payload.pointer ?? null;
-        let pressure = payload.pressure ?? payload.p ?? payload.force ?? 0.5;
-        let buttons = payload.buttons ?? payload.button ?? 1;
-
-        // prefer explicit display size fields
-        let videoWidth = payload.screenWidth ?? payload.screen_width ?? payload.displayWidth ?? payload.display_width ?? payload.deviceWidth ?? payload.device_width ?? payload.displayW ?? payload.width ?? payload.w ?? payload.videoWidth ?? payload.video_width ?? null;
-        let videoHeight = payload.screenHeight ?? payload.screen_height ?? payload.displayHeight ?? payload.display_height ?? payload.deviceHeight ?? payload.device_height ?? payload.displayH ?? payload.height ?? payload.h ?? payload.videoHeight ?? payload.video_height ?? null;
-
-        // normalize action if string
-        if (typeof action === 'string') {
-            const a = action.toLowerCase();
-            if (a.includes('down')) action = 0;
-            else if (a.includes('up')) action = 1;
-            else if (a.includes('move')) action = 2;
-            else action = Number(action) || 0;
-        } else {
-            action = Number(action) || 0;
-        }
-
-        // pointerId handling: accept BigInt, number, or string
-        if (pointerId === null || typeof pointerId === 'undefined') {
-            if (payload && typeof payload.source === 'string' && payload.source.toLowerCase().includes('mouse')) {
-                pointerId = -1n;
-            } else {
-                pointerId = -2n;
-            }
-        } else {
-            try {
-                if (typeof pointerId === 'bigint') {
-                    // ok
-                } else if (typeof pointerId === 'number') {
-                    pointerId = BigInt(Math.trunc(pointerId));
-                } else if (typeof pointerId === 'string') {
-                    const s = pointerId.trim().replace(/n$/i, '');
-                    const num = Number(s);
-                    if (!Number.isNaN(num)) pointerId = BigInt(Math.trunc(num));
-                    else pointerId = BigInt(-2);
-                } else {
-                    pointerId = BigInt(-2);
-                }
-            } catch (e) {
-                pointerId = BigInt(-2);
-            }
-        }
-
-        pressure = Number(pressure) || 0.5;
-        buttons = Number(buttons) || 1;
-
-        // parse coordinates early
-        x = (typeof x === 'string') ? Number(x) : x;
-        y = (typeof y === 'string') ? Number(y) : y;
-        x = Number(x);
-        y = Number(y);
-        if (!isFinite(x)) x = NaN;
-        if (!isFinite(y)) y = NaN;
-
-        // If video size not provided or zero, try to obtain it from stored metadata or client
-        if ((!videoWidth || !videoHeight) || Number(videoWidth) === 0 || Number(videoHeight) === 0) {
-            try {
-                if (user && user.videoMetadata) {
-                    const vs = user.videoMetadata;
-                    videoWidth = videoWidth || vs.width || vs.codec_width || vs.display_width || vs.displayWidth || null;
-                    videoHeight = videoHeight || vs.height || vs.codec_height || vs.display_height || vs.displayHeight || null;
-                } else if (user && user.client && user.client.videoStream) {
-                    const vsObj = await user.client.videoStream;
-                    if (vsObj && vsObj.metadata) {
-                        videoWidth = videoWidth || vsObj.metadata.width || vsObj.metadata.codec_width || null;
-                        videoHeight = videoHeight || vsObj.metadata.height || vsObj.metadata.codec_height || null;
-                    }
-                }
-            } catch (e) {
-                // ignore
-            }
-        }
-
-        // Debug: log key values that determine normalization
-        try {
-            logger.debug('normalizeTouchPayload debug', {
-                deviceX: deviceX,
-                deviceY: deviceY,
-                x: x,
-                y: y,
-                videoWidth: videoWidth,
-                videoHeight: videoHeight,
-                pointerId: pointerId,
-                coordsAreNormGuess: (isFinite(x) && isFinite(y) && Math.abs(x) <= 1 && Math.abs(y) <= 1 && deviceX == null && deviceY == null),
-            });
-        } catch (e) { /* ignore logging errors */
-        }
-
-        // Determine whether coords are normalized (0..1) or absolute (>1). If deviceX/deviceY were provided we treated them as absolute above.
-        const coordsAreNormalized = (isFinite(x) && isFinite(y) && Math.abs(x) <= 1 && Math.abs(y) <= 1 && deviceX == null && deviceY == null);
-
-        if (coordsAreNormalized) {
-            // if normalized coords, require a valid video/display size (except special-case 0,0)
-            if (!isFinite(Number(videoWidth)) || !isFinite(Number(videoHeight)) || Number(videoWidth) <= 0 || Number(videoHeight) <= 0) {
-                if ((Number(x) === 0 && Number(y) === 0)) {
-                    videoWidth = 1;
-                    videoHeight = 1;
-                    logger.debug('normalizeTouchPayload: falling back to 1x1 video size for 0,0 normalized coords');
-                } else {
-                    logger.debug('normalizeTouchPayload: missing or invalid videoWidth/videoHeight for normalized coords', {
-                        provided: {
-                            videoWidth,
-                            videoHeight
-                        }, userHasMeta: !!(user && user.videoMetadata)
-                    });
-                    logger.debug('normalizeTouchPayload returning null: normalized coords but missing video size');
-                    return null;
-                }
-            }
-        } else {
-            // coords look absolute. If sizes are missing or zero, fall back to 1 to satisfy serializer
-            if (!isFinite(Number(videoWidth)) || !isFinite(Number(videoHeight)) || Number(videoWidth) <= 0 || Number(videoHeight) <= 0) {
-                videoWidth = 1;
-                videoHeight = 1;
-            }
-        }
-
-        videoWidth = Number(videoWidth);
-        videoHeight = Number(videoHeight);
-
-        // If coords are normalized convert to absolute using display size
-        if (coordsAreNormalized) {
-            x = Math.round(x * videoWidth);
-            y = Math.round(y * videoHeight);
-        } else {
-            if (!isFinite(x)) x = 0;
-            if (!isFinite(y)) y = 0;
-            x = Math.round(x);
-            y = Math.round(y);
-        }
-
-        // If rotation is provided and the client coordinates were not already in device space
-        // (i.e. they came from clientX/clientY or normalized), optionally rotate them into device space.
-        // Rotation mapping assumes rotation is clockwise in steps of 90 degrees.
-        if (rotation != null && deviceX == null && deviceY == null) {
-            const rot = Number(rotation) % 4;
-            if (rot !== 0) {
-                let nx = x;
-                let ny = y;
-                if (rot === 1) { // 90° cw
-                    nx = y;
-                    ny = videoWidth - x - 1;
-                } else if (rot === 2) { // 180°
-                    nx = videoWidth - x - 1;
-                    ny = videoHeight - y - 1;
-                } else if (rot === 3) { // 270° cw
-                    nx = videoHeight - y - 1;
-                    ny = x;
-                }
-                // after rotation swap width/height for the serializer if needed
-                if (rot === 1 || rot === 3) {
-                    const tmp = videoWidth;
-                    videoWidth = videoHeight;
-                    videoHeight = tmp;
-                }
-                x = Math.round(nx);
-                y = Math.round(ny);
-                logger.debug('normalizeTouchPayload: applied rotation transform', {
-                    rotation: rot,
-                    x,
-                    y,
-                    videoWidth,
-                    videoHeight
-                });
-            }
-        }
-
-        try {
-            logger.debug('normalizeTouchPayload: returning normalized object', {
-                action: Number(action),
-                pointerId: (typeof pointerId === 'bigint') ? String(pointerId) + 'n' : String(pointerId),
-                pointerIdType: typeof pointerId,
-                pointerX: Number(x),
-                pointerY: Number(y),
-                videoWidth: Number(videoWidth),
-                videoHeight: Number(videoHeight),
-                pressure: Number(pressure),
-                buttons: Number(buttons)
-            });
-        } catch (e) { /* ignore logging errors */
-        }
-        return {
-            action: Number(action),
-            pointerId: pointerId, // BigInt
-            pointerX: Number(x),
-            pointerY: Number(y),
-            videoWidth: Number(videoWidth),
-            videoHeight: Number(videoHeight),
-            pressure: Number(pressure),
-            buttons: Number(buttons),
-        };
-    } catch (err) {
-        logger.error('normalizeTouchPayload unexpected error', err);
-        return null;
-    }
-}
-
-// Last-resort fallback normalizer: try best-effort conversion when strict normalization fails
-function fallbackNormalizePayload(user, payload) {
-    try {
-        if (!payload || typeof payload !== 'object') return null;
-        // prefer explicit device coords
-        let x = payload.deviceX ?? payload.device_x ?? payload.deviceX ?? payload.pointerX ?? payload.pointer_x ?? payload.pointerX ?? payload.pointer_x ?? payload.pointerX ?? payload.x ?? payload.clientX ?? payload.cx ?? null;
-        let y = payload.deviceY ?? payload.device_y ?? payload.deviceY ?? payload.pointerY ?? payload.pointer_y ?? payload.pointerY ?? payload.pointer_y ?? payload.y ?? payload.clientY ?? payload.cy ?? null;
-        // try pointerX/pointerY even if they might be normalized; if normalized but display provided, scale
-        let videoW = payload.screenWidth ?? payload.screen_width ?? payload.displayWidth ?? payload.display_width ?? (user && user.videoMetadata ? user.videoMetadata.width : null) ?? 1;
-        let videoH = payload.screenHeight ?? payload.screen_height ?? payload.displayHeight ?? payload.display_height ?? (user && user.videoMetadata ? user.videoMetadata.height : null) ?? 1;
-        x = (typeof x === 'string') ? Number(x) : x;
-        y = (typeof y === 'string') ? Number(y) : y;
-        if (!isFinite(x) || !isFinite(y)) return null;
-        // if coords look normalized (<=1) and we have video size, scale
-        if (Math.abs(x) <= 1 && Math.abs(y) <= 1 && videoW > 1 && videoH > 1) {
-            x = Math.round(x * videoW);
-            y = Math.round(y * videoH);
-        } else {
-            x = Math.round(x);
-            y = Math.round(y);
-        }
-        let pointerId = payload.pointerId ?? payload.pointer_id ?? payload.pid ?? payload.pointer ?? -2;
-        try {
-            if (typeof pointerId === 'string') {
-                const s = pointerId.trim().replace(/n$/i, '');
-                const num = Number(s);
-                pointerId = Number.isNaN(num) ? -2 : Math.trunc(num);
-            } else if (typeof pointerId === 'number') {
-                pointerId = Math.trunc(pointerId);
-            } else if (typeof pointerId === 'bigint') {
-                pointerId = Number(pointerId);
-            } else {
-                pointerId = -2;
-            }
-        } catch (e) {
-            pointerId = -2;
-        }
-        return {
-            action: Number(payload.action ?? payload.type ?? 0),
-            pointerId: Number(pointerId),
-            pointerX: x,
-            pointerY: y,
-            videoWidth: Number(videoW),
-            videoHeight: Number(videoH),
-            pressure: Number(payload.pressure ?? payload.p ?? 0.5) || 0.5,
-            buttons: Number(payload.buttons ?? payload.button ?? 1) || 1,
-        };
-    } catch (err) {
-        logger.debug('fallbackNormalizePayload unexpected error', err && err.message ? err.message : err);
-        return null;
-    }
-}
-
-// Validate incoming audio packet for common codecs and raw PCM expectations
-function validateAudioPacket(buf, metadata = {}, sessionId = '<unknown>', wsObj = undefined) {
-    try {
-        const details = {
-            sessionId,
-            codec: metadata?.codec || metadata?.audioCodec || (wsObj && wsObj.audioCodec) || 'raw',
-            sampleRate: metadata?.sampleRate || metadata?.sample_rate || metadata?.rate || 48000,
-            channels: metadata?.channels || metadata?.channelCount || 2
-        };
-        if (!buf) return {ok: false, reason: 'no-binary-buffer', details};
-        // buf can be Buffer or Uint8Array
-        const len = (typeof buf.length === 'number') ? buf.length : null;
-        details.length = len;
-        if (!len || len === 0) return {ok: false, reason: 'empty-buffer', details};
-        // codec-specific checks
-        const codec = String(details.codec || 'raw').toLowerCase();
-        if (codec === 'raw' || codec === 'pcm' || codec === 'pcm16' || codec === 'rawpcm') {
-            // Expect interleaved Int16LE frames: bytes per frame = channels * 2
-            const frameBytes = (Number(details.channels) || 1) * 2;
-            if (frameBytes <= 0) return {ok: false, reason: 'invalid-channels', details};
-            details.frameBytes = frameBytes;
-            if (len % frameBytes !== 0) {
-                details.remainder = len % frameBytes;
-                return {ok: false, reason: 'not-multiple-of-frame', details};
-            }
-            // Quick sanity: check not all zeros
-            let nonZero = false;
-            const view = (buf instanceof Uint8Array) ? buf : Buffer.from(buf);
-            for (let i = 0; i < Math.min(64, view.length); i++) {
-                if (view[i] !== 0) {
-                    nonZero = true;
-                    break;
-                }
-            }
-            if (!nonZero) {
-                details.preview = Array.from(view.slice(0, 16));
-                return {ok: false, reason: 'all-zero-preview', details};
-            }
-            return {ok: true, details};
-        }
-        // AAC ADTS check: syncword 0xFFF at start (12 bits set)
-        if (codec.includes('aac')) {
-            const view = (buf instanceof Uint8Array) ? buf : Buffer.from(buf);
-            if (view.length >= 2) {
-                const sync = ((view[0] & 0xFF) << 4) | ((view[1] & 0xF0) >> 4);
-                if ((sync & 0xFFF) === 0xFFF) return {ok: true, details: Object.assign(details, {adts: true})};
-                return {ok: false, reason: 'aac-no-adts-syncword', details};
-            }
-            return {ok: false, reason: 'aac-too-short', details};
-        }
-        // Opus (RTP payload / Ogg) heuristic: Opus packet often starts with 0x4f 0x70 0x75 0x73 ('Opus') in Ogg, or does not have a fixed header in RTP.
-        if (codec.includes('opus')) {
-            const view = (buf instanceof Uint8Array) ? buf : Buffer.from(buf);
-            if (view.length >= 4) {
-                // check for 'Opus' in Ogg header
-                if (view[0] === 0x4f && view[1] === 0x70 && view[2] === 0x75 && view[3] === 0x73) return {
-                    ok: true,
-                    details: Object.assign(details, {ogg: true})
-                };
-                // otherwise accept as encoded packet but warn about length
-                if (view.length < 10) return {ok: false, reason: 'opus-too-short', details};
-                return {ok: true, details};
-            }
-            return {ok: false, reason: 'opus-too-short', details};
-        }
-        // Unknown codec: accept but warn
-        return {ok: true, details: Object.assign(details, {note: 'unknown-codec-accepted'})};
-    } catch (e) {
-        return {ok: false, reason: 'validation-exception', error: String(e), details: {sessionId}};
-    }
-}
 
 // Start the server and install global error handlers
 run().then(() => {

@@ -1,2 +1,21 @@
 node_modules
 source/node_modules
+.pnpm-store
+
+# Local data directories — not needed in the image
+source/uploads/
+source/apps/sn-apps/
+
+# Environment files — never bake credentials into the image
+.env
+source/.env
+*.local
+
+# Test fixtures and dev tooling
+source/tests/
+.github/
+*.md
+
+# Git metadata
+.git/
+.gitignore
