@@ -195,6 +195,27 @@ while [[ $SECONDS -lt $EARLY_LOG_DEADLINE ]]; do
     # Best-effort kill
     kill -TERM "$emulator_pid" 2>/dev/null || true
     sleep 1
+    # Respect a restart cooldown to avoid rapid restart loops. Use
+    # LAST_RESTART_TS env var (seconds since epoch) if present.
+    RESTART_COOLDOWN=${RESTART_COOLDOWN:-10}
+    NOW=$(date +%s)
+    LAST=${LAST_RESTART_TS:-0}
+    ELAPSED=$((NOW - LAST))
+    if [[ $ELAPSED -lt $RESTART_COOLDOWN ]]; then
+      SLEEP=$((RESTART_COOLDOWN - ELAPSED))
+      echo "Restart cooldown active; sleeping $SLEEP s before restart..."
+      sleep "$SLEEP"
+    fi
+    export LAST_RESTART_TS=$(date +%s)
+    # Enforce max restart limit to avoid endless respawn loops
+    MAX_RESTARTS=${MAX_RESTARTS:-5}
+    RESTART_COUNT=${RESTART_COUNT:-0}
+    NEXT_RESTART_COUNT=$((RESTART_COUNT + 1))
+    if [[ $NEXT_RESTART_COUNT -gt $MAX_RESTARTS ]]; then
+      echo "Maximum restart limit ($MAX_RESTARTS) reached (count=$RESTART_COUNT). Not restarting."
+      exit 3
+    fi
+    export RESTART_COUNT=$NEXT_RESTART_COUNT
     exec "$0" "${ORIG_ARGS[@]}"
   fi
   sleep 0.5
@@ -233,6 +254,26 @@ if [[ -n "$QEMU_PID" ]]; then
       kill -TERM "$QEMU_PID" 2>/dev/null || true
       kill -TERM "$emulator_pid" 2>/dev/null || true
       sleep 1
+      # Respect restart cooldown to avoid rapid respawn loops
+      RESTART_COOLDOWN=${RESTART_COOLDOWN:-10}
+      NOW=$(date +%s)
+      LAST=${LAST_RESTART_TS:-0}
+      ELAPSED=$((NOW - LAST))
+      if [[ $ELAPSED -lt $RESTART_COOLDOWN ]]; then
+        SLEEP=$((RESTART_COOLDOWN - ELAPSED))
+        echo "Restart cooldown active; sleeping $SLEEP s before restart..."
+        sleep "$SLEEP"
+      fi
+      export LAST_RESTART_TS=$(date +%s)
+      # Enforce max restart limit to avoid endless respawn loops
+      MAX_RESTARTS=${MAX_RESTARTS:-5}
+      RESTART_COUNT=${RESTART_COUNT:-0}
+      NEXT_RESTART_COUNT=$((RESTART_COUNT + 1))
+      if [[ $NEXT_RESTART_COUNT -gt $MAX_RESTARTS ]]; then
+        echo "Maximum restart limit ($MAX_RESTARTS) reached (count=$RESTART_COUNT). Not restarting."
+        exit 3
+      fi
+      export RESTART_COUNT=$NEXT_RESTART_COUNT
       exec "$0" "${ORIG_ARGS[@]}"
     fi
     sleep 1
