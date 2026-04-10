@@ -150,8 +150,10 @@ setup_port_forwarding
 setup_pulse_audio
 setup_logger_forwarding
 
-/android/sdk/platform-tools/adb -a -P 5037 nodaemon server &
-PIDS+=($!)
+## Ensure a single adb server instance is used. Don't leave stale adb servers
+## bound to the smartsocket port (5037) that cause "Address already in use".
+## We'll start adb just before launching the emulator after removing any
+## existing adb processes.
 
 if [[ $architecture == "x86_64" ]]; then
   AVD="x86_64"
@@ -176,10 +178,46 @@ if [[ $ENABLE_TCPDUMP -eq 1 ]]; then
   fi
 fi
 
+# Ensure AVD folder is clean and has proper config before starting emulator
+AVD_FOLDER="/android/sdk/avd/${AVD}.avd"
+AVD_CONFIG_SRC="/android/sdk/avd/config.ini"
+echo "Preparing AVD directory: $AVD_FOLDER"
+if [[ -d "$AVD_FOLDER" ]]; then
+  echo "Removing existing AVD directory: $AVD_FOLDER"
+  rm -rf "$AVD_FOLDER" || true
+fi
+mkdir -p "$AVD_FOLDER"
+if [[ -f "$AVD_CONFIG_SRC" ]]; then
+  echo "Copying $AVD_CONFIG_SRC -> $AVD_FOLDER/config.ini"
+  cp "$AVD_CONFIG_SRC" "$AVD_FOLDER/config.ini" || true
+  chmod 644 "$AVD_FOLDER/config.ini" 2>/dev/null || true
+else
+  echo "Warning: AVD config source not found: $AVD_CONFIG_SRC"
+fi
+
 # Launch emulator in background (single-run)
 # Show the full command we're about to run for easier debugging
 echo "EMU_CMD: $(printf '%q ' "${EMU_CMD[@]}")"
 echo "Starting emulator in background (logs -> $LOG_DIR/emulator_${AVD}.log)"
+# Before launching the emulator, ensure adb server is not already bound to the
+# smartsocket port. Some emulator wrappers try to start adb which can collide
+# with an existing adb server and produce "Address already in use". We'll
+# stop existing adb processes and start our nodaemon adb server here so only
+# one instance listens on the smartsocket.
+if command -v pgrep >/dev/null 2>&1; then
+  if pgrep -x adb >/dev/null 2>&1; then
+    echo "Stopping existing adb processes to avoid smartsocket conflicts..."
+    pkill -x adb || true
+    sleep 0.5
+  fi
+else
+  # fallback: try killing by name
+  pkill -f "/android/sdk/platform-tools/adb" >/dev/null 2>&1 || true
+  sleep 0.5
+fi
+# Start adb nodaemon server on port 5037 so emulator and tools use it
+/android/sdk/platform-tools/adb -a -P 5037 nodaemon server &
+PIDS+=($!)
 # Redirect emulator stdout/stderr to a log file under LOG_DIR for diagnostics
 # shellcheck disable=SC2086
 ${EMU_CMD[@]} >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
