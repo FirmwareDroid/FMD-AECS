@@ -22,9 +22,6 @@ LOGFILE="$LOG_DIR/emulator_start.log"
 mkdir -p "$LOG_DIR"
 chmod -R 777 "$LOG_DIR" 2>/dev/null || true
 
-# capture script stdout/stderr to logfile while still showing on console
-exec > >(tee -a "$LOGFILE") 2> >(tee -a "$LOGFILE" >&2)
-
 SSLKEY_DIR="$BASEDIR/out/pcaps"
 SSLKEYFILE="$SSLKEY_DIR/out/sslkeylog.log"
 mkdir -p "$SSLKEY_DIR"
@@ -41,26 +38,6 @@ warn() { printf '%s %s
 ' "[WARN]" "$*"; }
 err() { printf '%s %s
 ' "[ERROR]" "$*"; }
-
-cleanup() {
-  trap - SIGINT SIGTERM EXIT
-  log "Cleaning up subprocesses..."
-  if [[ $emulator_pid -ne 0 ]]; then
-    kill -TERM "$emulator_pid" 2>/dev/null || true
-  fi
-  if [[ ${#PIDS[@]} -gt 0 ]]; then
-    kill -TERM "${PIDS[@]}" 2>/dev/null || true
-    sleep 1
-    kill -KILL "${PIDS[@]}" 2>/dev/null || true
-  fi
-  pkill -f "emulator -avd" 2>/dev/null || true
-  pkill -f "socat -d tcp-listen:5555" 2>/dev/null || true
-  pkill -f "socat -d tcp-listen:8554" 2>/dev/null || true
-  pkill -f "pulseaudio" 2>/dev/null || true
-  exit 0
-}
-
-trap cleanup SIGINT SIGTERM EXIT
 
 ensure_environment() {
   # ensure writable logs and tmp perms
@@ -135,59 +112,6 @@ find_qemu_child() {
   return 1
 }
 
-monitor_runtime() {
-  local qemu_pid
-  qemu_pid=$(find_qemu_child "$emulator_pid" || true)
-  if [[ -n "$qemu_pid" ]]; then
-    log "Monitoring qemu subprocess pid $qemu_pid (emulator wrapper pid $emulator_pid)"
-    while ps -p "$qemu_pid" >/dev/null 2>&1; do
-      if tail -n 200 "$LOG_DIR/emulator_${AVD}.log" 2>/dev/null | grep -qi "kvm run failed"; then
-        warn "Detected KVM error in emulator log; restarting script..."
-        kill -TERM "$qemu_pid" 2>/dev/null || true
-        kill -TERM "$emulator_pid" 2>/dev/null || true
-        handle_restart
-      fi
-      sleep 1
-    done
-    log "qemu subprocess pid $qemu_pid has exited."
-  else
-    warn "Could not locate qemu subprocess for wrapper pid $emulator_pid; falling back to waiting on wrapper."
-    wait "$emulator_pid" || true
-    local sts=$?
-    if [[ $sts -eq 0 ]]; then
-      log "Emulator wrapper process (pid $emulator_pid) exited normally (exit code 0)."
-    else
-      if [[ $sts -gt 128 ]]; then
-        local sig=$((sts - 128))
-        log "Emulator wrapper (pid $emulator_pid) terminated by signal $sig (exit status $sts)."
-      else
-        log "Emulator wrapper (pid $emulator_pid) stopped with exit code $sts."
-      fi
-    fi
-  fi
-}
-
-handle_restart() {
-  # enforce cooldown and max restarts then re-exec
-  local now; now=$(date +%s)
-  local last=${LAST_RESTART_TS:-0}
-  local elapsed=$((now - last))
-  if [[ $elapsed -lt $RESTART_COOLDOWN ]]; then
-    local sleep_s=$((RESTART_COOLDOWN - elapsed))
-    log "Restart cooldown active; sleeping $sleep_s s before restart..."
-    sleep "$sleep_s"
-  fi
-  export LAST_RESTART_TS=$(date +%s)
-  local count=${RESTART_COUNT:-0}
-  local next=$((count + 1))
-  if [[ $next -gt $MAX_RESTARTS ]]; then
-    err "Maximum restart limit ($MAX_RESTARTS) reached (count=$count). Not restarting."
-    exit 3
-  fi
-  export RESTART_COUNT=$next
-  exec "$0" "${ORIG_ARGS[@]}"
-}
-
 main() {
   ensure_environment
   stop_existing_helpers
@@ -210,24 +134,6 @@ main() {
   log "Starting emulator in background (logs -> $LOG_DIR/emulator_${AVD}.log)"
   "${EMU_CMD[@]}" >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
   emulator_pid=$!
-
-  # short early health check
-  local deadline=$((SECONDS+8))
-  while [[ $SECONDS -lt $deadline ]]; do
-    if grep -E "cannot use stdio by multiple character devices|QEMU main loop exits abnormally|Unable to spawn process|kvm run failed|could not install \*smartsocket\* listener" "$LOG_DIR/emulator_${AVD}.log" >/dev/null 2>&1; then
-      warn "Detected immediate emulator/QEMU startup failure (see $LOG_DIR/emulator_${AVD}.log)."
-      tail -n 200 "$LOG_DIR/emulator_${AVD}.log" || true
-      kill -TERM "$emulator_pid" 2>/dev/null || true
-      sleep 1
-      handle_restart
-    fi
-    sleep 0.5
-  done
-
-  monitor_runtime
-
-  log "Emulator stopped; cleaning up..."
-  cleanup
 }
 
 main "$@"
