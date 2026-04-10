@@ -27,6 +27,8 @@ fi
 
 # Path to the emulator start script (override via env EMULATOR_START_SCRIPT)
 EMULATOR_START_SCRIPT="${EMULATOR_START_SCRIPT:-/android/testing_service/emulator_start.sh}"
+# Path to the emulator setup helper script (starts socat, pulseaudio, log tails)
+EMULATOR_SETUP_SCRIPT="${EMULATOR_SETUP_SCRIPT:-/android/testing_service/emulator_setup.sh}"
 # Where to write emulator_start logs (override via env EMULATOR_START_LOG)
 EMULATOR_START_LOG="${EMULATOR_START_LOG:-/var/log/emulator_start.log}"
 
@@ -47,6 +49,15 @@ if [ -f "$EMULATOR_START_SCRIPT" ]; then
   # ensure log dir exists
   mkdir -p "$(dirname "$EMULATOR_START_LOG")"
   chmod +x "$EMULATOR_START_SCRIPT" || true
+
+  # Start the external setup helper in background (if present)
+  if [ -f "$EMULATOR_SETUP_SCRIPT" ]; then
+    echo "Starting emulator setup helper: $EMULATOR_SETUP_SCRIPT"
+    chmod +x "$EMULATOR_SETUP_SCRIPT" || true
+    # run in background, send its output to the same log dir
+    /bin/bash -c "\"$EMULATOR_SETUP_SCRIPT\" 2>&1 | tee -a \"$EMULATOR_START_LOG\"" &
+    sleep 0.5
+  fi
 
   # Simply start the emulator start script and pipe output to the configured log.
   # Do not attempt to detect or kill existing instances; entrypoint's job is only
