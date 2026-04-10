@@ -3,6 +3,8 @@
 # All background pids for the current iteration
 PIDS=()
 emulator_pid=0
+# Preserve original args so we can re-exec with the same arguments if needed
+ORIG_ARGS=("$@")
 ENABLE_TCPDUMP=0  # if 1, start tcpdump helper to capture traffic
 
 # Simple CLI parsing (we only remove the flags from $@ but keep ORIG_ARGS intact)
@@ -182,3 +184,87 @@ echo "Starting emulator in background (logs -> $LOG_DIR/emulator_${AVD}.log)"
 # shellcheck disable=SC2086
 ${EMU_CMD[@]} >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
 emulator_pid=$!
+
+# Quick early health-check: watch the emulator wrapper log for immediate fatal errors
+EARLY_LOG_DEADLINE=$((SECONDS+8))
+while [[ $SECONDS -lt $EARLY_LOG_DEADLINE ]]; do
+  if grep -E "cannot use stdio by multiple character devices|QEMU main loop exits abnormally|Unable to spawn process|kvm run failed" "$LOG_DIR/emulator_${AVD}.log" >/dev/null 2>&1; then
+    echo "Detected immediate emulator/QEMU startup failure (see $LOG_DIR/emulator_${AVD}.log). Restarting script..."
+    echo "--- emulator log tail ---"
+    tail -n 200 "$LOG_DIR/emulator_${AVD}.log" || true
+    # Best-effort kill
+    kill -TERM "$emulator_pid" 2>/dev/null || true
+    sleep 1
+    exec "$0" "${ORIG_ARGS[@]}"
+  fi
+  sleep 0.5
+done
+
+# Attempt to locate qemu subprocess and monitor it. If a fatal KVM error
+# appears in the log while running, restart the script.
+QEMU_PID=""
+FIND_DEADLINE=$((SECONDS+10))
+while [[ -z "$QEMU_PID" && SECONDS -lt $FIND_DEADLINE ]]; do
+  for c in $(pgrep -P "$emulator_pid" 2>/dev/null || true); do
+    cmd=$(ps -p "$c" -o comm= 2>/dev/null || true)
+    if [[ "$cmd" == *qemu* ]]; then
+      QEMU_PID=$c
+      break
+    fi
+  done
+  if [[ -z "$QEMU_PID" ]]; then
+    for c in $(pgrep -f 'qemu-system' 2>/dev/null || true); do
+      cmdline=$(ps -p "$c" -o args= 2>/dev/null || true)
+      if [[ "$cmdline" == *"$AVD"* || "$cmdline" == *qemu-system-* ]]; then
+        QEMU_PID=$c
+        break
+      fi
+    done
+  fi
+  sleep 0.5
+done
+
+if [[ -n "$QEMU_PID" ]]; then
+  echo "Monitoring qemu subprocess pid $QEMU_PID (emulator wrapper pid $emulator_pid)"
+  while ps -p "$QEMU_PID" >/dev/null 2>&1; do
+    # Check for KVM error in recent log lines
+    if tail -n 200 "$LOG_DIR/emulator_${AVD}.log" 2>/dev/null | grep -qi "kvm run failed"; then
+      echo "Detected KVM error in emulator log; restarting script..."
+      kill -TERM "$QEMU_PID" 2>/dev/null || true
+      kill -TERM "$emulator_pid" 2>/dev/null || true
+      sleep 1
+      exec "$0" "${ORIG_ARGS[@]}"
+    fi
+    sleep 1
+  done
+  echo "qemu subprocess pid $QEMU_PID has exited."
+else
+  echo "Could not locate qemu subprocess for wrapper pid $emulator_pid; falling back to waiting on wrapper."
+  wait "$emulator_pid"
+  EMU_EXIT_STATUS=$?
+  if [[ $EMU_EXIT_STATUS -eq 0 ]]; then
+    echo "Emulator wrapper process (pid $emulator_pid) exited normally (exit code 0)."
+  else
+    if [[ $EMU_EXIT_STATUS -gt 128 ]]; then
+      SIG=$((EMU_EXIT_STATUS - 128))
+      echo "Emulator wrapper (pid $emulator_pid) terminated by signal $SIG (exit status $EMU_EXIT_STATUS)."
+    else
+      echo "Emulator wrapper (pid $emulator_pid) stopped with exit code $EMU_EXIT_STATUS."
+    fi
+  fi
+fi
+
+# Proceed with cleanup after VM exit
+echo "Emulator stopped; cleaning up..."
+if [[ $ENABLE_TCPDUMP -eq 1 && -x "$BASEDIR/tcpdump.sh" ]]; then
+  "$BASEDIR/tcpdump.sh" stop >/dev/null 2>&1 || true
+fi
+if [[ ${#PIDS[@]} -gt 0 ]]; then
+  kill -TERM "${PIDS[@]}" 2>/dev/null || true
+  sleep 1
+  kill -KILL "${PIDS[@]}" 2>/dev/null || true
+fi
+emulator_pid=0
+echo "Exiting after single run."
+exit 0
+
