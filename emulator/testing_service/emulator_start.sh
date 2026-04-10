@@ -39,6 +39,8 @@ BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 # Create the log directory early so subsequent echo output can be captured.
 LOG_DIR="$BASEDIR/out/logs"
 mkdir -p "$LOG_DIR"
+REAL_KERNEL_LOG="$LOG_DIR/kernel.log"
+REAL_LOGCAT_LOG="$LOG_DIR/logcat.log"
 chmod -R 777 "$LOG_DIR" 2>/dev/null || true
 # Script-wide logfile (captures all stdout/stderr from this script while
 # still printing to the console). We use process substitution with tee so
@@ -60,58 +62,6 @@ echo "SSLKEYLOGFILE set -> $SSLKEYLOGFILE"
 
 echo "Log directory set -> $LOG_DIR"
 chmod -R 777 "/tmp/"
-
-cleanup() {
-  trap - SIGINT SIGTERM EXIT
-
-  echo "Cleaning up subprocesses..."
-  [[ $emulator_pid -ne 0 ]] && kill -TERM "$emulator_pid" 2>/dev/null || true
-  if [[ ${#PIDS[@]} -gt 0 ]]; then
-    kill -TERM "${PIDS[@]}" 2>/dev/null || true
-    sleep 1
-    kill -KILL "${PIDS[@]}" 2>/dev/null || true
-  fi
-
-  # best-effort fallback kills for known long-running commands
-  pkill -f "emulator -avd" 2>/dev/null || true
-  pkill -f "socat -d tcp-listen:5555" 2>/dev/null || true
-  pkill -f "socat -d tcp-listen:8554" 2>/dev/null || true
-  pkill -f "pulseaudio" 2>/dev/null || true
-
-  # Stop tcpdump started by this script (ignore errors)
-  if [[ $ENABLE_TCPDUMP -eq 1 && -x "$BASEDIR/tcpdump.sh" ]]; then
-    "$BASEDIR/tcpdump.sh" stop >/dev/null 2>&1 || true
-  fi
-
-  exit 0
-}
-
-trap cleanup SIGINT SIGTERM EXIT
-
-# Cleanup iteration helpers without exiting (used before re-exec)
-cleanup_iteration() {
-  # don't run trap handlers
-  trap - SIGINT SIGTERM EXIT
-
-  echo "Cleaning up iteration subprocesses..."
-  [[ $emulator_pid -ne 0 ]] && kill -TERM "$emulator_pid" 2>/dev/null || true
-  if [[ ${#PIDS[@]} -gt 0 ]]; then
-    kill -TERM "${PIDS[@]}" 2>/dev/null || true
-    sleep 1
-    kill -KILL "${PIDS[@]}" 2>/dev/null || true
-  fi
-
-  # best-effort fallback kills for known long-running commands
-  pkill -f "emulator -avd" 2>/dev/null || true
-  pkill -f "socat -d tcp-listen:5555" 2>/dev/null || true
-  pkill -f "socat -d tcp-listen:8554" 2>/dev/null || true
-  pkill -f "pulseaudio" 2>/dev/null || true
-
-  # Stop tcpdump started by this script (ignore errors)
-  if [[ $ENABLE_TCPDUMP -eq 1 && -x "$BASEDIR/tcpdump.sh" ]]; then
-    "$BASEDIR/tcpdump.sh" stop >/dev/null 2>&1 || true
-  fi
-}
 
 setup_stop_existing_emulator() {
   pkill -f "emulator -avd"
@@ -161,11 +111,6 @@ setup_pulse_audio() {
 }
 
 setup_logger_forwarding() {
-  mkdir -p "$LOG_DIR"
-  # Ensure persistent log files exist and are writable. We'll make the emulator
-  # write directly to these REAL_* files and stream them to stdout using tail -F.
-  REAL_KERNEL_LOG="$LOG_DIR/kernel.log"
-  REAL_LOGCAT_LOG="$LOG_DIR/logcat.log"
   : > "$REAL_KERNEL_LOG" 2>/dev/null || true
   : > "$REAL_LOGCAT_LOG" 2>/dev/null || true
 
@@ -230,6 +175,8 @@ if [[ $ENABLE_TCPDUMP -eq 1 ]]; then
 fi
 
 # Launch emulator in background (single-run)
+# Show the full command we're about to run for easier debugging
+echo "EMU_CMD: $(printf '%q ' "${EMU_CMD[@]}")"
 echo "Starting emulator in background (logs -> $LOG_DIR/emulator_${AVD}.log)"
 # Redirect emulator stdout/stderr to a log file under LOG_DIR for diagnostics
 # shellcheck disable=SC2086
