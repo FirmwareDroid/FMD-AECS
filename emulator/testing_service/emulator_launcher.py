@@ -132,7 +132,7 @@ def main():
     # Write launcher-specific logfile into the same directory as this launcher
     # script. This creates: <launcher_dir>/emulator_launcher_py.log
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    launch_logfile = os.path.join(script_dir, "emulator_launcher_py.log")
+    launch_logfile = os.path.join(script_dir, "out/emulator_launcher.log")
     os.makedirs(script_dir, exist_ok=True)
     logger = logging.getLogger("emulator_launcher")
     logger.setLevel(logging.INFO)
