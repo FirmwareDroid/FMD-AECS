@@ -101,7 +101,7 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
     per_file_times = {}
     start_time = time.time()
 
-    base_path_acv = str(os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation"
+    base_path_acv = str(os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation"))
     firmware_folder = str(os.path.join(base_path_acv, firmware_id))
     # remove previous results and recreate folder
     shutil.rmtree(firmware_folder, ignore_errors=True)
