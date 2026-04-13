@@ -62,10 +62,10 @@ if [ -f "$EMULATOR_START_SCRIPT" ]; then
   # Launch the Python-based launcher which starts and watches the emulator
   # helper script. The launcher will restart the emulator_start.sh on
   # failures and applies cooldowns / limits.
-  if command -v python3 >/dev/null 2>&1 && [ -f "/android/testing_service/emulator/emulator_launcher.py" ]; then
-    echo "Starting emulator launcher (python) -> /android/testing_service/emulator/emulator_launcher.py"
-    chmod +x "/android/testing_service/emulator/emulator_launcher.py" || true
-    exec python3 -u "/android/testing_service/emulator/emulator_launcher.py" --script "$EMULATOR_START_SCRIPT" --log "$EMULATOR_START_LOG"
+  if command -v python3 >/dev/null 2>&1 && [ -f "/android/testing_service/emulator_launcher.py" ]; then
+    echo "Starting emulator launcher (python) -> /android/testing_service/emulator_launcher.py"
+    chmod +x "/android/testing_service/emulator_launcher.py" || true
+    exec python3 -u "/android/testing_service/emulator_launcher.py" --script "$EMULATOR_START_SCRIPT" --log "$EMULATOR_START_LOG"
   else
     # Fallback: run the shell script directly if python3 or launcher missing
     exec /bin/bash -c "\"$EMULATOR_START_SCRIPT\" 2>&1 | tee -a \"$EMULATOR_START_LOG\""
