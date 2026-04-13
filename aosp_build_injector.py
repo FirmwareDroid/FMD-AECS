@@ -101,7 +101,8 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
     per_file_times = {}
     start_time = time.time()
 
-    firmware_folder = str(os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation", firmware_id))
+    base_path_acv = str(os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation"
+    firmware_folder = str(os.path.join(base_path_acv, firmware_id))
     # remove previous results and recreate folder
     shutil.rmtree(firmware_folder, ignore_errors=True)
     os.makedirs(firmware_folder, exist_ok=True)
@@ -163,6 +164,24 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
         logging.error(f"Failed to write timing JSON: {err}")
 
     logging.info(f"ACVTool instrumentation parallel result: {result_dict}")
+    # Create a single zip archive for the firmware's ACVTool output to save space and remove intermediate files.
+    try:
+        # sanitize firmware_id for filename
+        safe_firmware_id = re.sub(r"\W+", "_", firmware_id)
+        archive_base = os.path.join(base_path_acv, f"acvtool-{safe_firmware_id}")
+        # shutil.make_archive will append the .zip extension
+        logging.info(f"Creating ACVTool archive {archive_base}.zip from folder: {firmware_folder}")
+        archive_path = shutil.make_archive(archive_base, 'zip', root_dir=firmware_folder)
+        # If archive created successfully, remove the intermediate firmware_folder to save disk space
+        if archive_path and os.path.exists(archive_path):
+            try:
+                shutil.rmtree(firmware_folder)
+                logging.info(f"Removed intermediate ACVTool folder after archiving: {firmware_folder}")
+            except Exception as e:
+                logging.warning(f"Failed to remove intermediate ACVTool folder {firmware_folder}: {e}")
+        logging.info(f"ACVTool archive created: {archive_path}")
+    except Exception as e:
+        logging.error(f"Failed to create ACVTool archive for firmware {firmware_id}: {e}")
     return result_dict
 
 
