@@ -10,11 +10,11 @@ containers). Configurable via environment variables or CLI args.
 
 import argparse
 import os
-import shlex
 import signal
 import subprocess
 import sys
 import time
+import logging
 
 
 def run_cmd(cmd):
@@ -95,9 +95,24 @@ def main():
 
     restart_count = 0
 
+    launch_logfile = "emulator_launcher_py.log"
+    os.makedirs(os.path.dirname(launch_logfile) or ".", exist_ok=True)
+    logger = logging.getLogger("emulator_launcher")
+    logger.setLevel(logging.INFO)
+    # avoid duplicate handlers on repeated calls
+    if not logger.handlers:
+        fh = logging.FileHandler(launch_logfile, mode="a", encoding="utf-8")
+        fh.setLevel(logging.INFO)
+        sh = logging.StreamHandler(sys.stdout)
+        sh.setLevel(logging.INFO)
+        fmt = logging.Formatter("%(asctime)s [launcher] %(levelname)s %(message)s")
+        fh.setFormatter(fmt)
+        sh.setFormatter(fmt)
+        logger.addHandler(fh)
+        logger.addHandler(sh)
+
     def log(msg):
-        ts = time.strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[launcher] {ts} {msg}", flush=True)
+        logger.info(msg)
 
     # handle termination signals by exiting (child processes will be left to OS)
     def on_term(sig, frame):

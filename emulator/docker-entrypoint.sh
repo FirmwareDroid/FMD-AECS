@@ -68,6 +68,7 @@ if [ -f "$EMULATOR_START_SCRIPT" ]; then
     exec python3 -u "/android/testing_service/emulator_launcher.py" --script "$EMULATOR_START_SCRIPT" --log "$EMULATOR_START_LOG"
   else
     # Fallback: run the shell script directly if python3 or launcher missing
+    echo "Warning: python3 or emulator_launcher.py not found, running emulator_start.sh directly (no auto-restart)"
     exec /bin/bash -c "\"$EMULATOR_START_SCRIPT\" 2>&1 | tee -a \"$EMULATOR_START_LOG\""
   fi
 fi
