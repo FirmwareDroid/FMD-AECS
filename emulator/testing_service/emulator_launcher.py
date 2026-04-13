@@ -168,7 +168,7 @@ def main():
                 pid, status = os.waitpid(-1, os.WNOHANG)
                 if pid == 0:
                     break
-                logger.info(f"Reaped child pid={pid} status={status}")
+                logger.debug(f"Reaped child pid={pid} status={status}")
         except ChildProcessError:
             # No child processes
             pass
