@@ -114,7 +114,7 @@ def main():
     p.add_argument("--script", required=True, help="Path to emulator_start.sh wrapper")
     p.add_argument("--log", required=True, help="Path to log file to monitor")
     p.add_argument("--avd", default=None, help="AVD name to help find qemu process (optional)")
-    p.add_argument("--cooldown", type=int, default=int(os.environ.get("RESTART_COOLDOWN", "45")))
+    p.add_argument("--cooldown", type=int, default=int(os.environ.get("RESTART_COOLDOWN", "30")))
     p.add_argument("--max-restarts", type=int, default=int(os.environ.get("MAX_RESTARTS", "20")))
     args = p.parse_args()
 
@@ -148,12 +148,11 @@ def main():
         logger.addHandler(fh)
         logger.addHandler(sh)
 
-    def log(msg):
-        logger.info(msg)
+    # use logger.info / logger.error / logger.exception directly
 
     # handle termination signals by exiting (child processes will be left to OS)
     def on_term(sig, frame):
-        log(f"Received signal {sig}; exiting launcher.")
+        logger.info(f"Received signal {sig}; exiting launcher.")
         sys.exit(0)
 
     signal.signal(signal.SIGINT, on_term)
@@ -169,13 +168,13 @@ def main():
                 pid, status = os.waitpid(-1, os.WNOHANG)
                 if pid == 0:
                     break
-                log(f"Reaped child pid={pid} status={status}")
+                logger.info(f"Reaped child pid={pid} status={status}")
         except ChildProcessError:
             # No child processes
             pass
         except Exception as e:
             # Log and continue
-            log(f"Exception while reaping children: {e}")
+            logger.exception(f"Exception while reaping children: {e}")
 
     # Register handler for SIGCHLD if available on the platform
     try:
@@ -186,28 +185,28 @@ def main():
 
     while True:
         if restart_count >= max_restarts:
-            log(f"Maximum restart limit reached ({max_restarts}); giving up.")
+            logger.error(f"Maximum restart limit reached ({max_restarts}); giving up.")
             sys.exit(3)
 
-        log(f"Starting wrapper script: {script} (attempt {restart_count+1}/{max_restarts})")
+        logger.info(f"Starting wrapper script: {script} (attempt {restart_count+1}/{max_restarts})")
         # Start wrapper; let it manage its own logging. We'll not capture its output here.
         proc = subprocess.Popen(["/bin/bash", script])
         wrapper_pid = proc.pid
-        log(f"Wrapper started with pid {wrapper_pid}")
+        logger.info(f"Wrapper started with pid {wrapper_pid}")
 
         # attempt to locate qemu child
         qemu_pid = find_qemu_child(wrapper_pid, avd_name, timeout=10.0, ignore_pids=zombie_pids)
         if qemu_pid:
-            log(f"Found qemu subprocess pid {qemu_pid}; monitoring until it exits")
+            logger.info(f"Found qemu subprocess pid {qemu_pid}; monitoring until it exits")
             # monitor qemu; also watch log for fatal KVM error or zombie (defunct) state
             while True:
                 # If the pid no longer exists, treat as exited
                 if not pid_is_running(qemu_pid):
-                    log(f"qemu subprocess {qemu_pid} no longer running")
+                    logger.info(f"qemu subprocess {qemu_pid} no longer running")
                     break
                 # If the process is a zombie/defunct, treat as crashed
                 if is_process_zombie(qemu_pid):
-                    log(f"qemu subprocess {qemu_pid} is in zombie (defunct) state; treating as exited")
+                    logger.warning(f"qemu subprocess {qemu_pid} is in zombie (defunct) state; treating as exited")
                     zombie_pids.add(qemu_pid)
                     # attempt to terminate wrapper as well
                     try:
@@ -217,7 +216,7 @@ def main():
                     break
                 # check for KVM error or segfault hints in launcher_log
                 if tail_contains(launcher_log, "kvm run failed"):
-                    log("Detected 'kvm run failed' in emulator log; terminating and will restart")
+                    logger.warning("Detected 'kvm run failed' in emulator log; terminating and will restart")
                     try:
                         os.kill(qemu_pid, signal.SIGTERM)
                     except Exception:
@@ -228,7 +227,7 @@ def main():
                         pass
                     break
                 if tail_contains(launcher_log, "segmentation fault") or tail_contains(launcher_log, "segfault"):
-                    log("Detected segmentation fault in emulator log; terminating and will restart")
+                    logger.warning("Detected segmentation fault in emulator log; terminating and will restart")
                     try:
                         os.kill(qemu_pid, signal.SIGTERM)
                     except Exception:
@@ -239,31 +238,31 @@ def main():
                         pass
                     break
                 time.sleep(1)
-            log(f"qemu subprocess {qemu_pid} has exited or was terminated")
+            logger.info(f"qemu subprocess {qemu_pid} has exited or was terminated")
             # give wrapper a moment and capture its exit code if it exits
             try:
                 ret = proc.wait(timeout=5)
-                log(f"Wrapper process exited with return code {ret}")
+                logger.info(f"Wrapper process exited with return code {ret}")
             except subprocess.TimeoutExpired:
-                log("Wrapper did not exit promptly after qemu exit; continuing")
+                logger.info("Wrapper did not exit promptly after qemu exit; continuing")
         else:
             # no qemu found within timeout, wait for wrapper to exit and report
-            log("Could not locate qemu subprocess; waiting for wrapper to exit")
+            logger.info("Could not locate qemu subprocess; waiting for wrapper to exit")
             ret = proc.wait()
-            log(f"Wrapper process exited with return code {ret}")
+            logger.info(f"Wrapper process exited with return code {ret}")
             # If wrapper aborted/segfaulted, print and decide restart
             if ret != 0:
-                log(f"Wrapper exited with non-zero code {ret}")
+                logger.warning(f"Wrapper exited with non-zero code {ret}")
 
         # increment restart counter and decide whether to restart
         restart_count += 1
         if restart_count >= max_restarts:
-            log(f"Reached max restarts ({max_restarts}); exiting with code 3")
+            logger.error(f"Reached max restarts ({max_restarts}); exiting with code 3")
             sys.exit(3)
 
-        log(f"Sleeping {cooldown}s before restart (restart_count={restart_count})")
+        logger.info(f"Sleeping {cooldown}s before restart (restart_count={restart_count})")
         time.sleep(cooldown)
-        log("Restarting wrapper now")
+        logger.info("Restarting wrapper now")
         # loop continues
 
 
