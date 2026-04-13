@@ -50,17 +50,24 @@ if [ -f "$EMULATOR_START_SCRIPT" ]; then
   mkdir -p "$(dirname "$EMULATOR_START_LOG")"
   chmod +x "$EMULATOR_START_SCRIPT" || true
 
-  # Start the external setup helper in background (if present)
+  # Start optional external setup helper in background (if present)
   if [ -f "$EMULATOR_SETUP_SCRIPT" ]; then
     echo "Starting emulator setup helper: $EMULATOR_SETUP_SCRIPT"
     chmod +x "$EMULATOR_SETUP_SCRIPT" || true
-    # run in background, send its output to the same log dir
+    # run in background, send its output to the same log file
     /bin/bash -c "\"$EMULATOR_SETUP_SCRIPT\" 2>&1 | tee -a \"$EMULATOR_START_LOG\"" &
     sleep 0.5
   fi
 
-  # Simply start the emulator start script and pipe output to the configured log.
-  # Do not attempt to detect or kill existing instances; entrypoint's job is only
-  # to start the service once.
-  exec /bin/bash -c "\"$EMULATOR_START_SCRIPT\" 2>&1 | tee -a \"$EMULATOR_START_LOG\""
+  # Launch the Python-based launcher which starts and watches the emulator
+  # helper script. The launcher will restart the emulator_start.sh on
+  # failures and applies cooldowns / limits.
+  if command -v python3 >/dev/null 2>&1 && [ -f "/android/testing_service/emulator/emulator_launcher.py" ]; then
+    echo "Starting emulator launcher (python) -> /android/testing_service/emulator/emulator_launcher.py"
+    chmod +x "/android/testing_service/emulator/emulator_launcher.py" || true
+    exec python3 -u "/android/testing_service/emulator/emulator_launcher.py" --script "$EMULATOR_START_SCRIPT" --log "$EMULATOR_START_LOG"
+  else
+    # Fallback: run the shell script directly if python3 or launcher missing
+    exec /bin/bash -c "\"$EMULATOR_START_SCRIPT\" 2>&1 | tee -a \"$EMULATOR_START_LOG\""
+  fi
 fi

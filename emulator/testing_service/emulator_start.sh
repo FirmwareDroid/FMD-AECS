@@ -39,18 +39,6 @@ warn() { printf '%s %s
 err() { printf '%s %s
 ' "[ERROR]" "$*"; }
 
-ensure_environment() {
-  # ensure writable logs and tmp perms
-  chmod -R 777 /tmp/ 2>/dev/null || true
-}
-
-stop_existing_helpers() {
-  # best-effort stop of known helper processes that might conflict
-  pkill -f "emulator -avd" 2>/dev/null || true
-  pkill -f "socat -d tcp-listen:5555" 2>/dev/null || true
-  pkill -f "socat -d tcp-listen:8554" 2>/dev/null || true
-  pkill -f "pulseaudio" 2>/dev/null || true
-}
 
 start_adb_nodaemon() {
   # ensure no conflicting adb server is running, then start nodaemon adb
@@ -86,36 +74,7 @@ prepare_avd() {
   fi
 }
 
-find_qemu_child() {
-  local wrapper_pid="$1"
-  local deadline=$((SECONDS+10))
-  local pid
-  while [[ $SECONDS -lt $deadline ]]; do
-    # check immediate children first
-    for pid in $(pgrep -P "$wrapper_pid" 2>/dev/null || true); do
-      local comm; comm=$(ps -p "$pid" -o comm= 2>/dev/null || true)
-      if [[ "$comm" == *qemu* ]]; then
-        echo "$pid"
-        return 0
-      fi
-    done
-    # fallback: locate global qemu-system processes matching AVD name
-    for pid in $(pgrep -f 'qemu-system' 2>/dev/null || true); do
-      local args; args=$(ps -p "$pid" -o args= 2>/dev/null || true)
-      if [[ "$args" == *"$AVD"* || "$args" == *qemu-system-* ]]; then
-        echo "$pid"
-        return 0
-      fi
-    done
-    sleep 0.5
-  done
-  return 1
-}
-
 main() {
-  ensure_environment
-  stop_existing_helpers
-
   architecture=$(uname -m)
   case "$architecture" in
     x86_64) AVD="x86_64" ;;
