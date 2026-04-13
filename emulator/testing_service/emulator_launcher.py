@@ -70,6 +70,22 @@ def pid_is_running(pid):
         return True
 
 
+def is_process_zombie(pid):
+    """Return True if the process exists but is a zombie (defunct).
+    Uses ps to query the process STAT field and looks for 'Z'.
+    """
+    try:
+        out = subprocess.check_output(["ps", "-p", str(pid), "-o", "stat="], text=True)
+        stat = out.strip()
+        # STAT may contain multiple characters like 'Z+' or 'S', so check for 'Z'
+        return 'Z' in stat
+    except subprocess.CalledProcessError:
+        # ps failed (process not found)
+        return False
+    except Exception:
+        return False
+
+
 def tail_contains(path, needle):
     try:
         out = subprocess.check_output(["tail", "-n", "200", path], text=True, stderr=subprocess.DEVNULL)
@@ -95,8 +111,11 @@ def main():
 
     restart_count = 0
 
-    launch_logfile = "emulator_launcher_py.log"
-    os.makedirs(os.path.dirname(launch_logfile) or ".", exist_ok=True)
+    # Write launcher-specific logfile into the same directory as this launcher
+    # script. This creates: <launcher_dir>/emulator_launcher_py.log
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    launch_logfile = os.path.join(script_dir, "emulator_launcher_py.log")
+    os.makedirs(script_dir, exist_ok=True)
     logger = logging.getLogger("emulator_launcher")
     logger.setLevel(logging.INFO)
     # avoid duplicate handlers on repeated calls
@@ -137,8 +156,21 @@ def main():
         qemu_pid = find_qemu_child(wrapper_pid, avd_name, timeout=10.0)
         if qemu_pid:
             log(f"Found qemu subprocess pid {qemu_pid}; monitoring until it exits")
-            # monitor qemu; also watch log for fatal KVM error
-            while pid_is_running(qemu_pid):
+            # monitor qemu; also watch log for fatal KVM error or zombie (defunct) state
+            while True:
+                # If the pid no longer exists, treat as exited
+                if not pid_is_running(qemu_pid):
+                    log(f"qemu subprocess {qemu_pid} no longer running")
+                    break
+                # If the process is a zombie/defunct, treat as crashed
+                if is_process_zombie(qemu_pid):
+                    log(f"qemu subprocess {qemu_pid} is in zombie (defunct) state; treating as exited")
+                    # attempt to terminate wrapper as well
+                    try:
+                        proc.terminate()
+                    except Exception:
+                        pass
+                    break
                 # check for KVM error or segfault hints in launcher_log
                 if tail_contains(launcher_log, "kvm run failed"):
                     log("Detected 'kvm run failed' in emulator log; terminating and will restart")
