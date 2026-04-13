@@ -21,7 +21,7 @@ def run_cmd(cmd):
     return subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 
-def find_qemu_child(wrapper_pid, avd_name, timeout=10.0):
+def find_qemu_child(wrapper_pid, avd_name, timeout=10.0, ignore_pids=None):
     """Try to find a qemu-system child process for the given wrapper pid.
     Return PID int if found, otherwise None.
     """
@@ -34,11 +34,19 @@ def find_qemu_child(wrapper_pid, avd_name, timeout=10.0):
                 if not line:
                     continue
                 pid = line.strip()
+                # skip pids we already marked as zombies
+                if ignore_pids and int(pid) in ignore_pids:
+                    continue
                 try:
                     comm = subprocess.check_output(["ps", "-p", pid, "-o", "comm="], text=True).strip()
                 except subprocess.CalledProcessError:
                     continue
                 if "qemu" in comm or "qemu-system" in comm:
+                    # ensure it's not a zombie process
+                    if is_process_zombie(int(pid)):
+                        if ignore_pids is not None:
+                            ignore_pids.add(int(pid))
+                        continue
                     return int(pid)
         except subprocess.CalledProcessError:
             pass
@@ -49,11 +57,18 @@ def find_qemu_child(wrapper_pid, avd_name, timeout=10.0):
                 if not line:
                     continue
                 pid = line.strip()
+                if ignore_pids and int(pid) in ignore_pids:
+                    continue
                 try:
                     args = subprocess.check_output(["ps", "-p", pid, "-o", "args="], text=True).strip()
                 except subprocess.CalledProcessError:
                     continue
                 if avd_name in args or "qemu-system-" in args:
+                    # ensure it's not a zombie
+                    if is_process_zombie(int(pid)):
+                        if ignore_pids is not None:
+                            ignore_pids.add(int(pid))
+                        continue
                     return int(pid)
         except subprocess.CalledProcessError:
             pass
@@ -110,6 +125,9 @@ def main():
     max_restarts = args.max_restarts
 
     restart_count = 0
+    # Track PIDs that we've seen as zombies/defunct so we don't treat them as
+    # valid newly-started qemu processes when searching.
+    zombie_pids = set()
 
     # Write launcher-specific logfile into the same directory as this launcher
     # script. This creates: <launcher_dir>/emulator_launcher_py.log
@@ -141,6 +159,31 @@ def main():
     signal.signal(signal.SIGINT, on_term)
     signal.signal(signal.SIGTERM, on_term)
 
+    # Reap child processes to avoid creating zombies when this process runs as PID 1.
+    # On Linux, when running as PID 1 in a container the parent must wait() for
+    # exited children; install a SIGCHLD handler that performs non-blocking wait.
+    def _reap_children(signum, frame):
+        try:
+            while True:
+                # -1 means wait for any child, WNOHANG makes it non-blocking
+                pid, status = os.waitpid(-1, os.WNOHANG)
+                if pid == 0:
+                    break
+                log(f"Reaped child pid={pid} status={status}")
+        except ChildProcessError:
+            # No child processes
+            pass
+        except Exception as e:
+            # Log and continue
+            log(f"Exception while reaping children: {e}")
+
+    # Register handler for SIGCHLD if available on the platform
+    try:
+        signal.signal(signal.SIGCHLD, _reap_children)
+    except AttributeError:
+        # Windows or platforms without SIGCHLD
+        pass
+
     while True:
         if restart_count >= max_restarts:
             log(f"Maximum restart limit reached ({max_restarts}); giving up.")
@@ -153,7 +196,7 @@ def main():
         log(f"Wrapper started with pid {wrapper_pid}")
 
         # attempt to locate qemu child
-        qemu_pid = find_qemu_child(wrapper_pid, avd_name, timeout=10.0)
+        qemu_pid = find_qemu_child(wrapper_pid, avd_name, timeout=10.0, ignore_pids=zombie_pids)
         if qemu_pid:
             log(f"Found qemu subprocess pid {qemu_pid}; monitoring until it exits")
             # monitor qemu; also watch log for fatal KVM error or zombie (defunct) state
@@ -165,6 +208,7 @@ def main():
                 # If the process is a zombie/defunct, treat as crashed
                 if is_process_zombie(qemu_pid):
                     log(f"qemu subprocess {qemu_pid} is in zombie (defunct) state; treating as exited")
+                    zombie_pids.add(qemu_pid)
                     # attempt to terminate wrapper as well
                     try:
                         proc.terminate()
