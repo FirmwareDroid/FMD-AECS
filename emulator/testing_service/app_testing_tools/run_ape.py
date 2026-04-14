@@ -74,7 +74,7 @@ def main():
     parser.add_argument('--serial', default=os.environ.get('ANDROID_SERIAL'),
                         help='Device serial (default: ANDROID_SERIAL env var)')
     parser.add_argument('--no-push', action='store_true',
-                        help='Skip pushing binaries (assume they are already on the device)')
+                        help='Skip pushing binaries (ape.jar and ape shell script) to the device')
     args = parser.parse_args()
 
     if not os.path.exists(APE_JAR_LOCAL):

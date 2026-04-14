@@ -219,14 +219,19 @@ def setup_devices(mode='basic', pcapdroid=False, pcap_http_port=54320, socks5_ad
         # Install Droidrun on all devices
         run_command("droidrun setup --latest", description="Install Droidrun on all devices")
     elif mode == 'ape':
-        # Push Ape binaries to device(s)
-        run_script_capture(RUN_APE, args=["--no-push", "--package", "com.android.settings"],
-                           description="Pre-check: verify Ape binaries are available")
+        # Verify Ape binaries are present (they will be pushed per-app in execute_app_with_coverage)
+        ape_jar = os.path.join(BASE_DIR, 'app_testing_tools', 'tools', 'ape-bin', 'ape.jar')
+        if os.path.exists(ape_jar):
+            logging.info("Ape binaries verified at %s", ape_jar)
+        else:
+            logging.warning("Ape binaries not found at %s. Run install_tools.py.", ape_jar)
     elif mode == 'fastbot':
-        # Push Fastbot binaries to device(s) once during setup
-        logging.info("Pushing Fastbot2.0 binaries to device(s)…")
-        run_script_capture(RUN_FASTBOT, args=["--package", "com.android.settings", "--no-push"],
-                           description="Pre-check: verify Fastbot binaries are available")
+        # Verify Fastbot binaries are present (they will be pushed per-app in execute_app_with_coverage)
+        fastbot_jar = os.path.join(BASE_DIR, 'app_testing_tools', 'tools', 'Fastbot_Android', 'monkeyq.jar')
+        if os.path.exists(fastbot_jar):
+            logging.info("Fastbot2.0 binaries verified at %s", fastbot_jar)
+        else:
+            logging.warning("Fastbot2.0 binaries not found at %s. Run install_tools.py.", fastbot_jar)
     elif mode == 'kea2':
         logging.info("Kea2 setup: verifying kea2 is available…")
         run_command("kea2 -h", description="Verify Kea2 installation")

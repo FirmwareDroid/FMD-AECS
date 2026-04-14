@@ -118,11 +118,7 @@ def install_humanoid():
 
     # TensorFlow 1.12 requires Python 3.5-3.7; it will almost certainly fail on
     # Python 3.8+ / arm64, so we attempt it as best-effort only.
-    try:
-        run_cmd([sys.executable, '-m', 'pip', 'install', '--no-cache-dir',
-                 '--break-system-packages', 'tensorflow==1.12.0'])
-        logger.info("✓ TensorFlow 1.12 installed.")
-    except subprocess.CalledProcessError:
+    if not pip_install(['tensorflow==1.12.0']):
         logger.warning(
             "⚠ TensorFlow 1.12 could not be installed (expected on Python 3.8+ / arm64). "
             "Humanoid inference will be unavailable without a compatible TensorFlow."
