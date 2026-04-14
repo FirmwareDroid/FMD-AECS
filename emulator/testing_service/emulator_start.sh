@@ -18,6 +18,7 @@ LOG_DIR="$BASEDIR/out/logs"
 REAL_KERNEL_LOG="$LOG_DIR/kernel.log"
 REAL_LOGCAT_LOG="$LOG_DIR/logcat.log"
 LOGFILE="$LOG_DIR/emulator_start.log"
+TCPDUMP_PCAP="$BASEDIR/out/pcaps/emulator_traffic_full.pcap"
 
 mkdir -p "$LOG_DIR"
 chmod -R 777 "$LOG_DIR" 2>/dev/null || true
@@ -82,7 +83,7 @@ main() {
     *) err "Unsupported architecture: $architecture"; exit 2 ;;
   esac
 
-  EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "$REAL_LOGCAT_LOG" -shell-serial "file:$REAL_KERNEL_LOG" -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max)
+  EMU_CMD=(/android/sdk/emulator/emulator -avd "$AVD" -tcpdump "$TCPDUMP_PCAP" -no-window -no-snapshot -ports "5556,5557" -grpc "8556" -skip-adb-auth -no-snapshot-save -logcat "*:V" -show-kernel -logcat-output "$REAL_LOGCAT_LOG" -shell-serial "file:$REAL_KERNEL_LOG" -gpu swiftshader_indirect -qemu -append "panic=1" -cpu max -machine gic-version=max)
 
   # Prepare AVD directory and ensure adb server
   prepare_avd "/android/sdk/avd/${AVD}.avd" "/android/sdk/avd/config.ini"

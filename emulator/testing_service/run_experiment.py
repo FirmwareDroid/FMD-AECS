@@ -77,8 +77,9 @@ def parse_args():
     parser.add_argument('--test-only-one', action='store_true', help='If set, only the first app in the list will be tested')
     parser.add_argument('--skip-setup', action='store_true', help='Skip device setup steps (installing Appium/PCAPdroid/Droidrun)')
     # pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address
-    parser.add_argument('--pcap-http-port', type=int, help='Port to use for pcap http server')
-    parser.add_argument('--socks5-address', type=str, help='The SOCKS5 proxy address')
+    parser.add_argument('--pcapdroid', action='store_true', help='Enable PCAPdroid setup on connected devices')
+    parser.add_argument('--pcap-http-port', type=int, default=54320, help='Port to use for pcap http server (used when --pcapdroid set)')
+    parser.add_argument('--socks5-address', type=str, default='127.0.0.1', help='The SOCKS5 proxy address (used when --pcapdroid set)')
     return parser.parse_args()
 
 def run_script(script_path, args=None, description=None):
@@ -175,16 +176,29 @@ def stop_appium_server(proc, timeout=5):
         logging.error('Error stopping Appium server: %s', e)
 
 
-def setup_devices(mode='basic', pcap_http_port=54320, socks5_address="127.0.0.1"):
+def setup_devices(mode='basic', pcapdroid=False, pcap_http_port=54320, socks5_address="127.0.0.1"):
     logging.info(f"Setting up devices...")
-    # Install Appium driver
-    run_script_capture(INSTALL_APPIUM, args=["--all"], description="Install Appium driver on all devices")
-    # Configure PCAPdroid on all devices
+    # Optionally install Appium and configure PCAPdroid if requested
+    if pcapdroid:
+        appium_proc = start_appium_server()
+        if appium_proc:
+            # register atexit cleanup as a safety net
+            atexit.register(stop_appium_server, appium_proc)
+            try:
+                logging.info('PCAPdroid enabled: installing Appium and configuring PCAPdroid on devices')
+                run_script_capture(INSTALL_APPIUM, args=["--all"], description="Install Appium driver on all devices")
+                # Configure PCAPdroid on all devices
+                cmd_clear_pcapdroid = "adb shell pm clear com.emanuelef.remote_capture"
+                run_script_capture(cmd_clear_pcapdroid, description="Clear PCAPdroid data on all devices before configuration")
+                run_script_capture(RUN_PCAPDROID, args=["--http-port", str(pcap_http_port), "--socks5-address", socks5_address],
+                                   description="Configure PCAPdroid on all devices")
+            finally:
+                stop_appium_server(appium_proc)
+        else:
+            logging.error('Failed to start Appium server; skipping PCAPdroid configuration')
+    else:
+        logging.info('PCAPdroid not enabled: skipping Appium install and PCAPdroid configuration')
 
-    cmd_clear_pcapdroid = "adb shell pm clear com.emanuelef.remote_capture"
-    run_script_capture(cmd_clear_pcapdroid, description="Clear PCAPdroid data on all devices before configuration")
-    run_script_capture(RUN_PCAPDROID, args=["--http-port", str(pcap_http_port), "--socks5-address", socks5_address],
-                       description="Configure PCAPdroid on all devices")
     if mode == 'droidrun':
         # Install Droidrun on all devices
         run_command("droidrun setup --latest", description="Install Droidrun on all devices")
@@ -389,6 +403,220 @@ def run_connectivity_test(results_dir):
     return (res.get('returncode', 1) == 0)
 
 
+def start_tcpdump():
+    """Configure device to forward packets to NFLOG and start tcpdump on the device.
+
+    - Attempts to run `adb root` (may fail on production devices but OK to try).
+    - Installs iptables mangle rule to send OUTPUT to NFLOG group 1.
+    - Starts tcpdump on the device writing to /storage/emulated/0/Download/tcpdump.pcap
+      and records the remote pid to OUT_DIR/tcpdump_device.pid.
+
+    This function logs warnings/errors but does not abort the experiment on failure.
+    Returns True if tcpdump was started successfully, False otherwise.
+    """
+    logging.info('Setting up tcpdump')
+
+    # quick checks
+    if not shutil.which('adb'):
+        logging.error('adb binary not found in PATH; cannot configure tcpdump on device')
+        return False
+
+    # If multiple devices are connected, pick the first one from `adb devices`.
+    try:
+        out = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=10)
+        lines = [l.strip() for l in (out.stdout or '').splitlines() if l.strip()]
+        serial = None
+        for l in lines:
+            if l.startswith('List of devices'):
+                continue
+            parts = l.split()
+            if len(parts) >= 2 and parts[1] == 'device':
+                serial = parts[0]
+                break
+        if not serial:
+            logging.error('No adb device found to start tcpdump')
+            return False
+        logging.info('Selected first adb device: %s', serial)
+    except Exception:
+        logging.exception('Failed to run adb devices to select device')
+        return False
+
+    # try to become root (best-effort) on selected device
+    try:
+        adb_root_cmd = ['adb', '-s', serial, 'root']
+        res = subprocess.run(adb_root_cmd, capture_output=True, text=True, timeout=10)
+        if res.returncode == 0:
+            logging.info('adb root: OK')
+        else:
+            logging.warning('adb root returned non-zero: %s. Continuing (may still work if device already has privileges).', res.stderr.strip() or res.stdout.strip())
+    except Exception as e:
+        logging.warning('adb root failed: %s', e)
+
+    # Add iptables rule to send OUTPUT to NFLOG group 1
+    ipt_cmd = 'iptables -t mangle -I OUTPUT 1 -j NFLOG --nflog-group 1'
+    try:
+        adb_ipt_cmd = ['adb', '-s', serial, 'shell', ipt_cmd]
+        res = subprocess.run(adb_ipt_cmd, capture_output=True, text=True, timeout=10)
+        if res.returncode != 0:
+            logging.warning('Failed to add iptables NFLOG rule: %s', (res.stderr or res.stdout).strip())
+        else:
+            logging.info('Installed iptables NFLOG rule')
+    except Exception:
+        logging.exception('Exception while installing iptables NFLOG rule')
+
+    # Start tcpdump in background on the device and capture its pid
+    remote_pcap = '/storage/emulated/0/Download/tcpdump.pcap'
+    start_cmd = f"nohup tcpdump -i nflog:1 -w {remote_pcap} >/dev/null 2>&1 & echo $!"
+    try:
+        adb_start_cmd = ['adb', '-s', serial, 'shell', start_cmd]
+        res = subprocess.run(adb_start_cmd, capture_output=True, text=True, timeout=15)
+        if res.returncode == 0:
+            out = (res.stdout or '').strip()
+            # stdout may contain extra messages; take last line as pid
+            pid = None
+            if out:
+                pid = out.splitlines()[-1].strip()
+            if pid and pid.isdigit():
+                pid_file = os.path.join(OUT_DIR, 'tcpdump_device.pid')
+                try:
+                    os.makedirs(OUT_DIR, exist_ok=True)
+                    with open(pid_file, 'w', encoding='utf-8') as f:
+                        f.write(pid + '\n')
+                    logging.info('Started tcpdump on device (pid=%s), pid written to %s', pid, pid_file)
+                    return True
+                except Exception:
+                    logging.exception('Failed to write tcpdump pid file')
+                    return True
+            else:
+                logging.warning('Could not determine tcpdump pid from adb output: %s', out or '(empty)')
+                return True
+        else:
+            logging.error('Failed to start tcpdump on device: %s', (res.stderr or res.stdout).strip())
+            return False
+    except Exception:
+        logging.exception('Exception while starting tcpdump on device')
+        return False
+
+def stop_tcpdump():
+    logging.info('Stopping tcpdump')
+
+    # Determine first connected device (same selection as start_tcpdump)
+    try:
+        out = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=10)
+        lines = [l.strip() for l in (out.stdout or '').splitlines() if l.strip()]
+        serial = None
+        for l in lines:
+            if l.startswith('List of devices'):
+                continue
+            parts = l.split()
+            if len(parts) >= 2 and parts[1] == 'device':
+                serial = parts[0]
+                break
+        if not serial:
+            logging.warning('No adb device found to stop tcpdump')
+            return False
+    except Exception:
+        logging.exception('Failed to run adb devices to select device for stop_tcpdump')
+        return False
+
+    pid_file = os.path.join(OUT_DIR, 'tcpdump_device.pid')
+    pid = None
+    if os.path.exists(pid_file):
+        try:
+            with open(pid_file, 'r', encoding='utf-8') as f:
+                pid = f.read().strip().splitlines()[0].strip()
+        except Exception:
+            logging.exception('Failed to read tcpdump pid file %s', pid_file)
+
+    # Try to stop tcpdump on device. Prefer pkill, then kill by pid if available.
+    try:
+        adb_pkill = ['adb', '-s', serial, 'shell', 'pkill -2 tcpdump']
+        res = subprocess.run(adb_pkill, shell=False, capture_output=True, text=True, timeout=10)
+        if res.returncode == 0:
+            logging.info('Requested tcpdump termination via pkill on device %s', serial)
+        else:
+            logging.info('pkill returned non-zero (may be fine): %s', (res.stderr or res.stdout).strip())
+    except Exception:
+        logging.exception('pkill on device failed')
+
+    if pid:
+        try:
+            adb_kill = ['adb', '-s', serial, 'shell', f'kill -2 {pid}']
+            res = subprocess.run(adb_kill, capture_output=True, text=True, timeout=10)
+            if res.returncode == 0:
+                logging.info('Sent SIGINT to tcpdump pid %s on device %s', pid, serial)
+            else:
+                logging.info('kill returned non-zero (may be fine): %s', (res.stderr or res.stdout).strip())
+        except Exception:
+            logging.exception('Failed to kill tcpdump pid on device')
+
+    # Wait briefly for device to flush pcap
+    time.sleep(1)
+
+    # Attempt to pull pcap from device to OUT_DIR
+    remote_pcap = '/storage/emulated/0/Download/tcpdump.pcap'
+    local_pcap = os.path.join(OUT_DIR, f'tcpdump_{serial}.pcap')
+    try:
+        adb_pull = ['adb', '-s', serial, 'pull', remote_pcap, local_pcap]
+        res = subprocess.run(adb_pull, capture_output=True, text=True, timeout=60)
+        if res.returncode == 0:
+            logging.info('Pulled tcpdump pcap to %s', local_pcap)
+        else:
+            logging.warning('Failed to pull pcap (%s). adb pull output: %s', remote_pcap, (res.stderr or res.stdout).strip())
+    except Exception:
+        logging.exception('Exception while pulling pcap from device')
+
+    # Retrieve package -> UID mapping from device
+    try:
+        adb_pm = ['adb', '-s', serial, 'shell', 'pm', 'list', 'packages', '-U']
+        res = subprocess.run(adb_pm, capture_output=True, text=True, timeout=20)
+        pkg_map = {}
+        if res.returncode == 0:
+            out = res.stdout or ''
+            for line in out.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                # Example line: package:com.example uid:12345
+                pkg = None
+                uid = None
+                if line.startswith('package:'):
+                    # split by spaces
+                    parts = line.split()
+                    for p in parts:
+                        if p.startswith('package:'):
+                            pkg = p.split('package:', 1)[1]
+                        if p.startswith('uid:'):
+                            try:
+                                uid = int(p.split('uid:', 1)[1])
+                            except Exception:
+                                uid = None
+                    if pkg:
+                        pkg_map[pkg] = uid
+        else:
+            logging.warning('pm list packages -U returned non-zero: %s', (res.stderr or res.stdout).strip())
+
+        # Write mapping to OUT_DIR
+        try:
+            os.makedirs(OUT_DIR, exist_ok=True)
+            mapping_file = os.path.join(OUT_DIR, f'package_uids_{serial}.json')
+            with open(mapping_file, 'w', encoding='utf-8') as mf:
+                json.dump(pkg_map, mf, indent=2)
+            logging.info('Wrote package->UID mapping to %s', mapping_file)
+        except Exception:
+            logging.exception('Failed to write package->UID mapping')
+    except Exception:
+        logging.exception('Failed to retrieve package UID mapping from device')
+
+    # Optionally remove pid file
+    try:
+        if os.path.exists(pid_file):
+            os.remove(pid_file)
+    except Exception:
+        logging.debug('Failed to remove pid file %s', pid_file)
+
+    return True
+
 def main():
     args = parse_args()
     results_dir = os.path.join(BASE_DIR, 'out')
@@ -413,6 +641,8 @@ def main():
     except Exception:
         logging.exception('Failed to write adb availability result')
         sys.exit(2)
+
+    start_tcpdump()
 
     # Start crash watcher in background to dismiss random ANR/crash dialogs during the pipeline
     if crash_watcher:
@@ -472,23 +702,16 @@ def main():
 
     logging.info('Launcher preflight succeeded; continuing with Appium start and device setup')
 
-    # Start a local Appium server for the experiment and ensure it is stopped at the end
-    appium_proc = start_appium_server()
-    if appium_proc:
-        # register atexit cleanup as a safety net
-        atexit.register(stop_appium_server, appium_proc)
-
     try:
         if args.skip_setup:
             logging.info('Skipping device setup as requested (--skip-setup)')
         else:
-            setup_devices(mode=args.mode, pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address)
+            setup_devices(mode=args.mode, pcapdroid=getattr(args, 'pcapdroid', False), pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address)
         start_experiment(mode=args.mode, test_only_one=getattr(args, 'test-only-one', False) or getattr(args, 'test_only_one', False) or args.test_only_one)
     except KeyboardInterrupt:
         logging.info('Interrupted by user')
     finally:
-        # Ensure Appium is stopped before exit
-        stop_appium_server(appium_proc)
+        stop_tcpdump()
 
 
 if __name__ == "__main__":
