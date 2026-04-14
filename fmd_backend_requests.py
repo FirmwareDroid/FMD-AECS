@@ -116,7 +116,7 @@ def get_firmware_ids(graphql_url, cookies, arch=None, pk_filter=None):
     return object_id_list
 
 
-def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_abs_path, max_attempts=10):
+def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_abs_path, max_attempts=100):
     """
     Downloads the build files for the given Android app (object id) and shows a progress bar of the download.
 

@@ -27,6 +27,8 @@ fi
 
 # Path to the emulator start script (override via env EMULATOR_START_SCRIPT)
 EMULATOR_START_SCRIPT="${EMULATOR_START_SCRIPT:-/android/testing_service/emulator_start.sh}"
+# Path to the emulator setup helper script (starts socat, pulseaudio, log tails)
+EMULATOR_SETUP_SCRIPT="${EMULATOR_SETUP_SCRIPT:-/android/testing_service/emulator_setup.sh}"
 # Where to write emulator_start logs (override via env EMULATOR_START_LOG)
 EMULATOR_START_LOG="${EMULATOR_START_LOG:-/var/log/emulator_start.log}"
 
@@ -41,84 +43,32 @@ if [ "$DELAY" -gt 0 ] 2>/dev/null; then
   sleep "$DELAY"
 fi
 
-# Start emulator script in foreground (so it becomes PID 1) if present
+# Start emulator script in foreground (so it becomes PID 1)
 if [ -f "$EMULATOR_START_SCRIPT" ]; then
   echo "Starting ${EMULATOR_START_SCRIPT} in foreground (logs -> ${EMULATOR_START_LOG})"
   # ensure log dir exists
   mkdir -p "$(dirname "$EMULATOR_START_LOG")"
   chmod +x "$EMULATOR_START_SCRIPT" || true
 
-  # Check if emulator_start.sh is already running (prefer pgrep, fallback to ps+grep)
-  ALREADY_RUNNING=1
-  if command -v pgrep >/dev/null 2>&1; then
-    if pgrep -f "$EMULATOR_START_SCRIPT" >/dev/null 2>&1; then
-      ALREADY_RUNNING=0
-    fi
-  else
-    if ps aux | grep "$(basename "$EMULATOR_START_SCRIPT")" >/dev/null 2>&1; then
-      ALREADY_RUNNING=0
-    fi
+  # Start optional external setup helper in background (if present)
+  if [ -f "$EMULATOR_SETUP_SCRIPT" ]; then
+    echo "Starting emulator setup helper: $EMULATOR_SETUP_SCRIPT"
+    chmod +x "$EMULATOR_SETUP_SCRIPT" || true
+    # run in background, send its output to the same log file
+    /bin/bash -c "\"$EMULATOR_SETUP_SCRIPT\" 2>&1 | tee -a \"$EMULATOR_START_LOG\"" &
+    sleep 0.5
   fi
 
-  if [ "$ALREADY_RUNNING" -eq 0 ]; then
-    echo "${EMULATOR_START_SCRIPT} already running; stopping existing instance before restart."
-    # Try graceful termination first (SIGTERM) using pkill if available
-    if command -v pkill >/dev/null 2>&1; then
-      pkill -f "$EMULATOR_START_SCRIPT" || true
-    else
-      # fallback to finding PIDs and killing
-      PIDS_TO_KILL=$(ps aux | grep "$EMULATOR_START_SCRIPT" | grep -v grep | awk '{print $2}') || true
-      for p in $PIDS_TO_KILL; do
-        kill -TERM "$p" 2>/dev/null || true
-      done
-    fi
-
-    # Also proactively stop known child processes that emulator_start.sh would have started
-    echo "Stopping potential child processes: emulator qemu, socat, pulseaudio, tails"
-    # kill emulator qemu processes
-    pkill -f "emulator -avd" 2>/dev/null || true
-    # kill socat listeners
-    pkill -f "socat -d tcp-listen:5555" 2>/dev/null || true
-    pkill -f "socat -d tcp-listen:8554" 2>/dev/null || true
-    # kill pulseaudio instances
-    pkill -f "pulseaudio" 2>/dev/null || true
-    # kill tail/cat readers on FIFOs
-    pkill -f "tail -F /tmp/android-unknown/goldfish_rtc_0" 2>/dev/null || true
-    pkill -f "cat /tmp/android-unknown/kernel.log" 2>/dev/null || true
-    pkill -f "cat /tmp/android-unknown/logcat.log" 2>/dev/null || true
-
-    # Remove FIFOs/sockets that might block a fresh run
-    rm -f /tmp/android-unknown/kernel.log /tmp/android-unknown/logcat.log 2>/dev/null || true
-    rm -f /tmp/pulse-socket 2>/dev/null || true
-
-    # Wait up to 15s for processes to exit
-    WAIT=0
-    while ( (command -v pgrep >/dev/null 2>&1 && pgrep -f "$EMULATOR_START_SCRIPT" >/dev/null 2>&1) || ( ! command -v pgrep >/dev/null 2>&1 && ps aux | grep "$EMULATOR_START_SCRIPT" | grep -v grep >/dev/null 2>&1 ) ) && [ $WAIT -lt 15 ]; do
-      sleep 1
-      WAIT=$((WAIT+1))
-    done
-
-    # If still running, force kill
-    if command -v pgrep >/dev/null 2>&1 && pgrep -f "$EMULATOR_START_SCRIPT" >/dev/null 2>&1; then
-      echo "Existing ${EMULATOR_START_SCRIPT} did not stop in time; forcing kill"
-      pkill -9 -f "$EMULATOR_START_SCRIPT" || true
-      sleep 1
-    elif ! command -v pgrep >/dev/null 2>&1 && ps aux | grep "$EMULATOR_START_SCRIPT" | grep -v grep >/dev/null 2>&1; then
-      echo "Existing ${EMULATOR_START_SCRIPT} did not stop in time; forcing kill (fallback)"
-      PIDS_TO_KILL=$(ps aux | grep "$EMULATOR_START_SCRIPT" | grep -v grep | awk '{print $2}') || true
-      for p in $PIDS_TO_KILL; do
-        kill -9 "$p" 2>/dev/null || true
-      done
-      sleep 1
-    fi
-
-    echo "Starting fresh ${EMULATOR_START_SCRIPT} instance..."
-    # Run the emulator start script and tee output to the log file and stdout so 'docker logs' shows it
-    exec /bin/bash -c "\"$EMULATOR_START_SCRIPT\" 2>&1 | tee -a \"$EMULATOR_START_LOG\""
+  # Launch the Python-based launcher which starts and watches the emulator
+  # helper script. The launcher will restart the emulator_start.sh on
+  # failures and applies cooldowns / limits.
+  if command -v python3 >/dev/null 2>&1 && [ -f "/android/testing_service/emulator_launcher.py" ]; then
+    echo "Starting emulator launcher (python) -> /android/testing_service/emulator_launcher.py"
+    chmod +x "/android/testing_service/emulator_launcher.py" || true
+    exec python3 -u "/android/testing_service/emulator_launcher.py" --script "$EMULATOR_START_SCRIPT" --log "$EMULATOR_START_LOG"
   else
-    # Run the emulator start script and tee output to the log file and stdout so 'docker logs' shows it
+    # Fallback: run the shell script directly if python3 or launcher missing
+    echo "Warning: python3 or emulator_launcher.py not found, running emulator_start.sh directly (no auto-restart)"
     exec /bin/bash -c "\"$EMULATOR_START_SCRIPT\" 2>&1 | tee -a \"$EMULATOR_START_LOG\""
   fi
 fi
-
-tail -F "$EMULATOR_START_LOG" 2>/dev/null

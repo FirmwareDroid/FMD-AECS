@@ -134,6 +134,30 @@ def main():
 	parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
 	args = parser.parse_args()
 
+	# If no serial provided and multiple devices are connected, pick the first
+	if not args.serial:
+		adb = shutil.which('adb')
+		if not adb:
+			print('adb not found in PATH', file=sys.stderr)
+			sys.exit(1)
+		try:
+			proc = subprocess.run([adb, 'devices'], capture_output=True, text=True, timeout=10)
+			lines = [l.strip() for l in (proc.stdout or '').splitlines() if l.strip()]
+			serial = None
+			for l in lines:
+				if l.startswith('List of devices'):
+					continue
+				parts = l.split()
+				if len(parts) >= 2 and parts[1] == 'device':
+					serial = parts[0]
+					break
+			if serial:
+				print(f'No --serial provided; selecting first connected device: {serial}')
+				args.serial = serial
+		except Exception:
+			print('Failed to query adb devices', file=sys.stderr)
+			sys.exit(1)
+
 	adb_base = adb_base_cmd(args.serial)
 	if not adb_base:
 		print('adb not found in PATH', file=sys.stderr)

@@ -262,6 +262,27 @@ def main(argv=None):
     base_name = args.name
     black_threshold = args.black_threshold
 
+    # If no device specified and more than one device is connected, pick the first
+    if not device:
+        try:
+            dproc = subprocess.run([ADB_BIN, 'devices'], capture_output=True, text=True, timeout=10)
+            lines = [l.strip() for l in (dproc.stdout or '').splitlines() if l.strip()]
+            serial = None
+            for l in lines:
+                if l.startswith('List of devices'):
+                    continue
+                parts = l.split()
+                if len(parts) >= 2 and parts[1] == 'device':
+                    serial = parts[0]
+                    break
+            if serial:
+                logging.info('No --device provided; selecting first connected device: %s', serial)
+                device = serial
+            else:
+                logging.warning('No adb device found; continuing with device=None which may fail')
+        except Exception:
+            logging.exception('Failed to query adb devices; continuing with device=None')
+
     os.makedirs(outdir, exist_ok=True)
 
     # optionally start crash watcher to dismiss spontaneous dialogs
