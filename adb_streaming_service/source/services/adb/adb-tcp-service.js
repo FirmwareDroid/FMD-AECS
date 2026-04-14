@@ -24,6 +24,7 @@ import { global } from "../../state/global.js";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { withTimeout } from "../../utils/timeout.js";
+import { createDeviceMonitor } from "./adb-device-monitor.js";
 // inline __dirname when needed to avoid keeping an unused constant
 
 export class ProgressStream extends InspectStream {
@@ -984,18 +985,6 @@ class AdbTcpService {
 		return deviceModel.adb;
 	}
 
-	async setDeviceVolume(deviceAdb, volumeOrPayload, muted = false) {
-		// Deprecated: this service no longer performs volume changes via adb subprocess.exec.
-		// Volume control should be performed by injecting key codes via the scrcpy controller
-		// using the `injectKeyCode` control message (AndroidKeyCode.VolumeUp=24, VolumeDown=25, MUTE=164).
-		try {
-			logger.debug('setDeviceVolume called but is deprecated. deviceSerial=', resolveSerialFromAdbInstance(deviceAdb), 'payload=', volumeOrPayload, 'muted=', muted);
-		} catch (e) {
-			logger.debug('setDeviceVolume called (could not resolve serial)', e?.message || e);
-		}
-		return { ok: false, error: 'deprecated-use-controller-injectKeyCode', detail: 'Use controller.injectKeyCode to simulate VolumeUp/VolumeDown/MUTE' };
-	}
-
 	async metainfo() {
 		const [features, devices] = await Promise.all([ this.getFeatures(), this.getDevices() ]);
 		// Connect using serverKey/serial to avoid ambiguity when same serial appears on multiple pools
@@ -1046,6 +1035,26 @@ class AdbTcpService {
 }
 
 export const service = new AdbTcpService();
+
+// Device monitor: push the scrcpy binary to newly connected ADB devices at startup
+// and on a regular interval without waiting for a WebSocket client to connect.
+const _deviceMonitor = createDeviceMonitor({
+	logger,
+	getPools: () => pools,
+	Adb,
+	pushServer,
+});
+
+/**
+ * Start the device monitor.  Pushes the scrcpy server binary to all currently
+ * connected ADB devices immediately, then repeats on `intervalMs`.
+ *
+ * @param {number} [intervalMs=30000] - Polling interval in milliseconds.
+ * @returns {ReturnType<typeof setInterval>} Timer handle (pass to clearInterval to stop).
+ */
+export function startDeviceMonitor(intervalMs = 30_000) {
+	return _deviceMonitor.start(intervalMs);
+}
 
 /**
  * Evict a device serial from the pushed-server cache.

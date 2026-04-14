@@ -95,6 +95,7 @@ loadEnvFile(envFile);
 
 // Now that env vars are loaded, dynamically import logger and adb-tcp-service so they pick up env values
 let evictPushedSerial = () => {}; // will be replaced after import
+let startDeviceMonitor = () => {}; // will be replaced after import
 try {
     const loggerModule = await import("./services/logger.js");
     logger = loggerModule.logger;
@@ -104,6 +105,9 @@ try {
     adbTcpService = adbModule.service;
     if (typeof adbModule.evictPushedSerial === 'function') {
         evictPushedSerial = adbModule.evictPushedSerial;
+    }
+    if (typeof adbModule.startDeviceMonitor === 'function') {
+        startDeviceMonitor = adbModule.startDeviceMonitor;
     }
 } catch (e) {
     console.error('Failed to initialize logger or adb service after loading env:', e);
@@ -289,6 +293,14 @@ const run = async () => {
         })
 
     await app.start();
+
+    // Push scrcpy binary to all currently connected ADB devices now, and keep
+    // checking for newly attached devices on a regular interval.
+    const monitorIntervalMs = process.env.DEVICE_MONITOR_INTERVAL_MS
+        ? Number(process.env.DEVICE_MONITOR_INTERVAL_MS)
+        : 30_000;
+    startDeviceMonitor(monitorIntervalMs);
+    logger.info(`Device monitor started (interval=${monitorIntervalMs}ms)`);
 };
 
 // Start the server and install global error handlers
