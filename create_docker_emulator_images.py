@@ -7,9 +7,8 @@ import shutil
 import subprocess
 import time
 from getpass import getpass
-import docker
-from werkzeug.utils import secure_filename
 import platform
+import docker
 from common import extract_zip
 from fmd_backend_requests import download_file, fetch_emulator_image_list
 from setup_logger import setup_logger
@@ -312,12 +311,42 @@ def check_if_base_images_exists():
     else:
         arch = mach or 'unknown'
 
+    system_name = (platform.system() or '').lower()
+
+    # Try docker SDK on Linux first
+    if system_name == 'linux' and docker is not None:
+        try:
+            client = docker.from_env()
+            try:
+                client.images.get(f"fmd-emulator_{arch}")
+                logging.info(f"Base image fmd-emulator_{arch} exists (checked via docker SDK)")
+                return True
+            except docker.errors.ImageNotFound:
+                logging.info(f"Base image fmd-emulator_{arch} not found (docker SDK)")
+                return False
+            except Exception as err:
+                logging.warning(f"docker SDK check failed, falling back to CLI: {err}")
+        except Exception as err:
+            logging.debug(f"docker.from_env() failed: {err}")
+
+    # Fallback to docker CLI
+    docker_cli = shutil.which('docker')
+    if not docker_cli:
+        logging.warning('docker CLI not found in PATH; cannot check for base image')
+        return False
+
     try:
-        image = client.images.get(f"fmd-emulator_{arch}")
-        logging.info(f"Base image {image.id} exists for arch={arch}.")
-        return True
+        cmd = [docker_cli, 'images', '-q', f'fmd-emulator_{arch}']
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        if res.returncode == 0 and (res.stdout or '').strip():
+            img_id = res.stdout.strip().splitlines()[0].strip()
+            logging.info(f"Base image {img_id} exists for arch={arch}.")
+            return True
+        else:
+            logging.info(f"Base image fmd-emulator_{arch} not found (docker images returned empty)")
+            return False
     except Exception as err:
-        logging.warning(f"Base image fmd-emulator_{arch} not found: {err}")
+        logging.warning(f"Failed to query docker images for base image: {err}")
         return False
 
 
@@ -329,6 +358,38 @@ def get_host_architecture() -> str:
         return "arm64"
     return arch  # fallback: return raw string for logging / future checks
 
+
+def _is_docker_available() -> bool:
+    """Return True if the docker CLI or daemon appears reachable.
+
+    Prefer `docker info` via subprocess because docker-py may surface low-level
+    socket errors that are harder to interpret. This works on macOS/Linux.
+    """
+    # First try docker CLI
+    try:
+        docker_bin = shutil.which('docker') or 'docker'
+        res = subprocess.run([docker_bin, 'info'], capture_output=True, text=True, timeout=8)
+        if res.returncode == 0:
+            return True
+    except Exception:
+        pass
+
+    # On Linux try docker SDK as a fallback (it may connect to daemon directly).
+    system_name = (platform.system() or '').lower()
+    if system_name == 'linux' and docker is not None:
+        try:
+            client = docker.from_env()
+            # use low-level ping to verify connectivity
+            try:
+                client.api.ping()
+                return True
+            except Exception:
+                return False
+        except Exception:
+            return False
+
+    return False
+
 def create_base_images():
     """
     Creates the base images for the emulator only for the host CPU arch.
@@ -338,6 +399,8 @@ def create_base_images():
     for arch in ("x86_64", "arm64"):
         if arch == host_arch:
             logging.info(f"Building base image for {arch}")
+            if not _is_docker_available():
+                raise RuntimeError("Docker daemon not available. Start Docker Desktop / Docker Engine and re-run this script.")
             build_container_image(
                 f"fmd-emulator_{arch}",
                 f"linux/{arch}",
