@@ -178,10 +178,8 @@ def process_single_image(task_tuple):
             raise RuntimeError(f"Docker build failed for {tag}")
 
         if not build_local:
-            if not repository_password:
-                raise RuntimeError("Repository password not provided; cannot push")
-            authenticate_docker_registry(docker_repo_url, repository_username, repository_password)
-            push_container_image(docker_repo_url, tag)
+            # Defer pushing to the main process to allow controlled parallel pushes
+            logging.info(f"[worker] Build complete for {tag}; push will be performed by the main process.")
         else:
             logging.info(f"[worker] Skipped pushing the image {tag} to the docker repository. Only local build.")
 
@@ -458,6 +456,30 @@ def process_images(input_dir, docker_repo_url, repository_username, build_local)
     successes = [r for r in aggregate if r.get('success')]
     failures = [r for r in aggregate if not r.get('success')]
     logging.info(f"Finished processing images. Successful: {len(successes)} Failed: {len(failures)}")
+
+    # If we're pushing to a remote registry, perform pushes in parallel from the main process.
+    if not build_local and successes:
+        # Authenticate once before pushing (so workers don't race on docker login)
+        if not repository_password:
+            raise RuntimeError("Repository password not provided; cannot push")
+        logging.info("Authenticating to docker registry before parallel pushes")
+        authenticate_docker_registry(docker_repo_url, repository_username, repository_password)
+
+        # Build a list of tags to push
+        tags_to_push = [r['tag'] for r in successes]
+        logging.info(f"Preparing to push {len(tags_to_push)} images in parallel")
+
+        # Limit push concurrency to avoid saturating network / registry limits
+        max_push_workers = min(8, max(1, multiprocessing.cpu_count()))
+        with ThreadPoolExecutor(max_workers=max_push_workers) as push_ex:
+            push_futures = {push_ex.submit(push_container_image, docker_repo_url, tag): tag for tag in tags_to_push}
+            for fut in as_completed(push_futures):
+                tag = push_futures[fut]
+                try:
+                    fut.result()
+                    logging.info(f"Pushed image: {tag}")
+                except Exception as e:
+                    logging.exception(f"Failed to push image {tag}: {e}")
 
 
 def clear_environment(local_repo_path):
