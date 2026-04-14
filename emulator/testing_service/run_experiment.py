@@ -362,7 +362,7 @@ def run_launcher_test(results_dir):
     res = run_script_capture(LAUNCHER_TEST, args=['--output-dir', results_dir, '--name', preflight_name], description='Run launcher preflight test')
 
     # find the newest JSON file produced (preflight_*.json)
-    json_matches = glob.glob(os.path.join(results_dir, f"{preflight_name}_*.json"))
+    json_matches = glob.glob(os.path.join(results_dir, f"{preflight_name}.json"))
     if json_matches:
         json_path = max(json_matches, key=os.path.getmtime)
         logging.info('Found launcher test JSON output: %s', json_path)
@@ -373,7 +373,7 @@ def run_launcher_test(results_dir):
             logging.error('Failed to read launcher test JSON: %s', e)
             jdata = None
     else:
-        logging.error('No launcher test JSON output found in %s', results_dir)
+        logging.error('No %s JSON output found in %s', preflight_name, results_dir)
         jdata = None
 
     if jdata and isinstance(jdata, dict):
