@@ -74,7 +74,8 @@ Routes (examples):
 
 - `GET /api/health/get` — health check (public, does not require auth)
 - `GET /api/meta/get-all` — returns meta information about the service (requires auth if `AUTH_ENABLED=true`)
-- `POST /api/adb/install` — install APK on device (requires auth if enabled)
+- `POST /api/adb/install` — install APK on device via shell command (requires auth if enabled)
+- `POST /api/adb/install-app?app=<filename>&device=<serial>&source=<uploads|apps>` — install APK on a selected ADB device using the ADB protocol (no shell invocation; requires auth if enabled)
 - `POST /api/adb/start` — start a device stream (requires auth if enabled)
 - `POST /api/adb/pin` — pin a device to a client session (requires auth if enabled)
 - `POST /api/adb/unpin` — unpin device (requires auth if enabled)

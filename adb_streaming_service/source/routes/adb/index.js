@@ -15,6 +15,11 @@ export default [
 	},
 	{
 		method: "post",
+		url: "/api/adb/install-app",
+		handler: controller.installApp,
+	},
+	{
+		method: "post",
 		url: "/api/adb/start",
 		// schema: schema.get,
 		handler: controller.start,

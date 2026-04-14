@@ -19,6 +19,7 @@ import {
 	AdbScrcpyOptionsLatest,
 	AdbScrcpyOptions2_1,
 } from "@yume-chan/adb-scrcpy";
+import { PackageManager } from "@yume-chan/android-bin";
 import { logger } from "../logger.js";
 import { global } from "../../state/global.js";
 import { resolve, dirname } from "node:path";
@@ -1030,6 +1031,51 @@ class AdbTcpService {
 			return { ok: false, error: String(e) };
 		} finally {
 			releasePoolMutex();
+		}
+	}
+
+	/**
+	 * Install an APK file on a connected ADB device using the ADB protocol
+	 * (via @yume-chan/android-bin PackageManager).  The APK is streamed from
+	 * the local filesystem directly to the device — no intermediate shell
+	 * invocation is required.
+	 *
+	 * @param {string|object} deviceParam - Device serial, unique name
+	 *   (host:port/serial), or a device descriptor object as accepted by
+	 *   `getDeviceAdb`.
+	 * @param {string} apkPath - Absolute path to the APK file on the server.
+	 * @param {object} [options] - Optional install options forwarded to
+	 *   `PackageManager.pushAndInstallStream` (e.g. `{ grantRuntimePermissions: true }`).
+	 * @returns {Promise<{ ok: boolean, output: string }>}
+	 */
+	async installApk(deviceParam, apkPath, options = {}) {
+		logger.info(`installApk: device=${JSON.stringify(deviceParam)} apkPath=${apkPath}`);
+		const deviceAdb = await this.getDeviceAdb(deviceParam);
+		const pm = new PackageManager(deviceAdb);
+
+		const stat = await fs.stat(apkPath);
+		const fileSize = stat.size;
+		logger.info(`installApk: file size=${fileSize} bytes`);
+
+		const fileHandle = await fs.open(apkPath, 'r');
+		try {
+			const fileStream = fileHandle.readableWebStream
+				? fileHandle.readableWebStream()
+				: new ReadableStream({
+					async start(controller) {
+						const buf = await fs.readFile(apkPath);
+						controller.enqueue(new Consumable(buf));
+						controller.close();
+					},
+				});
+
+			// pushAndInstallStream pushes the APK to a temp path on the device
+			// and then runs 'pm install' — it returns the pm output string.
+			const output = await pm.pushAndInstallStream(fileStream, options);
+			logger.info(`installApk: result="${output}"`);
+			return { ok: true, output: output ?? '' };
+		} finally {
+			try { await fileHandle.close(); } catch (e) { logger.debug(`installApk: fileHandle.close() failed: ${e?.message || e}`); }
 		}
 	}
 }
