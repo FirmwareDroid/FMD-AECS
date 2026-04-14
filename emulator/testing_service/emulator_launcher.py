@@ -117,11 +117,15 @@ def _check_device_responsive(timeout=5):
     `dumpsys activity activities` and `getprop sys.boot_completed` to determine responsiveness.
     Returns True if any check returns quickly with non-empty output.
     """
+    logger = logging.getLogger("emulator_launcher")
     try:
         adb = shutil.which('adb') or 'adb'
+        logger.info(f"_check_device_responsive: using adb binary '{adb}' with timeout={timeout}s")
+
         # list devices
         p = subprocess.run([adb, 'devices'], capture_output=True, text=True, timeout=timeout)
         out = (p.stdout or '')
+        logger.debug(f"adb devices output:\n{out}")
         lines = [l.strip() for l in out.splitlines() if l.strip()]
         serial = None
         for l in lines:
@@ -132,28 +136,74 @@ def _check_device_responsive(timeout=5):
                 serial = parts[0]
                 break
         if not serial:
+            logger.debug('_check_device_responsive: no device in adb devices list')
             return False
+        logger.info(f"_check_device_responsive: selected device serial={serial}")
 
-        # Try a quick dumpsys (short timeout)
+        # Try a quick dumpsys activity (short timeout) and log a snippet for debugging
         try:
+            start = time.time()
             r = subprocess.run([adb, '-s', serial, 'shell', 'dumpsys', 'activity', 'activities'], capture_output=True, text=True, timeout=timeout)
-            if r.returncode == 0 and (r.stdout or r.stderr):
+            duration = time.time() - start
+            snippet = (r.stdout or r.stderr or '')[:2000]
+            logger.info(f"dumpsys activity returned (rc={r.returncode}) in {duration:.2f}s; snippet_len={len(snippet)}")
+            if r.returncode == 0 and snippet.strip():
+                # Heuristic: presence of 'ResumedActivity' or 'mResumedActivity' or 'Running activities' indicates activity
+                if 'ResumedActivity' in snippet or 'mResumedActivity' in snippet or 'Running activities' in snippet or 'ACTIVITY' in snippet:
+                    logger.info('_check_device_responsive: dumpsys activity indicates responsive')
+                    return True
+                # otherwise treat non-empty dumpsys as positive signal
+                logger.info('_check_device_responsive: dumpsys activity non-empty => responsive')
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"dumpsys activity check failed: {e}")
+
+        # Check if system_server is running (strong indicator the Android userspace is alive)
+        try:
+            start = time.time()
+            r_pid = subprocess.run([adb, '-s', serial, 'shell', 'pidof', 'system_server'], capture_output=True, text=True, timeout=timeout)
+            duration = time.time() - start
+            pidout = (r_pid.stdout or r_pid.stderr or '').strip()
+            logger.info(f"pidof system_server returned (rc={r_pid.returncode}) in {duration:.2f}s; out='{pidout}'")
+            if r_pid.returncode == 0 and pidout:
+                logger.info('_check_device_responsive: system_server pid present => responsive')
+                return True
+        except Exception as e:
+            logger.debug(f"pidof system_server check failed: {e}")
 
         # Fall back to checking boot completed property
         try:
+            start = time.time()
             r2 = subprocess.run([adb, '-s', serial, 'shell', 'getprop', 'sys.boot_completed'], capture_output=True, text=True, timeout=timeout)
-            if r2.returncode == 0 and (r2.stdout or '').strip() == '1':
+            duration = time.time() - start
+            v = (r2.stdout or r2.stderr or '').strip()
+            logger.info(f"getprop sys.boot_completed returned (rc={r2.returncode}) in {duration:.2f}s; val='{v}'")
+            if r2.returncode == 0 and v == '1':
+                logger.info('_check_device_responsive: boot_completed == 1 => responsive')
                 return True
-            # If it's not '1' but there is some output, still treat as responsive
-            if r2.returncode == 0 and (r2.stdout or r2.stderr):
+            if r2.returncode == 0 and v:
+                logger.info('_check_device_responsive: getprop returned non-empty => responsive')
                 return True
-        except Exception:
-            pass
-    except Exception:
+        except Exception as e:
+            logger.debug(f"getprop check failed: {e}")
+
+        # As a last resort, try dumpsys window displays to see if system responds
+        try:
+            start = time.time()
+            r3 = subprocess.run([adb, '-s', serial, 'shell', 'dumpsys', 'window', 'displays'], capture_output=True, text=True, timeout=timeout)
+            duration = time.time() - start
+            snippet = (r3.stdout or r3.stderr or '')[:1000]
+            logger.info(f"dumpsys window displays (rc={r3.returncode}) in {duration:.2f}s; snippet_len={len(snippet)}")
+            if r3.returncode == 0 and snippet.strip():
+                logger.info('_check_device_responsive: dumpsys window displays non-empty => responsive')
+                return True
+        except Exception as e:
+            logger.debug(f"dumpsys window displays check failed: {e}")
+
+    except Exception as e:
+        logger.warning(f"_check_device_responsive overall failure: {e}")
         return False
+    logger.info('_check_device_responsive: no positive signals from adb checks; treating device as unresponsive')
     return False
 
 
@@ -300,10 +350,10 @@ def main():
                         try:
                             responsive = _check_device_responsive(timeout=10)
                         except Exception as e:
-                            logger.debug(f"Device responsiveness check failed: {e}")
+                            logger.warning(f"Device responsiveness check failed: {e}")
                             responsive = False
                         if responsive:
-                            logger.debug("Device responsive via adb; updating last_responsive_time")
+                            logger.warning("Device responsive via adb; updating last_responsive_time")
                             last_responsive_time = now
                         else:
                             inactive = now - last_responsive_time if last_responsive_time else now
