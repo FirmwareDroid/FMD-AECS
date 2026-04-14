@@ -32,15 +32,17 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get -o Acquire::Retries=${APT_RETRIES} install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-# ---- Install pnpm ----
-RUN npm install -g pnpm@latest
+# ---- Install pnpm (pinned to match pnpm-lock.yaml lockfileVersion 9) ----
+RUN npm install -g pnpm@9
 
-
-# Install and Build all dependencies
+# Install all dependencies
+# pnpm store is kept inside /app to avoid home-directory permission issues
+ENV PNPM_HOME=/app/.pnpm-store
+ENV PATH="$PNPM_HOME:$PATH"
 ENV CI=true
-RUN pnpm recursive install --prefer-offline --no-frozen-lockfile && \
+RUN pnpm recursive install --prefer-offline --frozen-lockfile && \
     cd /app/source && \
-    pnpm install
+    pnpm install --frozen-lockfile
 
 # Create unprivileged user
 RUN groupadd -r appgroup && useradd -r -g appgroup -d /home/app -m -s /bin/bash app
@@ -48,6 +50,10 @@ RUN chown -R app:appgroup /app && chmod -R g+rX /app
 USER app
 
 WORKDIR /app/source
+
+# Health check — container orchestrators can restart unhealthy instances
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-9001}/api/health || exit 1
 
 # Start: run adb devices then pm2-runtime from local node_modules
 # Use shell wrapper to run adb devices before pm2 runtime (pm2 binary is in node_modules/.bin)

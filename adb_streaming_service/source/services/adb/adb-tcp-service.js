@@ -23,6 +23,7 @@ import { logger } from "../logger.js";
 import { global } from "../../state/global.js";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { withTimeout } from "../../utils/timeout.js";
 // inline __dirname when needed to avoid keeping an unused constant
 
 export class ProgressStream extends InspectStream {
@@ -86,24 +87,6 @@ const server = await loadServerBinary();
 // helper sleep
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// helper to add a timeout to any promise
-function withTimeout(promise, ms = 10000, errMsg = null) {
-	return new Promise((resolve, reject) => {
-		let settled = false;
-		const timer = setTimeout(() => {
-			if (settled) return;
-			settled = true;
-			reject(new Error(errMsg || `Timed out after ${ms}ms`));
-		}, ms);
-		promise.then((v) => {
-			if (settled) return;
-			settled = true; clearTimeout(timer); resolve(v);
-		}).catch((e) => {
-			if (settled) return; settled = true; clearTimeout(timer); reject(e);
-		});
-	});
-}
-
 // Support multiple ADB servers via env var ADB_SERVER_LIST (comma-separated host:port entries).
 // Fallback to localhost:5037 for backward compatibility.
 function getAdbServerEntries() {
@@ -156,6 +139,28 @@ while (true) {
 // convenience: default pool (first entry) to preserve previous single-host behavior
 let defaultPool = pools[0];
 
+// --- Simple async mutex to guard pool mutation ---
+let _poolMutexLocked = false;
+const _poolMutexQueue = [];
+function acquirePoolMutex() {
+	return new Promise((resolve) => {
+		if (!_poolMutexLocked) {
+			_poolMutexLocked = true;
+			resolve();
+		} else {
+			_poolMutexQueue.push(resolve);
+		}
+	});
+}
+function releasePoolMutex() {
+	const next = _poolMutexQueue.shift();
+	if (next) {
+		next();
+	} else {
+		_poolMutexLocked = false;
+	}
+}
+
 // --- Automatic pool health monitoring and auto-refresh on repeated failures ---
 const POOL_FAILURE_THRESHOLD = 3; // number of consecutive failures to trigger refresh
 const POOL_FAILURE_WINDOW_MS = 60_000; // time window to consider failures (1 minute)
@@ -191,6 +196,7 @@ function recordPoolFailure(key, err) {
 
 async function doAutoRefresh() {
 	if (refreshInProgress) return;
+	await acquirePoolMutex();
 	refreshInProgress = true;
 	lastRefreshAttempt = Date.now();
 	logger.info('Auto-refreshing ADB server pools due to repeated failures');
@@ -215,7 +221,7 @@ async function doAutoRefresh() {
 		}
 		logger.info(`autoRefresh: replaced pools, new count=${pools.length}`);
 		return { ok: true, count: pools.length };
-	} finally { refreshInProgress = false; }
+	} finally { refreshInProgress = false; releasePoolMutex(); }
 }
 
 // Periodic health probe to proactively detect failing pools
@@ -1005,6 +1011,7 @@ class AdbTcpService {
 
 	// Public: refresh the configured pools (recreate connections to ADB servers)
 	async refreshPools(serversOverride) {
+		await acquirePoolMutex();
 		try {
 			logger.info('Refreshing ADB server pools (manual trigger)');
 			const newPools = await createPoolsOnce(serversOverride);
@@ -1032,9 +1039,25 @@ class AdbTcpService {
 		} catch (e) {
 			logger.error('refreshPools: unexpected error', e?.message || e);
 			return { ok: false, error: String(e) };
+		} finally {
+			releasePoolMutex();
 		}
 	}
 }
 
 export const service = new AdbTcpService();
+
+/**
+ * Evict a device serial from the pushed-server cache.
+ * Call this when a WebSocket session closes so the next session re-verifies
+ * that the scrcpy server binary is still present on the device.
+ *
+ * @param {string} serial - Device serial number.
+ */
+export function evictPushedSerial(serial) {
+	if (serial) {
+		pushedBySerial.delete(serial);
+		logger.debug(`evictPushedSerial: cleared push cache for serial=${serial}`);
+	}
+}
 

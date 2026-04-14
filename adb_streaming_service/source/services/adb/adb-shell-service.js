@@ -10,13 +10,12 @@ import {
   TMP_DIR,
 } from "./getAppPath.js";
 
-//TODO Remove this service and use only scripts for adb operations
 class AdbShellService {
   async install(app = "de.heinekingmedia.stashcat.apk", device = null, source) {
     const installArgs = device ? ["-s", device] : [];
     const appPath = getAppPath(source, app);
     const commandArgs = [...installArgs, "install", appPath];
-    console.log("COMMAND ARGS =", commandArgs);
+    logger.debug({ commandArgs }, "ADB install command args");
 
     const log = {
       logs: [],
