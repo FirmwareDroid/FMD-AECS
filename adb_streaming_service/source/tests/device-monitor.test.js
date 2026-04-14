@@ -1,5 +1,5 @@
 /**
- * Unit tests for source/services/adb/adb-device-monitor.js
+ * Unit tests for the ADB device monitor (source/services/adb/adb-device-monitor.js).
  * Run with: node --test source/tests/device-monitor.test.js
  */
 import { test, describe, beforeEach } from 'node:test';

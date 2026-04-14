@@ -31,7 +31,8 @@ export function createDeviceMonitor({ logger, getPools, Adb, pushServer }) {
         }
 
         // Collect (pool, serial) pairs from every pool.
-        // Each pool exposes at most one device (matching the existing getDevices logic).
+        // Only the first device returned per pool is used; this mirrors the
+        // existing single-device-per-pool assumption in AdbTcpService.getDevices().
         const deviceTasks = [];
         for (const pool of pools) {
             try {
