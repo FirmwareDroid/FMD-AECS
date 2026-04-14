@@ -24,6 +24,11 @@ START_APPS_BASIC = os.path.join(BASE_DIR, 'start_apps.py')
 LAUNCHER_TEST = os.path.join(BASE_DIR, 'launcher_test.py')
 CONNECTIVITY_TEST = os.path.join(BASE_DIR, 'connectivity_test.py')
 
+# App testing tool wrappers (app_testing_tools/)
+RUN_APE = os.path.join(BASE_DIR, 'app_testing_tools', 'run_ape.py')
+RUN_FASTBOT = os.path.join(BASE_DIR, 'app_testing_tools', 'run_fastbot.py')
+RUN_KEA2 = os.path.join(BASE_DIR, 'app_testing_tools', 'run_kea2.py')
+
 import glob
 try:
     import crash_watcher
@@ -70,10 +75,21 @@ configure_logging(OUT_DIR)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run experiment pipeline')
-    parser.add_argument('--mode', choices=['basic', 'droidrun', 'single', 'monkey'], default='single',
-                        help='Test mode: "basic" runs the START_APPS_BASIC start/stop test;'
-                             '"droidrun" runs the Droidrun agent (default: basic);'
-                             '"single" runs a simple test cycle (for development/debugging)')
+    parser.add_argument(
+        '--mode',
+        choices=['basic', 'droidrun', 'single', 'monkey', 'ape', 'fastbot', 'kea2'],
+        default='single',
+        help=(
+            'Test mode: '
+            '"basic" runs the START_APPS_BASIC start/stop test; '
+            '"monkey" runs Android Monkey; '
+            '"droidrun" runs the Droidrun LLM agent; '
+            '"ape" runs the Ape search-based testing tool; '
+            '"fastbot" runs Fastbot2.0 model-based testing; '
+            '"kea2" runs Kea2 property-based testing; '
+            '"single" runs a simple test cycle (default)'
+        ),
+    )
     parser.add_argument('--test-only-one', action='store_true', help='If set, only the first app in the list will be tested')
     parser.add_argument('--skip-setup', action='store_true', help='Skip device setup steps (installing Appium/PCAPdroid/Droidrun)')
     # pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address
@@ -202,6 +218,18 @@ def setup_devices(mode='basic', pcapdroid=False, pcap_http_port=54320, socks5_ad
     if mode == 'droidrun':
         # Install Droidrun on all devices
         run_command("droidrun setup --latest", description="Install Droidrun on all devices")
+    elif mode == 'ape':
+        # Push Ape binaries to device(s)
+        run_script_capture(RUN_APE, args=["--no-push", "--package", "com.android.settings"],
+                           description="Pre-check: verify Ape binaries are available")
+    elif mode == 'fastbot':
+        # Push Fastbot binaries to device(s) once during setup
+        logging.info("Pushing Fastbot2.0 binaries to device(s)…")
+        run_script_capture(RUN_FASTBOT, args=["--package", "com.android.settings", "--no-push"],
+                           description="Pre-check: verify Fastbot binaries are available")
+    elif mode == 'kea2':
+        logging.info("Kea2 setup: verifying kea2 is available…")
+        run_command("kea2 -h", description="Verify Kea2 installation")
 
 
 def get_testing_apps():
@@ -324,6 +352,12 @@ def execute_app_with_coverage(package, mode):
         run_script_capture(DROIDRUN_AGENT, args=["run"], description="Run Droidrun agent to test apps.")
     elif mode == 'monkey':
         run_script_capture(START_APPS_BASIC, args=["-m", "1", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package])
+    elif mode == 'ape':
+        run_script_capture(RUN_APE, args=["-p", package], description=f"Run Ape search-based testing for {package}")
+    elif mode == 'fastbot':
+        run_script_capture(RUN_FASTBOT, args=["-p", package], description=f"Run Fastbot2.0 model-based testing for {package}")
+    elif mode == 'kea2':
+        run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
     else:
         run_script_capture(START_APPS_BASIC, args=[package], description=f"Run basic start/stop test for {package}")
     run_script_capture(ACVTOOL, args=["snap", package, "--wd", OUT_DIR], description="Run ACVTool to get coverage measurement")

@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""
+Fastbot2.0 testing tool wrapper.
+
+Pushes the Fastbot JARs and arm64-v8a native libraries to the Android device
+via ADB, then launches Fastbot model-based GUI testing.
+
+Usage:
+    python3 run_fastbot.py -p <package> [options]
+
+Examples:
+    python3 run_fastbot.py -p com.example.app --running-minutes 30
+    python3 run_fastbot.py -p com.example.app --serial emulator-5554 --throttle 300
+"""
+
+import argparse
+import glob
+import logging
+import os
+import subprocess
+import sys
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FASTBOT_DIR = os.path.join(BASE_DIR, 'tools', 'Fastbot_Android')
+MONKEYQ_JAR = os.path.join(FASTBOT_DIR, 'monkeyq.jar')
+THIRDPART_JAR = os.path.join(FASTBOT_DIR, 'fastbot-thirdpart.jar')
+FRAMEWORK_JAR = os.path.join(FASTBOT_DIR, 'framework.jar')
+LIBS_ARM64 = os.path.join(FASTBOT_DIR, 'libs', 'arm64-v8a')
+
+DEVICE_SDCARD = '/sdcard/'
+DEVICE_TMP = '/data/local/tmp/'
+DEVICE_CLASSPATH = '/sdcard/monkeyq.jar:/sdcard/framework.jar:/sdcard/fastbot-thirdpart.jar'
+
+
+def _adb(serial=None):
+    return ['adb', '-s', serial] if serial else ['adb']
+
+
+def push_fastbot(serial=None):
+    """Push Fastbot JARs and native libs to the device."""
+    adb = _adb(serial)
+    logger.info("Pushing Fastbot JARs to device…")
+    subprocess.check_call(adb + ['push', MONKEYQ_JAR, DEVICE_SDCARD])
+    subprocess.check_call(adb + ['push', THIRDPART_JAR, DEVICE_SDCARD])
+    subprocess.check_call(adb + ['push', FRAMEWORK_JAR, DEVICE_SDCARD])
+
+    so_files = sorted(glob.glob(os.path.join(LIBS_ARM64, '*.so')))
+    if so_files:
+        logger.info("Pushing %d arm64-v8a .so files to device…", len(so_files))
+        for so in so_files:
+            subprocess.check_call(adb + ['push', so, DEVICE_TMP])
+    else:
+        logger.warning("No .so files found in %s", LIBS_ARM64)
+
+    logger.info("Fastbot artifacts deployed to device.")
+
+
+def run_fastbot(package, running_minutes=60, throttle=500, serial=None):
+    """Execute Fastbot on the device and return its exit code."""
+    adb = _adb(serial)
+    cmd = (
+        adb
+        + ['shell',
+           f'CLASSPATH={DEVICE_CLASSPATH}',
+           'exec', 'app_process', '/system/bin',
+           'com.android.commands.monkey.Monkey',
+           '-p', package,
+           '--agent', 'reuseq',
+           '--running-minutes', str(running_minutes),
+           '--throttle', str(throttle),
+           '-v', '-v']
+    )
+    logger.info(
+        "Running Fastbot2.0 on package: %s (minutes=%d, throttle=%dms)",
+        package, running_minutes, throttle,
+    )
+    return subprocess.run(cmd, text=True).returncode
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Run Fastbot2.0 model-based GUI testing on an Android device')
+    parser.add_argument('-p', '--package', required=True, help='Package name to test')
+    parser.add_argument('--running-minutes', type=int, default=60, help='Test duration in minutes (default: 60)')
+    parser.add_argument('--throttle', type=int, default=500, help='Delay between actions in ms (default: 500)')
+    parser.add_argument('--serial', default=os.environ.get('ANDROID_SERIAL'),
+                        help='Device serial (default: ANDROID_SERIAL env var)')
+    parser.add_argument('--no-push', action='store_true',
+                        help='Skip pushing binaries (assume they are already on the device)')
+    args = parser.parse_args()
+
+    for jar in [MONKEYQ_JAR, THIRDPART_JAR, FRAMEWORK_JAR]:
+        if not os.path.exists(jar):
+            logger.error("Missing Fastbot JAR: %s. Run install_tools.py first.", jar)
+            sys.exit(1)
+
+    if not args.no_push:
+        push_fastbot(args.serial)
+
+    sys.exit(run_fastbot(args.package, args.running_minutes, args.throttle, args.serial))
+
+
+if __name__ == '__main__':
+    main()
