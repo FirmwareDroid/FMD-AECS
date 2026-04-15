@@ -1,0 +1,36 @@
+services:
+  ollama:
+    image: docker.io/ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    # Use the CDI device we generated in the previous step
+    devices:
+      - nvidia.com/gpu=all
+    volumes:
+      - ./ollama_data:/root/.ollama
+    # We do NOT publish port 11434 to the host to keep it secure.
+    # Only the open-webui container can talk to it via the internal network.
+    networks:
+      - ai-network
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
+      - WEBUI_AUTH=True
+    volumes:
+      - ./open-webui_data:/app/backend/data
+    depends_on:
+      - ollama
+    networks:
+      - ai-network
+
+networks:
+  ai-network:
+    driver: bridge
+
