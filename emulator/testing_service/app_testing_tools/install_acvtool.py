@@ -15,6 +15,7 @@ import subprocess
 import sys
 import os
 import json
+import platform
 
 from pathlib import Path
 
@@ -32,15 +33,18 @@ def run(cmd, check=True):
 
 
 def ensure_installed():
-    # Try installing via pip
+    # Install acvtool system-wide. Use --break-system-packages to override
+    # Debian's externally-managed environment (PEP 668) policy when necessary.
     try:
-        run([PYEXEC, '-m', 'pip', 'install', '--no-cache-dir', ACV_PKG])
-    except SystemExit as e:
-        print('pip install acvtool failed, attempting again without --no-cache-dir')
+        run([PYEXEC, '-m', 'pip', 'install', '--no-cache-dir', '--break-system-packages', ACV_PKG])
+        return
+    except SystemExit:
+        print('System pip install with --break-system-packages failed, retrying without --no-cache-dir')
         try:
-            run([PYEXEC, '-m', 'pip', 'install', ACV_PKG])
+            run([PYEXEC, '-m', 'pip', 'install', '--break-system-packages', ACV_PKG])
+            return
         except SystemExit:
-            print('Failed to install acvtool via pip')
+            print('Failed to install acvtool via system pip (even with --break-system-packages)')
             raise
 
 
@@ -119,8 +123,18 @@ def main():
         sys.exit(4)
 
     # Download ACVPatcher binary zip and extract to /root
-    acvpatcher_url = 'https://github.com/pilgun/acvpatcher/releases/download/1.0.8/ACVPatcher-osx-arm64.zip'
-    tmp_zip = '/tmp/ACVPatcher-osx-arm64.zip'
+    arch = platform.machine().lower()
+    syst = platform.system().lower()
+    # Choose appropriate asset name based on platform/arch
+    if syst == 'linux':
+            asset = 'ACVPatcher-osx-arm64.zip'
+    elif syst == 'darwin':
+            asset = 'ACVPatcher-osx-amd64.zip'
+    else:
+        asset = 'ACVPatcher-linux.zip'
+
+    acvpatcher_url = f'https://github.com/pilgun/acvpatcher/releases/download/1.0.8/{asset}'
+    tmp_zip = f'/tmp/{asset}'
     try:
         print('Downloading ACVPatcher from', acvpatcher_url)
         import urllib.request, zipfile
