@@ -258,6 +258,25 @@ def _adb_base_cmd():
     """
     serial = os.environ.get('ANDROID_SERIAL') or os.environ.get('ADB_SERIAL')
     cmd = ['adb']
+
+    if not serial:
+        # If no explicit serial is provided, try to pick the first connected device
+        # This avoids 'adb shell' failing with "error: more than one device/emulator".
+        try:
+            res = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=5)
+            out = (res.stdout or '')
+            for l in out.splitlines():
+                l = l.strip()
+                if not l or l.startswith('List of devices'):
+                    continue
+                parts = l.split()
+                if len(parts) >= 2 and parts[1] == 'device':
+                    serial = parts[0]
+                    logging.info('Auto-selected adb serial: %s', serial)
+                    break
+        except Exception as e:
+            logging.debug('Failed to auto-detect adb serial: %s', e)
+
     if serial:
         cmd.extend(['-s', serial])
     return cmd
