@@ -236,12 +236,16 @@ def wait_for_bootanim_stop(max_wait_seconds=300, sleep_seconds=30):
     Poll 'adb shell getprop init.svc.bootanim' and wait while it is 'running'.
 
     - Sleeps sleep_seconds between checks.
-    - Stops waiting after max_wait_seconds and returns False (timed out).
-    - Returns True if the property is observed not 'running' before timeout.
+    - Stops waiting after max_wait_seconds and returns a tuple:
+        (timed_out_or_still_running: bool, last_value: str, last_error: Optional[str])
+      where the boolean is True when the wait ended due to timeout (bootanim still running),
+      False when the property was observed not 'running' (i.e., boot finished).
     """
     adb_cmd_base = _adb_base_cmd()
     max_tries = max(1, int(max_wait_seconds // sleep_seconds))
     tries = 0
+    last_error = None
+    last_value = ''
 
     logging.info("Waiting for init.svc.bootanim to stop (max %s seconds, interval %s seconds)...",
                  max_wait_seconds, sleep_seconds)
@@ -250,13 +254,14 @@ def wait_for_bootanim_stop(max_wait_seconds=300, sleep_seconds=30):
         try:
             proc = subprocess.run(adb_cmd_base + ['shell', 'getprop', 'init.svc.bootanim'],
                                   capture_output=True, text=True, timeout=10)
-            value = (proc.stdout or "").strip().strip('\r\n')
+            last_value = (proc.stdout or "").strip().strip('\r\n')
         except Exception as e:
+            last_error = str(e)
             logging.warning("Failed to query adb for bootanim state: %s", e)
-            value = ""
+            last_value = ""
 
-        if value.lower() != 'running':
-            logging.info("init.svc.bootanim reported as %r -> proceeding", value)
+        if last_value.lower() == 'stopped':
+            logging.info("Bootanim reported 'stopped'")
             is_running = False
             break
 
@@ -268,7 +273,8 @@ def wait_for_bootanim_stop(max_wait_seconds=300, sleep_seconds=30):
 
         logging.info("init.svc.bootanim is 'running' (try %d/%d). Sleeping %s seconds...", tries, max_tries, sleep_seconds)
         time.sleep(sleep_seconds)
-    return is_running
+
+    return is_running, last_value, last_error
 
 
 def wait_for_adb_available(max_wait_seconds=600, sleep_seconds=5):
@@ -656,8 +662,14 @@ def main():
     # Wait for boot animation (init.svc.bootanim) to stop (max 5 minutes) before running the launcher test
     preflight_ok = False
     try:
-        is_running = wait_for_bootanim_stop(max_wait_seconds=600, sleep_seconds=10)
-        message = {'success': is_running}
+        is_running, last_value, last_error = wait_for_bootanim_stop(max_wait_seconds=600, sleep_seconds=10)
+        # success = bootanim stopped before timeout (i.e., not is_running)
+        message = {
+            'success': (not is_running),
+            'bootanim_timed_out': bool(is_running),
+            'last_value': last_value,
+            'error': last_error,
+        }
         out_file = os.path.join(results_dir, 'bootanim_results.json')
         with open(out_file, 'w', encoding='utf-8') as of:
             json.dump(message, of, indent=2)
