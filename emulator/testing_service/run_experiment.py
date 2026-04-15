@@ -203,8 +203,8 @@ def setup_devices(mode='basic', pcapdroid=False, pcap_http_port=54320, socks5_ad
                 logging.info('PCAPdroid enabled: installing Appium and configuring PCAPdroid on devices')
                 run_script_capture(INSTALL_APPIUM, args=["--all"], description="Install Appium driver on all devices")
                 # Configure PCAPdroid on all devices
-                cmd_clear_pcapdroid = "adb shell pm clear com.emanuelef.remote_capture"
-                run_script_capture(cmd_clear_pcapdroid, description="Clear PCAPdroid data on all devices before configuration")
+                # Clear PCAPdroid app data on the selected device
+                run_adb_shell(['pm', 'clear', 'com.emanuelef.remote_capture'], description='Clear PCAPdroid data on all devices before configuration', check=False)
                 run_script_capture(RUN_PCAPDROID, args=["--http-port", str(pcap_http_port), "--socks5-address", socks5_address],
                                    description="Configure PCAPdroid on all devices")
             finally:
@@ -242,11 +242,14 @@ def get_testing_apps():
 
 def get_installed_packages():
     """Get a list of installed package names on the connected device(s) using adb."""
-    result = subprocess.run(["adb", "shell", "pm", "list", "packages"], capture_output=True, text=True)
+    try:
+        result = run_adb_shell(['pm', 'list', 'packages'], description='pm list packages', check=False)
+    except Exception:
+        return []
     if result.returncode != 0:
         logging.error(f"Failed to get installed packages: {result.stderr}")
         return []
-    lines = result.stdout.strip().splitlines()
+    lines = (result.stdout or '').strip().splitlines()
     packages = [line.replace("package:", "").strip() for line in lines if line.startswith("package:")]
     return packages
 
@@ -280,6 +283,32 @@ def _adb_base_cmd():
     if serial:
         cmd.extend(['-s', serial])
     return cmd
+
+
+def run_adb_shell(args_list, description=None, check=True, timeout=30):
+    """Run an adb shell command against the selected device.
+
+    args_list: list of arguments to pass after 'shell', e.g. ['pm', 'list', 'packages']
+    check: if True, raise SystemExit on non-zero returncode (same behavior as older run_command)
+    Returns CompletedProcess
+    """
+    adb_cmd = _adb_base_cmd() + ['shell'] + list(args_list)
+    logging.info('Running adb shell: %s', ' '.join(adb_cmd))
+    try:
+        res = subprocess.run(adb_cmd, capture_output=True, text=True, timeout=timeout)
+        if res.stdout:
+            logging.info(res.stdout)
+        if res.stderr:
+            logging.warning(res.stderr)
+        if check and res.returncode != 0:
+            logging.error('Failed: %s (exit code %s)', description or 'adb shell', res.returncode)
+            sys.exit(res.returncode)
+        return res
+    except Exception as e:
+        logging.exception('Exception while running adb shell %s: %s', args_list, e)
+        if check:
+            sys.exit(2)
+        raise
 
 
 def wait_for_boot_completed(max_wait_seconds=300, sleep_seconds=30):
@@ -483,6 +512,8 @@ def run_connectivity_test(results_dir):
     os.makedirs(results_dir, exist_ok=True)
     out_file = os.path.join(results_dir, 'connectivity_results.json')
     try:
+        # Add an explicit success field based on the returncode (0 -> success)
+        res['success'] = (res.get('returncode', 1) == 0)
         with open(out_file, 'w', encoding='utf-8') as of:
             json.dump(res, of, indent=2)
         logging.info('Wrote connectivity test results to %s', out_file)
@@ -794,12 +825,13 @@ def main():
         logging.exception('Error while running connectivity test; aborting')
         sys.exit(2)
 
-    disable_anr_message = "adb shell settings put global show_annoying_receivers_in_background 0"
-    run_command(disable_anr_message, description='Disable show_annoying_receivers_in_background: This suppresses the "Application Not Responding" dialogs')
-    disable_anr_message = "adb shell settings put global anr_show_background 0"
-    run_command(disable_anr_message, description='Disable anr_show_background: This suppresses the "Application Not Responding" dialogs')
-    disable_anr_message = "adb shell settings put global hide_error_dialogs 1"
-    run_command(disable_anr_message, description='Disable hide_error_dialogs: This suppresses the "Application Not Responding" dialogs')
+    # Disable ANR / error dialogs on the selected device
+    run_adb_shell(['settings', 'put', 'global', 'show_annoying_receivers_in_background', '0'],
+                  description='Disable show_annoying_receivers_in_background: This suppresses the "Application Not Responding" dialogs', check=False)
+    run_adb_shell(['settings', 'put', 'global', 'anr_show_background', '0'],
+                  description='Disable anr_show_background: This suppresses the "Application Not Responding" dialogs', check=False)
+    run_adb_shell(['settings', 'put', 'global', 'hide_error_dialogs', '1'],
+                  description='Disable hide_error_dialogs: This suppresses the "Application Not Responding" dialogs', check=False)
 
     if not preflight_ok:
         logging.error('Launcher preflight test failed; aborting experiment pipeline')
