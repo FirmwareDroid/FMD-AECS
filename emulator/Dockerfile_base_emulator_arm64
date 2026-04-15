@@ -69,7 +69,7 @@ RUN set -eux; \
 RUN cp /usr/lib/android-sdk/platform-tools/* /android/sdk/platform-tools/
 
 # Install Android build-tools 36.1.0 using sdkmanager
-RUN yes | sdkmanager || true
+RUN yes | /android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses ; exit 0
 RUN set -eux; sdkmanager --sdk_root=/android/sdk "build-tools;36.1.0" || true
 
 ENV ANDROID_HOME=/android/sdk
