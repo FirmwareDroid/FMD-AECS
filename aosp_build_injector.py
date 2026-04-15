@@ -1134,8 +1134,8 @@ def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder)
             is_successful = True
         except Exception as err:
             logging.error(f"Error fetching firmware build files: {err}")
-            exit(-1)
     logging.debug(f"Completed firmware build file download to {extract_destination_folder}")
+    return is_successful
 
 
 def parse_arguments():
@@ -1307,7 +1307,10 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     for firmware_id in tqdm(firmware_id_list):
         try:
             logging.info(f"Start fetching build files for firmware-id: {firmware_id}")
-            fetch_build_files(firmware_id, cookies, args.fmd_url, BUILD_OUT_PATH)
+            is_download_success = fetch_build_files(firmware_id, cookies, args.fmd_url, BUILD_OUT_PATH)
+            if not is_download_success:
+                failed_firmware_ids.append(firmware_id)
+                continue
             logging.debug(f"Start emulator image build process for firmware-id: {firmware_id}")
 
             file_handler = setup_firmware_logger(firmware_id)
