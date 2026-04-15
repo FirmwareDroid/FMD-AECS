@@ -263,15 +263,21 @@ def _adb_base_cmd():
     return cmd
 
 
-def wait_for_bootanim_stop(max_wait_seconds=300, sleep_seconds=30):
+def wait_for_boot_completed(max_wait_seconds=300, sleep_seconds=30):
     """
     Poll 'adb shell getprop init.svc.bootanim' and wait while it is 'running'.
+
+    Additionally checks the "boot complete" flag `sys.boot_completed` and treats the
+    device as successfully booted if that property is set (e.g., '1' or 'true'), even if
+    the boot animation property still reports 'running'. This helps when some devices
+    finish boot but the boot animation remains in a running state longer.
 
     - Sleeps sleep_seconds between checks.
     - Stops waiting after max_wait_seconds and returns a tuple:
         (timed_out_or_still_running: bool, last_value: str, last_error: Optional[str])
       where the boolean is True when the wait ended due to timeout (bootanim still running),
-      False when the property was observed not 'running' (i.e., boot finished).
+      False when the property was observed not 'running' OR the boot-complete flag is set
+      (i.e., boot finished).
     """
     adb_cmd_base = _adb_base_cmd()
     max_tries = max(1, int(max_wait_seconds // sleep_seconds))
@@ -283,23 +289,43 @@ def wait_for_bootanim_stop(max_wait_seconds=300, sleep_seconds=30):
                  max_wait_seconds, sleep_seconds)
 
     while True:
+        bootanim_value = ''
+        boot_completed_value = ''
         try:
+            # Query bootanim
             proc = subprocess.run(adb_cmd_base + ['shell', 'getprop', 'init.svc.bootanim'],
                                   capture_output=True, text=True, timeout=10)
-            last_value = (proc.stdout or "").strip().strip('\r\n')
+            bootanim_value = (proc.stdout or "").strip().strip('\r\n')
         except Exception as e:
             last_error = str(e)
             logging.warning("Failed to query adb for bootanim state: %s", e)
-            last_value = ""
 
-        if last_value.lower() == 'stopped':
+        try:
+            # Query boot complete flag (sys.boot_completed) - treat positive values as boot finished
+            proc2 = subprocess.run(adb_cmd_base + ['shell', 'getprop', 'sys.boot_completed'],
+                                   capture_output=True, text=True, timeout=5)
+            boot_completed_value = (proc2.stdout or "").strip().strip('\r\n')
+        except Exception as e:
+            # Do not override previous error; just log and continue
+            logging.debug("Failed to query adb for sys.boot_completed: %s", e)
+
+        # Prepare a combined last_value for diagnostics
+        last_value = f"init.svc.bootanim={bootanim_value}; sys.boot_completed={boot_completed_value}"
+
+        # Determine success: either bootanim stopped OR boot_completed indicates boot finished
+        if (bootanim_value and bootanim_value.lower() == 'stopped'):
             logging.info("Bootanim reported 'stopped'")
+            is_running = False
+            break
+
+        if boot_completed_value and boot_completed_value.lower() in ('1', 'true'):
+            logging.info("sys.boot_completed indicates boot finished (value=%s). Treating as success.", boot_completed_value)
             is_running = False
             break
 
         tries += 1
         if tries >= max_tries:
-            logging.warning("init.svc.bootanim remained 'running' after %s seconds (max wait).", max_wait_seconds)
+            logging.warning(f"init.svc.bootanim remained '{last_value}' after %s seconds (max wait).", max_wait_seconds)
             is_running = True
             break
 
@@ -700,7 +726,7 @@ def main():
     # Wait for boot animation (init.svc.bootanim) to stop (max 5 minutes) before running the launcher test
     preflight_ok = False
     try:
-        is_running, last_value, last_error = wait_for_bootanim_stop(max_wait_seconds=600, sleep_seconds=10)
+        is_running, last_value, last_error = wait_for_boot_completed(max_wait_seconds=600, sleep_seconds=10)
         # success = bootanim stopped before timeout (i.e., not is_running)
         message = {
             'success': (not is_running),
