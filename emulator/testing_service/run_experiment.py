@@ -291,45 +291,46 @@ def wait_for_boot_completed(max_wait_seconds=300, sleep_seconds=30):
     while True:
         bootanim_value = ''
         boot_completed_value = ''
+
+        # Query both properties in a single adb shell invocation to avoid session differences
+        combined_cmd = "getprop init.svc.bootanim; getprop sys.boot_completed"
         try:
-            # Query bootanim
-            proc = subprocess.run(adb_cmd_base + ['shell', 'getprop', 'init.svc.bootanim'],
-                                  capture_output=True, text=True, timeout=10)
-            bootanim_value = (proc.stdout or "").strip().strip('\r\n')
+            proc = subprocess.run(adb_cmd_base + ['shell', combined_cmd], capture_output=True, text=True, timeout=10)
+            out = (proc.stdout or '')
+            # Normalize and split into lines; ignore empty lines
+            lines = [l.strip() for l in out.splitlines() if l.strip()]
+            if len(lines) >= 1:
+                bootanim_value = lines[0]
+            if len(lines) >= 2:
+                boot_completed_value = lines[1]
+            if proc.stderr:
+                # capture stderr for diagnostics but don't treat as fatal
+                logging.warning('adb stderr while querying boot props: %s', proc.stderr.strip())
         except Exception as e:
             last_error = str(e)
-            logging.warning("Failed to query adb for bootanim state: %s", e)
-
-        try:
-            # Query boot complete flag (sys.boot_completed) - treat positive values as boot finished
-            proc2 = subprocess.run(adb_cmd_base + ['shell', 'getprop', 'sys.boot_completed'],
-                                   capture_output=True, text=True, timeout=5)
-            boot_completed_value = (proc2.stdout or "").strip().strip('\r\n')
-        except Exception as e:
-            # Do not override previous error; just log and continue
-            logging.debug("Failed to query adb for sys.boot_completed: %s", e)
+            logging.warning("Failed to query adb for boot properties: %s", e)
 
         # Prepare a combined last_value for diagnostics
         last_value = f"init.svc.bootanim={bootanim_value}; sys.boot_completed={boot_completed_value}"
 
         # Determine success: either bootanim stopped OR boot_completed indicates boot finished
-        if (bootanim_value and bootanim_value.lower() == 'stopped'):
+        if bootanim_value and bootanim_value.strip().lower() == 'stopped':
             logging.info("Bootanim reported 'stopped'")
             is_running = False
             break
 
-        if boot_completed_value and boot_completed_value.lower() in ('1', 'true'):
+        if boot_completed_value and boot_completed_value.strip().lower() in ('1', 'true'):
             logging.info("sys.boot_completed indicates boot finished (value=%s). Treating as success.", boot_completed_value)
             is_running = False
             break
 
         tries += 1
         if tries >= max_tries:
-            logging.warning(f"init.svc.bootanim remained '{last_value}' after %s seconds (max wait).", max_wait_seconds)
+            logging.warning("init.svc.bootanim remained '%s' after %s seconds (max wait).", last_value, max_wait_seconds)
             is_running = True
             break
 
-        logging.info("init.svc.bootanim is 'running' (try %d/%d). Sleeping %s seconds...", tries, max_tries, sleep_seconds)
+        logging.info("init.svc.bootanim is '%s' (try %d/%d). Sleeping %s seconds...", last_value, tries, max_tries, sleep_seconds)
         time.sleep(sleep_seconds)
 
     return is_running, last_value, last_error
@@ -728,9 +729,24 @@ def main():
     try:
         is_running, last_value, last_error = wait_for_boot_completed(max_wait_seconds=600, sleep_seconds=10)
         # success = bootanim stopped before timeout (i.e., not is_running)
+        # Parse last_value into explicit fields for clarity
+        bootanim_val = ''
+        boot_completed_val = ''
+        try:
+            parts = [p.strip() for p in (last_value or '').split(';') if p.strip()]
+            for p in parts:
+                if p.startswith('init.svc.bootanim='):
+                    bootanim_val = p.split('=', 1)[1]
+                if p.startswith('sys.boot_completed='):
+                    boot_completed_val = p.split('=', 1)[1]
+        except Exception:
+            logging.debug('Failed to parse last_value for boot properties: %s', last_value)
+
         message = {
             'success': (not is_running),
             'bootanim_timed_out': bool(is_running),
+            'bootanim': bootanim_val,
+            'boot_completed': boot_completed_val,
             'last_value': last_value,
             'error': last_error,
         }

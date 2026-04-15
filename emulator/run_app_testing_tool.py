@@ -75,7 +75,7 @@ def build_exec_command(docker_cli: str, container: str, mode: str, args) -> List
 def parse_args():
     parser = argparse.ArgumentParser(description='Run run_experiment.py inside all matching android emulator containers')
     parser.add_argument('--filter', type=str, default=DOCKER_DEFAULT_FILTER, help='Substring to match container names (default: android_emulator)')
-    parser.add_argument('--mode', choices=['basic', 'droidrun', 'single', 'monkey', 'ape', 'fastbot', 'kea2'], default='single', help='Mode to run inside containers (ignored if individual tool flags provided)')
+    parser.add_argument('--mode', choices=['basic', 'droidrun', 'single', 'monkey', 'ape', 'fastbot', 'kea2'], default='basic', help='Mode to run inside containers (ignored if individual tool flags provided)')
 
     # Individual tool switches - if any of these are provided they override --mode and the script will
     # run one invocation per enabled tool.
