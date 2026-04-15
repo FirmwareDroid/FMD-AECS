@@ -275,7 +275,7 @@ def _adb_base_cmd():
                 parts = l.split()
                 if len(parts) >= 2 and parts[1] == 'device':
                     serial = parts[0]
-                    logging.info('Auto-selected adb serial: %s', serial)
+                    logging.debug('Auto-selected adb serial: %s', serial)
                     break
         except Exception as e:
             logging.debug('Failed to auto-detect adb serial: %s', e)
@@ -430,7 +430,7 @@ def wait_for_adb_available(max_wait_seconds=600, sleep_seconds=5):
 
 
 def execute_app_with_coverage(package, mode):
-    logging.info(f"Executing appium with package: {package}, mode: {mode}")
+    logging.info(f"Executing app test with package: {package}, mode: {mode}")
     run_script_capture(ACVTOOL, args=["flush", package, "--wd", OUT_DIR], description="Run ACVTool to flush coverage measurement.")
     run_script_capture(ACVTOOL, args=["activate", package, "--wd", OUT_DIR], description="Run ACVTool to activate coverage measurement.")
     if mode == 'droidrun':
@@ -453,11 +453,6 @@ def execute_app_with_coverage(package, mode):
 
 
 def start_experiment(mode='single', test_only_one=False):
-    app_package_names = get_installed_packages()
-    if not app_package_names:
-        logging.info('No packages found to test')
-        return
-
     install_output_path = os.path.join(OUT_DIR, 'install_results.json')
     if test_only_one:
         app_package_names = get_testing_apps()
@@ -467,9 +462,14 @@ def start_experiment(mode='single', test_only_one=False):
         execute_app_with_coverage(first_pkg, mode)
     else:
         run_script_capture(INSTALL_APPS, args=["-a", "--output", install_output_path], description=f"Install all apps on devices.")
+        app_package_names = get_installed_packages()
+        # TODO Filter apps that have an Activity
+        logging.info('Testing all packages; total count: %d', len(app_package_names))
+        if not app_package_names:
+            logging.info('No packages found to test')
+            return
         for package in app_package_names:
             logging.info(f"Starting {package}")
-            #TODO Filter apps that have an Activity
             execute_app_with_coverage(package, mode)
 
     run_script_capture(LOGCAT_COLLECTOR, args=["--full-dump"], description="Collect all logcat logs")
@@ -843,7 +843,7 @@ def main():
             }, of, indent=2)
         sys.exit(2)
 
-    logging.info('Launcher preflight succeeded; continuing with Appium start and device setup')
+    logging.info('Launcher preflight successful; proceeding with device setup and experiment execution')
 
     try:
         if args.skip_setup:

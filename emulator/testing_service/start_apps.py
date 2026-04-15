@@ -412,7 +412,7 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
             for ex in examples[:3]:
                 logging.info('    %s', ex)
 
-    return out_summary, failures
+    return summary, failures
 
 
 def main():

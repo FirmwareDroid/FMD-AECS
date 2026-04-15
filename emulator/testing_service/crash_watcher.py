@@ -152,7 +152,7 @@ def _watcher_loop(device: Optional[str], interval: float, stop_event: threading.
         try:
             handled = handle_crash_dialog(device=device)
             if handled:
-                logging.info('Crash watcher dismissed a dialog')
+                logging.debug('Crash watcher dismissed a dialog')
         except Exception:
             logging.exception('Error in crash watcher')
         # wait with early exit
