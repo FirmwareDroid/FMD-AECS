@@ -2,3 +2,4 @@ Appium-Python-Client==5.2.7
 droidrun
 kea2-python
 uiautomator2
+Pillow~=9.5.0

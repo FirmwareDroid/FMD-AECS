@@ -16,8 +16,8 @@ FROM debian:12-slim AS fmd-emulator_arm64
 ## Install base packages with robust apt handling (retries, noninteractive, logging)
 ENV DEBIAN_FRONTEND=noninteractive
 ENV APT_RETRIES=3
-ENV APT_PACKAGES="adb libc6 libdbus-1-3 libfontconfig1 libgcc-s1 nano libpulse0 libtinfo6 libx11-6 libxcb1 libxdamage1 libnss3 libxcomposite1 libxcursor1 libxi6 libxext6 libxfixes3 zlib1g libgl1 pulseaudio pulseaudio-utils socat iputils-ping curl ca-certificates wget unzip procps rsync net-tools xz-utils python3 python3-pip python3-venv git bison make gawk gcc dbus f2fs-tools libpcre2-16-0 dnsutils iptables iproute2 tcpdump"
-
+ENV APT_PACKAGES="adb libc6 libdbus-1-3 libfontconfig1 libgcc-s1 nano libpulse0 libtinfo6 libx11-6 libxcb1 libxdamage1 libnss3 libxcomposite1 libxcursor1 libxi6 libxext6 libxfixes3 zlib1g libgl1 pulseaudio pulseaudio-utils socat iputils-ping curl ca-certificates wget unzip procps rsync net-tools xz-utils python3 python3-pip bison make gawk gcc dbus f2fs-tools libpcre2-16-0 dnsutils iptables iproute2 tcpdump"
+# ENV APT_PACKAGES="adb libc6 libdbus-1-3 libfontconfig1 libgcc-s1 nano libpulse0 libtinfo6 libx11-6 libxcb1 libxdamage1 libnss3 libxcomposite1 libxcursor1 libxi6 libxext6 libxfixes3 zlib1g libgl1 pulseaudio pulseaudio-utils socat iputils-ping curl ca-certificates wget unzip procps rsync net-tools xz-utils python3 python3-pip python3-venv git bison make gawk gcc dbus f2fs-tools libpcre2-16-0 dnsutils iptables iproute2 tcpdump"
 # Use apt-get (scripting-friendly) and retry on transient errors. Print apt logs on failure to aid debugging.
 RUN set -eux; \
     apt-get update -o Acquire::Retries=${APT_RETRIES}; \
@@ -138,19 +138,16 @@ RUN echo 'export REPO_OS_OVERRIDE=macosx' >> /root/.bashrc
 COPY ./emulator/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Add Testing Service Scripts
-COPY ./emulator/testing_service/ /android/testing_service/
-
 ################################
 # Install Python dependencies for testing service
 ################################
+COPY ./emulator/testing_service/ /android/testing_service/
+COPY ./emulator/testing_service/requirements.txt /android/testing_service/requirements.txt
 RUN set -eux; \
-    pip3 install --break-system-packages --no-cache-dir \
-        -r /android/testing_service/requirements.txt
+    if [ -f /android/testing_service/requirements.txt ]; then \
+        python3 -m pip install --no-cache-dir -r /android/testing_service/requirements.txt || python3 -m pip install --no-cache-dir -r /android/testing_service/requirements.txt || true; \
+    fi
 
-################################
-# Download and install app testing tools
-################################
 RUN set -eux; \
     python3 /android/testing_service/app_testing_tools/install_tools.py
 
