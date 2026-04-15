@@ -116,7 +116,8 @@ def get_firmware_ids(graphql_url, cookies, arch=None, pk_filter=None):
     return object_id_list
 
 
-def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_abs_path, max_attempts=100):
+def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_abs_path,
+                                  auth_username=None, auth_password=None, max_attempts=10):
     """
     Downloads the build files for the given Android app (object id) and shows a progress bar of the download.
 
@@ -160,6 +161,38 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
                                      stream=True,
                                      verify=VERIFY_SSL,
                                      cookies=cookies)
+            # If we get a 403 Forbidden, try to re-authenticate (best-effort) and retry.
+            if response is not None and response.status_code == 403:
+                logging.warning("Received 403 Forbidden while downloading build files. Attempting re-authentication...")
+                # Only attempt re-authentication if credentials were provided
+                if auth_username and auth_password:
+                    try:
+                        # Fetch fresh CSRF token and authenticate to update cookies
+                        new_csrf = get_csrf_token(fmd_url)
+                        graphql_url = get_graphql_url(fmd_url)
+                        new_auth_cookies = authenticate_fmd(graphql_url, auth_username, auth_password, new_csrf)
+                        # Update cookies and headers for subsequent attempts. Try to update the passed-in
+                        # cookie jar in-place so callers see the refreshed cookies as well.
+                        try:
+                            # If cookies is a cookiejar-like object, update it in-place
+                            cookies.clear()
+                            for k, v in new_auth_cookies.items():
+                                cookies.set(k, v)
+                        except Exception:
+                            # Fallback: replace local reference
+                            cookies = new_auth_cookies
+                        headers["X-CSRFToken"] = (cookies.get("csrftoken") if hasattr(cookies, 'get') else headers.get("X-CSRFToken"))
+                        if cookies and "jwt-session" in cookies.keys():
+                            headers["Authorization"] = f"Bearer {cookies['jwt-session']}"
+                        logging.info("Re-authentication succeeded; will retry download request.")
+                        attempt += 1
+                        time.sleep(1)
+                        continue
+                    except Exception as reauth_err:
+                        logging.error(f"Re-authentication failed: {reauth_err}")
+                        # fall through to raise below and trigger backoff
+                else:
+                    logging.error("No credentials provided; cannot re-authenticate after 403")
             response.raise_for_status()
             if not content_disposition_header:
                 content_disposition_header = response.headers['Content-Disposition']

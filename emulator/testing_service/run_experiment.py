@@ -12,11 +12,15 @@ import json
 import shutil
 import atexit
 import time
+import glob
+try:
+    import crash_watcher
+except Exception:
+    crash_watcher = None
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INSTALL_APPIUM = os.path.join(BASE_DIR, 'appium', 'install_appium.py')
 RUN_PCAPDROID = os.path.join(BASE_DIR, 'appium', 'run_pcapdroid_on_all.py')
-DROIDRUN_AGENT = os.path.join(BASE_DIR, 'bots', 'droidrun_agent_cli.py')
 ACVTOOL = os.path.join(BASE_DIR, 'coverage', 'acvtool_wrapper.py')
 LOGCAT_COLLECTOR = os.path.join(BASE_DIR, 'coverage', 'collect_logcat.py')
 INSTALL_APPS = os.path.join(BASE_DIR, 'install_apps.py')
@@ -24,12 +28,12 @@ START_APPS_BASIC = os.path.join(BASE_DIR, 'start_apps.py')
 LAUNCHER_TEST = os.path.join(BASE_DIR, 'launcher_test.py')
 CONNECTIVITY_TEST = os.path.join(BASE_DIR, 'connectivity_test.py')
 
-import glob
-try:
-    import crash_watcher
-except Exception:
-    crash_watcher = None
-    
+# App testing tool wrappers (app_testing_tools/)
+RUN_APE = os.path.join(BASE_DIR, 'app_testing_tools', 'run_ape.py')
+RUN_FASTBOT = os.path.join(BASE_DIR, 'app_testing_tools', 'run_fastbot.py')
+RUN_KEA2 = os.path.join(BASE_DIR, 'app_testing_tools', 'run_kea2.py')
+RUN_DROIDRUN = os.path.join(BASE_DIR, 'app_testing_tools', 'droidrun_agent_cli.py')
+
 OUT_DIR = os.path.join(BASE_DIR, 'out')
 
 
@@ -70,10 +74,21 @@ configure_logging(OUT_DIR)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run experiment pipeline')
-    parser.add_argument('--mode', choices=['basic', 'droidrun', 'single', 'monkey'], default='single',
-                        help='Test mode: "basic" runs the START_APPS_BASIC start/stop test;'
-                             '"droidrun" runs the Droidrun agent (default: basic);'
-                             '"single" runs a simple test cycle (for development/debugging)')
+    parser.add_argument(
+        '--mode',
+        choices=['basic', 'droidrun', 'single', 'monkey', 'ape', 'fastbot', 'kea2'],
+        default='single',
+        help=(
+            'Test mode: '
+            '"basic" runs the START_APPS_BASIC start/stop test; '
+            '"monkey" runs Android Monkey; '
+            '"droidrun" runs the Droidrun LLM agent; '
+            '"ape" runs the Ape search-based testing tool; '
+            '"fastbot" runs Fastbot2.0 model-based testing; '
+            '"kea2" runs Kea2 property-based testing; '
+            '"single" runs a simple test cycle (default)'
+        ),
+    )
     parser.add_argument('--test-only-one', action='store_true', help='If set, only the first app in the list will be tested')
     parser.add_argument('--skip-setup', action='store_true', help='Skip device setup steps (installing Appium/PCAPdroid/Droidrun)')
     # pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address
@@ -202,6 +217,23 @@ def setup_devices(mode='basic', pcapdroid=False, pcap_http_port=54320, socks5_ad
     if mode == 'droidrun':
         # Install Droidrun on all devices
         run_command("droidrun setup --latest", description="Install Droidrun on all devices")
+    elif mode == 'ape':
+        # Verify Ape binaries are present (they will be pushed per-app in execute_app_with_coverage)
+        ape_jar = os.path.join(BASE_DIR, 'app_testing_tools', 'tools', 'ape-bin', 'ape.jar')
+        if os.path.exists(ape_jar):
+            logging.info("Ape binaries verified at %s", ape_jar)
+        else:
+            logging.warning("Ape binaries not found at %s. Run install_tools.py.", ape_jar)
+    elif mode == 'fastbot':
+        # Verify Fastbot binaries are present (they will be pushed per-app in execute_app_with_coverage)
+        fastbot_jar = os.path.join(BASE_DIR, 'app_testing_tools', 'tools', 'Fastbot_Android', 'monkeyq.jar')
+        if os.path.exists(fastbot_jar):
+            logging.info("Fastbot2.0 binaries verified at %s", fastbot_jar)
+        else:
+            logging.warning("Fastbot2.0 binaries not found at %s. Run install_tools.py.", fastbot_jar)
+    elif mode == 'kea2':
+        logging.info("Kea2 setup: verifying kea2 is available…")
+        run_command("kea2 -h", description="Verify Kea2 installation")
 
 
 def get_testing_apps():
@@ -327,9 +359,15 @@ def execute_app_with_coverage(package, mode):
     run_script_capture(ACVTOOL, args=["flush", package, "--wd", OUT_DIR], description="Run ACVTool to flush coverage measurement.")
     run_script_capture(ACVTOOL, args=["activate", package, "--wd", OUT_DIR], description="Run ACVTool to activate coverage measurement.")
     if mode == 'droidrun':
-        run_script_capture(DROIDRUN_AGENT, args=["run"], description="Run Droidrun agent to test apps.")
+        run_script_capture(RUN_DROIDRUN, args=["run"], description="Run Droidrun agent to test apps.")
     elif mode == 'monkey':
         run_script_capture(START_APPS_BASIC, args=["-m", "1", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package])
+    elif mode == 'ape':
+        run_script_capture(RUN_APE, args=["-p", package], description=f"Run Ape search-based testing for {package}")
+    elif mode == 'fastbot':
+        run_script_capture(RUN_FASTBOT, args=["-p", package], description=f"Run Fastbot2.0 model-based testing for {package}")
+    elif mode == 'kea2':
+        run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
     else:
         run_script_capture(START_APPS_BASIC, args=[package], description=f"Run basic start/stop test for {package}")
     run_script_capture(ACVTOOL, args=["snap", package, "--wd", OUT_DIR], description="Run ACVTool to get coverage measurement")

@@ -8,7 +8,12 @@ import subprocess
 import time
 from getpass import getpass
 import platform
-import docker
+try:
+    import docker
+except Exception as _e:
+    # docker SDK may not be available or may fail to initialize on some platforms.
+    # We'll fall back to using the docker CLI where appropriate.
+    docker = None
 from common import extract_zip
 from fmd_backend_requests import download_file, fetch_emulator_image_list
 from setup_logger import setup_logger
@@ -298,7 +303,6 @@ def check_if_base_images_exists():
     Check if the base image for the current host architecture exists in the local Docker.
     Returns True if the image fmd-emulator_<arch> exists for the detected arch, False otherwise.
     """
-    client = docker.from_env()
     mach = (platform.machine() or '').lower()
 
     # Normalize common machine names to our image suffixes
@@ -311,23 +315,35 @@ def check_if_base_images_exists():
 
     system_name = (platform.system() or '').lower()
 
-    # Try docker SDK on Linux first
+    # Try docker SDK on Linux first. On macOS/Darwin we will use the docker CLI only.
+    logging.debug(f"Docker host OS detected: {system_name}. docker SDK available: {docker is not None}")
     if system_name == 'linux' and docker is not None:
+        logging.info("Attempting to check base image using docker Python SDK (linux host)")
         try:
+            if docker is None:
+                raise RuntimeError("docker python SDK not available")
             client = docker.from_env()
             try:
                 client.images.get(f"fmd-emulator_{arch}")
                 logging.info(f"Base image fmd-emulator_{arch} exists (checked via docker SDK)")
                 return True
-            except docker.errors.ImageNotFound:
-                logging.info(f"Base image fmd-emulator_{arch} not found (docker SDK)")
-                return False
             except Exception as err:
+                # If the docker SDK is present and the exception type indicates ImageNotFound,
+                # treat it as 'not found'. Otherwise, log and fall back to CLI.
+                try:
+                    img_not_found = docker.errors.ImageNotFound if docker is not None else None
+                except Exception:
+                    img_not_found = None
+
+                if img_not_found is not None and isinstance(err, img_not_found):
+                    logging.info(f"Base image fmd-emulator_{arch} not found (docker SDK)")
+                    return False
                 logging.warning(f"docker SDK check failed, falling back to CLI: {err}")
         except Exception as err:
-            logging.debug(f"docker.from_env() failed: {err}")
+            logging.debug(f"docker.from_env() failed or unavailable: {err}")
 
-    # Fallback to docker CLI
+    # Fallback to docker CLI (used on darwin/macOS or when SDK is unavailable)
+    logging.info("Falling back to docker CLI to check base image")
     docker_cli = shutil.which('docker')
     if not docker_cli:
         logging.warning('docker CLI not found in PATH; cannot check for base image')
@@ -363,7 +379,7 @@ def _is_docker_available() -> bool:
     Prefer `docker info` via subprocess because docker-py may surface low-level
     socket errors that are harder to interpret. This works on macOS/Linux.
     """
-    # First try docker CLI
+    # First try docker CLI (works on macOS and Linux with Docker Desktop)
     try:
         docker_bin = shutil.which('docker') or 'docker'
         res = subprocess.run([docker_bin, 'info'], capture_output=True, text=True, timeout=8)
@@ -375,6 +391,7 @@ def _is_docker_available() -> bool:
     # On Linux try docker SDK as a fallback (it may connect to daemon directly).
     system_name = (platform.system() or '').lower()
     if system_name == 'linux' and docker is not None:
+        logging.info('Docker CLI not reachable; attempting docker Python SDK on linux')
         try:
             client = docker.from_env()
             # use low-level ping to verify connectivity
@@ -383,7 +400,8 @@ def _is_docker_available() -> bool:
                 return True
             except Exception:
                 return False
-        except Exception:
+        except Exception as err:
+            logging.debug(f'docker.from_env() failed: {err}')
             return False
 
     return False
@@ -418,12 +436,13 @@ def delete_emulator_images(local_repo_path):
         logging.warning(f"Local repository path does not exist: {local_repo_path}")
 
 
-def process_images(input_dir, docker_repo_url, repository_username, build_local):
+def process_images(input_dir, docker_repo_url, repository_username, build_local, skip_push=False):
     if not check_if_base_images_exists():
         create_base_images()
 
     emulator_zip_file_list = get_image_file_list_form_disk(input_dir)
     logging.info(f"Processing images: {len(emulator_zip_file_list)}")
+    logging.info(f"build_local={build_local} skip_push={skip_push}")
 
     # Determine worker count (can be changed by setting process_images._workers before calling)
     worker_count = getattr(process_images, '_workers', max(1, multiprocessing.cpu_count()))
@@ -458,7 +477,8 @@ def process_images(input_dir, docker_repo_url, repository_username, build_local)
     logging.info(f"Finished processing images. Successful: {len(successes)} Failed: {len(failures)}")
 
     # If we're pushing to a remote registry, perform pushes in parallel from the main process.
-    if not build_local and successes:
+    # The `skip_push` flag allows skipping the push step even when images were built from non-local sources.
+    if not build_local and not skip_push and successes:
         # Authenticate once before pushing (so workers don't race on docker login)
         if not repository_password:
             raise RuntimeError("Repository password not provided; cannot push")
@@ -533,6 +553,8 @@ def parse_arguments():
                         type=str,
                         required=False,
                         help="Comma-separated list of filenames to download from the repository.")
+    parser.add_argument('--skip-push', action='store_true', required=False,
+                        help='If set, built images will NOT be pushed to the remote docker registry (useful for testing).')
     return parser.parse_args()
 
 
@@ -590,7 +612,7 @@ def main():
 
         # Now process all images in input_dir (process_images is parallel internally)
         start_time = time.time()
-        process_images(args.input_dir, args.docker_repo_url, args.repository_username, args.create_local)
+        process_images(args.input_dir, args.docker_repo_url, args.repository_username, args.create_local, skip_push=args.skip_push)
         end_time = time.time()
         elapsed_time_seconds = end_time - start_time
         elapsed_time_minutes = elapsed_time_seconds / 60
@@ -619,7 +641,7 @@ def main():
         logging.info(f"Finished processing images. Successful images: {successful_images}. Failed images: {failed_images}.")
     else:
         logging.info("Skipping download of emulator images.")
-        process_images(args.input_dir, args.docker_repo_url, args.repository_username, args.create_local)
+        process_images(args.input_dir, args.docker_repo_url, args.repository_username, args.create_local, skip_push=args.skip_push)
 
 
 if __name__ == "__main__":

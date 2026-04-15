@@ -1107,7 +1107,7 @@ def clear_environment(aosp_path, aosp_packages_apps_path, aosp_version):
         replace_build_image_file(aosp_path)
 
 
-def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder):
+def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder, auth_username=None, auth_password=None):
     """
     Main wrapper routine to download and extract firmware build files for aosp.
     Args:
@@ -1126,7 +1126,9 @@ def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder)
             zip_file_path = download_firmware_build_files(fmd_url,
                                                           firmware_id,
                                                           cookies,
-                                                          extract_destination_folder)
+                                                          extract_destination_folder,
+                                                          auth_username=auth_username,
+                                                          auth_password=auth_password)
             tmp_path = os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME)
             os.makedirs(tmp_path, exist_ok=True)
             extract_zip(zip_file_path, tmp_path)
@@ -1134,8 +1136,8 @@ def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder)
             is_successful = True
         except Exception as err:
             logging.error(f"Error fetching firmware build files: {err}")
-            exit(-1)
     logging.debug(f"Completed firmware build file download to {extract_destination_folder}")
+    return is_successful
 
 
 def parse_arguments():
@@ -1278,7 +1280,7 @@ def setup_firmware_logger(firmware_id):
 
 
 
-def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
+def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, fmd_password):
     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
     aosp_version = args.version
     if args.arch == SUPPORTED_ARCHITECTURES[0]:
@@ -1307,7 +1309,11 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     for firmware_id in tqdm(firmware_id_list):
         try:
             logging.info(f"Start fetching build files for firmware-id: {firmware_id}")
-            fetch_build_files(firmware_id, cookies, args.fmd_url, BUILD_OUT_PATH)
+            is_download_success = fetch_build_files(firmware_id, cookies, args.fmd_url, BUILD_OUT_PATH,
+                                                   auth_username=args.fmd_username, auth_password=fmd_password)
+            if not is_download_success:
+                failed_firmware_ids.append(firmware_id)
+                continue
             logging.debug(f"Start emulator image build process for firmware-id: {firmware_id}")
 
             file_handler = setup_firmware_logger(firmware_id)
@@ -1437,7 +1443,7 @@ def main():
     fmd_password, docker_repo_password = get_passwords(args)
     csrf_cookie = get_csrf_token(args.fmd_url)
     firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
-    process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password)
+    process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, fmd_password)
     logging.info("===============================================================")
 
 
