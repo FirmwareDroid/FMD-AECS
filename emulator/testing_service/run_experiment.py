@@ -12,11 +12,15 @@ import json
 import shutil
 import atexit
 import time
+import glob
+try:
+    import crash_watcher
+except Exception:
+    crash_watcher = None
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INSTALL_APPIUM = os.path.join(BASE_DIR, 'appium', 'install_appium.py')
 RUN_PCAPDROID = os.path.join(BASE_DIR, 'appium', 'run_pcapdroid_on_all.py')
-DROIDRUN_AGENT = os.path.join(BASE_DIR, 'bots', 'droidrun_agent_cli.py')
 ACVTOOL = os.path.join(BASE_DIR, 'coverage', 'acvtool_wrapper.py')
 LOGCAT_COLLECTOR = os.path.join(BASE_DIR, 'coverage', 'collect_logcat.py')
 INSTALL_APPS = os.path.join(BASE_DIR, 'install_apps.py')
@@ -28,13 +32,8 @@ CONNECTIVITY_TEST = os.path.join(BASE_DIR, 'connectivity_test.py')
 RUN_APE = os.path.join(BASE_DIR, 'app_testing_tools', 'run_ape.py')
 RUN_FASTBOT = os.path.join(BASE_DIR, 'app_testing_tools', 'run_fastbot.py')
 RUN_KEA2 = os.path.join(BASE_DIR, 'app_testing_tools', 'run_kea2.py')
+RUN_DROIDRUN = os.path.join(BASE_DIR, 'app_testing_tools', 'droidrun_agent_cli.py')
 
-import glob
-try:
-    import crash_watcher
-except Exception:
-    crash_watcher = None
-    
 OUT_DIR = os.path.join(BASE_DIR, 'out')
 
 
@@ -360,7 +359,7 @@ def execute_app_with_coverage(package, mode):
     run_script_capture(ACVTOOL, args=["flush", package, "--wd", OUT_DIR], description="Run ACVTool to flush coverage measurement.")
     run_script_capture(ACVTOOL, args=["activate", package, "--wd", OUT_DIR], description="Run ACVTool to activate coverage measurement.")
     if mode == 'droidrun':
-        run_script_capture(DROIDRUN_AGENT, args=["run"], description="Run Droidrun agent to test apps.")
+        run_script_capture(RUN_DROIDRUN, args=["run"], description="Run Droidrun agent to test apps.")
     elif mode == 'monkey':
         run_script_capture(START_APPS_BASIC, args=["-m", "1", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package])
     elif mode == 'ape':
