@@ -11,6 +11,7 @@ import uuid
 import logging
 import shutil
 import subprocess
+import signal
 import glob
 from pathlib import Path
 import concurrent.futures
@@ -57,6 +58,8 @@ def _acv_instrument_worker(params):
     apk_path, firmware_folder, acv_executable, safe_cwd = params
     filename = os.path.basename(apk_path)
     current_cwd = os.path.abspath(os.getcwd())
+    start = None
+    proc = None
     try:
         # create out folder under firmware_folder using parent dir name
         base_dir = Path(apk_path).parent.name
@@ -65,15 +68,50 @@ def _acv_instrument_worker(params):
         os.chdir(safe_cwd)
         cmd = [acv_executable, "instrument", "-f", apk_path, "--wd", out_folder]
         start = time.time()
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=700)
-        elapsed = round(time.time() - start, 2)
-        if proc.returncode != 0:
-            out = proc.stdout.decode(errors='ignore') if proc.stdout else ""
-            return (filename, elapsed, "failed", out)
-        return (filename, elapsed, "success", "")
+        # start process in a new session / process group so we can kill the whole group on timeout
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+        try:
+            out, _ = proc.communicate(timeout=700)
+            elapsed = round(time.time() - start, 2)
+            if proc.returncode != 0:
+                out_decoded = out.decode(errors='ignore') if out else ""
+                return (filename, elapsed, "failed", out_decoded)
+            return (filename, elapsed, "success", "")
+        except subprocess.TimeoutExpired:
+            # Attempt to terminate the whole process group first, then force kill if necessary
+            elapsed = round(time.time() - start, 2)
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except Exception:
+                pass
+            # give processes a short grace period to exit and collect output
+            try:
+                out, _ = proc.communicate(timeout=5)
+            except Exception:
+                out = None
+            # ensure everything is dead
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except Exception:
+                pass
+            out_decoded = out.decode(errors='ignore') if out else ""
+            return (filename, elapsed, "failed", f"TimeoutExpired: {out_decoded}")
     except Exception as e:
-        elapsed = round((time.time() - start) if 'start' in locals() else 0.0, 2)
-        return (filename, elapsed, "failed", str(e))
+        elapsed = round((time.time() - start) if start else 0.0, 2)
+        # try to capture any remaining output
+        out = None
+        try:
+            if proc:
+                out, _ = proc.communicate(timeout=1)
+        except Exception:
+            pass
+        out_decoded = out.decode(errors='ignore') if out else ""
+        return (filename, elapsed, "failed", f"{str(e)} {out_decoded}")
+    finally:
+        try:
+            os.chdir(current_cwd)
+        except Exception:
+            pass
 
 
 def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
