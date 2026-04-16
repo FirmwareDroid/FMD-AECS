@@ -250,7 +250,7 @@ def run_install_for_device(serial, apk_list, max_workers):
         return results
 
     # Cap the number of workers to avoid overwhelming the device/emulator.
-    cap = max(1, min(max_workers, 4, len(apk_list)))
+    cap = max(1, min(max_workers, 1, len(apk_list)))
     with ThreadPoolExecutor(max_workers=cap) as executor:
         futures = [executor.submit(install_apk, apk, results, lock, serial, stop_event) for apk in apk_list]
         for f in as_completed(futures):
