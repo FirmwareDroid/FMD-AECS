@@ -95,6 +95,8 @@ def parse_args():
     parser.add_argument('--pcapdroid', action='store_true', help='Enable PCAPdroid setup on connected devices')
     parser.add_argument('--pcap-http-port', type=int, default=54320, help='Port to use for pcap http server (used when --pcapdroid set)')
     parser.add_argument('--socks5-address', type=str, default='127.0.0.1', help='The SOCKS5 proxy address (used when --pcapdroid set)')
+    parser.add_argument('--retries', type=int, default=10, help='Number of times to retry the full experiment on failure (default: 1)')
+    parser.add_argument('--retry-delay', type=int, default=30, help='Seconds to wait between retry attempts (default: 10)')
     return parser.parse_args()
 
 def run_script(script_path, args=None, description=None):
@@ -846,16 +848,64 @@ def main():
 
     logging.info('Launcher preflight successful; proceeding with device setup and experiment execution')
 
+    # Run the experiment with retries. If a run fails (SystemExit or exception),
+    # restart from the beginning (setup_devices + start_experiment) up to
+    # args.retries times, waiting args.retry_delay seconds between attempts.
+    attempts = max(1, int(getattr(args, 'retries', 1)))
+    retry_delay = int(getattr(args, 'retry_delay', 10))
+    success = False
+
+    for attempt in range(1, attempts + 1):
+        logging.info('Experiment attempt %d/%d starting...', attempt, attempts)
+        try:
+            if args.skip_setup:
+                logging.info('Skipping device setup as requested (--skip-setup)')
+            else:
+                setup_devices(mode=args.mode, pcapdroid=getattr(args, 'pcapdroid', False), pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address)
+
+            start_experiment(mode=args.mode, test_only_one=(getattr(args, 'test-only-one', False) or getattr(args, 'test_only_one', False) or args.test_only_one))
+
+            logging.info('Experiment attempt %d/%d completed successfully', attempt, attempts)
+            success = True
+            break
+
+        except KeyboardInterrupt:
+            logging.info('Interrupted by user')
+            # preserve existing behaviour: abort immediately
+            stop_tcpdump()
+            sys.exit(130)
+        except SystemExit as se:
+            # A called helper used sys.exit(); treat as a failed attempt and retry if allowed
+            logging.exception('Experiment attempt %d/%d exited (SystemExit): %s', attempt, attempts, se)
+            success = False
+        except Exception:
+            logging.exception('Experiment attempt %d/%d raised an exception', attempt, attempts)
+            success = False
+
+        # Ensure tcpdump and other per-attempt resources are cleaned before retrying
+        try:
+            stop_tcpdump()
+        except Exception:
+            logging.exception('Error while stopping tcpdump during cleanup between attempts')
+
+        if not success and attempt < attempts:
+            logging.info('Retrying experiment after %s seconds (attempt %d/%d)', retry_delay, attempt + 1, attempts)
+            time.sleep(retry_delay)
+            # restart tcpdump for the next attempt
+            try:
+                start_tcpdump()
+            except Exception:
+                logging.exception('Failed to restart tcpdump before next attempt')
+
+    if not success:
+        logging.error('Experiment failed after %d attempt(s). Aborting.', attempts)
+        sys.exit(2)
+
+    # Final cleanup: stop tcpdump once after successful run
     try:
-        if args.skip_setup:
-            logging.info('Skipping device setup as requested (--skip-setup)')
-        else:
-            setup_devices(mode=args.mode, pcapdroid=getattr(args, 'pcapdroid', False), pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address)
-        start_experiment(mode=args.mode, test_only_one=getattr(args, 'test-only-one', False) or getattr(args, 'test_only_one', False) or args.test_only_one)
-    except KeyboardInterrupt:
-        logging.info('Interrupted by user')
-    finally:
         stop_tcpdump()
+    except Exception:
+        logging.exception('Failed to stop tcpdump during final cleanup')
 
 
 if __name__ == "__main__":
