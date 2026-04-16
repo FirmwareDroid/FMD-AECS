@@ -105,9 +105,15 @@ def run_script(script_path, args=None, description=None):
         cmd.extend(args)
     logging.info(f"Running: {description or script_path}")
     result = subprocess.run(cmd, capture_output=True, text=True)
-    logging.info(result.stdout)
+    if result.stdout:
+        logging.info(result.stdout)
     if result.stderr:
-        logging.error(result.stderr)
+        # Some tools (e.g. ACVTool) log informational messages to stderr while
+        # still returning exit code 0. Treat stderr as INFO when returncode==0.
+        if result.returncode == 0:
+            logging.info(result.stderr)
+        else:
+            logging.error(result.stderr)
     if result.returncode != 0:
         logging.error(f"Failed: {description or script_path} (exit code {result.returncode})")
         sys.exit(result.returncode)
@@ -141,7 +147,13 @@ def run_script_capture(script_path, args=None, description=None):
     if proc.stdout:
         logging.info(proc.stdout)
     if proc.stderr:
-        logging.error(proc.stderr)
+        # Some CLI tools write informational logs to stderr but still succeed.
+        # Log stderr as INFO when the command succeeded (returncode==0), otherwise
+        # treat it as an error.
+        if proc.returncode == 0:
+            logging.info(proc.stderr)
+        else:
+            logging.error(proc.stderr)
     return res
 
 def run_command(cmd, description=None):
@@ -446,7 +458,7 @@ def execute_app_with_coverage(package, mode):
     elif mode == 'kea2':
         run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
     else:
-        run_script_capture(START_APPS_BASIC, args=[package], description=f"Run basic start/stop test for {package}")
+        run_script_capture(START_APPS_BASIC, args=["-p", package], description=f"Run basic start/stop test for {package}")
     run_script_capture(ACVTOOL, args=["snap", package, "--wd", OUT_DIR], description="Run ACVTool to get coverage measurement")
     run_script_capture(ACVTOOL, args=["cover-pickles", package, "--wd", OUT_DIR],
                        description="Run ACVTool to deserialize coverage measurement")
