@@ -115,6 +115,9 @@ def get_apk_files(serial=None):
     """
     # Prefer querying installed packages (safer than scanning entire filesystem).
     apk_paths = set()
+    # Keep track of package names that were listed by `pm list packages -f`
+    # but whose file paths we chose not to treat as installable sources.
+    skipped_package_names = []
     try:
         cmd = build_adb_cmd(serial, ["shell", "pm", "list", "packages", "-f"])  # returns package:<path>=<pkg>
         res = adb_run(cmd, timeout=20, retries=2)
@@ -125,8 +128,15 @@ def get_apk_files(serial=None):
                 continue
             # format: package:/data/app/.../base.apk=com.example
             if line.startswith('package:') and '=' in line:
-                path = line.split('=', 1)[0].split(':', 1)[1]
-                apk_paths.add(path)
+                parts = line.split('=', 1)
+                path = parts[0].split(':', 1)[1]
+                pkg_name = parts[1].strip()
+                if path.startswith('/data/'):
+                    logging.debug('Skipping installed-package path under /data/: %s', path)
+                    if pkg_name:
+                        skipped_package_names.append(pkg_name)
+                else:
+                    apk_paths.add(path)
     except Exception as e:
         logger.warning('pm list packages -f failed: %s', e)
 
@@ -143,7 +153,7 @@ def get_apk_files(serial=None):
         # non-fatal, just continue with whatever we found
         pass
 
-    return sorted(apk_paths)
+    return sorted(apk_paths), skipped_package_names
 
 
 def filter_apk_install_list(apk_list):
@@ -153,7 +163,21 @@ def filter_apk_install_list(apk_list):
     :param apk_list: List of APK file paths.
     :return: Filtered list of APK file paths.
     """
-    return [apk for apk in apk_list if "/apex/" not in apk and "/overlay/" not in apk]
+    filtered = [apk for apk in apk_list if "/apex/" not in apk and "/overlay/" not in apk]
+    # Determine which APKs were filtered out and log them so they appear in the
+    # normal logfile output. Use INFO level so they are captured by the
+    # script's default logging configuration.
+    skipped = [apk for apk in apk_list if apk not in filtered]
+    if skipped:
+        # Log count and first few items to avoid overly long single-line logs
+        try:
+            preview = ', '.join(skipped[:10])
+            if len(skipped) > 10:
+                preview = preview + ', ...'
+        except Exception:
+            preview = str(skipped)
+        logger.info('Skipped %d APK(s) due to /apex/ or /overlay/ paths: %s', len(skipped), preview)
+    return filtered
 
 
 def install_apk(apk_path, results, lock, serial=None, stop_event=None):
@@ -388,18 +412,72 @@ def main():
         logger.info(header)
         logger.info('%s\n', '=' * len(header))
 
-        apk_files = get_apk_files(serial=serial)
+        apk_files, skipped_pkg_names = get_apk_files(serial=serial)
         if not apk_files:
-            logger.info('No APK files found on device %s; skipping.', serial if serial else 'default')
-            per_device_summary[serial if serial else 'default'] = {"skipped": True, "reason": "no_apks"}
+            if skipped_pkg_names:
+                try:
+                    preview_names = ', '.join(skipped_pkg_names[:10])
+                    if len(skipped_pkg_names) > 10:
+                        preview_names = preview_names + ', ...'
+                except Exception:
+                    preview_names = str(skipped_pkg_names)
+                logger.info('No installable APK file paths found on device %s; pm listed these packages but their paths were skipped as sources: %s', serial if serial else 'default', preview_names)
+                per_device_summary[serial if serial else 'default'] = {"skipped": True, "reason": "no_installable_apks", "skipped_package_names": skipped_pkg_names}
+            else:
+                logger.info('No APK files found on device %s; skipping.', serial if serial else 'default')
+                per_device_summary[serial if serial else 'default'] = {"skipped": True, "reason": "no_apks"}
             continue
 
         apk_filtered_list = filter_apk_install_list(apk_files)
+        # Record any APK paths that were filtered out so we can include them in
+        # logs and the per-device JSON summary.
+        skipped_apks = [p for p in apk_files if p not in apk_filtered_list]
+        # Also include package names reported by pm list that we skipped as
+        # non-installable file sources (e.g., entries under /data/app).
+        if skipped_pkg_names:
+            try:
+                preview_pkg = ', '.join(skipped_pkg_names[:10])
+                if len(skipped_pkg_names) > 10:
+                    preview_pkg = preview_pkg + ', ...'
+            except Exception:
+                preview_pkg = str(skipped_pkg_names)
+            logger.info('Device %s: %d package(s) were listed by pm but skipped as install sources: %s', serial if serial else 'default', len(skipped_pkg_names), preview_pkg)
+        if skipped_apks:
+            try:
+                preview = ', '.join(skipped_apks[:10])
+                if len(skipped_apks) > 10:
+                    preview = preview + ', ...'
+            except Exception:
+                preview = str(skipped_apks)
+            logger.info('Device %s: %d APK(s) were skipped by filters: %s', serial if serial else 'default', len(skipped_apks), preview)
+
         # check device free space to avoid OOM or storage-related crashes
         free_kb = check_device_free_kb(serial)
         if free_kb is not None and free_kb < 50 * 1024:  # less than ~50MB
             logger.warning('Device %s has low free space (%d KB). Skipping installs to avoid instability.', serial if serial else 'default', free_kb)
-            per_device_summary[serial if serial else 'default'] = {"skipped": True, "reason": "low_storage", "available_kb": free_kb}
+            per_device_summary[serial if serial else 'default'] = {
+                "skipped": True,
+                "reason": "low_storage",
+                "available_kb": free_kb,
+                "skipped_items": apk_filtered_list if apk_filtered_list else skipped_apks
+            }
+            # Log details of items that would have been installed (or skipped by filters)
+            if apk_filtered_list:
+                try:
+                    preview = ', '.join(apk_filtered_list[:10])
+                    if len(apk_filtered_list) > 10:
+                        preview = preview + ', ...'
+                except Exception:
+                    preview = str(apk_filtered_list)
+                logger.info('Device %s: installs skipped due to low storage would have included: %s', serial if serial else 'default', preview)
+            elif skipped_apks:
+                try:
+                    preview = ', '.join(skipped_apks[:10])
+                    if len(skipped_apks) > 10:
+                        preview = preview + ', ...'
+                except Exception:
+                    preview = str(skipped_apks)
+                logger.info('Device %s: filters already skipped these APKs: %s', serial if serial else 'default', preview)
             continue
         # If user requested a package, narrow candidates
         if args.package:
@@ -413,6 +491,14 @@ def main():
         logger.info('Found %d APK(s) to install on %s.', len(apk_filtered_list), serial if serial else 'default')
 
         per_device_results = run_install_for_device(serial, apk_filtered_list, args.workers)
+        # Attach the list of APK paths that had been skipped by filters so the
+        # per-device summary / JSON output includes that information.
+        if skipped_apks:
+            per_device_results.setdefault('skipped_items', skipped_apks)
+        # Attach package names that were reported by pm but skipped as install
+        # sources (e.g., entries under /data/app) so they appear in logs/json.
+        if skipped_pkg_names:
+            per_device_results.setdefault('skipped_package_names', skipped_pkg_names)
 
         # print per-device summary
         logger.info('\n📊 Installation Summary for %s:', serial if serial else 'default')

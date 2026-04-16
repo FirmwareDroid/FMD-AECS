@@ -41,7 +41,28 @@ def run_adb(cmd_args, capture_output=True, text=True):
         raise RuntimeError(f"adb not found. Make sure Android platform-tools are installed and adb is in PATH.")
 
 
+def get_first_connected_device():
+    """Return the serial of the first connected adb device in 'device' state, or None."""
+    try:
+        proc = subprocess.run([ADB, 'devices'], capture_output=True, text=True)
+        lines = [l.strip() for l in (proc.stdout or '').splitlines()]
+        for line in lines[1:]:
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) >= 2 and parts[1] == 'device':
+                return parts[0]
+        return None
+    except Exception:
+        return None
+
+
 def list_packages(serial=None):
+    # If no serial provided and multiple devices connected, pick the first one
+    if serial is None:
+        serial = get_first_connected_device()
+        if serial:
+            logging.debug('No serial provided; using first connected device: %s', serial)
     cmd = []
     if serial:
         cmd += ['-s', serial]
@@ -59,6 +80,10 @@ def list_packages(serial=None):
 
 
 def pid_of(package, serial=None):
+    if serial is None:
+        serial = get_first_connected_device()
+        if serial:
+            logging.debug('No serial provided; using first connected device: %s', serial)
     cmd = []
     if serial:
         cmd += ['-s', serial]
@@ -94,6 +119,10 @@ def monkey_launch(package, serial=None, events=1, monkey_opts: Optional[Dict[str
     if monkey_opts is None:
         monkey_opts = {}
 
+    if serial is None:
+        serial = get_first_connected_device()
+        if serial:
+            logging.debug('No serial provided; using first connected device: %s', serial)
     cmd = []
     if serial:
         cmd += ['-s', serial]
@@ -153,6 +182,10 @@ def monkey_launch(package, serial=None, events=1, monkey_opts: Optional[Dict[str
 
 def resolve_main_activity(package, serial=None):
     # Use cmd package resolve-activity --components to try to find a launchable component
+    if serial is None:
+        serial = get_first_connected_device()
+        if serial:
+            logging.debug('No serial provided; using first connected device: %s', serial)
     cmd = []
     if serial:
         cmd += ['-s', serial]
@@ -188,6 +221,10 @@ def resolve_main_activity(package, serial=None):
 
 
 def am_start(component, serial=None):
+    if serial is None:
+        serial = get_first_connected_device()
+        if serial:
+            logging.debug('No serial provided; using first connected device: %s', serial)
     cmd = []
     if serial:
         cmd += ['-s', serial]
@@ -197,6 +234,10 @@ def am_start(component, serial=None):
 
 
 def am_force_stop(package, serial=None):
+    if serial is None:
+        serial = get_first_connected_device()
+        if serial:
+            logging.debug('No serial provided; using first connected device: %s', serial)
     cmd = []
     if serial:
         cmd += ['-s', serial]
@@ -259,6 +300,10 @@ def get_apk_path(package: str, serial: Optional[str] = None) -> Optional[str]:
     Uses `adb shell pm path <package>` which typically returns lines like:
       package:/data/app/com.example-1/base.apk
     """
+    if serial is None:
+        serial = get_first_connected_device()
+        if serial:
+            logging.debug('No serial provided; using first connected device: %s', serial)
     cmd = []
     if serial:
         cmd += ['-s', serial]
