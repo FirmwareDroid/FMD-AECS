@@ -781,9 +781,8 @@ def main():
     results_dir = os.path.join(BASE_DIR, 'out')
     os.makedirs(results_dir, exist_ok=True)
 
-    # Wait for adb to be available (max 5 minutes). If adb not available, retry a few times.
-    attempts = max(1, int(getattr(args, 'retries', 5)))
-    retry_delay = int(getattr(args, 'retry_delay', 15))
+    attempts = max(1, int(getattr(args, 'retries', 10)))
+    retry_delay = int(getattr(args, 'retry_delay', 120))
     adb_ok = False
     for attempt in range(1, attempts + 1):
         adb_ok = wait_for_adb_available(max_wait_seconds=300, sleep_seconds=5)
