@@ -30,6 +30,26 @@ DEFAULT_OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out'
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Ensure an append-mode file logger in DEFAULT_OUT_DIR so repeated invocations
+# of this script add to the same log file instead of overwriting it.
+os.makedirs(DEFAULT_OUT_DIR, exist_ok=True)
+log_file_path = os.path.join(DEFAULT_OUT_DIR, 'app_start.log')
+root_logger = logging.getLogger()
+# Avoid adding duplicate file handlers when module is reloaded
+already_have = False
+for h in list(root_logger.handlers):
+    try:
+        if isinstance(h, logging.FileHandler) and os.path.abspath(getattr(h, 'baseFilename', '')) == os.path.abspath(log_file_path):
+            already_have = True
+            break
+    except Exception:
+        continue
+if not already_have:
+    fh = logging.FileHandler(log_file_path, mode='a', encoding='utf-8')
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    root_logger.addHandler(fh)
+
 ADB = which('adb') or 'adb'
 
 
