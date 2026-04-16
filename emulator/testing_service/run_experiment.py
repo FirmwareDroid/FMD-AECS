@@ -851,8 +851,8 @@ def main():
     # Run the experiment with retries. If a run fails (SystemExit or exception),
     # restart from the beginning (setup_devices + start_experiment) up to
     # args.retries times, waiting args.retry_delay seconds between attempts.
-    attempts = max(1, int(getattr(args, 'retries', 1)))
-    retry_delay = int(getattr(args, 'retry_delay', 10))
+    attempts = max(1, int(getattr(args, 'retries', 10)))
+    retry_delay = int(getattr(args, 'retry_delay', 15))
     success = False
 
     for attempt in range(1, attempts + 1):
