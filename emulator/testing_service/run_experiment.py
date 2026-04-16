@@ -785,7 +785,9 @@ def stop_tcpdump():
         adb_pm = ['adb', '-s', serial, 'shell', 'pm', 'list', 'packages', '-U']
         res = subprocess.run(adb_pm, capture_output=True, text=True, timeout=20)
         pkg_map = {}
-        if res.returncode == 0:
+        pm_success = (res.returncode == 0)
+        pm_error = None
+        if pm_success:
             out = res.stdout or ''
             for line in out.splitlines():
                 line = line.strip()
@@ -808,7 +810,16 @@ def stop_tcpdump():
                     if pkg:
                         pkg_map[pkg] = uid
         else:
-            logging.warning('pm list packages -U returned non-zero: %s', (res.stderr or res.stdout).strip())
+            pm_error = (res.stderr or res.stdout or '').strip()
+            logging.warning('pm list packages -U returned non-zero: %s', pm_error)
+
+        # Prepare JSON content with diagnostics so the file is never left empty and
+        # contains useful information when the pm command failed.
+        mapping_content = {
+            'success': pm_success,
+            'error': pm_error,
+            'mapping': pkg_map,
+        }
 
         # Write mapping to OUT_DIR (retry and write atomically to avoid partial writes)
         try:
@@ -819,7 +830,7 @@ def stop_tcpdump():
             for attempt_write in range(1, 4):
                 try:
                     with open(tmp_path, 'w', encoding='utf-8') as mf:
-                        json.dump(pkg_map, mf, indent=2)
+                        json.dump(mapping_content, mf, indent=2)
                         mf.flush()
                         try:
                             os.fsync(mf.fileno())
@@ -905,6 +916,7 @@ def stop_background_services():
         stop_tcpdump()
     except Exception:
         logging.exception('Error while stopping tcpdump during cleanup')
+
     if crash_watcher:
         try:
             crash_watcher.stop_crash_watcher()
