@@ -9,6 +9,7 @@ New: add --all-devices to run the install on every connected device sequentially
 
 import subprocess
 import argparse
+import sys
 import os
 import threading
 import json
@@ -150,7 +151,7 @@ def filter_apk_install_list(apk_list):
     return [apk for apk in apk_list if "/apex/" not in apk and "/overlay/" not in apk]
 
 
-def install_apk(apk_path, results, lock, serial=None):
+def install_apk(apk_path, results, lock, serial=None, stop_event=None):
     """
     Installs a single APK file on the connected Android device and tracks results.
 
@@ -160,6 +161,10 @@ def install_apk(apk_path, results, lock, serial=None):
     :param serial: optional device serial to target via adb -s.
     """
     try:
+        # If a global stop event was signaled (e.g., device went offline), skip work
+        if stop_event is not None and stop_event.is_set():
+            logger.info('Skipping %s because stop event is set (device offline)', apk_path)
+            return
         logger.info('Installing %s', apk_path)
         # Use pm install -r to allow reinstallation; run with retries and timeout
         cmd = build_adb_cmd(serial, ["shell", "pm", "install", "-r", apk_path])
@@ -176,6 +181,21 @@ def install_apk(apk_path, results, lock, serial=None):
 
             out = (res.stdout or '').strip()
             err = (res.stderr or '').strip()
+            combined = (out + '\n' + err).lower()
+            # If adb reports 'device offline' we should abort further installs immediately
+            if 'device offline' in combined:
+                logger.error('Device reported offline while installing %s; aborting further installs for this device.', apk_path)
+                # mark an abort flag in results and signal stop_event so other workers can stop
+                with lock:
+                    results.setdefault('aborted_offline', True)
+                if stop_event is not None:
+                    stop_event.set()
+                # record this specific failure
+                with lock:
+                    results['failures']['count'] += 1
+                    results['failures']['details']['device offline'] += 1
+                    results['failures']['items'].append({"apk": apk_path, "error": "device offline"})
+                return
             if res.returncode == 0 and ('Success' in out or 'Success' in err or out == ''):
                 logger.info('Successfully installed %s', apk_path)
                 with lock:
@@ -197,6 +217,13 @@ def install_apk(apk_path, results, lock, serial=None):
         time.sleep(0.25)
     except Exception as e:
         error_message = str(e)
+        # If the exception text indicates device offline, set stop_event as well
+        if 'device offline' in error_message.lower():
+            logger.error('Device reported offline during install of %s; aborting further installs for this device.', apk_path)
+            if stop_event is not None:
+                stop_event.set()
+            with lock:
+                results.setdefault('aborted_offline', True)
         logger.exception('Error installing %s: %s', apk_path, error_message)
         with lock:
             results["failures"]["count"] += 1
@@ -218,14 +245,25 @@ def run_install_for_device(serial, apk_list, max_workers):
         }
     }
     lock = threading.Lock()
+    stop_event = threading.Event()
     if not apk_list:
         return results
 
     # Cap the number of workers to avoid overwhelming the device/emulator.
     cap = max(1, min(max_workers, 4, len(apk_list)))
     with ThreadPoolExecutor(max_workers=cap) as executor:
-        futures = [executor.submit(install_apk, apk, results, lock, serial) for apk in apk_list]
+        futures = [executor.submit(install_apk, apk, results, lock, serial, stop_event) for apk in apk_list]
         for f in as_completed(futures):
+            # If a device-offline event occurred, try to cancel remaining futures and stop waiting
+            if stop_event.is_set():
+                logger.info('Stop event detected; attempting to cancel remaining tasks for device %s', serial if serial else 'default')
+                for fut in futures:
+                    if not fut.done():
+                        try:
+                            fut.cancel()
+                        except Exception:
+                            pass
+                break
             try:
                 f.result()
             except Exception as e:
@@ -356,6 +394,26 @@ def main():
 
         # store per-device results (serial string or 'default')
         per_device_summary[serial if serial else 'default'] = per_device_results
+        # If device went offline and aborted installs, stop the whole process immediately
+        if per_device_results.get('aborted_offline'):
+            logger.error('Device %s went offline during installation. Aborting further work.', serial if serial else 'default')
+            # write output if requested
+            if args.output:
+                out_obj = {
+                    "timestamp": datetime.datetime.utcnow().isoformat() + 'Z',
+                    "success_count": overall['success'],
+                    "failures_count": overall['failures'],
+                    "total_app_count": overall['success'] + overall['failures'],
+                    "per_device": per_device_summary,
+                    "aborted_due_to_device_offline": True,
+                }
+                try:
+                    with open(args.output, 'w', encoding='utf-8') as f:
+                        json.dump(out_obj, f, ensure_ascii=False, indent=2)
+                    logger.info('Wrote JSON results to %s', args.output)
+                except Exception as e:
+                    logger.exception('Failed to write JSON output: %s', e)
+            sys.exit(2)
 
     # Overall summary
     logger.info('\n=============================')
