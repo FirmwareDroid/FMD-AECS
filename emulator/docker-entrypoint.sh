@@ -11,6 +11,14 @@ DELAY=${EMULATOR_START_DELAY:-5}
 # Ensure run dirs
 mkdir -p /var/run/sshd
 
+# Ensure container tmp area for host-mounted Android unknown files exists and is readable
+# Docker users may mount a host volume onto /tmp/android-unknown; make sure the directory
+# exists and is world-readable so both the host user and container users can access it.
+mkdir -p /tmp/android-unknown
+# Set permissive permissions so mounted host files are accessible; host mount may override
+# permissions, but when the directory is created here ensure it is readable/executable by all.
+chmod 0777 /tmp/android-unknown || true
+
 
 if [ -S /var/run/fail2ban/fail2ban.sock ]; then
   echo "Removing existing fail2ban socket before start: /var/run/fail2ban/fail2ban.sock"

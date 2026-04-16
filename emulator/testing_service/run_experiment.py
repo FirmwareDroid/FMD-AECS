@@ -107,15 +107,17 @@ def run_script(script_path, args=None, description=None):
         cmd.extend(args)
     logging.info(f"Running: {description or script_path}")
     result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.stdout:
-        logging.info(result.stdout)
-    if result.stderr:
+    out = (result.stdout or '').strip()
+    err = (result.stderr or '').strip()
+    if out:
+        logging.info(out)
+    if err:
         # Some tools (e.g. ACVTool) log informational messages to stderr while
         # still returning exit code 0. Treat stderr as INFO when returncode==0.
         if result.returncode == 0:
-            logging.info(result.stderr)
+            logging.info(err)
         else:
-            logging.error(result.stderr)
+            logging.error(err)
     if result.returncode != 0:
         logging.error(f"Failed: {description or script_path} (exit code {result.returncode})")
         sys.exit(result.returncode)
@@ -146,16 +148,18 @@ def run_script_capture(script_path, args=None, description=None):
         'end_time': end,
         'duration_seconds': duration,
     }
-    if proc.stdout:
-        logging.info(proc.stdout)
-    if proc.stderr:
+    out = (proc.stdout or '').strip()
+    err = (proc.stderr or '').strip()
+    if out:
+        logging.info(out)
+    if err:
         # Some CLI tools write informational logs to stderr but still succeed.
         # Log stderr as INFO when the command succeeded (returncode==0), otherwise
         # treat it as an error.
         if proc.returncode == 0:
-            logging.info(proc.stderr)
+            logging.info(err)
         else:
-            logging.error(proc.stderr)
+            logging.error(err)
     return res
 
 def run_command(cmd, description=None):
@@ -850,43 +854,42 @@ def stop_tcpdump():
 
     return True
 
-def main():
-    args = parse_args()
-    results_dir = os.path.join(BASE_DIR, 'out')
-    os.makedirs(results_dir, exist_ok=True)
 
-    attempts = max(1, int(getattr(args, 'retries', 20)))
-    retry_delay = int(getattr(args, 'retry_delay', 120))
-    adb_ok = False
-    for attempt in range(1, attempts + 1):
-        adb_ok = wait_for_adb_available(max_wait_seconds=300, sleep_seconds=5)
-        try:
-            out_file = os.path.join(results_dir, 'adb_availability.json')
-            if adb_ok:
-                message = {'success': adb_ok}
-            else:
-                message = {'success': adb_ok, 'error': 'adb not available within timeout'}
-            with open(out_file, 'w', encoding='utf-8') as of:
-                json.dump(message, of, indent=2)
-            logging.info('Wrote adb availability result to %s (attempt %d/%d)', out_file, attempt, attempts)
-        except Exception:
-            logging.exception('Failed to write adb availability result')
+def _write_json(path, obj):
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = path + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(obj, f, indent=2)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+        os.replace(tmp, path)
+    except Exception:
+        logging.exception('Failed to write JSON to %s', path)
 
-        if adb_ok:
-            logging.info('ADB available')
-            break
-        else:
-            if attempt < attempts:
-                logging.warning('ADB not available (attempt %d/%d). Will retry after %s seconds...', attempt, attempts, retry_delay)
-                time.sleep(retry_delay)
-                continue
-            else:
-                logging.error('ADB not available after %d attempts. Aborting.', attempts)
-                sys.exit(2)
 
+def ensure_adb_available(results_dir):
+    """Ensure adb is available and at least one device is connected.
+
+    Writes adb_availability.json into results_dir. Raises RuntimeError on failure.
+    """
+    adb_ok = wait_for_adb_available(max_wait_seconds=300, sleep_seconds=5)
+    out_file = os.path.join(results_dir, 'adb_availability.json')
+    try:
+        _write_json(out_file, {'success': bool(adb_ok)})
+        logging.info('Wrote adb availability result to %s', out_file)
+    except Exception:
+        logging.exception('Failed to write adb availability result')
+    if not adb_ok:
+        raise RuntimeError('ADB not available')
+
+
+def start_background_services():
+    """Start best-effort background services such as tcpdump and crash watcher."""
     start_tcpdump()
-
-    # Start crash watcher in background to dismiss random ANR/crash dialogs during the pipeline
     if crash_watcher:
         try:
             crash_watcher.start_crash_watcher(device=None, interval=5.0)
@@ -895,166 +898,129 @@ def main():
         except Exception:
             logging.exception('Failed to start crash watcher')
 
-    # Wait for boot animation (init.svc.bootanim) to stop (max 5 minutes) before running the launcher test
-    preflight_ok = False
-    # Wait for boot animation to complete. If it times out, retry a few times.
-    preflight_ok = False
-    for attempt in range(1, attempts + 1):
-        try:
-            is_running, last_value, last_error = wait_for_boot_completed(max_wait_seconds=600, sleep_seconds=10)
-            # Parse last_value into explicit fields for clarity
-            bootanim_val = ''
-            boot_completed_val = ''
-            try:
-                parts = [p.strip() for p in (last_value or '').split(';') if p.strip()]
-                for p in parts:
-                    if p.startswith('init.svc.bootanim='):
-                        bootanim_val = p.split('=', 1)[1]
-                    if p.startswith('sys.boot_completed='):
-                        boot_completed_val = p.split('=', 1)[1]
-            except Exception:
-                logging.debug('Failed to parse last_value for boot properties: %s', last_value)
 
-            message = {
-                'success': (not is_running),
-                'bootanim_timed_out': bool(is_running),
-                'bootanim': bootanim_val,
-                'boot_completed': boot_completed_val,
-                'last_value': last_value,
-                'error': last_error,
-            }
-            out_file = os.path.join(results_dir, 'bootanim_results.json')
-            with open(out_file, 'w', encoding='utf-8') as of:
-                json.dump(message, of, indent=2)
-
-            if not is_running:
-                preflight_ok = run_launcher_test(results_dir)
-                break
-            else:
-                logging.warning('Boot animation still running (attempt %d/%d).', attempt, attempts)
-                if attempt < attempts:
-                    logging.info('Retrying boot wait after %s seconds...', retry_delay)
-                    time.sleep(retry_delay)
-                    continue
-                else:
-                    logging.error('Boot animation did not stop after %d attempts. Aborting.', attempts)
-                    sys.exit(2)
-        except Exception:
-            logging.exception('Error while waiting for boot animation to stop;')
-            if attempt < attempts:
-                logging.info('Retrying boot wait after %s seconds...', retry_delay)
-                time.sleep(retry_delay)
-                continue
-            else:
-                sys.exit(2)
-
-    # First: connectivity test
-    # Connectivity test: retry a few times on failure
-    for attempt in range(1, attempts + 1):
-        try:
-            ok = run_connectivity_test(results_dir)
-            if ok:
-                break
-            else:
-                logging.warning('Connectivity test failed (attempt %d/%d).', attempt, attempts)
-                if attempt < attempts:
-                    logging.info('Retrying connectivity test after %s seconds...', retry_delay)
-                    time.sleep(retry_delay)
-                    continue
-                else:
-                    out_file = os.path.join(results_dir, 'connectivity_results.json')
-                    if os.path.exists(out_file):
-                        with open(out_file, 'r', encoding='utf-8') as cf:
-                            logging.error('Connectivity details:\n%s', cf.read())
-                    logging.error('Connectivity test failed after %d attempts. Aborting.', attempts)
-                    sys.exit(2)
-        except Exception:
-            logging.exception('Error while running connectivity test;')
-            if attempt < attempts:
-                logging.info('Retrying connectivity test after %s seconds...', retry_delay)
-                time.sleep(retry_delay)
-                continue
-            else:
-                sys.exit(2)
-
-    # Disable ANR / error dialogs on the selected device
-    run_adb_shell(['settings', 'put', 'global', 'show_annoying_receivers_in_background', '0'],
-                  description='Disable show_annoying_receivers_in_background: This suppresses the "Application Not Responding" dialogs', check=False)
-    run_adb_shell(['settings', 'put', 'global', 'anr_show_background', '0'],
-                  description='Disable anr_show_background: This suppresses the "Application Not Responding" dialogs', check=False)
-    run_adb_shell(['settings', 'put', 'global', 'hide_error_dialogs', '1'],
-                  description='Disable hide_error_dialogs: This suppresses the "Application Not Responding" dialogs', check=False)
-
-    if not preflight_ok:
-        logging.error('Launcher preflight test failed; aborting experiment pipeline')
-        out_file = os.path.join(results_dir, 'launcher_test_results.json')
-        with open(out_file, 'w', encoding='utf-8') as of:
-            json.dump({
-                'success': False,
-                'error': 'Launcher preflight test failed or did not produce valid output',
-            }, of, indent=2)
-        sys.exit(2)
-
-    logging.info('Launcher preflight successful; proceeding with device setup and experiment execution')
-
-    # Run the experiment with retries. If a run fails (SystemExit or exception),
-    # restart from the beginning (setup_devices + start_experiment) up to
-    # args.retries times, waiting args.retry_delay seconds between attempts.
-    attempts = max(1, int(getattr(args, 'retries', 10)))
-    retry_delay = int(getattr(args, 'retry_delay', 15))
-    success = False
-
-    for attempt in range(1, attempts + 1):
-        logging.info('Experiment attempt %d/%d starting...', attempt, attempts)
-        try:
-            if args.skip_setup:
-                logging.info('Skipping device setup as requested (--skip-setup)')
-            else:
-                setup_devices(mode=args.mode, pcapdroid=getattr(args, 'pcapdroid', False), pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address)
-
-            start_experiment(mode=args.mode, test_only_one=(getattr(args, 'test-only-one', False) or getattr(args, 'test_only_one', False) or args.test_only_one), skip_install=getattr(args, 'skip_install', False))
-
-            logging.info('Experiment attempt %d/%d completed successfully', attempt, attempts)
-            success = True
-            break
-
-        except KeyboardInterrupt:
-            logging.info('Interrupted by user')
-            # preserve existing behaviour: abort immediately
-            stop_tcpdump()
-            sys.exit(130)
-        except SystemExit as se:
-            # A called helper used sys.exit(); treat as a failed attempt and retry if allowed
-            logging.exception('Experiment attempt %d/%d exited (SystemExit): %s', attempt, attempts, se)
-            success = False
-        except Exception:
-            logging.exception('Experiment attempt %d/%d raised an exception', attempt, attempts)
-            success = False
-
-        # Ensure tcpdump and other per-attempt resources are cleaned before retrying
-        try:
-            stop_tcpdump()
-        except Exception:
-            logging.exception('Error while stopping tcpdump during cleanup between attempts')
-
-        if not success and attempt < attempts:
-            logging.info('Retrying experiment after %s seconds (attempt %d/%d)', retry_delay, attempt + 1, attempts)
-            time.sleep(retry_delay)
-            # restart tcpdump for the next attempt
-            try:
-                start_tcpdump()
-            except Exception:
-                logging.exception('Failed to restart tcpdump before next attempt')
-
-    if not success:
-        logging.error('Experiment failed after %d attempt(s). Aborting.', attempts)
-        sys.exit(2)
-
-    # Final cleanup: stop tcpdump once after successful run
+def stop_background_services():
+    """Stop background services started by start_background_services()."""
     try:
         stop_tcpdump()
     except Exception:
-        logging.exception('Failed to stop tcpdump during final cleanup')
+        logging.exception('Error while stopping tcpdump during cleanup')
+    if crash_watcher:
+        try:
+            crash_watcher.stop_crash_watcher()
+            logging.info('Stopped crash watcher')
+        except Exception:
+            logging.debug('Crash watcher stop failed (may not have been started)')
+
+
+def do_preflight(results_dir):
+    """Perform boot wait, launcher preflight and connectivity checks.
+
+    Raises RuntimeError on any preflight failure.
+    """
+    # Wait for boot animation to finish (or sys.boot_completed)
+    is_running, last_value, last_error = wait_for_boot_completed(max_wait_seconds=600, sleep_seconds=10)
+    bootanim_val = ''
+    boot_completed_val = ''
+    try:
+        parts = [p.strip() for p in (last_value or '').split(';') if p.strip()]
+        for p in parts:
+            if p.startswith('init.svc.bootanim='):
+                bootanim_val = p.split('=', 1)[1]
+            if p.startswith('sys.boot_completed='):
+                boot_completed_val = p.split('=', 1)[1]
+    except Exception:
+        logging.debug('Failed to parse last_value for boot properties: %s', last_value)
+
+    message = {
+        'success': (not is_running),
+        'bootanim_timed_out': bool(is_running),
+        'bootanim': bootanim_val,
+        'boot_completed': boot_completed_val,
+        'last_value': last_value,
+        'error': last_error,
+    }
+    out_file = os.path.join(results_dir, 'bootanim_results.json')
+    _write_json(out_file, message)
+    if is_running:
+        raise RuntimeError('Boot animation did not stop')
+
+    preflight_ok = run_launcher_test(results_dir)
+    if not preflight_ok:
+        raise RuntimeError('Launcher preflight failed')
+
+    # Connectivity
+    ok = run_connectivity_test(results_dir)
+    if not ok:
+        raise RuntimeError('Connectivity test failed')
+
+    # Disable ANR / error dialogs on the selected device (best-effort)
+    run_adb_shell(['settings', 'put', 'global', 'show_annoying_receivers_in_background', '0'],
+                  description='Disable show_annoying_receivers_in_background', check=False)
+    run_adb_shell(['settings', 'put', 'global', 'anr_show_background', '0'],
+                  description='Disable anr_show_background', check=False)
+    run_adb_shell(['settings', 'put', 'global', 'hide_error_dialogs', '1'],
+                  description='Disable hide_error_dialogs', check=False)
+
+
+def setup_and_run_experiment(args):
+    """Run setup_devices (unless skipped) and start_experiment."""
+    if args.skip_setup:
+        logging.info('Skipping device setup as requested (--skip-setup)')
+    else:
+        setup_devices(mode=args.mode, pcapdroid=getattr(args, 'pcapdroid', False), pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address)
+
+    start_experiment(mode=args.mode, test_only_one=(getattr(args, 'test-only-one', False) or getattr(args, 'test_only_one', False) or args.test_only_one), skip_install=getattr(args, 'skip_install', False))
+
+def main():
+    args = parse_args()
+    results_dir = os.path.join(BASE_DIR, 'out')
+    os.makedirs(results_dir, exist_ok=True)
+
+    attempts = max(1, int(getattr(args, 'retries', 30)))
+    retry_delay = int(getattr(args, 'retry_delay', 15))
+
+    # Single unified retry loop: perform the entire preflight and experiment in one attempt
+    for attempt in range(1, attempts + 1):
+        logging.info('Full-run attempt %d/%d starting...', attempt, attempts)
+        try:
+            # 1) Ensure adb available
+            ensure_adb_available(results_dir)
+
+            # 2) Start background helpers (tcpdump, crash watcher)
+            start_background_services()
+
+            # 3) Preflight checks: boot, launcher, connectivity
+            do_preflight(results_dir)
+
+            # 4) Setup devices and run experiment
+            setup_and_run_experiment(args)
+
+            # Success: cleanup and exit
+            stop_background_services()
+            logging.info('Full-run attempt %d/%d completed successfully', attempt, attempts)
+            return
+
+        except KeyboardInterrupt:
+            logging.info('Interrupted by user; stopping background services and aborting')
+            stop_background_services()
+            raise
+        except Exception:
+            logging.exception('Full-run attempt %d/%d failed', attempt, attempts)
+            stop_background_services()
+            if attempt < attempts:
+                logging.info('Retrying full-run after %s seconds (attempt %d/%d)', retry_delay, attempt + 1, attempts)
+                time.sleep(retry_delay)
+                # try to restart tcpdump before next attempt
+                try:
+                    start_tcpdump()
+                except Exception:
+                    logging.exception('Failed to restart tcpdump before next attempt')
+                continue
+            else:
+                logging.error('Experiment failed after %d attempt(s). Aborting.', attempts)
+                sys.exit(2)
+
 
 
 if __name__ == "__main__":

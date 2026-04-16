@@ -272,7 +272,11 @@ def pretty_print_summary(summary: Dict[str, Any], failures: List[Dict[str, Any]]
     :param summary: the out_summary dict returned by start_packages
     :param failures: list of failures entries
     """
-    s = summary.get('summary', {})
+    if isinstance(summary, dict) and 'total_packages' in summary:
+        s = summary
+    else:
+        s = summary.get('summary', {}) if isinstance(summary, dict) else {}
+
     logging.info('=== Start Apps Summary ===')
     logging.info('Total packages: %d', s.get('total_packages', 0))
     logging.info('Started: %d', s.get('started', 0))
@@ -289,6 +293,12 @@ def pretty_print_summary(summary: Dict[str, Any], failures: List[Dict[str, Any]]
     if failed_pkgs:
         logging.info('Failed packages:')
         for p in failed_pkgs:
+            logging.info('  - %s', p)
+    # Also print skipped packages if present
+    skipped = s.get('skipped_packages')
+    if skipped:
+        logging.info('Skipped packages:')
+        for p in skipped:
             logging.info('  - %s', p)
 
     logging.info('--- Failure frequency ---')
@@ -359,6 +369,7 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
     failure_examples = defaultdict(list)
     started_by_script = []
     skipped_packages = []
+    skipped_details = []
 
     for pkg in packages:
         logging.info('Processing package: %s', pkg)
@@ -378,9 +389,7 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
             logging.info('Skipping overlay package: %s (apk_path=%s)', pkg, apk_path)
             # record skipped package names so they appear in the output summary/log
             skipped_packages.append(pkg)
-            failure_reasons[reason] += 1
-            failure_examples[reason].append({'package': pkg, 'apk_path': apk_path})
-            failures.append({'package': pkg, 'reason': reason, 'detail': apk_path or ''})
+            skipped_details.append({'package': pkg, 'apk_path': apk_path})
             continue
 
         # if already running, consider success
@@ -450,12 +459,12 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
         'total_packages': total,
         'started': len(success),
         'failed': len(failures),
+        'skipped': len(skipped_packages),
         'started_by_script': len(started_by_script),
         'started_packages': success,
-        'failed_packages': [f.get('package') for f in failures]
+        'failed_packages': [f.get('package') for f in failures],
+        'skipped_packages': skipped_packages,
     }
-    # Include skipped packages (e.g., overlays) explicitly in the summary
-    summary['skipped_packages'] = skipped_packages
 
     logging.info('Finished processing packages. Started=%d Failed=%d. Started by script=%d', len(success), len(failures), len(started_by_script))
 
@@ -464,6 +473,9 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
 
     summary['failure_frequency'] = freq
     summary["failures"] = failures
+    # Optionally include examples/details for skipped items
+    if skipped_packages:
+        summary['skipped_details'] = skipped_details
 
     try:
         os.makedirs(DEFAULT_OUT_DIR, exist_ok=True)
