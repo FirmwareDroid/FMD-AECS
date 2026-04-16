@@ -21,6 +21,7 @@ import os
 import shutil
 import subprocess
 import sys
+from common import get_first_connected_device
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -42,6 +43,11 @@ def cmd_run(args):
     _require_droidrun()
     cmd = ['droidrun', 'run', args.task]
     env = os.environ.copy()
+    # If no serial provided, pick the first connected adb device
+    if not args.serial:
+        first = get_first_connected_device()
+        if first:
+            args.serial = first
     if args.serial:
         cmd.extend(['-s', args.serial])
         env['ANDROID_SERIAL'] = args.serial
@@ -56,6 +62,11 @@ def cmd_setup(args):
     """Install the Droidrun portal on the connected device."""
     _require_droidrun()
     cmd = ['droidrun', 'setup']
+    # If no serial provided, pick the first connected adb device
+    if not args.serial:
+        first = get_first_connected_device()
+        if first:
+            args.serial = first
     if args.serial:
         cmd.extend(['-s', args.serial])
     logger.info("Installing Droidrun portal on device…")

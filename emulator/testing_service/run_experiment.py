@@ -432,7 +432,7 @@ def wait_for_adb_available(max_wait_seconds=600, sleep_seconds=5):
 def execute_app_with_coverage(package, mode):
     logging.info(f"Executing app test with package: {package}, mode: {mode}")
     run_script_capture(ACVTOOL, args=["flush", package, "--wd", OUT_DIR], description="Run ACVTool to flush coverage measurement.")
-    run_script_capture(ACVTOOL, args=["activate", package, "--wd", OUT_DIR], description="Run ACVTool to activate coverage measurement.")
+    run_script_capture(ACVTOOL, args=["activate", package], description="Run ACVTool to activate coverage measurement.")
     if mode == 'droidrun':
         run_script_capture(RUN_DROIDRUN, args=["run"], description="Run Droidrun agent to test apps.")
     elif mode == 'monkey':

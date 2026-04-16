@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import time
+from common import get_first_connected_device
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -71,6 +72,12 @@ def run_droidbot_with_humanoid(package, apk_path, running_minutes=60, serial=Non
 
     output_dir = os.path.join(BASE_DIR, 'output', 'humanoid', package)
     os.makedirs(output_dir, exist_ok=True)
+
+    # If no serial provided, pick the first connected adb device (if any)
+    if not serial:
+        first = get_first_connected_device()
+        if first:
+            serial = first
 
     cmd = [
         'droidbot',

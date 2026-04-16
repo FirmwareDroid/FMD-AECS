@@ -19,6 +19,7 @@ import logging
 import os
 import subprocess
 import sys
+from common import get_adb_cmd
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ DEVICE_CLASSPATH = '/sdcard/monkeyq.jar:/sdcard/framework.jar:/sdcard/fastbot-th
 
 
 def _adb(serial=None):
-    return ['adb', '-s', serial] if serial else ['adb']
+    return get_adb_cmd(serial)
 
 
 def push_fastbot(serial=None):

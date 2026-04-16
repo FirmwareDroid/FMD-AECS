@@ -20,6 +20,7 @@ import os
 import shutil
 import subprocess
 import sys
+from common import get_first_connected_device
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -37,6 +38,12 @@ def run_kea2(package, running_minutes=60, serial=None, output_dir=None):
     os.makedirs(KEA2_WORKDIR, exist_ok=True)
     out = output_dir or os.path.join(KEA2_WORKDIR, 'output')
     os.makedirs(out, exist_ok=True)
+
+    # If no serial provided, pick the first connected adb device (if any)
+    if not serial:
+        first = get_first_connected_device()
+        if first:
+            serial = first
 
     cmd = ['kea2', 'run', '-p', package, '--running-minutes', str(running_minutes)]
     if serial:
