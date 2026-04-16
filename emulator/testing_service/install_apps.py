@@ -13,8 +13,14 @@ import os
 import threading
 import json
 import datetime
+import time
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
+
+# configure logger
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 def build_adb_cmd(serial=None, adb_args=None):
@@ -26,6 +32,56 @@ def build_adb_cmd(serial=None, adb_args=None):
         cmd += ["-s", serial]
     cmd += adb_args
     return cmd
+
+
+def adb_run(cmd, timeout=30, retries=1, backoff=2, capture_output=True):
+    """Run an adb command with optional retries/backoff and timeout.
+
+    Returns CompletedProcess or raises after final failure.
+    """
+    attempt = 0
+    last_exc = None
+    while attempt < retries:
+        try:
+            if capture_output:
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=timeout)
+            else:
+                res = subprocess.run(cmd, timeout=timeout)
+            return res
+        except subprocess.TimeoutExpired as e:
+            last_exc = e
+            attempt += 1
+            time.sleep(backoff * attempt)
+        except Exception as e:
+            last_exc = e
+            attempt += 1
+            time.sleep(backoff * attempt)
+    # final attempt without catching so caller can handle
+    if capture_output:
+        return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=timeout)
+    else:
+        return subprocess.run(cmd, timeout=timeout)
+
+
+def check_device_free_kb(serial=None):
+    """Return approximate free KB on /data partition or None if unknown."""
+    try:
+        cmd = build_adb_cmd(serial, ["shell", "df", "/data"])
+        res = adb_run(cmd, timeout=10, retries=1)
+        out = (res.stdout or '').strip()
+        # Typical df output: Filesystem     1K-blocks    Used Available Use% Mounted on
+        for line in out.splitlines():
+            parts = [p for p in line.split() if p]
+            if len(parts) >= 4 and parts[-1].startswith('/'):
+                # Available is usually at index -3
+                try:
+                    avail = int(parts[-3])
+                    return avail
+                except Exception:
+                    continue
+        return None
+    except Exception:
+        return None
 
 
 def get_connected_devices():
@@ -51,19 +107,37 @@ def get_apk_files(serial=None):
     a specific device when serial is provided).
     :return: List of APK file paths.
     """
+    # Prefer querying installed packages (safer than scanning entire filesystem).
+    apk_paths = set()
     try:
-        cmd = build_adb_cmd(serial, ["shell", "find", "/", "-type", "f", "-name", "*.apk"])
-        result = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-        )
-        # filter out empty lines
-        return [p for p in result.stdout.strip().split("\n") if p]
+        cmd = build_adb_cmd(serial, ["shell", "pm", "list", "packages", "-f"])  # returns package:<path>=<pkg>
+        res = adb_run(cmd, timeout=20, retries=2)
+        out = (res.stdout or '')
+        for line in out.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            # format: package:/data/app/.../base.apk=com.example
+            if line.startswith('package:') and '=' in line:
+                path = line.split('=', 1)[0].split(':', 1)[1]
+                apk_paths.add(path)
     except Exception as e:
-        print(f"Error fetching APK files: {e}")
-        return []
+        logger.warning('pm list packages -f failed: %s', e)
+
+    # Also check /sdcard and /storage for APK files (user downloads) but limit search depth
+    try:
+        cmd = build_adb_cmd(serial, ["shell", "find", "/sdcard", "/storage", "-maxdepth", "3", "-type", "f", "-name", "*.apk"])
+        res = adb_run(cmd, timeout=30, retries=1)
+        out = (res.stdout or '')
+        for p in out.splitlines():
+            p = p.strip()
+            if p:
+                apk_paths.add(p)
+    except Exception:
+        # non-fatal, just continue with whatever we found
+        pass
+
+    return sorted(apk_paths)
 
 
 def filter_apk_install_list(apk_list):
@@ -86,29 +160,44 @@ def install_apk(apk_path, results, lock, serial=None):
     :param serial: optional device serial to target via adb -s.
     """
     try:
-        print(f"Installing {apk_path}")
-        cmd = build_adb_cmd(serial, ["shell", "pm", "install", apk_path])
-        result = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        if result.returncode == 0:
-            print(f"Successfully installed {apk_path}")
-            with lock:
-                results["success"] += 1
-                results.setdefault("installed", []).append(apk_path)
-        else:
-            error_message = (result.stderr.strip() or result.stdout.strip() or "Unknown error")
-            print(f"Failed to install {apk_path}: {error_message}")
-            with lock:
-                results["failures"]["count"] += 1
-                results["failures"]["details"][error_message] += 1
-                results["failures"]["items"].append({"apk": apk_path, "error": error_message})
+        logger.info('Installing %s', apk_path)
+        # Use pm install -r to allow reinstallation; run with retries and timeout
+        cmd = build_adb_cmd(serial, ["shell", "pm", "install", "-r", apk_path])
+        attempts = 2
+        for attempt in range(1, attempts + 1):
+            try:
+                res = adb_run(cmd, timeout=120, retries=1)
+            except Exception as e:
+                logger.warning('Install attempt %d for %s raised: %s', attempt, apk_path, e)
+                if attempt == attempts:
+                    raise
+                time.sleep(2 * attempt)
+                continue
+
+            out = (res.stdout or '').strip()
+            err = (res.stderr or '').strip()
+            if res.returncode == 0 and ('Success' in out or 'Success' in err or out == ''):
+                logger.info('Successfully installed %s', apk_path)
+                with lock:
+                    results["success"] += 1
+                    results.setdefault("installed", []).append(apk_path)
+                break
+            else:
+                error_message = err or out or 'Unknown error'
+                logger.warning('Failed to install %s (attempt %d): %s', apk_path, attempt, error_message)
+                if attempt == attempts:
+                    with lock:
+                        results["failures"]["count"] += 1
+                        results["failures"]["details"][error_message] += 1
+                        results["failures"]["items"].append({"apk": apk_path, "error": error_message})
+                else:
+                    # small backoff and retry
+                    time.sleep(1 * attempt)
+        # gentle delay between installs to reduce load
+        time.sleep(0.25)
     except Exception as e:
         error_message = str(e)
-        print(f"Error installing {apk_path}: {error_message}")
+        logger.exception('Error installing %s: %s', apk_path, error_message)
         with lock:
             results["failures"]["count"] += 1
             results["failures"]["details"][error_message] += 1
@@ -132,13 +221,15 @@ def run_install_for_device(serial, apk_list, max_workers):
     if not apk_list:
         return results
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    # Cap the number of workers to avoid overwhelming the device/emulator.
+    cap = max(1, min(max_workers, 4, len(apk_list)))
+    with ThreadPoolExecutor(max_workers=cap) as executor:
         futures = [executor.submit(install_apk, apk, results, lock, serial) for apk in apk_list]
         for f in as_completed(futures):
             try:
                 f.result()
             except Exception as e:
-                print(f"Worker raised an exception: {e}")
+                logger.exception('Worker raised an exception: %s', e)
     # convert defaultdict to normal dict for portability
     results["failures"]["details"] = dict(results["failures"]["details"])
     return results
@@ -156,7 +247,7 @@ def find_apk_paths_for_package(serial, apk_list, package_name):
     # 1) Try pm path
     try:
         cmd = build_adb_cmd(serial, ["shell", "pm", "path", package_name])
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        proc = adb_run(cmd, timeout=10, retries=2)
         if proc.returncode == 0 and proc.stdout:
             for line in proc.stdout.splitlines():
                 line = line.strip()
@@ -190,7 +281,7 @@ def parse_args():
     parser.add_argument(
         "-w", "--workers",
         type=int,
-        default=min(32, (os.cpu_count() or 4) * 2),
+        default=4,
         help="Number of parallel installer workers (default: 2 x CPU cores, capped 32)")
     parser.add_argument(
         "-o", "--output",
@@ -210,7 +301,7 @@ def main():
     if args.all_devices:
         devices = get_connected_devices()
         if not devices:
-            print("No connected devices found.")
+            logger.info('No connected devices found.')
             return
     else:
         # single target: either explicit serial or default adb device (None)
@@ -221,38 +312,44 @@ def main():
 
     for serial in devices:
         header = f"Device: {serial if serial else 'default'}"
-        print("\n" + "=" * len(header))
-        print(header)
-        print("=" * len(header) + "\n")
+        logger.info('\n%s', '=' * len(header))
+        logger.info(header)
+        logger.info('%s\n', '=' * len(header))
 
         apk_files = get_apk_files(serial=serial)
         if not apk_files:
-            print(f"No APK files found on device {serial if serial else 'default'}; skipping.")
+            logger.info('No APK files found on device %s; skipping.', serial if serial else 'default')
             per_device_summary[serial if serial else 'default'] = {"skipped": True, "reason": "no_apks"}
             continue
 
         apk_filtered_list = filter_apk_install_list(apk_files)
+        # check device free space to avoid OOM or storage-related crashes
+        free_kb = check_device_free_kb(serial)
+        if free_kb is not None and free_kb < 50 * 1024:  # less than ~50MB
+            logger.warning('Device %s has low free space (%d KB). Skipping installs to avoid instability.', serial if serial else 'default', free_kb)
+            per_device_summary[serial if serial else 'default'] = {"skipped": True, "reason": "low_storage", "available_kb": free_kb}
+            continue
         # If user requested a package, narrow candidates
         if args.package:
             candidates = find_apk_paths_for_package(serial, apk_filtered_list, args.package)
             if not candidates:
-                print(f"Could not find APK for package {args.package} on device {serial if serial else 'default'}; skipping.")
+                logger.info('Could not find APK for package %s on device %s; skipping.', args.package, serial if serial else 'default')
                 per_device_summary[serial if serial else 'default'] = {"skipped": True, "reason": "package_not_found", "package": args.package}
                 continue
             apk_filtered_list = candidates
 
-        print(f"Found {len(apk_filtered_list)} APK(s) to install on {serial if serial else 'default'}.")
+        logger.info('Found %d APK(s) to install on %s.', len(apk_filtered_list), serial if serial else 'default')
 
         per_device_results = run_install_for_device(serial, apk_filtered_list, args.workers)
 
         # print per-device summary
-        print("\n📊 Installation Summary for {}:".format(serial if serial else 'default'))
-        print(f"  ✅ Successfully installed: {per_device_results['success']}")
-        print(f"  ❌ Failed installations: {per_device_results['failures']['count']}")
+        logger.info('\n📊 Installation Summary for %s:', serial if serial else 'default')
+        logger.info('  ✅ Successfully installed: %d', per_device_results['success'])
+        logger.info('  ❌ Failed installations: %d', per_device_results['failures']['count'])
         if per_device_results['failures']['count'] > 0:
-            print("\n⚠️ Failure Details:")
+            logger.warning('\n⚠️ Failure Details:')
             for error, count in per_device_results['failures']['details'].items():
-                print(f"  {error}: {count} occurrences")
+                logger.warning('  %s: %d occurrences', error, count)
 
         overall['success'] += per_device_results['success']
         overall['failures'] += per_device_results['failures']['count']
@@ -261,10 +358,10 @@ def main():
         per_device_summary[serial if serial else 'default'] = per_device_results
 
     # Overall summary
-    print("\n=============================")
-    print("Overall Summary:")
-    print(f"  ✅ Total successful installs: {overall['success']}")
-    print(f"  ❌ Total failures: {overall['failures']}")
+    logger.info('\n=============================')
+    logger.info('Overall Summary:')
+    logger.info('  ✅ Total successful installs: %d', overall['success'])
+    logger.info('  ❌ Total failures: %d', overall['failures'])
 
     # Write JSON output if requested
     if args.output:
@@ -278,9 +375,9 @@ def main():
         try:
             with open(args.output, 'w', encoding='utf-8') as f:
                 json.dump(out_obj, f, ensure_ascii=False, indent=2)
-            print(f"Wrote JSON results to {args.output}")
+            logger.info('Wrote JSON results to %s', args.output)
         except Exception as e:
-            print(f"Failed to write JSON output: {e}")
+            logger.exception('Failed to write JSON output: %s', e)
 
 
 if __name__ == "__main__":

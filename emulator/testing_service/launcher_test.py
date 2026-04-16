@@ -276,7 +276,7 @@ def main(argv=None):
                     serial = parts[0]
                     break
             if serial:
-                logging.info('No --device provided; selecting first connected device: %s', serial)
+                logging.debug('No --device provided; selecting first connected device: %s', serial)
                 device = serial
             else:
                 logging.warning('No adb device found; continuing with device=None which may fail')

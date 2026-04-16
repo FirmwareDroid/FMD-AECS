@@ -452,16 +452,19 @@ def execute_app_with_coverage(package, mode):
                        description="Run ACVTool to generate html coverage report")
 
 
+
 def start_experiment(mode='single', test_only_one=False):
     install_output_path = os.path.join(OUT_DIR, 'install_results.json')
     if test_only_one:
         app_package_names = get_testing_apps()
         first_pkg = app_package_names[0]
         logging.info('Test-only-one enabled; testing only first package: %s', first_pkg)
-        run_script_capture(INSTALL_APPS, args=["--package", first_pkg, "--output", install_output_path], description=f"Install app {first_pkg} on devices.")
+        res = run_script_capture(INSTALL_APPS, args=["--package", first_pkg, "--output", install_output_path], description=f"Install app {first_pkg} on devices.")
+        logging.info('Installation Results: %s', res)
         execute_app_with_coverage(first_pkg, mode)
     else:
-        run_script_capture(INSTALL_APPS, args=["-a", "--output", install_output_path], description=f"Install all apps on devices.")
+        res = run_script_capture(INSTALL_APPS, args=["-a", "--output", install_output_path], description=f"Install all apps on devices.")
+        logging.info('Installation Results: %s', res)
         app_package_names = get_installed_packages()
         # TODO Filter apps that have an Activity
         logging.info('Testing all packages; total count: %d', len(app_package_names))
@@ -471,7 +474,7 @@ def start_experiment(mode='single', test_only_one=False):
         for package in app_package_names:
             logging.info(f"Starting {package}")
             execute_app_with_coverage(package, mode)
-
+    logging.info('Starting logcat collector')
     run_script_capture(LOGCAT_COLLECTOR, args=["--full-dump"], description="Collect all logcat logs")
 
 def run_launcher_test(results_dir):
