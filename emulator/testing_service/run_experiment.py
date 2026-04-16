@@ -781,7 +781,7 @@ def main():
     results_dir = os.path.join(BASE_DIR, 'out')
     os.makedirs(results_dir, exist_ok=True)
 
-    attempts = max(1, int(getattr(args, 'retries', 10)))
+    attempts = max(1, int(getattr(args, 'retries', 20)))
     retry_delay = int(getattr(args, 'retry_delay', 120))
     adb_ok = False
     for attempt in range(1, attempts + 1):
