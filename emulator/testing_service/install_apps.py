@@ -23,6 +23,11 @@ from collections import defaultdict
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# How many times to retry when adb reports 'device offline' before giving up
+DEVICE_OFFLINE_MAX_RETRIES = 5
+# Base wait seconds between device-offline retries (will be multiplied by attempt)
+DEVICE_OFFLINE_WAIT_SECONDS = 5
+
 
 def build_adb_cmd(serial=None, adb_args=None):
     """Return an adb command list. If serial is provided, include -s <serial>."""
@@ -184,18 +189,47 @@ def install_apk(apk_path, results, lock, serial=None, stop_event=None):
             combined = (out + '\n' + err).lower()
             # If adb reports 'device offline' we should abort further installs immediately
             if 'device offline' in combined:
-                logger.error('Device reported offline while installing %s; aborting further installs for this device.', apk_path)
-                # mark an abort flag in results and signal stop_event so other workers can stop
-                with lock:
-                    results.setdefault('aborted_offline', True)
-                if stop_event is not None:
-                    stop_event.set()
-                # record this specific failure
-                with lock:
-                    results['failures']['count'] += 1
-                    results['failures']['details']['device offline'] += 1
-                    results['failures']['items'].append({"apk": apk_path, "error": "device offline"})
-                return
+                logger.warning('Device reported offline while installing %s (attempt %d/%d). Will retry up to %d times.', apk_path, attempt, attempts, DEVICE_OFFLINE_MAX_RETRIES)
+                # Try to wait for the device to come back online a few times before giving up
+                offline_ok = False
+                for off_try in range(1, DEVICE_OFFLINE_MAX_RETRIES + 1):
+                    wait = DEVICE_OFFLINE_WAIT_SECONDS * off_try
+                    logger.info('Waiting %s seconds before offline-retry %d/%d for %s', wait, off_try, DEVICE_OFFLINE_MAX_RETRIES, apk_path)
+                    time.sleep(wait)
+                    # check connected devices
+                    try:
+                        devs = get_connected_devices()
+                    except Exception:
+                        devs = []
+                    if serial:
+                        if serial in devs:
+                            logger.info('Device %s is back online (offline-retry %d). Retrying install.', serial, off_try)
+                            offline_ok = True
+                            break
+                        else:
+                            logger.info('Device %s still not present (offline-retry %d/%d).', serial, off_try, DEVICE_OFFLINE_MAX_RETRIES)
+                    else:
+                        if devs:
+                            logger.info('At least one adb device found again (offline-retry %d). Retrying install.', off_try)
+                            offline_ok = True
+                            break
+                        else:
+                            logger.info('No adb devices found yet (offline-retry %d/%d).', off_try, DEVICE_OFFLINE_MAX_RETRIES)
+
+                if not offline_ok:
+                    logger.error('Device remained offline after %d retries while installing %s; aborting further installs for this device.', DEVICE_OFFLINE_MAX_RETRIES, apk_path)
+                    # mark an abort flag in results and signal stop_event so other workers can stop
+                    with lock:
+                        results.setdefault('aborted_offline', True)
+                    if stop_event is not None:
+                        stop_event.set()
+                    # record this specific failure
+                    with lock:
+                        results['failures']['count'] += 1
+                        results['failures']['details']['device offline'] += 1
+                        results['failures']['items'].append({"apk": apk_path, "error": "device offline"})
+                    return
+                # if offline_ok is True, continue and retry install attempts
             if res.returncode == 0 and ('Success' in out or 'Success' in err or out == ''):
                 logger.info('Successfully installed %s', apk_path)
                 with lock:
@@ -233,7 +267,7 @@ def install_apk(apk_path, results, lock, serial=None, stop_event=None):
 
 def run_install_for_device(serial, apk_list, max_workers):
     """
-    Run parallel installs for a single device serial and return per-device results.
+    Run parallel installations for a single device serial and return per-device results.
     """
     results = {
         "success": 0,
