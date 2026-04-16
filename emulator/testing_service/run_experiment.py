@@ -98,6 +98,7 @@ def parse_args():
     parser.add_argument('--socks5-address', type=str, default='127.0.0.1', help='The SOCKS5 proxy address (used when --pcapdroid set)')
     parser.add_argument('--retries', type=int, default=10, help='Number of times to retry the full experiment on failure (default: 1)')
     parser.add_argument('--retry-delay', type=int, default=30, help='Seconds to wait between retry attempts (default: 10)')
+    parser.add_argument('--skip-install', action='store_true', help='Skip installing APKs on devices (do not run INSTALL_APPS)')
     return parser.parse_args()
 
 def run_script(script_path, args=None, description=None):
@@ -444,7 +445,7 @@ def wait_for_adb_available(max_wait_seconds=600, sleep_seconds=5):
         time.sleep(sleep_seconds)
 
 
-def execute_app_with_coverage(package, mode):
+def execute_app_with_coverage(package, mode, skip_install=False):
     logging.info(f"Executing app test with package: {package}, mode: {mode}")
     run_script_capture(ACVTOOL, args=["flush", package, "--wd", OUT_DIR], description="Run ACVTool to flush coverage measurement.")
     run_script_capture(ACVTOOL, args=["activate", package], description="Run ACVTool to activate coverage measurement.")
@@ -471,24 +472,34 @@ def execute_app_with_coverage(package, mode):
     else:
         run_script_capture(START_APPS_BASIC, args=["-p", package], description=f"Run basic start/stop test for {package}")
 
-    run_script_capture(ACVTOOL, args=["snap", package, "--wd", OUT_DIR], description="Run ACVTool to get coverage measurement")
-    run_script_capture(ACVTOOL, args=["cover-pickles", package, "--wd", OUT_DIR],
-                       description="Run ACVTool to deserialize coverage measurement")
-    run_script_capture(ACVTOOL, args=["report", package, "--wd", OUT_DIR],
-                       description="Run ACVTool to generate html coverage report")
+    # Optionally skip installation-related steps if requested
+    if not skip_install:
+        run_script_capture(ACVTOOL, args=["snap", package, "--wd", OUT_DIR], description="Run ACVTool to get coverage measurement")
+        run_script_capture(ACVTOOL, args=["cover-pickles", package, "--wd", OUT_DIR],
+                           description="Run ACVTool to deserialize coverage measurement")
+        run_script_capture(ACVTOOL, args=["report", package, "--wd", OUT_DIR],
+                           description="Run ACVTool to generate html coverage report")
+    else:
+        logging.info('Skipping ACVTool snap/cover-pickles/report because --skip-install was requested')
 
 
 
-def start_experiment(mode='single', test_only_one=False):
+def start_experiment(mode='single', test_only_one=False, skip_install=False):
     install_output_path = os.path.join(OUT_DIR, 'install_results.json')
     if test_only_one:
         app_package_names = get_testing_apps()
         first_pkg = app_package_names[0]
         logging.info('Test-only-one enabled; testing only first package: %s', first_pkg)
-        run_script_capture(INSTALL_APPS, args=["--package", first_pkg, "--output", install_output_path], description=f"Install app {first_pkg} on devices.")
-        execute_app_with_coverage(first_pkg, mode)
+        if not skip_install:
+            run_script_capture(INSTALL_APPS, args=["--package", first_pkg, "--output", install_output_path], description=f"Install app {first_pkg} on devices.")
+        else:
+            logging.info('Skipping installation of %s due to --skip-install', first_pkg)
+        execute_app_with_coverage(first_pkg, mode, skip_install=skip_install)
     else:
-        run_script_capture(INSTALL_APPS, args=["-a", "--output", install_output_path], description=f"Install all apps on devices.")
+        if not skip_install:
+            run_script_capture(INSTALL_APPS, args=["-a", "--output", install_output_path], description=f"Install all apps on devices.")
+        else:
+            logging.info('Skipping installation of apps due to --skip-install')
         app_package_names = get_installed_packages()
         # TODO Filter apps that have an Activity
         logging.info('Testing all packages; total count: %d', len(app_package_names))
@@ -887,7 +898,7 @@ def main():
             else:
                 setup_devices(mode=args.mode, pcapdroid=getattr(args, 'pcapdroid', False), pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address)
 
-            start_experiment(mode=args.mode, test_only_one=(getattr(args, 'test-only-one', False) or getattr(args, 'test_only_one', False) or args.test_only_one))
+            start_experiment(mode=args.mode, test_only_one=(getattr(args, 'test-only-one', False) or getattr(args, 'test_only_one', False) or args.test_only_one), skip_install=getattr(args, 'skip_install', False))
 
             logging.info('Experiment attempt %d/%d completed successfully', attempt, attempts)
             success = True
