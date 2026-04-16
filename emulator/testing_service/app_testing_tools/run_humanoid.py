@@ -99,8 +99,8 @@ def main():
         description='Run Humanoid learning-guided Android UI testing (DroidBot + Humanoid)')
     parser.add_argument('-p', '--package', required=True, help='Package name to test')
     parser.add_argument('--apk', required=True, help='Path to the APK file to test')
-    parser.add_argument('--running-minutes', type=int, default=60,
-                        help='Test duration in minutes (default: 60)')
+    parser.add_argument('--running-minutes', type=int, default=5,
+                        help='Test duration in minutes (default: 5)')
     parser.add_argument('--serial', default=os.environ.get('ANDROID_SERIAL'),
                         help='Device serial (default: ANDROID_SERIAL env var)')
     parser.add_argument('--no-humanoid-service', action='store_true',

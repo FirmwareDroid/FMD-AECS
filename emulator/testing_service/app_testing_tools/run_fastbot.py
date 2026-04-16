@@ -84,7 +84,7 @@ def run_fastbot(package, running_minutes=60, throttle=500, serial=None):
 def main():
     parser = argparse.ArgumentParser(description='Run Fastbot2.0 model-based GUI testing on an Android device')
     parser.add_argument('-p', '--package', required=True, help='Package name to test')
-    parser.add_argument('--running-minutes', type=int, default=60, help='Test duration in minutes (default: 60)')
+    parser.add_argument('--running-minutes', type=int, default=5, help='Test duration in minutes (default: 5)')
     parser.add_argument('--throttle', type=int, default=500, help='Delay between actions in ms (default: 500)')
     parser.add_argument('--serial', default=os.environ.get('ANDROID_SERIAL'),
                         help='Device serial (default: ANDROID_SERIAL env var)')

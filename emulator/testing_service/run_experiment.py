@@ -76,7 +76,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Run experiment pipeline')
     parser.add_argument(
         '--mode',
-        choices=['basic', 'droidrun', 'single', 'monkey', 'ape', 'fastbot', 'kea2'],
+        choices=['basic', 'droidrun', 'single', 'monkey', 'ape', 'fastbot', 'kea2', 'pipeline'],
         default='single',
         help=(
             'Test mode: '
@@ -86,7 +86,8 @@ def parse_args():
             '"ape" runs the Ape search-based testing tool; '
             '"fastbot" runs Fastbot2.0 model-based testing; '
             '"kea2" runs Kea2 property-based testing; '
-            '"single" runs a simple test cycle (default)'
+            '"single" runs a simple test cycle (default); '
+            '"pipeline" runs Fastbot -> Kea2 -> Ape -> Monkey -> basic in sequence'
         ),
     )
     parser.add_argument('--test-only-one', action='store_true', help='If set, only the first app in the list will be tested')
@@ -450,15 +451,26 @@ def execute_app_with_coverage(package, mode):
     if mode == 'droidrun':
         run_script_capture(RUN_DROIDRUN, args=["run"], description="Run Droidrun agent to test apps.")
     elif mode == 'monkey':
-        run_script_capture(START_APPS_BASIC, args=["-m", "1", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package])
+        run_script_capture(START_APPS_BASIC, args=["-m", "5000", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package])
     elif mode == 'ape':
         run_script_capture(RUN_APE, args=["-p", package], description=f"Run Ape search-based testing for {package}")
     elif mode == 'fastbot':
         run_script_capture(RUN_FASTBOT, args=["-p", package], description=f"Run Fastbot2.0 model-based testing for {package}")
     elif mode == 'kea2':
         run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
+    elif mode == 'pipeline':
+        # Run tools sequentially: Fastbot -> Kea2 -> Ape -> Monkey -> basic
+        logging.info('Running pipeline: Fastbot -> Kea2 -> Ape -> Monkey -> basic for %s', package)
+        run_script_capture(RUN_FASTBOT, args=["-p", package], description=f"Run Fastbot2.0 model-based testing for {package}")
+        run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
+        run_script_capture(RUN_APE, args=["-p", package], description=f"Run Ape search-based testing for {package}")
+        # Monkey: use a small number of events to try to exercise the launcher
+        run_script_capture(START_APPS_BASIC, args=["-m", "5000", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package], description=f"Run Monkey for {package}")
+        # Basic start/stop
+        run_script_capture(START_APPS_BASIC, args=["-p", package], description=f"Run basic start/stop test for {package}")
     else:
         run_script_capture(START_APPS_BASIC, args=["-p", package], description=f"Run basic start/stop test for {package}")
+
     run_script_capture(ACVTOOL, args=["snap", package, "--wd", OUT_DIR], description="Run ACVTool to get coverage measurement")
     run_script_capture(ACVTOOL, args=["cover-pickles", package, "--wd", OUT_DIR],
                        description="Run ACVTool to deserialize coverage measurement")

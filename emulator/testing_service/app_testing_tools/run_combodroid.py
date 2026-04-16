@@ -73,14 +73,14 @@ def main():
     parser = argparse.ArgumentParser(description='Run ComboDroid combinatorial GUI testing')
     parser.add_argument('-p', '--package', required=True, help='Package name to test')
     parser.add_argument('--apk', required=True, help='Path to the APK file to test')
-    parser.add_argument('--running-minutes', type=int, default=60,
-                        help='Total test duration in minutes (default: 60)')
+    parser.add_argument('--running-minutes', type=int, default=5,
+                        help='Total test duration in minutes (default: 5)')
     parser.add_argument('--output-dir', default=None,
                         help='Directory for instrumented APK and traces (default: tools/combodroid_output)')
     parser.add_argument('--android-sdk', default=os.environ.get('ANDROID_HOME', '/android/sdk'),
                         help='Android SDK root (default: $ANDROID_HOME or /android/sdk)')
-    parser.add_argument('--platform-version', default='26',
-                        help='Android platform version to use for instrumentation (default: 26)')
+    parser.add_argument('--platform-version', default='34',
+                        help='Android platform version to use for instrumentation (default: 34)')
     parser.add_argument('--buildtool-version', default='27.0.3',
                         help='Android build-tools version for resigning (default: 27.0.3)')
     args = parser.parse_args()

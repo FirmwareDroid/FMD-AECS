@@ -69,7 +69,7 @@ def run_ape(package, running_minutes=60, strategy='sata', serial=None):
 def main():
     parser = argparse.ArgumentParser(description='Run Ape search-based GUI testing on an Android device')
     parser.add_argument('-p', '--package', required=True, help='Package name to test')
-    parser.add_argument('--running-minutes', type=int, default=60, help='Test duration in minutes (default: 60)')
+    parser.add_argument('--running-minutes', type=int, default=1, help='Test duration in minutes (default: 1)')
     parser.add_argument('--strategy', default='sata', choices=['sata', 'random'],
                         help='Ape exploration strategy (default: sata)')
     parser.add_argument('--serial', default=os.environ.get('ANDROID_SERIAL'),

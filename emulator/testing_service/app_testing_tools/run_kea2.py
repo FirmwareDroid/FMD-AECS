@@ -60,7 +60,7 @@ def run_kea2(package, running_minutes=60, serial=None, output_dir=None):
 def main():
     parser = argparse.ArgumentParser(description='Run Kea2 property-based testing on an Android app')
     parser.add_argument('-p', '--package', required=True, help='Package name to test')
-    parser.add_argument('--running-minutes', type=int, default=60, help='Test duration in minutes (default: 60)')
+    parser.add_argument('--running-minutes', type=int, default=5, help='Test duration in minutes (default: 5)')
     parser.add_argument('--serial', default=os.environ.get('ANDROID_SERIAL'),
                         help='Device serial (default: ANDROID_SERIAL env var)')
     parser.add_argument('--output-dir', default=None, help='Directory to write output (default: tools/kea2/output)')
