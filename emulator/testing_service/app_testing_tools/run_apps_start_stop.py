@@ -252,46 +252,47 @@ def pretty_print_summary(summary: Dict[str, Any], failures: List[Dict[str, Any]]
     :param summary: the out_summary dict returned by start_packages
     :param failures: list of failures entries
     """
-    print('\n=== Start Apps Summary ===')
     s = summary.get('summary', {})
-    print(f"Total packages: {s.get('total_packages', 0)}")
-    print(f"Started: {s.get('started', 0)}")
-    print(f"Failed: {s.get('failed', 0)}")
-    print(f"Started by script: {s.get('started_by_script', 0)}")
+    logging.info('=== Start Apps Summary ===')
+    logging.info('Total packages: %d', s.get('total_packages', 0))
+    logging.info('Started: %d', s.get('started', 0))
+    logging.info('Failed: %d', s.get('failed', 0))
+    logging.info('Started by script: %d', s.get('started_by_script', 0))
+
     # Print the actual package names for successes and failures if available
     started_pkgs = s.get('started_packages') or summary.get('started_packages') or []
     failed_pkgs = s.get('failed_packages') or summary.get('failed_packages') or []
     if started_pkgs:
-        print('\nSuccessful packages:')
+        logging.info('Successful packages:')
         for p in started_pkgs:
-            print(f' - {p}')
+            logging.info('  - %s', p)
     if failed_pkgs:
-        print('\nFailed packages:')
+        logging.info('Failed packages:')
         for p in failed_pkgs:
-            print(f' - {p}')
+            logging.info('  - %s', p)
 
-    print('\n--- Failure frequency ---')
+    logging.info('--- Failure frequency ---')
     ff = summary.get('failure_frequency', {})
     if not ff:
-        print('No failures reported')
+        logging.info('No failures reported')
     else:
         # sort by frequency desc
         for reason, cnt in sorted(ff.items(), key=lambda kv: kv[1], reverse=True):
-            print(f"{reason}: {cnt}")
+            logging.info('%s: %d', reason, cnt)
 
     if failures:
-        print(f"\n--- Failure examples (up to {max_examples} each) ---")
+        logging.info('--- Failure examples (up to %d each) ---', max_examples)
         # group by reason
         grouped = defaultdict(list)
         for f in failures:
             grouped[f.get('reason', 'unknown')].append(f)
         for reason, items in grouped.items():
-            print(f"\nReason: {reason} (examples: {len(items)})")
+            logging.info('Reason: %s (examples: %d)', reason, len(items))
             for ex in items[:max_examples]:
                 pkg = ex.get('package')
                 detail = ex.get('detail')
-                print(f" - {pkg}: {str(detail)[:400]}")
-    print('=========================\n')
+                logging.info('  - %s: %s', pkg, str(detail)[:400])
+    logging.info('=========================')
 
 
 def get_apk_path(package: str, serial: Optional[str] = None) -> Optional[str]:
@@ -337,6 +338,7 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
     failure_reasons = Counter()
     failure_examples = defaultdict(list)
     started_by_script = []
+    skipped_packages = []
 
     for pkg in packages:
         logging.info('Processing package: %s', pkg)
@@ -354,6 +356,8 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
         if is_overlay:
             reason = 'Overlay'
             logging.info('Skipping overlay package: %s (apk_path=%s)', pkg, apk_path)
+            # record skipped package names so they appear in the output summary/log
+            skipped_packages.append(pkg)
             failure_reasons[reason] += 1
             failure_examples[reason].append({'package': pkg, 'apk_path': apk_path})
             failures.append({'package': pkg, 'reason': reason, 'detail': apk_path or ''})
@@ -430,6 +434,8 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
         'started_packages': success,
         'failed_packages': [f.get('package') for f in failures]
     }
+    # Include skipped packages (e.g., overlays) explicitly in the summary
+    summary['skipped_packages'] = skipped_packages
 
     logging.info('Finished processing packages. Started=%d Failed=%d. Started by script=%d', len(success), len(failures), len(started_by_script))
 
@@ -445,6 +451,12 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
         with open(out_path, 'w') as f:
             json.dump(summary, f, indent=2)
         logging.info('Wrote summary to %s', out_path)
+        if skipped_packages:
+            try:
+                preview = ', '.join(skipped_packages[:20])
+            except Exception:
+                preview = str(skipped_packages)
+            logging.info('Skipped packages (%d): %s', len(skipped_packages), preview)
     except Exception as e:
         logging.error('Failed to write output files: %s', e)
 

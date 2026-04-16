@@ -781,25 +781,35 @@ def main():
     results_dir = os.path.join(BASE_DIR, 'out')
     os.makedirs(results_dir, exist_ok=True)
 
-    # Wait for adb to be available (max 5 minutes). If adb not available, fail early.
-    adb_ok = wait_for_adb_available(max_wait_seconds=300, sleep_seconds=5)
-    try:
-        out_file = os.path.join(results_dir, 'adb_availability.json')
+    # Wait for adb to be available (max 5 minutes). If adb not available, retry a few times.
+    attempts = max(1, int(getattr(args, 'retries', 5)))
+    retry_delay = int(getattr(args, 'retry_delay', 15))
+    adb_ok = False
+    for attempt in range(1, attempts + 1):
+        adb_ok = wait_for_adb_available(max_wait_seconds=300, sleep_seconds=5)
+        try:
+            out_file = os.path.join(results_dir, 'adb_availability.json')
+            if adb_ok:
+                message = {'success': adb_ok}
+            else:
+                message = {'success': adb_ok, 'error': 'adb not available within timeout'}
+            with open(out_file, 'w', encoding='utf-8') as of:
+                json.dump(message, of, indent=2)
+            logging.info('Wrote adb availability result to %s (attempt %d/%d)', out_file, attempt, attempts)
+        except Exception:
+            logging.exception('Failed to write adb availability result')
+
         if adb_ok:
-            message = {'success': adb_ok}
-        else:
-            message = {'success': adb_ok, 'error': 'adb not available within timeout'}
-        with open(out_file, 'w', encoding='utf-8') as of:
-            json.dump(message, of, indent=2)
-        logging.info('Wrote adb availability failure to %s', out_file)
-        if not adb_ok:
-            logging.error('ADB not available - aborting experiment pipeline')
-            sys.exit(2)
-        else:
             logging.info('ADB available')
-    except Exception:
-        logging.exception('Failed to write adb availability result')
-        sys.exit(2)
+            break
+        else:
+            if attempt < attempts:
+                logging.warning('ADB not available (attempt %d/%d). Will retry after %s seconds...', attempt, attempts, retry_delay)
+                time.sleep(retry_delay)
+                continue
+            else:
+                logging.error('ADB not available after %d attempts. Aborting.', attempts)
+                sys.exit(2)
 
     start_tcpdump()
 
@@ -814,54 +824,85 @@ def main():
 
     # Wait for boot animation (init.svc.bootanim) to stop (max 5 minutes) before running the launcher test
     preflight_ok = False
-    try:
-        is_running, last_value, last_error = wait_for_boot_completed(max_wait_seconds=600, sleep_seconds=10)
-        # success = bootanim stopped before timeout (i.e., not is_running)
-        # Parse last_value into explicit fields for clarity
-        bootanim_val = ''
-        boot_completed_val = ''
+    # Wait for boot animation to complete. If it times out, retry a few times.
+    preflight_ok = False
+    for attempt in range(1, attempts + 1):
         try:
-            parts = [p.strip() for p in (last_value or '').split(';') if p.strip()]
-            for p in parts:
-                if p.startswith('init.svc.bootanim='):
-                    bootanim_val = p.split('=', 1)[1]
-                if p.startswith('sys.boot_completed='):
-                    boot_completed_val = p.split('=', 1)[1]
-        except Exception:
-            logging.debug('Failed to parse last_value for boot properties: %s', last_value)
+            is_running, last_value, last_error = wait_for_boot_completed(max_wait_seconds=600, sleep_seconds=10)
+            # Parse last_value into explicit fields for clarity
+            bootanim_val = ''
+            boot_completed_val = ''
+            try:
+                parts = [p.strip() for p in (last_value or '').split(';') if p.strip()]
+                for p in parts:
+                    if p.startswith('init.svc.bootanim='):
+                        bootanim_val = p.split('=', 1)[1]
+                    if p.startswith('sys.boot_completed='):
+                        boot_completed_val = p.split('=', 1)[1]
+            except Exception:
+                logging.debug('Failed to parse last_value for boot properties: %s', last_value)
 
-        message = {
-            'success': (not is_running),
-            'bootanim_timed_out': bool(is_running),
-            'bootanim': bootanim_val,
-            'boot_completed': boot_completed_val,
-            'last_value': last_value,
-            'error': last_error,
-        }
-        out_file = os.path.join(results_dir, 'bootanim_results.json')
-        with open(out_file, 'w', encoding='utf-8') as of:
-            json.dump(message, of, indent=2)
-        if not is_running:
-            preflight_ok = run_launcher_test(results_dir)
-        else:
-            logging.info('Bootanim timeout reached. Stopping.')
-            sys.exit(2)
-    except Exception:
-        logging.exception('Error while waiting for boot animation to stop;')
-        sys.exit(2)
+            message = {
+                'success': (not is_running),
+                'bootanim_timed_out': bool(is_running),
+                'bootanim': bootanim_val,
+                'boot_completed': boot_completed_val,
+                'last_value': last_value,
+                'error': last_error,
+            }
+            out_file = os.path.join(results_dir, 'bootanim_results.json')
+            with open(out_file, 'w', encoding='utf-8') as of:
+                json.dump(message, of, indent=2)
+
+            if not is_running:
+                preflight_ok = run_launcher_test(results_dir)
+                break
+            else:
+                logging.warning('Boot animation still running (attempt %d/%d).', attempt, attempts)
+                if attempt < attempts:
+                    logging.info('Retrying boot wait after %s seconds...', retry_delay)
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    logging.error('Boot animation did not stop after %d attempts. Aborting.', attempts)
+                    sys.exit(2)
+        except Exception:
+            logging.exception('Error while waiting for boot animation to stop;')
+            if attempt < attempts:
+                logging.info('Retrying boot wait after %s seconds...', retry_delay)
+                time.sleep(retry_delay)
+                continue
+            else:
+                sys.exit(2)
 
     # First: connectivity test
-    try:
-        if not run_connectivity_test(results_dir):
-            logging.error('Connectivity test failed; aborting experiment pipeline')
-            out_file = os.path.join(results_dir, 'connectivity_results.json')
-            if os.path.exists(out_file):
-                with open(out_file, 'r', encoding='utf-8') as cf:
-                    logging.error('Connectivity details:\n%s', cf.read())
-            sys.exit(2)
-    except Exception:
-        logging.exception('Error while running connectivity test; aborting')
-        sys.exit(2)
+    # Connectivity test: retry a few times on failure
+    for attempt in range(1, attempts + 1):
+        try:
+            ok = run_connectivity_test(results_dir)
+            if ok:
+                break
+            else:
+                logging.warning('Connectivity test failed (attempt %d/%d).', attempt, attempts)
+                if attempt < attempts:
+                    logging.info('Retrying connectivity test after %s seconds...', retry_delay)
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    out_file = os.path.join(results_dir, 'connectivity_results.json')
+                    if os.path.exists(out_file):
+                        with open(out_file, 'r', encoding='utf-8') as cf:
+                            logging.error('Connectivity details:\n%s', cf.read())
+                    logging.error('Connectivity test failed after %d attempts. Aborting.', attempts)
+                    sys.exit(2)
+        except Exception:
+            logging.exception('Error while running connectivity test;')
+            if attempt < attempts:
+                logging.info('Retrying connectivity test after %s seconds...', retry_delay)
+                time.sleep(retry_delay)
+                continue
+            else:
+                sys.exit(2)
 
     # Disable ANR / error dialogs on the selected device
     run_adb_shell(['settings', 'put', 'global', 'show_annoying_receivers_in_background', '0'],
