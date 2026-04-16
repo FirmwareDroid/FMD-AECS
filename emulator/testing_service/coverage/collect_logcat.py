@@ -32,6 +32,23 @@ def run_adb(args: List[str], capture_output=True, text=True) -> subprocess.Compl
                           stderr=(subprocess.PIPE if capture_output else None), text=text)
 
 
+def get_first_connected_device() -> Optional[str]:
+    """Return serial of first connected adb device in 'device' state, or None."""
+    try:
+        proc = run_adb(['devices'])
+    except FileNotFoundError:
+        return None
+    out = (proc.stdout or '').strip()
+    lines = [l.strip() for l in out.splitlines() if l.strip()]
+    for l in lines[1:]:
+        if l.startswith('List of devices'):
+            continue
+        parts = l.split()
+        if len(parts) >= 2 and parts[1] == 'device':
+            return parts[0]
+    return None
+
+
 def get_package_uid(device: Optional[str], package: str) -> Optional[int]:
     """Return the numeric UID for the package or None if not found."""
     adb_args = ['-s', device] if device else []
@@ -212,6 +229,15 @@ def main():
     parser.add_argument('--flush', action='store_true', help='Clear device logcat after collecting (flush buffers)')
     parser.add_argument('--full-dump', action='store_true', help='Create a full logcat dump')
     args = parser.parse_args()
+    # If no device specified, pick the first connected adb device as default
+    if not args.device:
+        serial = get_first_connected_device()
+        if serial:
+            args.device = serial
+            print(f"No device specified; using first connected adb device: {serial}")
+        else:
+            print('No adb device found. Please connect a device or specify --device')
+            sys.exit(2)
     print(f"Start Logcat Collector")
     try:
         # If flush is specified and neither package nor output is given, perform flush-only mode

@@ -263,9 +263,38 @@ def get_installed_packages():
     except Exception:
         return []
     if result.returncode != 0:
-        logging.error(f"Failed to get installed packages: {result.stderr}")
-        return []
-    lines = (result.stdout or '').strip().splitlines()
+        stderr = (result.stderr or '').lower()
+        if 'more than one device' in stderr or 'more than one device/emulator' in stderr:
+            # find first connected device and retry with explicit -s
+            try:
+                proc = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=5)
+                lines = [l.strip() for l in (proc.stdout or '').splitlines()]
+                serial = None
+                for l in lines[1:]:
+                    if not l:
+                        continue
+                    parts = l.split()
+                    if len(parts) >= 2 and parts[1] == 'device':
+                        serial = parts[0]
+                        break
+                if serial:
+                    logging.info('Multiple adb devices present; auto-selecting first device %s for package listing', serial)
+                    res2 = subprocess.run(['adb', '-s', serial, 'shell', 'pm', 'list', 'packages'], capture_output=True, text=True, timeout=15)
+                    if res2.returncode != 0:
+                        logging.error('Failed to get installed packages from device %s: %s', serial, res2.stderr or res2.stdout)
+                        return []
+                    lines = (res2.stdout or '').strip().splitlines()
+                else:
+                    logging.error('adb reported multiple devices but no available device found in `adb devices` output')
+                    return []
+            except Exception:
+                logging.exception('Error while attempting to auto-select first adb device')
+                return []
+        else:
+            logging.error(f"Failed to get installed packages: {result.stderr}")
+            return []
+    else:
+        lines = (result.stdout or '').strip().splitlines()
     packages = [line.replace("package:", "").strip() for line in lines if line.startswith("package:")]
     return packages
 
@@ -689,12 +718,34 @@ def stop_tcpdump():
 
     # Try to stop tcpdump on device. Prefer pkill, then kill by pid if available.
     try:
+        # Try to become root on the device so pkill/kill have permission to send signals
+        try:
+            adb_root_cmd = ['adb', '-s', serial, 'root']
+            root_res = subprocess.run(adb_root_cmd, capture_output=True, text=True, timeout=10)
+            if root_res.returncode == 0:
+                logging.info('adb root: OK on device %s', serial)
+            else:
+                logging.debug('adb root returned non-zero on device %s: %s', serial, (root_res.stderr or root_res.stdout).strip())
+        except Exception:
+            logging.exception('adb root attempt failed')
+
         adb_pkill = ['adb', '-s', serial, 'shell', 'pkill -2 tcpdump']
         res = subprocess.run(adb_pkill, shell=False, capture_output=True, text=True, timeout=10)
         if res.returncode == 0:
             logging.info('Requested tcpdump termination via pkill on device %s', serial)
         else:
-            logging.info('pkill returned non-zero (may be fine): %s', (res.stderr or res.stdout).strip())
+            # If pkill failed due to permission, try running via su on-device if available
+            stderr_out = (res.stderr or res.stdout).strip()
+            logging.info('pkill returned non-zero (may be fine): %s', stderr_out)
+            try:
+                adb_su_pkill = ['adb', '-s', serial, 'shell', 'su', '-c', 'pkill -2 tcpdump']
+                su_res = subprocess.run(adb_su_pkill, shell=False, capture_output=True, text=True, timeout=10)
+                if su_res.returncode == 0:
+                    logging.info('Requested tcpdump termination via su+pkill on device %s', serial)
+                else:
+                    logging.debug('su+pkill returned non-zero on device %s: %s', serial, (su_res.stderr or su_res.stdout).strip())
+            except Exception:
+                logging.exception('su+pkill attempt failed')
     except Exception:
         logging.exception('pkill on device failed')
 
@@ -755,15 +806,38 @@ def stop_tcpdump():
         else:
             logging.warning('pm list packages -U returned non-zero: %s', (res.stderr or res.stdout).strip())
 
-        # Write mapping to OUT_DIR
+        # Write mapping to OUT_DIR (retry and write atomically to avoid partial writes)
         try:
             os.makedirs(OUT_DIR, exist_ok=True)
             mapping_file = os.path.join(OUT_DIR, f'package_uids_{serial}.json')
-            with open(mapping_file, 'w', encoding='utf-8') as mf:
-                json.dump(pkg_map, mf, indent=2)
-            logging.info('Wrote package->UID mapping to %s', mapping_file)
+            tmp_path = mapping_file + '.tmp'
+            write_ok = False
+            for attempt_write in range(1, 4):
+                try:
+                    with open(tmp_path, 'w', encoding='utf-8') as mf:
+                        json.dump(pkg_map, mf, indent=2)
+                        mf.flush()
+                        try:
+                            os.fsync(mf.fileno())
+                        except Exception:
+                            # best-effort; some filesystems may not support fsync on writer
+                            pass
+                    os.replace(tmp_path, mapping_file)
+                    logging.info('Wrote package->UID mapping to %s (attempt %d)', mapping_file, attempt_write)
+                    write_ok = True
+                    break
+                except Exception as e:
+                    logging.exception('Attempt %d: Failed to write package->UID mapping to %s: %s', attempt_write, mapping_file, e)
+                    try:
+                        if os.path.exists(tmp_path):
+                            os.remove(tmp_path)
+                    except Exception:
+                        pass
+                    time.sleep(0.5 * attempt_write)
+            if not write_ok:
+                logging.error('Failed to write package->UID mapping to %s after multiple attempts', mapping_file)
         except Exception:
-            logging.exception('Failed to write package->UID mapping')
+            logging.exception('Failed to prepare directory for package->UID mapping')
     except Exception:
         logging.exception('Failed to retrieve package UID mapping from device')
 
