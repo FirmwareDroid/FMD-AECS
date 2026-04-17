@@ -418,6 +418,12 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
         apk_path = get_apk_path(pkg, serial)
         is_overlay = False
         lower_pkg = pkg.lower()
+        # Filter out obvious non-APK package names (e.g. 'android')
+        if '.' not in pkg or lower_pkg == 'android':
+            logging.info('Skipping non-apk package name: %s', pkg)
+            skipped_packages.append(pkg)
+            skipped_details.append({'package': pkg, 'reason': 'not_apk'})
+            continue
         if 'overlay' in lower_pkg or 'auto_generated' in lower_pkg or 'auto-generated' in lower_pkg:
             is_overlay = True
         if apk_path:
@@ -440,6 +446,18 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
             time.sleep(delay)
             continue
 
+        # Quickly check whether the package has any activity to launch. If not,
+        # record as 'no activity' and skip further attempts. Use resolve_main_activity
+        # which returns None or a string; some outputs may include 'No activity found'.
+        main_activity = resolve_main_activity(pkg, serial)
+        if not main_activity or 'no activity' in (main_activity or '').lower() or 'no activity found' in (main_activity or '').lower():
+            reason = 'no activity'
+            failure_reasons[reason] += 1
+            failure_examples[reason].append({'package': pkg, 'detail': main_activity})
+            failures.append({'package': pkg, 'reason': reason, 'detail': main_activity})
+            logging.warning('Package %s appears to have no activities; skipping (reason=%s)', pkg, reason)
+            continue
+
         # try monkey launch
         ok, output = monkey_launch(pkg, serial, events=monkey_events, monkey_opts=monkey_opts)
         time.sleep(delay)
@@ -460,7 +478,7 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
             continue
 
         # try resolving main activity and am start
-        main = resolve_main_activity(pkg, serial)
+        main = main_activity or resolve_main_activity(pkg, serial)
         if main and "No activity found" not in main:
             logging.info('Resolved main activity for %s -> %s', pkg, main)
             ok2, out2 = am_start(main, serial)

@@ -26,6 +26,7 @@ _PROJECT_ROOT = os.path.normpath(os.path.join(_HERE, '..', '..', '..'))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 from common import get_adb_cmd
+from test_results import append_run
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -276,7 +277,30 @@ def main():
     except Exception:
         logger.exception('Error while attempting to start package %s; continuing to run Ape', args.package)
 
-    sys.exit(run_ape(args.package, args.running_minutes, args.strategy, args.serial))
+    ret = run_ape(args.package, args.running_minutes, args.strategy, args.serial)
+
+    # Prepare summary similar to app_start_summary.json
+    summary = {
+        'total_packages': 1,
+        'started': 1 if ret == 0 else 0,
+        'failed': 0 if ret == 0 else 1,
+        'skipped': 0,
+        'started_by_script': 1 if ret == 0 else 0,
+        'started_packages': [args.package] if ret == 0 else [],
+        'failed_packages': [] if ret == 0 else [args.package],
+    }
+    failures = []
+    if ret != 0:
+        failures.append({'package': args.package, 'reason': 'ape_failed', 'detail': f'return_code={ret}'})
+
+    # write tool-specific summary file
+    try:
+        out_dir = os.path.join(BASE_DIR, 'output')
+        append_run('ape', summary, failures, out_dir=out_dir)
+    except Exception:
+        logger.exception('Failed to write ape summary')
+
+    sys.exit(ret)
 
 
 if __name__ == '__main__':

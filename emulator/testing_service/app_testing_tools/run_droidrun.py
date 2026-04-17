@@ -18,6 +18,7 @@ import os
 import shutil
 import subprocess
 import sys
+from test_results import append_run
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.normpath(os.path.join(_HERE, '..', '..', '..'))
 if _PROJECT_ROOT not in sys.path:
@@ -47,6 +48,10 @@ def run_droidrun(task, serial=None):
         first = get_first_connected_device()
         if first:
             serial = first
+            logger.info('No --serial provided; using first connected adb device: %s', serial)
+        else:
+            logger.error('No device selected and no adb devices connected. Please provide --serial or connect a device.')
+            sys.exit(2)
 
     cmd = ['droidrun', 'run', task]
     env = os.environ.copy()
@@ -65,6 +70,10 @@ def setup_droidrun(serial=None):
         first = get_first_connected_device()
         if first:
             serial = first
+            logger.info('No --serial provided; using first connected adb device: %s', serial)
+        else:
+            logger.error('No device selected and no adb devices connected. Please provide --serial or connect a device.')
+            sys.exit(2)
 
     cmd = ['droidrun', 'setup']
     if serial:
@@ -79,17 +88,32 @@ def main():
 
     run_p = sub.add_parser('run', help='Run the Droidrun agent')
     run_p.add_argument('--task', default=DEFAULT_TASK, help='Natural language task for the agent')
-    run_p.add_argument('--serial', default=os.environ.get('ANDROID_SERIAL'), help='Device serial')
+    run_p.add_argument('--serial', default=None, help='Device serial (optional). If omitted the first connected adb device will be used.')
 
     setup_p = sub.add_parser('setup', help='Install the Droidrun portal on the device')
-    setup_p.add_argument('--serial', default=os.environ.get('ANDROID_SERIAL'), help='Device serial')
+    setup_p.add_argument('--serial', default=None, help='Device serial (optional). If omitted the first connected adb device will be used.')
 
     args = parser.parse_args()
 
     if args.action == 'setup':
         sys.exit(setup_droidrun(args.serial))
     else:
-        sys.exit(run_droidrun(args.task, args.serial))
+        # Run the agent and write a standardized per-tool summary (same shape as other wrappers)
+        ret = run_droidrun(args.task, args.serial)
+        summary = {
+            'total_packages': 1,
+            'started': 1 if ret == 0 else 0,
+            'tool': 'droidrun',
+            'task_preview': (args.task or '')[:120],
+        }
+        failures = []
+        if ret != 0:
+            failures.append({'task': args.task, 'reason': 'droidrun_failed', 'detail': f'return_code={ret}'})
+        try:
+            append_run('droidrun', summary, failures, out_dir=os.path.join(_HERE, 'output'))
+        except Exception:
+            logger.exception('Failed to write droidrun summary')
+        sys.exit(ret)
 
 
 if __name__ == '__main__':

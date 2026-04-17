@@ -307,6 +307,55 @@ def install_qtesting():
         logger.error("✗ Q-Testing clone failed.")
 
 
+def install_droidbot():
+    logger.info("=== Installing DroidBot ===")
+    droidbot_dir = os.path.join(TOOLS_DIR, 'droidbot')
+    if not clone_or_skip('https://github.com/honeynet/droidbot', droidbot_dir):
+        logger.error("✗ droidbot clone failed.")
+        return
+
+    # Install python dependencies if present
+    req = os.path.join(droidbot_dir, 'requirements.txt')
+    if os.path.exists(req):
+        if not pip_install(['-r', req]):
+            logger.warning('DroidBot: pip install of requirements failed (some features may be unavailable).')
+
+    # Ensure androguard is available (used to parse APKs). Install explicitly
+    # into the tools venv (pip_install prefers the tools venv when present).
+    if not pip_install(['androguard']):
+        logger.warning('DroidBot: failed to install androguard; APK parsing may fail at runtime')
+
+    # Try editable install to expose entry points
+    if not pip_install(['-e', droidbot_dir]):
+        logger.warning('DroidBot: editable pip install failed; try running with python -m droidbot if available')
+    else:
+        logger.info('✓ DroidBot installed (editable)')
+
+
+def install_autodroid():
+    logger.info("=== Installing AutoDroid ===")
+    autodroid_dir = os.path.join(TOOLS_DIR, 'AutoDroid')
+    if not clone_or_skip('https://github.com/MobileLLM/AutoDroid', autodroid_dir):
+        logger.error("✗ AutoDroid clone failed.")
+        return
+
+    # Install python dependencies if present
+    req = os.path.join(autodroid_dir, 'requirements.txt')
+    if os.path.exists(req):
+        if not pip_install(['-r', req]):
+            logger.warning('AutoDroid: pip install of requirements failed (some features may be unavailable).')
+
+    # Try editable install
+    if not pip_install(['-e', autodroid_dir]):
+        logger.warning('AutoDroid: editable pip install failed; you may need to run it via the cloned repo')
+    else:
+        logger.info('✓ AutoDroid installed (editable)')
+
+    # Ensure autodroid package is available in the tools venv (or current python)
+    if not pip_install(['autodroid']):
+        logger.warning('AutoDroid: pip install of autodroid from PyPI failed; the module may not be importable at runtime')
+
+
 def install_timemachine():
     logger.info("=== Installing TimeMachine ===")
     tm_dir = os.path.join(TOOLS_DIR, 'TimeMachine')
@@ -498,8 +547,9 @@ def main():
     install_ape()
     install_combodroid()
     install_humanoid()
-    install_qtesting()
     install_timemachine()
+    install_droidbot()
+    install_autodroid()
     install_droidrun()
     install_appagentx()
     install_fastbot()

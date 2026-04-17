@@ -19,6 +19,7 @@ import logging
 import os
 import subprocess
 import sys
+import shutil
 
 # Ensure project root is on sys.path so `from common import get_adb_cmd` works
 # when this script is executed directly from its folder.
@@ -27,7 +28,8 @@ _PROJECT_ROOT = os.path.normpath(os.path.join(_HERE, '..', '..', '..'))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
-from common import get_adb_cmd
+from common import get_adb_cmd, get_first_connected_device
+from test_results import append_run
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -69,6 +71,16 @@ def push_fastbot(serial=None):
 
 def run_fastbot(package, running_minutes=60, throttle=500, serial=None):
     """Execute Fastbot on the device and return its exit code."""
+    # If no serial provided, try to auto-select the first connected device
+    if not serial:
+        first = get_first_connected_device()
+        if first:
+            serial = first
+            logger.info('Using first connected adb device: %s', serial)
+        else:
+            logger.error('No adb devices connected; provide --serial or connect a device')
+            return 2
+
     adb = _adb(serial)
     cmd = (
         adb
@@ -94,8 +106,8 @@ def main():
     parser.add_argument('-p', '--package', required=True, help='Package name to test')
     parser.add_argument('--running-minutes', type=int, default=5, help='Test duration in minutes (default: 5)')
     parser.add_argument('--throttle', type=int, default=500, help='Delay between actions in ms (default: 500)')
-    parser.add_argument('--serial', default=os.environ.get('ANDROID_SERIAL'),
-                        help='Device serial (default: ANDROID_SERIAL env var)')
+    parser.add_argument('--serial', default=None,
+                        help='Device serial (default: first connected device or ANDROID_SERIAL env var)')
     parser.add_argument('--no-push', action='store_true',
                         help='Skip pushing binaries (assume they are already on the device)')
     args = parser.parse_args()
@@ -105,10 +117,42 @@ def main():
             logger.error("Missing Fastbot JAR: %s. Run install_tools.py first.", jar)
             sys.exit(1)
 
-    if not args.no_push:
-        push_fastbot(args.serial)
+    # Auto-select serial if not provided
+    serial = args.serial or os.environ.get('ANDROID_SERIAL')
+    if not serial:
+        first = get_first_connected_device()
+        if first:
+            serial = first
+            logger.info('Using first connected adb device: %s', serial)
 
-    sys.exit(run_fastbot(args.package, args.running_minutes, args.throttle, args.serial))
+    if not args.no_push:
+        try:
+            push_fastbot(serial)
+        except Exception:
+            logger.exception('Failed to push Fastbot artifacts to device')
+
+    ret = run_fastbot(args.package, args.running_minutes, args.throttle, serial)
+
+    # Prepare summary similar to other tool wrappers
+    summary = {
+        'total_packages': 1,
+        'started': 1 if ret == 0 else 0,
+        'failed': 0 if ret == 0 else 1,
+        'skipped': 0,
+        'started_by_script': 1 if ret == 0 else 0,
+        'started_packages': [args.package] if ret == 0 else [],
+        'failed_packages': [] if ret == 0 else [args.package],
+    }
+    failures = []
+    if ret != 0:
+        failures.append({'package': args.package, 'reason': 'fastbot_failed', 'detail': f'return_code={ret}'})
+    try:
+        out_dir = os.path.join(BASE_DIR, 'output')
+        append_run('fastbot', summary, failures, out_dir=out_dir)
+    except Exception:
+        logger.exception('Failed to write fastbot summary')
+
+    sys.exit(ret)
 
 
 if __name__ == '__main__':
