@@ -16,6 +16,7 @@ import sys
 import os
 import json
 import platform
+import logging
 
 from pathlib import Path
 
@@ -25,7 +26,7 @@ PYEXEC = sys.executable or 'python3'
 
 
 def run(cmd, check=True):
-    print('RUN:', cmd)
+    logging.info('RUN: %s', cmd)
     res = subprocess.run(cmd, shell=isinstance(cmd, str), text=True)
     if check and res.returncode != 0:
         raise SystemExit(f"Command failed (exit {res.returncode}): {cmd}")
@@ -39,55 +40,55 @@ def ensure_installed():
         run([PYEXEC, '-m', 'pip', 'install', '--no-cache-dir', '--break-system-packages', ACV_PKG])
         return
     except SystemExit:
-        print('System pip install with --break-system-packages failed, retrying without --no-cache-dir')
+        logging.warning('System pip install with --break-system-packages failed, retrying without --no-cache-dir')
         try:
             run([PYEXEC, '-m', 'pip', 'install', '--break-system-packages', ACV_PKG])
             return
         except SystemExit:
-            print('Failed to install acvtool via system pip (even with --break-system-packages)')
+            logging.error('Failed to install acvtool via system pip (even with --break-system-packages)')
             raise
 
 
 def ensure_cli():
     # Check if acv is available on PATH
     if shutil.which('acv'):
-        print('acv command already available on PATH')
+        logging.info('acv command already available on PATH')
         return True
 
     # Create a simple executable wrapper that calls `python3 -m acvtool`.
     # This covers cases where pip did not create an entrypoint script.
     wrapper = """#!/bin/sh
-# Wrapper to invoke acvtool module as CLI
-exec {py} -m acvtool "$@"
-""".format(py=PYEXEC)
+    # Wrapper to invoke acvtool module as CLI
+    exec {py} -m acvtool "$@"
+    """.format(py=PYEXEC)
 
     try:
         Path(WRAPPER_PATH).write_text(wrapper)
         os.chmod(WRAPPER_PATH, 0o755)
-        print(f'Wrote wrapper to {WRAPPER_PATH}')
+        logging.info('Wrote wrapper to %s', WRAPPER_PATH)
     except Exception as e:
-        print('Failed to write wrapper script:', e)
+        logging.exception('Failed to write wrapper script: %s', e)
         return False
 
     # Re-check
     if shutil.which('acv'):
-        print('acv wrapper now available')
+        logging.info('acv wrapper now available')
         return True
-    print('acv still not found after creating wrapper')
+    logging.error('acv still not found after creating wrapper')
     return False
 
 
 def main():
-    print('Installing ACVTool...')
+    logging.info('Installing ACVTool...')
     try:
         ensure_installed()
     except SystemExit as e:
-        print('ERROR: acvtool installation failed:', e)
+        logging.error('ERROR: acvtool installation failed: %s', e)
         sys.exit(1)
 
     ok = ensure_cli()
     if not ok:
-        print('ERROR: acv command not available after installation')
+        logging.error('ERROR: acv command not available after installation')
         sys.exit(2)
 
     # Final check: run `acv --version` or `acv -h` to ensure executable runs
@@ -96,13 +97,12 @@ def main():
         if res.returncode != 0:
             # Try help as fallback
             res = subprocess.run(['acv', '-h'], capture_output=True, text=True, timeout=10)
-        print('acv exec output (truncated):')
-        print((res.stdout or res.stderr or '')[:1000])
+        logging.info('acv exec output (truncated):\n%s', (res.stdout or res.stderr or '')[:1000])
     except Exception as e:
-        print('Failed to execute acv for verification:', e)
+        logging.exception('Failed to execute acv for verification: %s', e)
         sys.exit(3)
 
-    print('ACVTool installed and "acv" command available')
+    logging.info('ACVTool installed and "acv" command available')
 
     # Create /root/acvtool/config.json with required tool paths
     try:
@@ -117,9 +117,9 @@ def main():
         }
         cfg_path = cfg_dir / 'config.json'
         cfg_path.write_text(json.dumps(cfg, indent=4))
-        print(f'Wrote ACVTool config to {cfg_path}')
+        logging.info('Wrote ACVTool config to %s', cfg_path)
     except Exception as e:
-        print('Failed to write /root/acvtool/config.json:', e)
+        logging.exception('Failed to write /root/acvtool/config.json: %s', e)
         sys.exit(4)
 
     # Download ACVPatcher binary zip and extract to /root
@@ -136,7 +136,7 @@ def main():
     acvpatcher_url = f'https://github.com/pilgun/acvpatcher/releases/download/1.0.8/{asset}'
     tmp_zip = f'/tmp/{asset}'
     try:
-        print('Downloading ACVPatcher from', acvpatcher_url)
+        logging.info('Downloading ACVPatcher from %s', acvpatcher_url)
         import urllib.request, zipfile
         urllib.request.urlretrieve(acvpatcher_url, tmp_zip)
         with zipfile.ZipFile(tmp_zip, 'r') as z:
@@ -145,12 +145,12 @@ def main():
         acv_path = Path('/root/ACVPatcher')
         if acv_path.exists():
             os.chmod(str(acv_path), 0o755)
-            print('ACVPatcher extracted and made executable at /root/ACVPatcher')
+            logging.info('ACVPatcher extracted and made executable at /root/ACVPatcher')
         else:
-            print('ACVPatcher binary not found in extracted archive')
+            logging.error('ACVPatcher binary not found in extracted archive')
             sys.exit(5)
     except Exception as e:
-        print('Failed to download/extract ACVPatcher:', e)
+        logging.exception('Failed to download/extract ACVPatcher: %s', e)
         sys.exit(5)
 
 

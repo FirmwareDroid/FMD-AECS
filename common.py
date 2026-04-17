@@ -10,7 +10,7 @@ import subprocess
 
 
 def extract_zip(file_path, destination):
-    print(f"Extracting {file_path} to {destination}")
+    logging.info("Extracting %s to %s", file_path, destination)
     with zipfile.ZipFile(file_path, 'r') as zip_ref:
         zip_ref.extractall(destination)
 

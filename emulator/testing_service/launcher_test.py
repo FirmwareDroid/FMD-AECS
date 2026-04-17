@@ -354,7 +354,7 @@ def main(argv=None):
         logging.info('Wrote summary JSON to %s', json_path)
     except Exception as e:
         logging.error('Failed to write JSON output: %s', e)
-        print(json.dumps(summary, indent=2))
+        logging.info(json.dumps(summary, indent=2))
         return 2
 
     logging.info('Launcher test completed. Screenshot: %s JSON: %s', png_path, json_path)

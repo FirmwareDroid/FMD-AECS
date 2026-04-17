@@ -60,14 +60,14 @@ def main():
     CLI: LD_LIBRARY_PATH=./lib64:./lib64/bootstrap/ lddtree /home/suth/FMD-AECS/out/current_test/ALL_FILES/system/system/bin/app_process64
     """
     if len(sys.argv) < 2:
-        print("Usage: python parse_lddtree_to_json.py <binary> [lib_dir1 lib_dir2 ...]")
+        logging.error("Usage: python parse_lddtree_to_json.py <binary> [lib_dir1 lib_dir2 ...]")
         sys.exit(1)
 
     binary = sys.argv[1]
     extra_paths = sys.argv[2:]
 
     if not Path(binary).exists():
-        print(f"Error: file '{binary}' not found.")
+        logging.error("Error: file '%s' not found.", binary)
         sys.exit(1)
 
     # Construct LD_LIBRARY_PATH

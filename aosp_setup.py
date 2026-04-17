@@ -3,6 +3,7 @@ import subprocess
 import re
 import argparse
 from typing import Optional, Sequence
+import logging
 
 # Configuration: Update these paths to match your environment
 AOSP_PATHS = {
@@ -19,13 +20,13 @@ AOSP_PATHS = {
 def run_command(cmd: str, cwd: Optional[str] = None, dry_run: bool = False, verbose: bool = False):
     """Executes a shell command. Honors dry_run and verbose flags."""
     if dry_run or verbose:
-        print(f"[CMD] {cmd} (cwd={cwd})")
+        logging.info("[CMD] %s (cwd=%s)", cmd, cwd)
     if dry_run:
         return
     try:
         subprocess.run(cmd, shell=True, check=True, cwd=cwd, executable='/bin/bash')
     except subprocess.CalledProcessError as e:
-        print(f"Error executing: {cmd}\n{e}")
+        logging.error('Error executing: %s\n%s', cmd, e)
 
 
 def file_has_any(full_path: str, substrings: Sequence[str]) -> bool:
@@ -53,7 +54,7 @@ def modify_file(file_path: str, search_pattern: str, replacement: str, append: b
     """
     full_path = os.path.expanduser(file_path)
     if not os.path.exists(full_path):
-        print(f"Warning: File not found: {full_path}")
+        logging.warning("Warning: File not found: %s", full_path)
         return
 
     with open(full_path, 'r') as f:
@@ -62,7 +63,7 @@ def modify_file(file_path: str, search_pattern: str, replacement: str, append: b
     if append:
         if replacement not in content:
             if dry_run or verbose:
-                print(f"[MODIFY] Append to {full_path}:\n{replacement}\n")
+                logging.info("[MODIFY] Append to %s:\n%s\n", full_path, replacement)
             if not dry_run:
                 with open(full_path, 'a') as f:
                     f.write(f"\n{replacement}\n")
@@ -70,7 +71,7 @@ def modify_file(file_path: str, search_pattern: str, replacement: str, append: b
         new_content = re.sub(search_pattern, replacement, content, flags=flags)
         if new_content != content:
             if dry_run or verbose:
-                print(f"[MODIFY] Update {full_path}: pattern={search_pattern!r}")
+                logging.info("[MODIFY] Update %s: pattern=%r", full_path, search_pattern)
             if not dry_run:
                 with open(full_path, 'w') as f:
                     f.write(new_content)
@@ -79,7 +80,7 @@ def modify_file(file_path: str, search_pattern: str, replacement: str, append: b
 def setup_certificates(version, base_path, dry_run: bool = False, verbose: bool = False):
     """Generates PEM/P12 keys from AOSP PK8 files."""
     sec_path = os.path.join(base_path, "build/target/product/security")
-    print(f"--- Processing Certificates for Android {version} ---")
+    logging.info('--- Processing Certificates for Android %s ---', version)
 
     keys = ["platform", "media", "networkstack", "shared", "testkey"]
     if version in ["12", "12_1"]:
@@ -105,12 +106,12 @@ def setup_certificates(version, base_path, dry_run: bool = False, verbose: bool 
 
 def disable_selinux(base_path, dry_run: bool = False, verbose: bool = False):
     """Forces SELinux to Permissive in C++ source."""
-    print(f"--- Disable Selinux ---")
+    logging.info('--- Disable Selinux ---')
     target = os.path.join(base_path, "system/core/init/selinux.cpp")
     # Skip if the file already contains our permissive replacement
     if file_has_any(target, ["EnforcingStatus StatusFromProperty() { return SELINUX_PERMISSIVE;", "IsEnforcing() { return false; "]):
         if verbose or dry_run:
-            print(f"[SKIP] SELinux already configured in: {target}")
+            logging.info('[SKIP] SELinux already configured in: %s', target)
         return
 
     # Replace the body of StatusFromProperty and IsEnforcing
@@ -130,19 +131,19 @@ def ensure_apksigner(verbose: bool = False, dry_run: bool = False):
     """
     if dry_run:
         # In dry-run mode we always log that we would perform this check.
-        print("[DRY-RUN] Would check for 'apksigner' in PATH")
+        logging.info("[DRY-RUN] Would check for 'apksigner' in PATH")
         return
     try:
         subprocess.run(["apksigner", "--version"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if verbose:
-            print("apksigner found in PATH")
+            logging.info('apksigner found in PATH')
     except Exception:
-        print("Warning: 'apksigner' not found in PATH. Install it (e.g. 'sudo apt install apksigner') if you need APK signing.")
+        logging.warning("Warning: 'apksigner' not found in PATH. Install it (e.g. 'sudo apt install apksigner') if you need APK signing.")
 
 
 def add_boardconfig_flags(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Append BUILD_BROKEN_DUP_RULES and SELINUX_IGNORE_NEVERALLOWS to appropriate BoardConfig.mk files."""
-    print(f"--- Add Board config Flags ---")
+    logging.info('--- Add Board config Flags ---')
     paths = []
     if version in ("12", "12_1"):
         paths = [
@@ -164,7 +165,7 @@ def add_boardconfig_flags(version: str, base_path: str, dry_run: bool = False, v
 
 def add_build_properties(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Add property overrides and other build flags to product/vendor files as required."""
-    print(f"--- Add Board Properties ---")
+    logging.info('--- Add Board Properties ---')
     targets = []
     if version in ("12", "12_1"):
         targets = [
@@ -209,8 +210,8 @@ def add_build_properties(version: str, base_path: str, dry_run: bool = False, ve
             content = ''
         if 'PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions?=log' in content:
             if verbose or dry_run:
-                print(f"[SKIP] Build properties already present in: {target_path}")
-            continue
+                logging.info('[SKIP] Build properties already present in: %s', target_path)
+                continue
         # If a rule exists that sets the property to 'enforce', replace it with the safer '?=log' form
         #  - handle the common form: PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions=enforce
         modify_file(target_path,
@@ -232,7 +233,7 @@ def add_build_properties(version: str, base_path: str, dry_run: bool = False, ve
 
 def disable_platform_tests(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Comment out specific platform tests (ApiDemos, BusinessCard)"""
-    print(f"--- Disable certain platform tests ---")
+    logging.info('--- Disable certain platform tests ---')
     path = os.path.join(base_path, "platform_testing/build/tasks/tests/platform_test_list.mk")
     # Comment out ApiDemos and BusinessCard lines
     modify_file(path, r"^\s*ApiDemos \\", r"    #ApiDemos \\", flags=re.MULTILINE, dry_run=dry_run, verbose=verbose)
@@ -243,12 +244,12 @@ def disable_boringssl_checks(version: str, base_path: str, dry_run: bool = False
     """Disable reboot_on_failure and add BORINGSSL env where appropriate."""
 
     if version in ("12", "12_1"):
-        print(f"--- Disable BoringSSL checks ---")
+        logging.info('--- Disable BoringSSL checks ---')
         # init.rc modifications (may not exist for all versions)
         init_rc = os.path.join(base_path, "system/core/rootdir/init.rc")
         if file_has_any(init_rc, ["#reboot_on_failure reboot,boringssl-self-check-failed"]):
             if verbose or dry_run:
-                print(f"[SKIP] boringssl reboot_on_failure already commented in: {init_rc}")
+                logging.info('[SKIP] boringssl reboot_on_failure already commented in: %s', init_rc)
         else:
             modify_file(init_rc, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
 
@@ -260,7 +261,7 @@ def disable_boringssl_checks(version: str, base_path: str, dry_run: bool = False
         for c in candidates:
             if file_has_any(c, ["#reboot_on_failure reboot,boringssl-self-check-failed"]):
                 if verbose or dry_run:
-                    print(f"[SKIP] boringssl reboot_on_failure already commented in: {c}")
+                    logging.info('[SKIP] boringssl reboot_on_failure already commented in: %s', c)
             else:
                 modify_file(c, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
 
@@ -295,7 +296,7 @@ def add_privapp_permission(version: str, base_path: str, dry_run: bool = False, 
 
 def disable_build_tests(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Comment out TvSystemUITests in test lists for newer versions where applicable."""
-    print(f"--- Disable Platform TVSystemUITests ---")
+    logging.info('--- Disable Platform TVSystemUITests ---')
     if version == "14":
         path = os.path.join(base_path, "platform_testing/build/tasks/tests/instrumentation_test_list.mk")
     elif version in ["15"]:
@@ -305,20 +306,20 @@ def disable_build_tests(version: str, base_path: str, dry_run: bool = False, ver
     else:
         return
     if dry_run:
-        print(f"--- DRY RUN changes file: {path} ---")
+        logging.info('--- DRY RUN changes file: %s ---', path)
         return
     modify_file(path, r"TvSystemUITests \\", r"#TvSystemUITests \\", flags=0, dry_run=dry_run, verbose=verbose)
 
 def disable_avatarpicker(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Comment out Avatarpicker """
-    print(f"--- Disable Platform Avatarpicker ---")
+    logging.info('--- Disable Platform Avatarpicker ---')
     if version in ["15"]:
         path = os.path.join(base_path, "build/make/target/product/generic_system.mk")
         path2 = os.path.join(base_path, "device/google/cuttlefish/system_image/Android.bp")
     else:
         return
     if dry_run:
-        print(f"--- DRY RUN changes file: {path} ---")
+        logging.info('--- DRY RUN changes file: %s ---', path)
         return
     modify_file(path, r"AvatarPicker", r"#AvatarPicker", flags=0, dry_run=dry_run, verbose=verbose)
     modify_file(path2, r'"AvatarPicker"', r'//"AvatarPicker"', flags=0, dry_run=dry_run, verbose=verbose)
@@ -326,13 +327,13 @@ def disable_avatarpicker(version: str, base_path: str, dry_run: bool = False, ve
 
 def disable_eyedropper(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Comment out EyeDropper """
-    print(f"--- Disable EyeDropper ---")
+    logging.info('--- Disable EyeDropper ---')
     if version in ["16"]:
         path = os.path.join(base_path, "build/make/target/product/generic/Android.bp")
     else:
         return
     if dry_run:
-        print(f"--- DRY RUN changes file: {path} ---")
+        logging.info('--- DRY RUN changes file: %s ---', path)
         return
     # Comment out the EyeDropper entry (replace "EyeDropper" with #"EyeDropper")
     modify_file(path, r'"EyeDropper"', r'// EyeDropper"', flags=0, dry_run=dry_run, verbose=verbose)
@@ -340,7 +341,7 @@ def disable_eyedropper(version: str, base_path: str, dry_run: bool = False, verb
 
 def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Generate missing testcert keys for DNSResolver APEX and extract public key using avbtool if available."""
-    print(f"--- Setup DNS Resolver APEX ---")
+    logging.info('--- Setup DNS Resolver APEX ---')
     # location for DnsResolver apex
     dns_apex = os.path.join(base_path, "packages/modules/DnsResolver/apex")
     if not os.path.exists(dns_apex):
@@ -361,7 +362,7 @@ def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = Fals
         cmds.append(f"{avb} extract_public_key --key testcert.pem --output com.android.resolv.avbpubkey")
 
     if dry_run:
-        print(f"[DRY-RUN] Would execute command for DNS Apex Key Generation: {cmds}")
+        logging.info('[DRY-RUN] Would execute command for DNS Apex Key Generation: %s', cmds)
         return
 
     for c in cmds:
@@ -369,7 +370,7 @@ def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = Fals
 
     dns_apex_android_bp = os.path.join(base_path, "packages/modules/DnsResolver/apex/Android.bp")
     if dry_run:
-        print(f"Replace DNS Resolve testcert with newly generated certificate: {dns_apex_android_bp}")
+        logging.info('Replace DNS Resolve testcert with newly generated certificate: %s', dns_apex_android_bp)
         return
     modify_file(dns_apex_android_bp, r"\"testcert\",", r'"com.android.resolv"', flags=0, dry_run=dry_run, verbose=verbose)
 
@@ -378,9 +379,9 @@ def generate_missing_dns_keys(version: str, base_path: str, dry_run: bool = Fals
 
 def disable_cleango(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Disable cleanOldFiles behaviour by returning early in cleanbuild.go."""
-    print(f"--- Disable cleanOldFiles behaviour by returning early in cleanbuild.go. ---")
+    logging.info('--- Disable cleanOldFiles behaviour by returning early in cleanbuild.go. ---')
     if dry_run:
-        print(f"[SKIP] cleanOldFiles dry-run")
+        logging.info('[SKIP] cleanOldFiles dry-run')
         return
 
     cleango = os.path.join(base_path, "build/soong/ui/build/cleanbuild.go")
@@ -396,13 +397,13 @@ def disable_cleango(version: str, base_path: str, dry_run: bool = False, verbose
 
 
 def disable_dex_preopt(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
-    print(f"--- Disable WITH_DEXPREOPT ---")
+    logging.info('--- Disable WITH_DEXPREOPT ---')
     if version not in ["14"]:
         return
     path = os.path.join(base_path, "build/make/core/board_config.mk")
     replacement = "WITH_DEXPREOPT := false\n"
     if dry_run:
-        print(f"--- Disable Dex Preopt by adding WITH_DEXPREOPT := false to {path} ---")
+        logging.info('--- Disable Dex Preopt by adding WITH_DEXPREOPT := false to %s ---', path)
         return
     modify_file(path, r"WITH_DEXPREOPT := true", replacement, flags=0, dry_run=dry_run, verbose=verbose)
 
@@ -431,22 +432,22 @@ def main(args: argparse.Namespace):
     if getattr(args, "path", None):
         full_path = os.path.expanduser(args.path)
         if not os.path.exists(full_path):
-            print(f"Provided path does not exist: {full_path}")
+            logging.error('Provided path does not exist: %s', full_path)
             return
         # keep a `path` variable for backwards-compatible messaging (was used below)
         path = full_path
     else:
         path = AOSP_PATHS.get(ver)
         if path is None:
-            print(f"Unknown AOSP version: {ver}")
+            logging.error('Unknown AOSP version: %s', ver)
             return
 
         full_path = os.path.expanduser(path)
         if not os.path.exists(full_path):
-            print(f"Path for version {ver} does not exist: {full_path}")
+            logging.error('Path for version %s does not exist: %s', ver, full_path)
             return
 
-    print(f"=== Customizing AOSP {ver} at {path} ===")
+    logging.info('=== Customizing AOSP %s at %s ===', ver, path)
     # Ensure apksigner available (warn if not). Respect dry-run.
     ensure_apksigner(verbose=args.verbose, dry_run=args.dry_run)
 
@@ -463,14 +464,14 @@ def main(args: argparse.Namespace):
     disable_selinux(full_path, dry_run=args.dry_run, verbose=args.verbose)
 
     # 4. Artifact Path Requirements
-    print(f"--- Disable Artifact Path Requirements ---")
+    logging.info('--- Disable Artifact Path Requirements ---')
     system_mk = "build/make/target/product/generic_system.mk"
     modify_file(os.path.join(full_path, system_mk),
                 r"\$\(call require-artifacts-in-path", r"# $(call require-artifacts-in-path",
                 dry_run=args.dry_run, verbose=args.verbose)
 
     # 5. Disable APEX Compression (sed logic)
-    print(f"--- Disable APEX Compression ---")
+    logging.info('--- Disable APEX Compression ---')
     # First, list files that contain the pattern so verbose output can show what will be changed
     list_cmd = "find . -name 'Android.bp' -exec grep -l \"compressible: true,\" {} + || true"
     try:
@@ -481,11 +482,11 @@ def main(args: argparse.Namespace):
 
     if args.verbose:
         if files:
-            print("[INFO] Android.bp files containing 'compressible: true,':")
+            logging.info("[INFO] Android.bp files containing 'compressible: true,':")
             for f in files:
-                print(f"  {f}")
+                logging.info('  %s', f)
         else:
-            print("[INFO] No Android.bp files with 'compressible: true,' found")
+            logging.info("[INFO] No Android.bp files with 'compressible: true,' found")
 
     # Now perform the replacement (run_command will honor dry_run)
     run_command("find . -name 'Android.bp' -exec sed -i 's/compressible: true,/compressible: false,/g' {} +",

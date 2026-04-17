@@ -148,7 +148,7 @@ def create_docker_compose_file(template_variables_dict, environment, docker_imag
 
     with open(OUTPUT_FILENAME, mode="w", encoding="utf-8") as message:
         message.write(content)
-        print(f"... wrote {OUTPUT_FILENAME}")
+        logging.info("... wrote %s", OUTPUT_FILENAME)
 
 
 def create_envoy_template(template_variables_dict, environment, docker_image_name_list):
@@ -187,7 +187,7 @@ def create_envoy_template(template_variables_dict, environment, docker_image_nam
     )
     with open(output_path, mode="w", encoding="utf-8") as message:
         message.write(content)
-        print(f"... wrote {ENVOY_OUTPUT_NAME}")
+        logging.info("... wrote %s", ENVOY_OUTPUT_NAME)
 
 
 if __name__ == '__main__':

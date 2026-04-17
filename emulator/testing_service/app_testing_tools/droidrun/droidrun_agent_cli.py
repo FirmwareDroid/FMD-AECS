@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import json
 import datetime
+import logging
 from droidrun.agent.droid.droid_agent import DroidAgent, DroidrunConfig, AgentConfig
 from droidrun.agent.llm.openai_like import OpenAILike
 from droidrun.agent.tools.adb_tools import AdbTools
@@ -72,14 +73,14 @@ async def run_agent_on_device(device_serial, args):
         log_entry['result'] = result
         log_entry['success'] = result.get('success', 'N/A')
         log_entry['output'] = result.get('output', None)
-        print(f"--- Results for device {device_serial} ---")
-        print(f"Result object: {result}")
-        print(f"Success: {result.get('success', 'N/A')}")
+        logging.info('--- Results for device %s ---', device_serial)
+        logging.info('Result object: %s', result)
+        logging.info('Success: %s', result.get('success', 'N/A'))
         if result.get('output'):
-            print(f"Output: {result['output']}")
+            logging.info('Output: %s', result['output'])
     except Exception as e:
         log_entry['error'] = str(e)
-        print(f"Error running agent on device {device_serial}: {e}")
+        logging.exception('Error running agent on device %s: %s', device_serial, e)
     # Write log entry to logfile (append mode)
     with open(args.logfile, 'a') as f:
         f.write(json.dumps(log_entry, cls=CustomJSONEncoder) + "\n")
@@ -92,7 +93,7 @@ async def main():
     else:
         device_serials = tools.list_devices()  # Returns list of device serials
     if not device_serials:
-        print("No devices found.")
+        logging.error('No devices found.')
         sys.exit(1)
     # Log initial parameters
     init_log = {

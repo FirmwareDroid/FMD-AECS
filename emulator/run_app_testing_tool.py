@@ -132,7 +132,7 @@ def main():
             logging.info('Starting mode=%s in container=%s', m, c)
             logging.debug('Command: %s', ' '.join(cmd))
             if args.dry_run:
-                print('DRY-RUN:', ' '.join(cmd))
+                logging.info('DRY-RUN: %s', ' '.join(cmd))
                 continue
             try:
                 res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)

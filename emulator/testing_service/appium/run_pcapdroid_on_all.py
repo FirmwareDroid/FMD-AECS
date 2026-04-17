@@ -912,7 +912,7 @@ def set_http_server_port(driver, port=54320, max_attempts=5):
             is_success = True
             break
     except Exception as e:
-        print(f"set_http_server_port: error setting port: {e}")
+        logging.error("set_http_server_port: error setting port: %s", e)
     return is_success
 
 
@@ -1013,7 +1013,7 @@ def main():
 
     # print summary
     summary = {"devices": devices, "results": results}
-    print(json.dumps(summary, indent=2))
+    logging.info(json.dumps(summary, indent=2))
 
 
 if __name__ == "__main__":

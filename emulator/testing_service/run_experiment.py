@@ -268,6 +268,13 @@ def get_installed_packages():
         return []
     if result.returncode != 0:
         stderr = (result.stderr or '').lower()
+        # If adb reports no devices available, treat this as a fatal condition for
+        # this attempt so the top-level retry loop can re-run the whole experiment.
+        if 'no devices' in stderr or 'no devices/emulators' in stderr or 'no devices/emulator' in stderr:
+            logging.error('No adb devices found while listing packages: %s', result.stderr or result.stdout)
+            # Raise an exception so the outer retry loop in main() will catch and retry
+            raise RuntimeError('No adb devices found')
+
         if 'more than one device' in stderr or 'more than one device/emulator' in stderr:
             # find first connected device and retry with explicit -s
             try:

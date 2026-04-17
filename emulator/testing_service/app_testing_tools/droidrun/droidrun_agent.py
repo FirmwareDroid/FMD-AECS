@@ -1,5 +1,6 @@
 import asyncio
 import os
+import logging
 from dotenv import load_dotenv
 from llama_index.llms.openai_like import OpenAILike
 from droidrun import DroidAgent, AdbTools, DroidrunConfig, AgentConfig, DeviceConfig, LoggingConfig, TracingConfig
@@ -41,11 +42,12 @@ async def main():
     # Run the agent
     result = await agent.run()
 
-    print(f"--- Results ---")
-    print(f"Result object: {result}")
-    print(f"Success: {result.get('success', 'N/A')}")
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.info('--- Results ---')
+    logging.info('Result object: %s', result)
+    logging.info('Success: %s', result.get('success', 'N/A'))
     if result.get('output'):
-        print(f"Output: {result['output']}")
+        logging.info('Output: %s', result['output'])
 
 
 if __name__ == "__main__":

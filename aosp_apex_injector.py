@@ -1131,18 +1131,18 @@ def change_file_permission(file_path, permission):
     try:
         command = ['sudo', 'chmod', permission, file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True)
-        print(f"Permissions for {file_path} changed to {permission}")
+        logging.info("Permissions for %s changed to %s", file_path, permission)
     except subprocess.CalledProcessError as e:
-        print(f"Error changing permissions for {file_path}: {e.stderr}")
+        logging.error("Error changing permissions for %s: %s", file_path, e.stderr)
 
 def change_file_ownership(file_path):
     try:
         current_user = os.getlogin()
         command = ['sudo', 'chown', current_user, file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True)
-        print(f"Ownership of {file_path} changed to {current_user}")
+        logging.info("Ownership of %s changed to %s", file_path, current_user)
     except subprocess.CalledProcessError as e:
-        print(f"Error changing ownership of {file_path}: {e.stderr}")
+        logging.error("Error changing ownership of %s: %s", file_path, e.stderr)
 
 def can_read_file(file_path):
     return os.access(file_path, os.R_OK)
