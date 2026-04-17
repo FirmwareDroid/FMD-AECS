@@ -137,6 +137,7 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
     logging.info(f"Found {len(apk_path_list)} APK files for ACVTool instrumentation (parallel mode).")
 
     per_file_times = {}
+    acv_error_entries = []
     start_time = time.time()
 
     base_path_acv = str(os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation"))
@@ -172,7 +173,12 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
                     logging.info(f"ACVTool instrumentation succeeded for {filename} in {elapsed}s (parallel)")
                 else:
                     result_dict["failed"].append(filename)
-                    per_file_times[filename]["error"] = error
+                    # Record error separately (do not include error strings inside the results_acv.json)
+                    acv_error_entries.append({
+                        "filename": filename,
+                        "duration_seconds": elapsed,
+                        "error": error,
+                    })
                     logging.error(f"ACVTool instrumentation failed for {filename} in {elapsed}s (parallel): {error}")
             except Exception as e:
                 # Shouldn't happen often; record generic failure
@@ -197,9 +203,21 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
     # write timing JSON to firmware folder
     try:
         logging.info(f"Writing ACVTool instrumentation result: {summary}")
+        # Summary should not contain raw error messages; errors are written to a separate acv_error.log
         write_json_output(summary, PATH_BUILD_ACV_LOG)
     except Exception as err:
         logging.error(f"Failed to write timing JSON: {err}")
+
+    # Write ACVTool errors (if any) to a separate NDJSON error log to avoid polluting results_acv.json
+    if acv_error_entries:
+        try:
+            for entry in acv_error_entries:
+                # append each error as a JSON line
+                from json_writer import write_json_nd_output
+                write_json_nd_output(entry, PATH_BUILD_ACV_ERROR_LOG)
+            logging.info('Wrote ACVTool errors to %s (entries=%d)', PATH_BUILD_ACV_ERROR_LOG, len(acv_error_entries))
+        except Exception as err:
+            logging.exception('Failed to write ACVTool error log: %s', err)
 
     logging.info(f"ACVTool instrumentation parallel result: {result_dict}")
     # Create a single zip archive for the firmware's ACVTool output to save space and remove intermediate files.

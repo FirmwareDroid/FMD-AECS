@@ -23,7 +23,7 @@ import time
 import logging
 from collections import Counter, defaultdict
 from shutil import which
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set
 import os
 
 # Default output directory for start_apps summaries
@@ -350,19 +350,58 @@ def get_apk_path(package: str, serial: Optional[str] = None) -> Optional[str]:
     return first
 
 
-def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.0, package: Optional[str] = None, monkey_events: int = 1, monkey_opts: Optional[Dict[str, Any]] = None):
+def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.0, package: Optional[str] = None, monkey_events: int = 1, monkey_opts: Optional[Dict[str, Any]] = None, blacklist: Optional[Set[str]] = None):
     """Start packages. If `package` is provided, only that package will be attempted.
 
     Returns (out_summary, failures)
     """
+    if blacklist is None:
+        blacklist = set()
+
+    # Initialize accumulators early so they can be used while filtering packages
+    success = []
+    failures = []
+    failure_reasons = Counter()
+    failure_examples = defaultdict(list)
+    started_by_script = []
+    skipped_packages = []
+    skipped_details = []
+
     if package:
         packages = [package]
         total = 1
         logging.info('Targeting single package: %s', package)
+        # If the single targeted package is blacklisted, mark it skipped and return
+        if package in blacklist:
+            logging.info('Package %s is blacklisted; skipping per configuration', package)
+            skipped_packages.append(package)
+            skipped_details.append({'package': package, 'reason': 'blacklist'})
+            summary = {
+                'total_packages': total,
+                'started': len(success),
+                'failed': len(failures),
+                'skipped': len(skipped_packages),
+                'started_by_script': len(started_by_script),
+                'started_packages': success,
+                'failed_packages': [f.get('package') for f in failures],
+                'skipped_packages': skipped_packages,
+            }
+            return summary, failures
     else:
         packages = list_packages(serial)
         total = len(packages)
         logging.info('Found %d packages to try to start.', total)
+        # Filter out blacklisted packages up-front and record them as skipped
+        if blacklist:
+            bl = set(blacklist)
+            if bl:
+                orig_packages = list(packages)
+                packages = [p for p in orig_packages if p not in bl]
+                for p in orig_packages:
+                    if p in bl:
+                        skipped_packages.append(p)
+                        skipped_details.append({'package': p, 'reason': 'blacklist'})
+                logging.info('Filtered %d blacklisted packages; remaining to test: %d', len([p for p in orig_packages if p in bl]), len(packages))
 
     success = []
     failures = []
@@ -629,6 +668,8 @@ def main():
     parser.add_argument('--monkey-kill-process-after-error', dest='monkey_kill_process_after_error', action='store_true', help='Use --kill-process-after-error with monkey')
     parser.add_argument('--monkey-hprof', dest='monkey_hprof', action='store_true', help='Use --hprof with monkey')
     parser.add_argument('--monkey-extra', dest='monkey_extra', nargs='*', help='Extra raw monkey arguments (tokens) to append, e.g. --monkey-extra --pct-touch 50')
+    parser.add_argument('--blacklist', action='append', help='Package(s) to blacklist (comma-separated). Can be used multiple times.')
+    parser.add_argument('--blacklist-file', help='Path to file containing package names to blacklist (one per line).')
 
     args = parser.parse_args()
 
@@ -671,8 +712,27 @@ def main():
         'extra': args.monkey_extra or []
     }
 
+    # Build blacklist set from CLI args/file
+    blacklist_set = set()
+    if args.blacklist:
+        for entry in args.blacklist:
+            if not entry:
+                continue
+            for pkg in [p.strip() for p in entry.split(',') if p.strip()]:
+                blacklist_set.add(pkg)
+    if args.blacklist_file:
+        try:
+            with open(args.blacklist_file, 'r', encoding='utf-8') as bf:
+                for line in bf:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    blacklist_set.add(line)
+        except Exception:
+            logging.exception('Failed to read blacklist file %s', args.blacklist_file)
+
     try:
-        summary, failures = start_packages(args.serial, args.delay, stop_after_start=args.stop_after_start, stop_delay=args.stop_delay, package=package_to_start, monkey_events=args.monkey_events, monkey_opts=monkey_opts)
+        summary, failures = start_packages(args.serial, args.delay, stop_after_start=args.stop_after_start, stop_delay=args.stop_delay, package=package_to_start, monkey_events=args.monkey_events, monkey_opts=monkey_opts, blacklist=blacklist_set)
         if args.pretty:
             pretty_print_summary(summary, failures)
     except RuntimeError as e:
