@@ -20,6 +20,7 @@ import subprocess
 import sys
 import shutil
 import platform
+import glob
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -420,6 +421,41 @@ def install_fastbot():
         logger.info("✓ Fastbot2.0 JARs and arm64-v8a .so files are present.")
 
     logger.info("✓ Fastbot2.0 installed. Use run_fastbot.py to deploy and run on device.")
+
+    # If native libs are present, attempt to push the arm64 .so to a connected device
+    try:
+        # Find the native library file
+        so_candidates = glob.glob(os.path.join(fastbot_dir, 'libs', '**', 'libfastbot_native.so'), recursive=True)
+        if so_candidates:
+            so_path = so_candidates[0]
+            logger.info('Found Fastbot native library at %s. Attempting to push to device.', so_path)
+
+            # Build adb base command, optionally selecting a serial if provided
+            adb_cmd = ['adb']
+            serial = os.environ.get('ANDROID_SERIAL') or os.environ.get('ADB_SERIAL')
+            if serial:
+                adb_cmd.extend(['-s', serial])
+
+            if not shutil.which('adb'):
+                logger.warning('adb not found on PATH; skipping pushing Fastbot native library to device')
+            else:
+                # Create destination directory on device
+                try:
+                    run_cmd(adb_cmd + ['shell', 'mkdir', '-p', '/data/local/tmp/arm64-v8a/'])
+                except subprocess.CalledProcessError:
+                    logger.warning('Failed to create remote directory /data/local/tmp/arm64-v8a on device')
+
+                # Push the .so file
+                dst = '/data/local/tmp/arm64-v8a/libfastbot_native.so'
+                try:
+                    run_cmd(adb_cmd + ['push', so_path, dst])
+                    logger.info('Pushed %s to device:%s', so_path, dst)
+                except subprocess.CalledProcessError as exc:
+                    logger.warning('Failed to push Fastbot native lib to device: %s', exc)
+        else:
+            logger.debug('No libfastbot_native.so found to push to device')
+    except Exception:
+        logger.exception('Error while attempting to push Fastbot native library to device')
 
 
 def install_kea2():
