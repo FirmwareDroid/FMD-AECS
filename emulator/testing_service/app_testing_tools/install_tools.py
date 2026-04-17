@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TOOLS_DIR = os.path.join(BASE_DIR, 'tools')
+TOOLS_REQUIREMENTS = os.path.join(BASE_DIR, 'requirements-tools.txt')
 
 
 # ---------------------------------------------------------------------------
@@ -75,13 +76,27 @@ def pip_install(packages, extra_args=None):
                 break
 
     base_python = venv_python or sys.executable
-    base_cmd = [base_python, '-m', 'pip', 'install', '--no-cache-dir']
-    try:
-        run_cmd(base_cmd + extra + packages)
-        return True
-    except subprocess.CalledProcessError:
-        logger.error("pip install failed for: %s (using %s)", packages, base_python)
-        return False
+
+    # Try to speed up pip's dependency resolution and prefer binary wheels where
+    # possible to avoid extensive metadata downloads/backtracking. We try a few
+    # progressively simpler commandLines in case some pip flags are unsupported
+    # in older pip versions inside the environment.
+    attempts = []
+    attempts.append([base_python, '-m', 'pip', 'install', '--no-cache-dir', '--prefer-binary', '--disable-pip-version-check', '--use-feature=fast-deps'] + extra + packages)
+    attempts.append([base_python, '-m', 'pip', 'install', '--no-cache-dir', '--prefer-binary', '--disable-pip-version-check'] + extra + packages)
+    attempts.append([base_python, '-m', 'pip', 'install', '--no-cache-dir', '--disable-pip-version-check'] + extra + packages)
+
+    for cmd in attempts:
+        try:
+            run_cmd(cmd)
+            return True
+        except subprocess.CalledProcessError:
+            # try next, but continue
+            logger.debug('pip install attempt failed, trying fallback: %s', ' '.join(str(x) for x in cmd))
+            continue
+
+    logger.error("pip install failed for: %s (using %s)", packages, base_python)
+    return False
 
 
 def ensure_cmake_and_build_tools():
@@ -263,8 +278,13 @@ def install_humanoid():
     if not pip_install(['-e', droidbot_dir]):
         logger.warning("DroidBot install failed – Humanoid may not work.")
 
-    # Install lightweight Humanoid deps
-    pip_install(['matplotlib', 'scipy', 'pyflann-py3'])
+    # Install lightweight Humanoid deps. Prefer using a pinned requirements file
+    # to avoid pip resolver backtracking if it exists next to this script.
+    if os.path.exists(TOOLS_REQUIREMENTS):
+        logger.info('Found pinned tools requirements at %s; installing from it', TOOLS_REQUIREMENTS)
+        pip_install(['-r', TOOLS_REQUIREMENTS])
+    else:
+        pip_install(['matplotlib', 'scipy', 'pyflann-py3'])
 
     # TensorFlow 1.12 requires Python 3.5-3.7; it will almost certainly fail on
     # Python 3.8+ / arm64, so we attempt it as best-effort only.
@@ -305,7 +325,13 @@ def install_timemachine():
 
 def install_droidrun():
     logger.info("=== Installing Droidrun ===")
-    if pip_install(['droidrun']):
+    # If a pinned tools requirements file exists, install from that to pin
+    # transitive dependencies and avoid lengthy resolver backtracking.
+    if os.path.exists(TOOLS_REQUIREMENTS):
+        ok = pip_install(['-r', TOOLS_REQUIREMENTS])
+    else:
+        ok = pip_install(['droidrun'])
+    if ok:
         logger.info("✓ Droidrun installed via pip.")
     else:
         logger.error("✗ Droidrun pip install failed.")
@@ -402,9 +428,15 @@ def install_fastbot():
 
 def install_kea2():
     logger.info("=== Installing Kea2 ===")
-    if not pip_install(['kea2-python']):
-        logger.error("✗ Kea2 pip install failed.")
-        return
+    # Prefer installing from a pinned requirements file if present
+    if os.path.exists(TOOLS_REQUIREMENTS):
+        if not pip_install(['-r', TOOLS_REQUIREMENTS]):
+            logger.error("✗ Kea2 pip install failed (via requirements file).")
+            return
+    else:
+        if not pip_install(['kea2-python']):
+            logger.error("✗ Kea2 pip install failed.")
+            return
 
     logger.info("✓ Kea2 installed via pip.")
 
