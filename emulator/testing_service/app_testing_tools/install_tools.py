@@ -63,15 +63,25 @@ def clone_or_skip(url, dest, depth=1):
 def pip_install(packages, extra_args=None):
     """Install Python packages, falling back without --break-system-packages."""
     extra = list(extra_args or [])
-    base_cmd = [sys.executable, '-m', 'pip', 'install', '--no-cache-dir']
-    for flags in (['--break-system-packages'], []):
-        try:
-            run_cmd(base_cmd + flags + extra + packages)
-            return True
-        except subprocess.CalledProcessError:
-            pass
-    logger.error("pip install failed for: %s", packages)
-    return False
+    # Prefer to install into the tools venv if present. Fall back to the current
+    # interpreter when no venv exists.
+    venv_python = None
+    venv_dir = os.path.join(TOOLS_DIR, 'venv')
+    if os.path.isdir(venv_dir):
+        for pyname in ('python3', 'python'):
+            candidate = os.path.join(venv_dir, 'bin', pyname)
+            if os.path.exists(candidate) and os.access(candidate, os.X_OK):
+                venv_python = candidate
+                break
+
+    base_python = venv_python or sys.executable
+    base_cmd = [base_python, '-m', 'pip', 'install', '--no-cache-dir']
+    try:
+        run_cmd(base_cmd + extra + packages)
+        return True
+    except subprocess.CalledProcessError:
+        logger.error("pip install failed for: %s (using %s)", packages, base_python)
+        return False
 
 
 def ensure_cmake_and_build_tools():
@@ -110,6 +120,51 @@ def ensure_cmake_and_build_tools():
 
     logger.warning('Could not install cmake automatically. Please install cmake and build tools (make, gcc) manually.')
     return False
+
+
+def create_tools_venv(venv_dir=None):
+    """Create a venv under TOOLS_DIR/venv and ensure pip/setuptools/wheel are up-to-date.
+
+    Returns the path to the python executable inside the venv, or None on failure.
+    """
+    if venv_dir is None:
+        venv_dir = os.path.join(TOOLS_DIR, 'venv')
+    if os.path.isdir(venv_dir):
+        # already exists
+        for pyname in ('python3', 'python'):
+            candidate = os.path.join(venv_dir, 'bin', pyname)
+            if os.path.exists(candidate) and os.access(candidate, os.X_OK):
+                logger.info('Tools venv already exists: %s', venv_dir)
+                return candidate
+        logger.warning('venv dir exists but no python executable found inside: %s', venv_dir)
+        return None
+
+    logger.info('Creating tools venv at %s', venv_dir)
+    try:
+        run_cmd([sys.executable, '-m', 'venv', venv_dir])
+    except subprocess.CalledProcessError as exc:
+        logger.warning('Failed to create venv at %s: %s', venv_dir, exc)
+        return None
+
+    # upgrade pip/setuptools/wheel inside the venv
+    python_exe = None
+    for pyname in ('python3', 'python'):
+        candidate = os.path.join(venv_dir, 'bin', pyname)
+        if os.path.exists(candidate) and os.access(candidate, os.X_OK):
+            python_exe = candidate
+            break
+
+    if not python_exe:
+        logger.warning('Failed to locate python inside created venv: %s', venv_dir)
+        return None
+
+    try:
+        run_cmd([python_exe, '-m', 'pip', 'install', '--upgrade', 'pip', 'setuptools', 'wheel'])
+        logger.info('Upgraded pip/setuptools/wheel in venv')
+    except subprocess.CalledProcessError as exc:
+        logger.warning('Failed to upgrade pip in venv: %s', exc)
+
+    return python_exe
 
 
 def detect_android_ndk():
@@ -369,6 +424,16 @@ def install_kea2():
 def main():
     logger.info("Starting app testing tools installation…")
     os.makedirs(TOOLS_DIR, exist_ok=True)
+    # Create a dedicated venv for tools under TOOLS_DIR/venv and prefer using it
+    venv_dir = os.path.join(TOOLS_DIR, 'venv')
+    try:
+        venv_python = create_tools_venv(venv_dir=venv_dir)
+        if venv_python:
+            logger.info('Using tools venv python: %s', venv_python)
+        else:
+            logger.warning('Tools venv not available; will fallback to system Python for pip installs')
+    except Exception:
+        logger.exception('Error while creating/initializing tools venv; continuing with system Python')
 
     install_ape()
     install_combodroid()

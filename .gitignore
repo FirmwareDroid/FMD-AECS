@@ -32,3 +32,8 @@ env/adb_streamer/*
 /emulator/testing_service/out/
 /emulator/testing_service/out/pcaps/
 /emulator/testing_service/out/pcaps/sslkeylog.log
+/emulator/testing_service/app_testing_tools/tools/
+/emulator/testing_service/app_testing_tools/tools/Humanoid/
+/emulator/testing_service/app_testing_tools/tools/Fastbot_Android/
+/emulator/testing_service/app_testing_tools/tools/AppAgentX/
+/emulator/testing_service/app_testing_tools/tools/ape-bin/

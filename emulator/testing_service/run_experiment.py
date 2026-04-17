@@ -36,6 +36,28 @@ RUN_DROIDRUN = os.path.join(BASE_DIR, 'app_testing_tools', 'droidrun_agent_cli.p
 
 OUT_DIR = os.path.join(BASE_DIR, 'out')
 
+# If a tools venv was created by install_tools.py, prefer using it for launching
+# app-testing scripts and ensure its bin/ directory is on PATH so commands installed
+# into the venv are discoverable when run via shell.
+VENV_PYTHON = None
+try:
+    _tools_venv = os.path.join(BASE_DIR, 'app_testing_tools', 'tools', 'venv')
+    if os.path.isdir(_tools_venv):
+        for pyname in ('python3', 'python'):
+            candidate = os.path.join(_tools_venv, 'bin', pyname)
+            if os.path.exists(candidate) and os.access(candidate, os.X_OK):
+                VENV_PYTHON = candidate
+                break
+        venv_bin = os.path.join(_tools_venv, 'bin')
+        if os.path.isdir(venv_bin):
+            # Prepend venv bin to PATH so shell-invoked commands find venv-installed tools
+            os.environ['PATH'] = venv_bin + os.pathsep + os.environ.get('PATH', '')
+            logging.info('Prepended tools venv bin to PATH: %s', venv_bin)
+        if VENV_PYTHON:
+            logging.info('Using tools venv python for helper scripts: %s', VENV_PYTHON)
+except Exception:
+    logging.exception('Failed to detect/apply tools venv')
+
 
 def configure_logging(out_dir: str, log_filename: str = 'run_experiment.log', level: int = logging.INFO):
     """Configure root logger to log to both stdout and a file in out_dir.
@@ -102,7 +124,8 @@ def parse_args():
     return parser.parse_args()
 
 def run_script(script_path, args=None, description=None):
-    cmd = [sys.executable, script_path]
+    interpreter = VENV_PYTHON or sys.executable
+    cmd = [interpreter, script_path]
     if args:
         cmd.extend(args)
     logging.info(f"Running: {description or script_path}")
@@ -127,7 +150,8 @@ def run_script_capture(script_path, args=None, description=None):
 
     Returns a dict with keys: script, args, description, returncode, stdout, stderr, start_time, end_time, duration
     """
-    cmd = [sys.executable, script_path]
+    interpreter = VENV_PYTHON or sys.executable
+    cmd = [interpreter, script_path]
     if args:
         cmd.extend(args)
     start = datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z'
