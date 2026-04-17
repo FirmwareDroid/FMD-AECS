@@ -19,6 +19,14 @@ import logging
 import os
 import subprocess
 import sys
+
+# Ensure project root is on sys.path so `from common import get_adb_cmd` works
+# when this script is executed directly from its folder.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.normpath(os.path.join(_HERE, '..', '..', '..'))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
 from common import get_adb_cmd
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

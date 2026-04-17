@@ -18,6 +18,8 @@ import logging
 import os
 import subprocess
 import sys
+import shutil
+import platform
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -70,6 +72,99 @@ def pip_install(packages, extra_args=None):
             pass
     logger.error("pip install failed for: %s", packages)
     return False
+
+
+def ensure_cmake_and_build_tools():
+    """Ensure cmake and basic build tools (make, gcc) are available.
+
+    Attempts to install via apt-get when available, or brew on macOS. Returns True
+    if cmake is available after this call, False otherwise.
+    """
+    if shutil.which('cmake'):
+        logger.info('cmake already available: %s', shutil.which('cmake'))
+        return True
+
+    logger.info('cmake not found on PATH. Attempting to install cmake and build tools...')
+
+    # Prefer apt-get in container environments
+    if shutil.which('apt-get'):
+        try:
+            run_cmd('apt-get update')
+            run_cmd(['apt-get', 'install', '-y', 'cmake', 'build-essential'])
+            if shutil.which('cmake'):
+                logger.info('cmake installed via apt-get: %s', shutil.which('cmake'))
+                return True
+        except subprocess.CalledProcessError as exc:
+            logger.warning('apt-get install of cmake/build-essential failed: %s', exc)
+
+    # macOS: try brew
+    if platform.system() == 'Darwin' and shutil.which('brew'):
+        try:
+            run_cmd(['brew', 'update'])
+            run_cmd(['brew', 'install', 'cmake'])
+            if shutil.which('cmake'):
+                logger.info('cmake installed via brew: %s', shutil.which('cmake'))
+                return True
+        except subprocess.CalledProcessError as exc:
+            logger.warning('brew install of cmake failed: %s', exc)
+
+    logger.warning('Could not install cmake automatically. Please install cmake and build tools (make, gcc) manually.')
+    return False
+
+
+def detect_android_ndk():
+    """Attempt to locate an Android NDK installation.
+
+    Returns the path to the NDK root (where build/cmake/android.toolchain.cmake exists), or None.
+    Checks common environment variables and Android SDK locations.
+    """
+    # Check common env vars first
+    candidates = []
+    for var in ('NDK_ROOT', 'ANDROID_NDK_HOME', 'ANDROID_NDK_ROOT'):
+        val = os.environ.get(var)
+        if val:
+            candidates.append(val)
+
+    # Check Android SDK locations
+    sdk_roots = [os.environ.get('ANDROID_SDK_ROOT'), os.environ.get('ANDROID_HOME'), os.path.expanduser('~/Android/Sdk'), '/opt/android-sdk', '/opt/android-sdk-linux']
+    for sdk in sdk_roots:
+        if not sdk:
+            continue
+        # common ndk locations inside SDK
+        ndk_dir = os.path.join(sdk, 'ndk')
+        if os.path.isdir(ndk_dir):
+            # pick the latest versioned dir inside ndk/
+            try:
+                versions = [d for d in os.listdir(ndk_dir) if os.path.isdir(os.path.join(ndk_dir, d))]
+                if versions:
+                    versions_sorted = sorted(versions)
+                    candidates.append(os.path.join(ndk_dir, versions_sorted[-1]))
+            except Exception:
+                pass
+        ndk_bundle = os.path.join(sdk, 'ndk-bundle')
+        if os.path.isdir(ndk_bundle):
+            candidates.append(ndk_bundle)
+
+    # Also check a few common root locations
+    for p in ['/opt/android-ndk', '/usr/local/android-ndk', '/usr/local/android-ndk-r21', '/usr/local/android-ndk-r23b']:
+        if os.path.isdir(p):
+            candidates.append(p)
+
+    # Normalize and dedupe
+    seen = set()
+    for c in candidates:
+        try:
+            cabs = os.path.abspath(os.path.expanduser(c))
+        except Exception:
+            continue
+        if cabs in seen:
+            continue
+        seen.add(cabs)
+        toolchain = os.path.join(cabs, 'build', 'cmake', 'android.toolchain.cmake')
+        if os.path.exists(toolchain):
+            return cabs
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -186,6 +281,54 @@ def install_fastbot():
     if not clone_or_skip('https://github.com/bytedance/Fastbot_Android', fastbot_dir):
         logger.error("✗ Fastbot_Android clone failed.")
         return
+    # Try to build native libraries if the repository provides a build script.
+    # Many Fastbot variants include a build_native.sh script to produce libfastbot_native.so
+    build_script_candidates = [
+        os.path.join(fastbot_dir, 'build_native.sh'),
+        os.path.join(fastbot_dir, 'scripts', 'build_native.sh'),
+        os.path.join(fastbot_dir, 'build_native', 'build_native.sh'),
+    ]
+    build_ran = False
+    for script in build_script_candidates:
+        if os.path.exists(script):
+            try:
+                logger.info('Found Fastbot native build script: %s. Attempting to run it...', script)
+                # Ensure executable bit and run via bash for portability
+                try:
+                    os.chmod(script, 0o755)
+                except Exception:
+                    pass
+                # Ensure cmake and basic build tools are present before running build script
+                ok_build_tools = ensure_cmake_and_build_tools()
+                # Attempt to detect Android NDK automatically if env vars not set
+                ndk_root = os.environ.get('NDK_ROOT') or os.environ.get('ANDROID_NDK_HOME') or os.environ.get('ANDROID_NDK_ROOT')
+                if not ndk_root:
+                    ndk_root = detect_android_ndk()
+                    if ndk_root:
+                        logger.info('Auto-detected Android NDK at: %s', ndk_root)
+                        os.environ['NDK_ROOT'] = ndk_root
+
+                # Verify the expected CMake toolchain file exists
+                toolchain_path = None
+                if ndk_root:
+                    toolchain_path = os.path.join(ndk_root, 'build', 'cmake', 'android.toolchain.cmake')
+                if not ndk_root or not toolchain_path or not os.path.exists(toolchain_path):
+                    logger.warning('Android toolchain not found at expected location: %s. Native build will be skipped.', toolchain_path)
+                    build_ran = True
+                elif not ok_build_tools:
+                    logger.warning('Skipping native build because required build tools are missing.')
+                    build_ran = True
+                else:
+                    run_cmd(['bash', script], cwd=fastbot_dir)
+                    build_ran = True
+                build_ran = True
+                logger.info('Fastbot native build script completed (attempted %s)', script)
+            except subprocess.CalledProcessError as exc:
+                logger.warning('Fastbot native build script failed: %s', exc)
+            break
+
+    if not build_ran:
+        logger.info('No Fastbot native build script found; skipping native build step.')
 
     required = [
         os.path.join(fastbot_dir, 'monkeyq.jar'),
