@@ -302,7 +302,7 @@ def fetch_emulator_image_list(repository_url, repository_name="emulator-images")
         params = {'repository': repository_name}
         if continuation_token:
             params['continuationToken'] = continuation_token
-            logging.info('Fetching page with token: %s', continuation_token)
+            logging.debug('Fetching page with token: %s', continuation_token)
         response = requests.get(repository_url, params=params, timeout=10)
 
         if response.status_code != 200:

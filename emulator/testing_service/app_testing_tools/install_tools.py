@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TOOLS_DIR = os.path.join(BASE_DIR, 'tools')
-TOOLS_REQUIREMENTS = os.path.join(BASE_DIR, 'requirements-tools.txt')
+TOOLS_REQUIREMENTS = os.path.join(BASE_DIR, '../requirements.txt')
 
 
 # ---------------------------------------------------------------------------
