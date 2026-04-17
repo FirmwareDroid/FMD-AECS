@@ -77,13 +77,9 @@ def pip_install(packages, extra_args=None):
 
     base_python = venv_python or sys.executable
 
-    # Try to speed up pip's dependency resolution and prefer binary wheels where
-    # possible to avoid extensive metadata downloads/backtracking. We try a few
-    # progressively simpler commandLines in case some pip flags are unsupported
-    # in older pip versions inside the environment.
     attempts = []
-    attempts.append([base_python, '-m', 'pip', 'install', '--no-cache-dir', '--prefer-binary', '--disable-pip-version-check', '--use-feature=fast-deps'] + extra + packages)
-    attempts.append([base_python, '-m', 'pip', 'install', '--no-cache-dir', '--prefer-binary', '--disable-pip-version-check'] + extra + packages)
+    attempts.append([base_python, '-m', 'pip', 'install', '--no-cache-dir'] + extra + packages)
+    attempts.append([base_python, '-m', 'pip', 'install', '--no-cache-dir', '--prefer-binary'] + extra + packages)
     attempts.append([base_python, '-m', 'pip', 'install', '--no-cache-dir', '--disable-pip-version-check'] + extra + packages)
 
     for cmd in attempts:
@@ -429,14 +425,10 @@ def install_fastbot():
 def install_kea2():
     logger.info("=== Installing Kea2 ===")
     # Prefer installing from a pinned requirements file if present
-    if os.path.exists(TOOLS_REQUIREMENTS):
-        if not pip_install(['-r', TOOLS_REQUIREMENTS]):
-            logger.error("✗ Kea2 pip install failed (via requirements file).")
-            return
-    else:
-        if not pip_install(['kea2-python']):
-            logger.error("✗ Kea2 pip install failed.")
-            return
+
+    if not pip_install(['kea2-python']):
+        logger.error("✗ Kea2 pip install failed.")
+        return
 
     logger.info("✓ Kea2 installed via pip.")
 
