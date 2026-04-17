@@ -165,10 +165,8 @@ RUN set -eux; \
     if [ -f /android/testing_service/requirements.txt ]; then \
         python3 -m pip install --no-cache-dir -r /android/testing_service/requirements.txt || python3 -m pip install --no-cache-dir -r /android/testing_service/requirements.txt || true; \
     fi
-RUN set -eux; \
-    python3 /android/testing_service/app_testing_tools/install_tools.py; \
-    # Install ACVTool and ensure 'acv' CLI is available
-    python3 /android/testing_service/app_testing_tools/install_acvtool.py
+RUN set -eux; python3 /android/testing_service/app_testing_tools/install_tools.py; 
+RUN set -eux; python3 /android/testing_service/app_testing_tools/install_acvtool.py
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["/bin/bash"]
