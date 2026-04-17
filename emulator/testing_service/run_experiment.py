@@ -665,7 +665,7 @@ def start_tcpdump():
 
     # Start tcpdump in background on the device and capture its pid
     remote_pcap = '/storage/emulated/0/Download/tcpdump.pcap'
-    start_cmd = f"nohup tcpdump -i nflog:1 -w {remote_pcap} >/dev/null 2>&1 & echo $!"
+    start_cmd = f"nohup tcpdump -i nflog:1 -w {remote_pcap} &"
     try:
         adb_start_cmd = ['adb', '-s', serial, 'shell', start_cmd]
         res = subprocess.run(adb_start_cmd, capture_output=True, text=True, timeout=15)
@@ -675,20 +675,45 @@ def start_tcpdump():
             pid = None
             if out:
                 pid = out.splitlines()[-1].strip()
+
+            # Write pid file if we can determine pid (best-effort)
+            pid_file = os.path.join(OUT_DIR, 'tcpdump_device.pid')
             if pid and pid.isdigit():
-                pid_file = os.path.join(OUT_DIR, 'tcpdump_device.pid')
                 try:
                     os.makedirs(OUT_DIR, exist_ok=True)
                     with open(pid_file, 'w', encoding='utf-8') as f:
                         f.write(pid + '\n')
                     logging.info('Started tcpdump on device (pid=%s), pid written to %s', pid, pid_file)
-                    return True
                 except Exception:
                     logging.exception('Failed to write tcpdump pid file')
-                    return True
             else:
                 logging.warning('Could not determine tcpdump pid from adb output: %s', out or '(empty)')
-                return True
+
+            # Verify that the remote pcap file exists. tcpdump should create the file
+            # shortly after starting; poll for a short period to allow for delays.
+            pcap_exists = False
+            check_attempts = 8
+            check_sleep = 0.5
+            for attempt_check in range(1, check_attempts + 1):
+                try:
+                    # Use ls to check existence; ls returns 0 when file present
+                    adb_ls = ['adb', '-s', serial, 'shell', 'ls', '-l', remote_pcap]
+                    ls_res = subprocess.run(adb_ls, capture_output=True, text=True, timeout=5)
+                    if ls_res.returncode == 0 and (ls_res.stdout or '').strip():
+                        pcap_exists = True
+                        logging.info('Remote pcap file exists: %s (check %d/%d)', remote_pcap, attempt_check, check_attempts)
+                        break
+                    else:
+                        logging.debug('Remote pcap not yet present (check %d/%d): %s', attempt_check, check_attempts, (ls_res.stderr or ls_res.stdout).strip())
+                except Exception:
+                    logging.debug('Exception while checking remote pcap existence (attempt %d)', attempt_check)
+                time.sleep(check_sleep)
+
+            if not pcap_exists:
+                logging.error('tcpdump did not create remote pcap %s within %.1f seconds', remote_pcap, check_attempts * check_sleep)
+                return False
+
+            return True
         else:
             logging.error('Failed to start tcpdump on device: %s', (res.stderr or res.stdout).strip())
             return False
