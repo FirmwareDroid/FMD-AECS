@@ -57,6 +57,7 @@ LIBS_ARM64 = os.path.join(FASTBOT_DIR, 'libs', 'arm64-v8a')
 DEVICE_SDCARD = '/sdcard/'
 DEVICE_TMP = '/data/local/tmp/'
 DEVICE_CLASSPATH = '/sdcard/monkeyq.jar:/sdcard/framework.jar:/sdcard/fastbot-thirdpart.jar'
+DEVICE_NATIVE_SO = '/data/local/tmp/arm64-v8a/libfastbot_native.so'
 
 
 def _adb(serial=None):
@@ -74,8 +75,17 @@ def push_fastbot(serial=None):
     so_files = sorted(glob.glob(os.path.join(LIBS_ARM64, '*.so')))
     if so_files:
         logger.info("Pushing %d arm64-v8a .so files to device…", len(so_files))
+        # Ensure target directory exists on device and push .so files into
+        # an arch-specific subfolder so tools that expect
+        # /data/local/tmp/arm64-v8a/... can find them.
+        remote_dir = os.path.join(DEVICE_TMP, 'arm64-v8a')
+        try:
+            subprocess.check_call(adb + ['shell', 'mkdir', '-p', remote_dir])
+        except Exception:
+            logger.warning('Failed to create remote dir %s; falling back to %s', remote_dir, DEVICE_TMP)
+            remote_dir = DEVICE_TMP
         for so in so_files:
-            subprocess.check_call(adb + ['push', so, DEVICE_TMP])
+            subprocess.check_call(adb + ['push', so, remote_dir])
     else:
         logger.warning("No .so files found in %s", LIBS_ARM64)
 
@@ -143,6 +153,44 @@ def main():
             push_fastbot(serial)
         except Exception:
             logger.exception('Failed to push Fastbot artifacts to device')
+
+    # Verify that the required native fastbot library exists on the device
+    def device_file_exists(serial, remote_path):
+        adb = _adb(serial)
+        try:
+            res = subprocess.run(adb + ['shell', 'ls', '-l', remote_path], capture_output=True, text=True)
+            return res.returncode == 0
+        except Exception:
+            return False
+
+    def ensure_native_so(serial, remote_path, local_libs_dir):
+        # Check if the file already exists on device
+        if device_file_exists(serial, remote_path):
+            logger.info('Native fastbot library present on device: %s', remote_path)
+            return True
+
+        # Try to push the specific library from local libs if available
+        local_candidate = os.path.join(local_libs_dir, os.path.basename(remote_path))
+        if os.path.exists(local_candidate):
+            logger.info('Pushing native fastbot library to device: %s -> %s', local_candidate, remote_path)
+            adb = _adb(serial)
+            remote_dir = os.path.dirname(remote_path)
+            try:
+                subprocess.check_call(adb + ['shell', 'mkdir', '-p', remote_dir])
+                subprocess.check_call(adb + ['push', local_candidate, remote_path])
+            except Exception:
+                logger.exception('Failed to push native fastbot library to device')
+                return False
+            return device_file_exists(serial, remote_path)
+
+        logger.error('Native fastbot library missing on device and not found locally: %s', remote_path)
+        return False
+
+    # Enforce presence of the native library before running fastbot
+    if not ensure_native_so(serial, DEVICE_NATIVE_SO, LIBS_ARM64):
+        logger.error('Required native fastbot library not available on device: %s', DEVICE_NATIVE_SO)
+        logger.error('Either run with pushing enabled or ensure the file exists on the device')
+        sys.exit(3)
 
     ret = run_fastbot(args.package, args.running_minutes, args.throttle, serial)
 
