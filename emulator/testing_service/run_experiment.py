@@ -866,7 +866,7 @@ def stop_tcpdump():
 
     # Attempt to pull pcap from device to OUT_DIR
     remote_pcap = '/storage/emulated/0/Download/tcpdump.pcap'
-    local_pcap = os.path.join(OUT_DIR, f'tcpdump_{serial}.pcap')
+    local_pcap = os.path.join(OUT_DIR, "pcaps", f'tcpdump_{serial}.pcap')
     try:
         adb_pull = ['adb', '-s', serial, 'pull', remote_pcap, local_pcap]
         res = subprocess.run(adb_pull, capture_output=True, text=True, timeout=60)
