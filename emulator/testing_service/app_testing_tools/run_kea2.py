@@ -132,8 +132,54 @@ def run_kea2(package, running_minutes=60, serial=None, output_dir=None, apk_path
         if serial:
             env['ANDROID_SERIAL'] = serial
 
-        logger.info("Running Kea2 on package: %s (minutes=%d)", package, running_minutes)
-        ret = subprocess.run(cmd, cwd=KEA2_WORKDIR, env=env, text=True).returncode
+        # Ensure the kea2 project is initialized in the workdir. Some container
+        # images or fresh checkouts may not have run `kea2 init` yet and the
+        # kea2 CLI will fail with "kea2 project not initialized". We attempt
+        # to run `kea2 init` proactively and also retry once if the run fails
+        # with that specific message.
+        def ensure_kea2_initialized(cwd, max_attempts=2):
+            for attempt in range(1, max_attempts + 1):
+                logger.info('Ensuring kea2 project initialized (attempt %d/%d)', attempt, max_attempts)
+                try:
+                    p = subprocess.run(['kea2', 'init'], cwd=cwd, text=True, capture_output=True, timeout=60)
+                except Exception:
+                    logger.exception('Failed to invoke `kea2 init`')
+                    return False
+                out = (p.stdout or '') + '\n' + (p.stderr or '')
+                if p.returncode == 0:
+                    logger.info('kea2 init succeeded')
+                    return True
+                # Some kea2 versions may return non-zero but indicate already
+                # initialized; treat that as success.
+                low = out.lower()
+                if 'already initialized' in low or 'already exists' in low or 'project already initialized' in low:
+                    logger.info('kea2 already initialized: %s', out.splitlines()[0] if out else '')
+                    return True
+                logger.warning('kea2 init returned non-zero: %s', out.strip())
+            return False
+
+        # Try to initialize kea2 proactively (best-effort)
+        try:
+            ensure_kea2_initialized(KEA2_WORKDIR, max_attempts=2)
+        except Exception:
+            logger.exception('Unexpected error while ensuring kea2 init')
+
+        logger.info('Running Kea2 on package: %s (minutes=%d)', package, running_minutes)
+        # Capture stdout/stderr so we can detect initialization errors and retry
+        res = subprocess.run(cmd, cwd=KEA2_WORKDIR, env=env, text=True, capture_output=True)
+        ret = res.returncode
+
+        # If kea2 reports an explicit "not initialized" error, attempt init and retry once
+        combined = (res.stdout or '') + '\n' + (res.stderr or '')
+        if ret != 0 and 'kea2 project not initialized' in combined.lower():
+            logger.warning('kea2 reported not-initialized; attempting `kea2 init` and retrying run')
+            if ensure_kea2_initialized(KEA2_WORKDIR, max_attempts=2):
+                logger.info('Retrying kea2 run after init...')
+                res2 = subprocess.run(cmd, cwd=KEA2_WORKDIR, env=env, text=True, capture_output=True)
+                ret = res2.returncode
+                combined = (res2.stdout or '') + '\n' + (res2.stderr or '')
+            else:
+                logger.error('kea2 init attempts failed; not retrying run')
 
         # create a tool summary similar to app_start_summary.json
         summary = {
