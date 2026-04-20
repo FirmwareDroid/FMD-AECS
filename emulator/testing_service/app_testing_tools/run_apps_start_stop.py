@@ -62,6 +62,26 @@ def run_adb(cmd_args, capture_output=True, text=True):
         raise RuntimeError(f"adb not found. Make sure Android platform-tools are installed and adb is in PATH.")
 
 
+def is_valid_component(component_str: Optional[str]) -> bool:
+    """Return True if the provided string looks like a valid Android component name.
+
+    Valid forms include 'com.example/.MainActivity' or 'com.example/com.example.MainActivity'.
+    Reject short/diagnostic strings like 'No' or strings that don't contain a '/'.
+    """
+    if not component_str or not isinstance(component_str, str):
+        return False
+    s = component_str.strip()
+    if '/' not in s:
+        return False
+    ls = s.lower()
+    # Common error responses that should not be treated as components
+    if ls == 'no' or ls.startswith('no ') or 'no activity' in ls:
+        return False
+    if ls.startswith('component=') or ls.startswith('package:'):
+        return False
+    return True
+
+
 def get_first_connected_device():
     """Return the serial of the first connected adb device in 'device' state, or None."""
     try:
@@ -225,8 +245,11 @@ def resolve_main_activity(package, serial=None):
             # take only the first whitespace-separated token to drop things like 'priority=0'
             token = part.split()[0].strip()
             # token may be like com.example/.MainActivity or com.example/com.example.MainActivity
-            # ensure it contains a slash; if not, try to be conservative and return as-is
-            return token
+            # validate token looks like an Android component before returning
+            if is_valid_component(token):
+                return token
+            else:
+                logging.debug('Resolved component token appears invalid: %r', token)
     # fallback: try brief resolve-activity
     cmd = []
     if serial:
@@ -237,11 +260,23 @@ def resolve_main_activity(package, serial=None):
         # brief output may also include extra tokens; sanitize similarly
         first = out.strip().splitlines()[0].strip()
         if first:
-            return first.split()[0].strip()
+            candidate = first.split()[0].strip()
+            if is_valid_component(candidate):
+                return candidate
+            else:
+                logging.debug('Brief resolve returned non-component value: %r', candidate)
+    return None
     return None
 
 
 def am_start(component, serial=None):
+    # Validate component before attempting to start it to avoid passing error
+    # messages like 'No' into the am start command which will throw an Android
+    # IllegalArgumentException.
+    if not is_valid_component(component):
+        logging.warning('Refusing to am start invalid component: %r', component)
+        return False, f'Invalid component: {component}'
+
     if serial is None:
         serial = get_first_connected_device()
         if serial:
@@ -450,12 +485,12 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
         # record as 'no activity' and skip further attempts. Use resolve_main_activity
         # which returns None or a string; some outputs may include 'No activity found'.
         main_activity = resolve_main_activity(pkg, serial)
-        if not main_activity or 'no activity' in (main_activity or '').lower() or 'no activity found' in (main_activity or '').lower():
+        if not is_valid_component(main_activity):
             reason = 'no activity'
             failure_reasons[reason] += 1
             failure_examples[reason].append({'package': pkg, 'detail': main_activity})
             failures.append({'package': pkg, 'reason': reason, 'detail': main_activity})
-            logging.warning('Package %s appears to have no activities; skipping (reason=%s)', pkg, reason)
+            logging.warning('Package %s appears to have no activities; skipping (resolved=%r)', pkg, main_activity)
             continue
 
         # try monkey launch
@@ -479,7 +514,7 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
 
         # try resolving main activity and am start
         main = main_activity or resolve_main_activity(pkg, serial)
-        if main and "No activity found" not in main:
+        if main and is_valid_component(main):
             logging.info('Resolved main activity for %s -> %s', pkg, main)
             ok2, out2 = am_start(main, serial)
             time.sleep(delay)

@@ -1363,6 +1363,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
     except FileNotFoundError:
         pass
     for firmware_id in tqdm(firmware_id_list):
+        logging.info(f"Number of firmware ids left to process: {len(firmware_id_list) - firmware_id_list.index(firmware_id)}")
         try:
             logging.info(f"Start fetching build files for firmware-id: {firmware_id}")
             is_download_success = fetch_build_files(firmware_id, cookies, args.fmd_url, BUILD_OUT_PATH,
@@ -1430,6 +1431,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
                     succeed_firmware_ids.append(firmware_id)
                     download_url_list.append(download_url)
                     write_text_output(filename, PATH_BUILD_FILE_ARTEFACT_LOG)
+                    logging.info(f"Number of Success builds so far: {len(succeed_firmware_ids)}. Number of failed builds so far: {len(failed_firmware_ids)}.")
                 else:
                     raise RuntimeError(f"Upload process for firmware-id: {firmware_id} failed.")
             else:

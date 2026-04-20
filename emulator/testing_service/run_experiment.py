@@ -644,106 +644,147 @@ def start_tcpdump():
         logging.error('adb binary not found in PATH; cannot configure tcpdump on device')
         return False
 
-    # If multiple devices are connected, pick the first one from `adb devices`.
-    try:
-        out = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=10)
-        lines = [l.strip() for l in (out.stdout or '').splitlines() if l.strip()]
-        serial = None
-        for l in lines:
-            if l.startswith('List of devices'):
-                continue
-            parts = l.split()
-            if len(parts) >= 2 and parts[1] == 'device':
-                serial = parts[0]
-                break
-        if not serial:
-            logging.error('No adb device found to start tcpdump')
-            return False
-        logging.info('Selected first adb device: %s', serial)
-    except Exception:
-        logging.exception('Failed to run adb devices to select device')
-        return False
-
-    # try to become root (best-effort) on selected device
-    try:
-        adb_root_cmd = ['adb', '-s', serial, 'root']
-        res = subprocess.run(adb_root_cmd, capture_output=True, text=True, timeout=10)
-        if res.returncode == 0:
-            logging.info('adb root: OK')
-        else:
-            logging.warning('adb root returned non-zero: %s. Continuing (may still work if device already has privileges).', res.stderr.strip() or res.stdout.strip())
-    except Exception as e:
-        logging.warning('adb root failed: %s', e)
-
-    # Add iptables rule to send OUTPUT to NFLOG group 1
-    ipt_cmd = 'iptables -t mangle -I OUTPUT 1 -j NFLOG --nflog-group 1'
-    try:
-        adb_ipt_cmd = ['adb', '-s', serial, 'shell', ipt_cmd]
-        res = subprocess.run(adb_ipt_cmd, capture_output=True, text=True, timeout=10)
-        if res.returncode != 0:
-            logging.warning('Failed to add iptables NFLOG rule: %s', (res.stderr or res.stdout).strip())
-        else:
-            logging.info('Installed iptables NFLOG rule')
-    except Exception:
-        logging.exception('Exception while installing iptables NFLOG rule')
-
-    # Start tcpdump in background on the device and capture its pid
     remote_pcap = '/storage/emulated/0/Download/tcpdump.pcap'
-    start_cmd = f"nohup tcpdump -i nflog:1 -w {remote_pcap} &"
-    try:
-        adb_start_cmd = ['adb', '-s', serial, 'shell', start_cmd]
-        res = subprocess.run(adb_start_cmd, capture_output=True, text=True, timeout=15)
-        if res.returncode == 0:
-            out = (res.stdout or '').strip()
-            # stdout may contain extra messages; take last line as pid
-            pid = None
-            if out:
-                pid = out.splitlines()[-1].strip()
+    pid_file = os.path.join(OUT_DIR, 'tcpdump_device.pid')
 
-            # Write pid file if we can determine pid (best-effort)
-            pid_file = os.path.join(OUT_DIR, 'tcpdump_device.pid')
-            if pid and pid.isdigit():
-                try:
-                    os.makedirs(OUT_DIR, exist_ok=True)
-                    with open(pid_file, 'w', encoding='utf-8') as f:
-                        f.write(pid + '\n')
-                    logging.info('Started tcpdump on device (pid=%s), pid written to %s', pid, pid_file)
-                except Exception:
-                    logging.exception('Failed to write tcpdump pid file')
-            else:
-                logging.warning('Could not determine tcpdump pid from adb output: %s', out or '(empty)')
+    # Retry loop: sometimes devices take a moment to be ready or tcpdump fails to start
+    max_start_attempts = 5
+    per_attempt_wait_seconds = 10.0
+    check_sleep = 0.5
+    check_attempts = max(1, int(per_attempt_wait_seconds / check_sleep))
 
-            # Verify that the remote pcap file exists. tcpdump should create the file
-            # shortly after starting; poll for a short period to allow for delays.
-            pcap_exists = False
-            check_attempts = 8
-            check_sleep = 0.5
-            for attempt_check in range(1, check_attempts + 1):
-                try:
-                    # Use ls to check existence; ls returns 0 when file present
-                    adb_ls = ['adb', '-s', serial, 'shell', 'ls', '-l', remote_pcap]
-                    ls_res = subprocess.run(adb_ls, capture_output=True, text=True, timeout=5)
-                    if ls_res.returncode == 0 and (ls_res.stdout or '').strip():
-                        pcap_exists = True
-                        logging.info('Remote pcap file exists: %s (check %d/%d)', remote_pcap, attempt_check, check_attempts)
-                        break
-                    else:
-                        logging.debug('Remote pcap not yet present (check %d/%d): %s', attempt_check, check_attempts, (ls_res.stderr or ls_res.stdout).strip())
-                except Exception:
-                    logging.debug('Exception while checking remote pcap existence (attempt %d)', attempt_check)
-                time.sleep(check_sleep)
+    for attempt in range(1, max_start_attempts + 1):
+        logging.info('tcpdump start attempt %d/%d', attempt, max_start_attempts)
 
-            if not pcap_exists:
-                logging.error('tcpdump did not create remote pcap %s within %.1f seconds', remote_pcap, check_attempts * check_sleep)
+        # If multiple devices are connected, pick the first one from `adb devices`.
+        try:
+            out = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=10)
+            lines = [l.strip() for l in (out.stdout or '').splitlines() if l.strip()]
+            serial = None
+            for l in lines:
+                if l.startswith('List of devices'):
+                    continue
+                parts = l.split()
+                if len(parts) >= 2 and parts[1] == 'device':
+                    serial = parts[0]
+                    break
+            if not serial:
+                logging.error('No adb device found to start tcpdump (attempt %d/%d)', attempt, max_start_attempts)
+                # If not the last attempt, wait and retry device selection
+                if attempt < max_start_attempts:
+                    time.sleep(2.0)
+                    continue
                 return False
-
-            return True
-        else:
-            logging.error('Failed to start tcpdump on device: %s', (res.stderr or res.stdout).strip())
+            logging.info('Selected first adb device: %s', serial)
+        except Exception:
+            logging.exception('Failed to run adb devices to select device')
+            if attempt < max_start_attempts:
+                time.sleep(2.0)
+                continue
             return False
-    except Exception:
-        logging.exception('Exception while starting tcpdump on device')
-        return False
+
+        # try to become root (best-effort) on selected device
+        try:
+            adb_root_cmd = ['adb', '-s', serial, 'root']
+            res = subprocess.run(adb_root_cmd, capture_output=True, text=True, timeout=10)
+            if res.returncode == 0:
+                logging.info('adb root: OK')
+            else:
+                logging.warning('adb root returned non-zero: %s. Continuing (may still work if device already has privileges).', res.stderr.strip() or res.stdout.strip())
+        except Exception as e:
+            logging.warning('adb root failed: %s', e)
+
+        # Add iptables rule to send OUTPUT to NFLOG group 1 (best-effort)
+        ipt_cmd = 'iptables -t mangle -I OUTPUT 1 -j NFLOG --nflog-group 1'
+        try:
+            adb_ipt_cmd = ['adb', '-s', serial, 'shell', ipt_cmd]
+            res = subprocess.run(adb_ipt_cmd, capture_output=True, text=True, timeout=10)
+            if res.returncode != 0:
+                logging.warning('Failed to add iptables NFLOG rule: %s', (res.stderr or res.stdout).strip())
+            else:
+                logging.info('Installed iptables NFLOG rule')
+        except Exception:
+            logging.exception('Exception while installing iptables NFLOG rule')
+
+        # Start tcpdump in background on the device and capture its pid
+        start_cmd = f"nohup tcpdump -i nflog:1 -w {remote_pcap} &"
+        try:
+            adb_start_cmd = ['adb', '-s', serial, 'shell', start_cmd]
+            res = subprocess.run(adb_start_cmd, capture_output=True, text=True, timeout=15)
+            if res.returncode == 0:
+                out = (res.stdout or '').strip()
+                # stdout may contain extra messages; take last line as pid
+                pid = None
+                if out:
+                    pid = out.splitlines()[-1].strip()
+
+                # Write pid file if we can determine pid (best-effort)
+                if pid and pid.isdigit():
+                    try:
+                        os.makedirs(OUT_DIR, exist_ok=True)
+                        with open(pid_file, 'w', encoding='utf-8') as f:
+                            f.write(pid + '\n')
+                        logging.info('Started tcpdump on device (pid=%s), pid written to %s', pid, pid_file)
+                    except Exception:
+                        logging.exception('Failed to write tcpdump pid file')
+                else:
+                    logging.warning('Could not determine tcpdump pid from adb output: %s', out or '(empty)')
+
+                # Verify that the remote pcap file exists. tcpdump should create the file
+                # shortly after starting; poll for a short period to allow for delays.
+                pcap_exists = False
+                for attempt_check in range(1, check_attempts + 1):
+                    try:
+                        # Use ls to check existence; ls returns 0 when file present
+                        adb_ls = ['adb', '-s', serial, 'shell', 'ls', '-l', remote_pcap]
+                        ls_res = subprocess.run(adb_ls, capture_output=True, text=True, timeout=5)
+                        if ls_res.returncode == 0 and (ls_res.stdout or '').strip():
+                            pcap_exists = True
+                            logging.info('Remote pcap file exists: %s (check %d/%d)', remote_pcap, attempt_check, check_attempts)
+                            break
+                        else:
+                            logging.debug('Remote pcap not yet present (check %d/%d): %s', attempt_check, check_attempts, (ls_res.stderr or ls_res.stdout).strip())
+                    except Exception:
+                        logging.debug('Exception while checking remote pcap existence (attempt %d)', attempt_check)
+                    time.sleep(check_sleep)
+
+                if pcap_exists:
+                    return True
+                else:
+                    logging.error('tcpdump did not create remote pcap %s within %.1f seconds (attempt %d/%d)', remote_pcap, check_attempts * check_sleep, attempt, max_start_attempts)
+                    # Try to clean up any running tcpdump before retrying (best-effort)
+                    try:
+                        adb_pkill = ['adb', '-s', serial, 'shell', 'pkill -2 tcpdump']
+                        subprocess.run(adb_pkill, capture_output=True, text=True, timeout=10)
+                    except Exception:
+                        logging.debug('pkill attempt during cleanup failed')
+
+                    # Remove pid file if present
+                    try:
+                        if os.path.exists(pid_file):
+                            os.remove(pid_file)
+                    except Exception:
+                        logging.debug('Failed to remove pid file during cleanup')
+
+                    # If not last attempt, wait a bit and retry
+                    if attempt < max_start_attempts:
+                        time.sleep(2.0)
+                        continue
+                    return False
+            else:
+                logging.error('Failed to start tcpdump on device: %s', (res.stderr or res.stdout).strip())
+                if attempt < max_start_attempts:
+                    time.sleep(2.0)
+                    continue
+                return False
+        except Exception:
+            logging.exception('Exception while starting tcpdump on device')
+            if attempt < max_start_attempts:
+                time.sleep(2.0)
+                continue
+            return False
+
+    return False
 
 def stop_tcpdump():
     logging.info('Stopping tcpdump')
@@ -938,6 +979,172 @@ def _write_json(path, obj):
         logging.exception('Failed to write JSON to %s', path)
 
 
+def _read_json_if_exists(path):
+    try:
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception:
+        logging.exception('Failed to read JSON from %s', path)
+    return None
+
+
+def _determine_success_from_result(obj):
+    """Try to determine a boolean success value from a result JSON object.
+
+    Heuristics used (in order):
+    - If 'success' key present and boolean -> use it
+    - If 'returncode' present -> success when returncode == 0
+    - If 'success_count' present -> success when success_count > 0
+    - Otherwise return None
+    """
+    if not isinstance(obj, dict):
+        return None
+    if 'success' in obj:
+        val = obj.get('success')
+        if isinstance(val, bool):
+            return val
+        # sometimes success might be numeric
+        try:
+            return bool(int(val))
+        except Exception:
+            pass
+    if 'returncode' in obj:
+        try:
+            return int(obj.get('returncode', 1)) == 0
+        except Exception:
+            pass
+    if 'success_count' in obj:
+        try:
+            return int(obj.get('success_count', 0)) > 0
+        except Exception:
+            pass
+    return None
+
+
+def write_experiment_summary(results_dir, overall_success, attempt=None, attempts=None):
+    """Collect main test results and write a concise experiment summary JSON.
+
+    This will only be called when the experiment succeeded (overall_success=True)
+    or when all attempts have been exhausted (attempt == attempts).
+    """
+    summary = {
+        'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z',
+        'overall_success': bool(overall_success),
+        'attempt': attempt,
+        'attempts': attempts,
+        'tests': {},
+    }
+
+    # Known/top-level result files we want to summarise if present
+    base_candidates = [
+        'adb_availability.json',
+        'bootanim_results.json',
+        'preflight_launcher.json',
+        'connectivity_results.json',
+        'install_results.json',
+    ]
+
+    # Also include additional known result locations that may live outside results_dir
+    extra_paths = [
+        os.path.join(BASE_DIR, 'app_testing_tools', 'out', 'app_start_summary.json'),
+    ]
+
+    # Collect JSON files to include: start with base_candidates under results_dir,
+    # then discover any JSON files under results_dir and app_testing_tools/out.
+    paths = set()
+    for fname in base_candidates:
+        paths.add(os.path.join(results_dir, fname))
+    for p in extra_paths:
+        paths.add(p)
+
+    # Discover JSON files in results_dir and in app_testing_tools/out (if present)
+    try:
+        search_dirs = [results_dir, os.path.join(BASE_DIR, 'app_testing_tools', 'out')]
+        for sd in search_dirs:
+            if os.path.isdir(sd):
+                for match in glob.glob(os.path.join(sd, '**', '*.json'), recursive=True):
+                    paths.add(os.path.abspath(match))
+    except Exception:
+        logging.exception('Error while discovering additional result JSON files')
+
+    # Process each discovered path and add a concise entry to the summary
+    for path in sorted(paths):
+        try:
+            # Compute a friendly key for the summary: prefer relative to results_dir, else relative to BASE_DIR
+            try:
+                if os.path.commonpath([os.path.abspath(path), os.path.abspath(results_dir)]) == os.path.abspath(results_dir):
+                    key = os.path.relpath(path, results_dir)
+                else:
+                    key = os.path.relpath(path, BASE_DIR)
+            except Exception:
+                key = os.path.basename(path)
+            # Normalize key separators to '/'
+            key = key.replace(os.path.sep, '/')
+
+            entry = {
+                'exists': os.path.exists(path),
+            }
+
+            if os.path.exists(path):
+                try:
+                    stat = os.stat(path)
+                    entry['size_bytes'] = stat.st_size
+                    entry['modified_time'] = datetime.datetime.fromtimestamp(stat.st_mtime, datetime.timezone.utc).isoformat() + 'Z'
+                except Exception:
+                    logging.debug('Failed to stat %s', path)
+
+                # Heuristic: avoid loading extremely large JSON blobs into the summary
+                try:
+                    size = os.path.getsize(path)
+                except Exception:
+                    size = 0
+
+                obj = None
+                if size > 200 * 1024:
+                    entry['raw_skipped_due_to_size'] = True
+                else:
+                    obj = _read_json_if_exists(path)
+
+                if obj is not None:
+                    entry['raw'] = {}
+                    if isinstance(obj, dict):
+                        # include a few informative fields but avoid dumping huge blobs
+                        for key_field in ('success', 'returncode', 'error', 'stderr', 'stdout', 'success_count', 'failures_count', 'total_app_count'):
+                            if key_field in obj:
+                                try:
+                                    entry['raw'][key_field] = obj.get(key_field)
+                                except Exception:
+                                    entry['raw'][key_field] = str(obj.get(key_field))
+                        # Also include top-level small scalar fields (non-list/dict)
+                        for k, v in obj.items():
+                            if k in entry['raw']:
+                                continue
+                            if isinstance(v, (str, int, float, bool)):
+                                # limit string length
+                                if isinstance(v, str) and len(v) > 400:
+                                    entry['raw'][k] = v[:400] + '...'
+                                else:
+                                    entry['raw'][k] = v
+                    else:
+                        entry['raw']['value'] = obj
+
+                    entry['success'] = _determine_success_from_result(obj)
+                else:
+                    # if object could not be read, leave success unknown
+                    if 'raw_skipped_due_to_size' not in entry:
+                        entry['success'] = None
+            else:
+                entry['success'] = None
+
+            summary['tests'][key] = entry
+        except Exception:
+            logging.exception('Failed to include result file %s in summary', path)
+
+    # Atomically write the summary JSON to results_dir/experiment_summary.json
+    out_file = os.path.join(results_dir, 'experiment_summary.json')
+    _write_json(out_file, summary)
+    logging.info('Wrote experiment summary to %s', out_file)
 def ensure_adb_available(results_dir):
     """Ensure adb is available and at least one device is connected.
 
@@ -1064,9 +1271,13 @@ def main():
             # 4) Setup devices and run experiment
             setup_and_run_experiment(args)
 
-            # Success: cleanup and exit
+            # Success: cleanup, write summary and exit
             stop_background_services()
             logging.info('Full-run attempt %d/%d completed successfully', attempt, attempts)
+            try:
+                write_experiment_summary(results_dir, overall_success=True, attempt=attempt, attempts=attempts)
+            except Exception:
+                logging.exception('Failed to write experiment summary on success')
             return
 
         except KeyboardInterrupt:
@@ -1087,6 +1298,11 @@ def main():
                 continue
             else:
                 logging.error('Experiment failed after %d attempt(s). Aborting.', attempts)
+                try:
+                    # Write final summary indicating overall failure
+                    write_experiment_summary(results_dir, overall_success=False, attempt=attempt, attempts=attempts)
+                except Exception:
+                    logging.exception('Failed to write experiment summary on final failure')
                 sys.exit(2)
 
 
