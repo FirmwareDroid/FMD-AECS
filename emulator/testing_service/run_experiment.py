@@ -13,6 +13,7 @@ import shutil
 import atexit
 import time
 import glob
+import re
 try:
     import crash_watcher
 except Exception:
@@ -184,6 +185,26 @@ def run_script_capture(script_path, args=None, description=None):
             logging.info(err)
         else:
             logging.error(err)
+    # Detect common adb/device transient failures in tool output and raise
+    # a RuntimeError so the outer experiment retry loop can re-run the full
+    # attempt. We look for phrases such as "device offline" or "device 'X' not found".
+    try:
+        combined = (proc.stdout or '') + '\n' + (proc.stderr or '')
+        low = combined.lower()
+        # Patterns indicating transient adb/device availability issues
+        offline_patterns = [r'device offline', r"device '\w+' not found", r"device '.*' not found", r'error: device not found', r'failed to get feature set: device offline']
+        for pat in offline_patterns:
+            if re.search(pat, low):
+                logging.error('Detected adb/device availability error in %s output; will treat as transient and retry full experiment: %s', script_path, pat)
+                # Include some context in the exception
+                snippet = '\n'.join((combined or '').splitlines()[-20:])
+                raise RuntimeError(f'ADB/device offline detected while running {script_path}: {snippet}')
+    except RuntimeError:
+        # propagate to be handled by outer retry loop
+        raise
+    except Exception:
+        logging.debug('Error while checking tool output for adb/device offline patterns', exc_info=True)
+
     return res
 
 def run_command(cmd, description=None):
