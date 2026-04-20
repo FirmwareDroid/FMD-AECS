@@ -18,6 +18,61 @@ import time
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
+import re
+
+
+def normalize_install_error(msg: str) -> str:
+    """Normalize/group raw install error messages into concise keys for aggregation.
+
+    Returns a short machine-friendly key such as 'persistent_app_not_updateable',
+    'device_offline', 'install_failed_invalid_apk', 'exception_NullPointerException', etc.
+    """
+    if not msg:
+        return 'unknown_error'
+    s = str(msg).strip()
+    low = s.lower()
+
+    # Persistent app / not updateable
+    if 'persistent apps are not updateable' in low or 'persistent app' in low:
+        return 'persistent_app_not_updateable'
+
+    # Device offline / not found
+    if 'device offline' in low:
+        return 'device_offline'
+    m = re.search(r"device\s+'([^']+)'\s+not found", s)
+    if m:
+        return 'device_not_found'
+    if "error: device" in low and 'not found' in low:
+        return 'device_not_found'
+
+    # Explicit INSTALL_FAILED_* codes
+    m = re.search(r'(INSTALL_FAILED_[A-Z0-9_]+)', s)
+    if m:
+        return m.group(1).lower()
+
+    # Verification failure
+    if 'verification' in low:
+        return 'verification_failure'
+
+    # Can't find service / cmd errors
+    if "can't find service" in low or "cant find service" in low:
+        return 'cmd_cant_find_service'
+
+    # Numeric error codes like '-127:'
+    m = re.search(r'^\s*([-]?\d+):', s)
+    if m:
+        return f'install_failure_code_{m.group(1)}'
+
+    # Java exception types present in stack trace
+    m = re.search(r'([A-Za-z0-9_]+Exception)', s)
+    if m:
+        return 'exception_' + m.group(1)
+
+    # Fallback: take the first 80 chars of the first line
+    first = s.splitlines()[0]
+    key = first if len(first) <= 80 else first[:80] + '...'
+    key = re.sub(r'\s+', ' ', key)
+    return key.replace(' ', '_')
 
 # configure logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -250,8 +305,9 @@ def install_apk(apk_path, results, lock, serial=None, stop_event=None):
                     # record this specific failure
                     with lock:
                         results['failures']['count'] += 1
-                        results['failures']['details']['device offline'] += 1
-                        results['failures']['items'].append({"apk": apk_path, "error": "device offline"})
+                        key = 'device_offline'
+                        results['failures']['details'][key] += 1
+                        results['failures']['items'].append({"apk": apk_path, "error": "device offline", "group": key})
                     return
                 # if offline_ok is True, continue and retry install attempts
             if res.returncode == 0 and ('Success' in out or 'Success' in err or out == ''):
@@ -264,10 +320,20 @@ def install_apk(apk_path, results, lock, serial=None, stop_event=None):
                 error_message = err or out or 'Unknown error'
                 logger.warning('Failed to install %s (attempt %d): %s', apk_path, attempt, error_message)
                 if attempt == attempts:
-                    with lock:
-                        results["failures"]["count"] += 1
-                        results["failures"]["details"][error_message] += 1
-                        results["failures"]["items"].append({"apk": apk_path, "error": error_message})
+                    # Normalize/group the error for clearer aggregation
+                    key = normalize_install_error(error_message)
+                    # Treat persistent-app-not-updateable as a non-fatal condition and count as success
+                    if key == 'persistent_app_not_updateable':
+                        logger.info('Treating persistent app install error as success for %s', apk_path)
+                        with lock:
+                            results["success"] += 1
+                            results.setdefault("installed", []).append(apk_path)
+                            results["treated_as_success"] += 1
+                    else:
+                        with lock:
+                            results["failures"]["count"] += 1
+                            results["failures"]["details"][key] += 1
+                            results["failures"]["items"].append({"apk": apk_path, "error": error_message, "group": key})
                 else:
                     # small backoff and retry
                     time.sleep(1 * attempt)
@@ -283,10 +349,19 @@ def install_apk(apk_path, results, lock, serial=None, stop_event=None):
             with lock:
                 results.setdefault('aborted_offline', True)
         logger.exception('Error installing %s: %s', apk_path, error_message)
-        with lock:
-            results["failures"]["count"] += 1
-            results["failures"]["details"][error_message] += 1
-            results["failures"]["items"].append({"apk": apk_path, "error": error_message})
+        key = normalize_install_error(error_message)
+        # Treat persistent-app-not-updateable as success
+        if key == 'persistent_app_not_updateable':
+            logger.info('Treating persistent app install exception as success for %s', apk_path)
+            with lock:
+                results["success"] += 1
+                results.setdefault("installed", []).append(apk_path)
+                results["treated_as_success"] += 1
+        else:
+            with lock:
+                results["failures"]["count"] += 1
+                results["failures"]["details"][key] += 1
+                results["failures"]["items"].append({"apk": apk_path, "error": error_message, "group": key})
 
 
 def run_install_for_device(serial, apk_list, max_workers):
@@ -296,6 +371,8 @@ def run_install_for_device(serial, apk_list, max_workers):
     results = {
         "success": 0,
         "installed": [],
+        "skipped": 0,
+        "treated_as_success": 0,
         "failures": {
             "count": 0,
             "details": defaultdict(int),
@@ -403,7 +480,7 @@ def main():
         # single target: either explicit serial or default adb device (None)
         devices = [args.serial]
 
-    overall = {"success": 0, "failures": 0}
+    overall = {"success": 0, "failures": 0, "treated_as_success": 0}
     per_device_summary = {}
 
     for serial in devices:
@@ -499,10 +576,17 @@ def main():
         # sources (e.g., entries under /data/app) so they appear in logs/json.
         if skipped_pkg_names:
             per_device_results.setdefault('skipped_package_names', skipped_pkg_names)
+        # Record numeric count of skipped APKs/packages so callers can examine frequency
+        try:
+            per_device_results['skipped'] = int(len(skipped_apks) + len(skipped_pkg_names))
+        except Exception:
+            # fallback: ensure key exists as zero
+            per_device_results.setdefault('skipped', 0)
 
         # print per-device summary
         logger.info('\n📊 Installation Summary for %s:', serial if serial else 'default')
         logger.info('  ✅ Successfully installed: %d', per_device_results['success'])
+        logger.info('  ℹ️ Treated-as-success (persistent): %d', per_device_results.get('treated_as_success', 0))
         logger.info('  ❌ Failed installations: %d', per_device_results['failures']['count'])
         if per_device_results['failures']['count'] > 0:
             logger.warning('\n⚠️ Failure Details:')
@@ -511,6 +595,7 @@ def main():
 
         overall['success'] += per_device_results['success']
         overall['failures'] += per_device_results['failures']['count']
+        overall['treated_as_success'] += per_device_results.get('treated_as_success', 0)
 
         # store per-device results (serial string or 'default')
         per_device_summary[serial if serial else 'default'] = per_device_results
@@ -523,6 +608,7 @@ def main():
                     "timestamp": datetime.datetime.utcnow().isoformat() + 'Z',
                     "success_count": overall['success'],
                     "failures_count": overall['failures'],
+                    "treated_as_success": overall.get('treated_as_success', 0),
                     "total_app_count": overall['success'] + overall['failures'],
                     "per_device": per_device_summary,
                     "aborted_due_to_device_offline": True,
@@ -547,6 +633,7 @@ def main():
             "timestamp": datetime.datetime.utcnow().isoformat() + 'Z',
             "success_count": overall['success'],
             "failures_count": overall['failures'],
+            "treated_as_success": overall.get('treated_as_success', 0),
             "total_app_count": overall['success'] + overall['failures'],
             "per_device": per_device_summary
         }
