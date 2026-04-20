@@ -648,8 +648,8 @@ def start_tcpdump():
     pid_file = os.path.join(OUT_DIR, 'tcpdump_device.pid')
 
     # Retry loop: sometimes devices take a moment to be ready or tcpdump fails to start
-    max_start_attempts = 5
-    per_attempt_wait_seconds = 10.0
+    max_start_attempts = 30
+    per_attempt_wait_seconds = 30.0
     check_sleep = 0.5
     check_attempts = max(1, int(per_attempt_wait_seconds / check_sleep))
 
@@ -1163,7 +1163,10 @@ def ensure_adb_available(results_dir):
 
 def start_background_services():
     """Start best-effort background services such as tcpdump and crash watcher."""
-    start_tcpdump()
+    tcp_ok = start_tcpdump()
+    if not tcp_ok:
+        logging.error('Failed to start tcpdump; aborting this attempt so the experiment retry loop can retry')
+        raise RuntimeError('Failed to start tcpdump')
     if crash_watcher:
         try:
             crash_watcher.start_crash_watcher(device=None, interval=5.0)
