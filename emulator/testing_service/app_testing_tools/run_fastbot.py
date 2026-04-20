@@ -10,7 +10,7 @@ Usage:
 
 Examples:
     python3 run_fastbot.py -p com.example.app --running-minutes 30
-    python3 run_fastbot.py -p com.example.app --serial emulator-5554 --throttle 300
+python3 run_fastbot.py -p com.example.app --serial emulator-5554 --throttle 300
 """
 
 import argparse
@@ -24,8 +24,21 @@ import shutil
 # Ensure project root is on sys.path so `from common import get_adb_cmd` works
 # when this script is executed directly from its folder.
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.normpath(os.path.join(_HERE, '..', '..', '..'))
-if _PROJECT_ROOT not in sys.path:
+
+def _find_project_root(marker='common.py'):
+    p = _HERE
+    while True:
+        candidate = os.path.join(p, marker)
+        if os.path.exists(candidate):
+            return p
+        parent = os.path.dirname(p)
+        if parent == p:
+            break
+        p = parent
+    return None
+
+_PROJECT_ROOT = _find_project_root() or os.path.normpath(os.path.join(_HERE, '..', '..', '..'))
+if _PROJECT_ROOT and _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
 from common import get_adb_cmd, get_first_connected_device

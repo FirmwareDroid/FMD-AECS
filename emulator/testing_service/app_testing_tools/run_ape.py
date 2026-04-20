@@ -22,9 +22,24 @@ import time
 import threading
 import hashlib
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.normpath(os.path.join(_HERE, '..', '..', '..'))
-if _PROJECT_ROOT not in sys.path:
+
+# Robustly locate the project root by searching upward for a marker file (common.py)
+def _find_project_root(marker='common.py'):
+    p = _HERE
+    while True:
+        candidate = os.path.join(p, marker)
+        if os.path.exists(candidate):
+            return p
+        parent = os.path.dirname(p)
+        if parent == p:
+            break
+        p = parent
+    return None
+
+_PROJECT_ROOT = _find_project_root() or os.path.normpath(os.path.join(_HERE, '..', '..', '..'))
+if _PROJECT_ROOT and _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
+
 from common import get_adb_cmd
 from test_results import append_run
 
