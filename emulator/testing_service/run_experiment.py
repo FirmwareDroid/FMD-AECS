@@ -192,7 +192,7 @@ def run_script_capture(script_path, args=None, description=None):
         combined = (proc.stdout or '') + '\n' + (proc.stderr or '')
         low = combined.lower()
         # Patterns indicating transient adb/device availability issues
-        offline_patterns = [r'device offline', r"device '\w+' not found", r"device '.*' not found", r'error: device not found', r'failed to get feature set: device offline']
+        offline_patterns = [r'device offline', r"device '\w+' not found", r"device '.*' not found", r'error: device not found', r'failed to get feature set: device offline', "No adb device found"]
         for pat in offline_patterns:
             if re.search(pat, low):
                 logging.error('Detected adb/device availability error in %s output; will treat as transient and retry full experiment: %s', script_path, pat)
