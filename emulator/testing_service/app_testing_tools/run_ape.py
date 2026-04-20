@@ -310,7 +310,7 @@ def main():
 
     # write tool-specific summary file
     try:
-        out_dir = os.path.join(BASE_DIR, 'output')
+        out_dir = os.path.join(BASE_DIR, 'out')
         append_run('ape', summary, failures, out_dir=out_dir)
     except Exception:
         logger.exception('Failed to write ape summary')

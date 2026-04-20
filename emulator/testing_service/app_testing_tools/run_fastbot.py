@@ -208,7 +208,7 @@ def main():
     if ret != 0:
         failures.append({'package': args.package, 'reason': 'fastbot_failed', 'detail': f'return_code={ret}'})
     try:
-        out_dir = os.path.join(BASE_DIR, 'output')
+        out_dir = os.path.join(BASE_DIR, 'out')
         append_run('fastbot', summary, failures, out_dir=out_dir)
     except Exception:
         logger.exception('Failed to write fastbot summary')

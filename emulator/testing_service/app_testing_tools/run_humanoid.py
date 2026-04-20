@@ -88,7 +88,7 @@ def run_droidbot_with_humanoid(package, apk_path, running_minutes=60, serial=Non
         logger.error("droidbot not found in PATH. Run install_tools.py first.")
         return 1
 
-    output_dir = os.path.join(BASE_DIR, 'output', 'humanoid', package)
+    output_dir = os.path.join(BASE_DIR, 'out', 'humanoid', package)
     os.makedirs(output_dir, exist_ok=True)
 
     # If no serial provided, pick the first connected adb device (if any)

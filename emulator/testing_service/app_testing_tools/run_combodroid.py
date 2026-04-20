@@ -263,7 +263,7 @@ def main():
         apk_path = local_apk
 
     try:
-        output_dir = args.output_dir or os.path.join(BASE_DIR, 'output', 'combodroid')
+        output_dir = args.output_dir or os.path.join(BASE_DIR, 'out', 'combodroid')
         config_path = generate_config(
             args.package, apk_path, android_sdk, output_dir,
             args.running_minutes, args.platform_version, args.buildtool_version,
@@ -285,7 +285,7 @@ def main():
         if ret != 0:
             failures.append({'package': args.package, 'reason': 'combodroid_failed', 'detail': f'return_code={ret}'})
         try:
-            append_run('combodroid', summary, failures, out_dir=os.path.join(BASE_DIR, 'output'))
+            append_run('combodroid', summary, failures, out_dir=os.path.join(BASE_DIR, 'out'))
         except Exception:
             logger.exception('Failed to write combodroid summary')
 
