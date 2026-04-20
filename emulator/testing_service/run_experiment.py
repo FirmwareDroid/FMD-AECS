@@ -650,7 +650,7 @@ def start_tcpdump():
     # Retry loop: sometimes devices take a moment to be ready or tcpdump fails to start
     max_start_attempts = 30
     per_attempt_wait_seconds = 30.0
-    check_sleep = 0.5
+    check_sleep = 30
     check_attempts = max(1, int(per_attempt_wait_seconds / check_sleep))
 
     for attempt in range(1, max_start_attempts + 1):
