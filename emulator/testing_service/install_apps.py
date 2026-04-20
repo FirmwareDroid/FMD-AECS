@@ -469,149 +469,119 @@ def parse_args():
 
 def main():
     args = parse_args()
-
-    # Determine target devices
-    if args.all_devices:
-        devices = get_connected_devices()
-        if not devices:
+    # Determine target device: prefer explicit serial, otherwise pick first connected device
+    if args.serial:
+        target_serial = args.serial
+    else:
+        devs = get_connected_devices()
+        if not devs:
             logger.info('No connected devices found.')
             return
-    else:
-        # single target: either explicit serial or default adb device (None)
-        devices = [args.serial]
+        if len(devs) > 1:
+            logger.info('Multiple adb devices detected; using first device: %s', devs[0])
+        target_serial = devs[0]
 
-    overall = {"success": 0, "failures": 0, "treated_as_success": 0}
-    per_device_summary = {}
+    serial = target_serial
+    header = f"Device: {serial if serial else 'default'}"
+    logger.info('\n%s', '=' * len(header))
+    logger.info(header)
+    logger.info('%s\n', '=' * len(header))
 
-    for serial in devices:
-        header = f"Device: {serial if serial else 'default'}"
-        logger.info('\n%s', '=' * len(header))
-        logger.info(header)
-        logger.info('%s\n', '=' * len(header))
-
-        apk_files, skipped_pkg_names = get_apk_files(serial=serial)
-        if not apk_files:
-            if skipped_pkg_names:
-                try:
-                    preview_names = ', '.join(skipped_pkg_names[:10])
-                    if len(skipped_pkg_names) > 10:
-                        preview_names = preview_names + ', ...'
-                except Exception:
-                    preview_names = str(skipped_pkg_names)
-                logger.info('No installable APK file paths found on device %s; pm listed these packages but their paths were skipped as sources: %s', serial if serial else 'default', preview_names)
-                per_device_summary[serial if serial else 'default'] = {"skipped": True, "reason": "no_installable_apks", "skipped_package_names": skipped_pkg_names}
-            else:
-                logger.info('No APK files found on device %s; skipping.', serial if serial else 'default')
-                per_device_summary[serial if serial else 'default'] = {"skipped": True, "reason": "no_apks"}
-            continue
-
-        apk_filtered_list = filter_apk_install_list(apk_files)
-        # Record any APK paths that were filtered out so we can include them in
-        # logs and the per-device JSON summary.
-        skipped_apks = [p for p in apk_files if p not in apk_filtered_list]
-        # Also include package names reported by pm list that we skipped as
-        # non-installable file sources (e.g., entries under /data/app).
+    apk_files, skipped_pkg_names = get_apk_files(serial=serial)
+    if not apk_files:
         if skipped_pkg_names:
             try:
-                preview_pkg = ', '.join(skipped_pkg_names[:10])
+                preview_names = ', '.join(skipped_pkg_names[:10])
                 if len(skipped_pkg_names) > 10:
-                    preview_pkg = preview_pkg + ', ...'
+                    preview_names = preview_names + ', ...'
             except Exception:
-                preview_pkg = str(skipped_pkg_names)
-            logger.info('Device %s: %d package(s) were listed by pm but skipped as install sources: %s', serial if serial else 'default', len(skipped_pkg_names), preview_pkg)
-        if skipped_apks:
-            try:
-                preview = ', '.join(skipped_apks[:10])
-                if len(skipped_apks) > 10:
-                    preview = preview + ', ...'
-            except Exception:
-                preview = str(skipped_apks)
-            logger.info('Device %s: %d APK(s) were skipped by filters: %s', serial if serial else 'default', len(skipped_apks), preview)
+                preview_names = str(skipped_pkg_names)
+            logger.info('No installable APK file paths found on device %s; pm listed these packages but their paths were skipped as sources: %s', serial if serial else 'default', preview_names)
+            per_device_results = {"skipped": True, "reason": "no_installable_apks", "skipped_package_names": skipped_pkg_names}
+        else:
+            logger.info('No APK files found on device %s; skipping.', serial if serial else 'default')
+            per_device_results = {"skipped": True, "reason": "no_apks"}
 
-        # check device free space to avoid OOM or storage-related crashes
-        free_kb = check_device_free_kb(serial)
-        if free_kb is not None and free_kb < 50 * 1024:  # less than ~50MB
-            logger.warning('Device %s has low free space (%d KB). Skipping installs to avoid instability.', serial if serial else 'default', free_kb)
-            per_device_summary[serial if serial else 'default'] = {
-                "skipped": True,
-                "reason": "low_storage",
-                "available_kb": free_kb,
-                "skipped_items": apk_filtered_list if apk_filtered_list else skipped_apks
+        # write output if requested
+        if args.output:
+            out_obj = {
+                "timestamp": datetime.datetime.utcnow().isoformat() + 'Z',
+                "device": serial,
+                "success_count": 0,
+                "failures_count": 0,
+                "treated_as_success": 0,
+                "total_app_count": 0,
+                "results": per_device_results
             }
-            # Log details of items that would have been installed (or skipped by filters)
-            if apk_filtered_list:
-                try:
-                    preview = ', '.join(apk_filtered_list[:10])
-                    if len(apk_filtered_list) > 10:
-                        preview = preview + ', ...'
-                except Exception:
-                    preview = str(apk_filtered_list)
-                logger.info('Device %s: installs skipped due to low storage would have included: %s', serial if serial else 'default', preview)
-            elif skipped_apks:
-                try:
-                    preview = ', '.join(skipped_apks[:10])
-                    if len(skipped_apks) > 10:
-                        preview = preview + ', ...'
-                except Exception:
-                    preview = str(skipped_apks)
-                logger.info('Device %s: filters already skipped these APKs: %s', serial if serial else 'default', preview)
-            continue
-        # If user requested a package, narrow candidates
-        if args.package:
-            candidates = find_apk_paths_for_package(serial, apk_filtered_list, args.package)
-            if not candidates:
-                logger.info('Could not find APK for package %s on device %s; skipping.', args.package, serial if serial else 'default')
-                per_device_summary[serial if serial else 'default'] = {"skipped": True, "reason": "package_not_found", "package": args.package}
-                continue
-            apk_filtered_list = candidates
+            try:
+                with open(args.output, 'w', encoding='utf-8') as f:
+                    json.dump(out_obj, f, ensure_ascii=False, indent=2)
+                logger.info('Wrote JSON results to %s', args.output)
+            except Exception as e:
+                logger.exception('Failed to write JSON output: %s', e)
+        return
 
-        logger.info('Found %d APK(s) to install on %s.', len(apk_filtered_list), serial if serial else 'default')
-
-        per_device_results = run_install_for_device(serial, apk_filtered_list, args.workers)
-        # Attach the list of APK paths that had been skipped by filters so the
-        # per-device summary / JSON output includes that information.
-        if skipped_apks:
-            per_device_results.setdefault('skipped_items', skipped_apks)
-        # Attach package names that were reported by pm but skipped as install
-        # sources (e.g., entries under /data/app) so they appear in logs/json.
-        if skipped_pkg_names:
-            per_device_results.setdefault('skipped_package_names', skipped_pkg_names)
-        # Record numeric count of skipped APKs/packages so callers can examine frequency
+    apk_filtered_list = filter_apk_install_list(apk_files)
+    skipped_apks = [p for p in apk_files if p not in apk_filtered_list]
+    if skipped_pkg_names:
         try:
-            per_device_results['skipped'] = int(len(skipped_apks) + len(skipped_pkg_names))
+            preview_pkg = ', '.join(skipped_pkg_names[:10])
+            if len(skipped_pkg_names) > 10:
+                preview_pkg = preview_pkg + ', ...'
         except Exception:
-            # fallback: ensure key exists as zero
-            per_device_results.setdefault('skipped', 0)
+            preview_pkg = str(skipped_pkg_names)
+        logger.info('Device %s: %d package(s) were listed by pm but skipped as install sources: %s', serial if serial else 'default', len(skipped_pkg_names), preview_pkg)
+    if skipped_apks:
+        try:
+            preview = ', '.join(skipped_apks[:10])
+            if len(skipped_apks) > 10:
+                preview = preview + ', ...'
+        except Exception:
+            preview = str(skipped_apks)
+        logger.info('Device %s: %d APK(s) were skipped by filters: %s', serial if serial else 'default', len(skipped_apks), preview)
 
-        # print per-device summary
-        logger.info('\n📊 Installation Summary for %s:', serial if serial else 'default')
-        logger.info('  ✅ Successfully installed: %d', per_device_results['success'])
-        logger.info('  ℹ️ Treated-as-success (persistent): %d', per_device_results.get('treated_as_success', 0))
-        logger.info('  ❌ Failed installations: %d', per_device_results['failures']['count'])
-        if per_device_results['failures']['count'] > 0:
-            logger.warning('\n⚠️ Failure Details:')
-            for error, count in per_device_results['failures']['details'].items():
-                logger.warning('  %s: %d occurrences', error, count)
+    free_kb = check_device_free_kb(serial)
+    if free_kb is not None and free_kb < 50 * 1024:
+        logger.warning('Device %s has low free space (%d KB). Skipping installs to avoid instability.', serial if serial else 'default', free_kb)
+        per_device_results = {
+            "skipped": True,
+            "reason": "low_storage",
+            "available_kb": free_kb,
+            "skipped_items": apk_filtered_list if apk_filtered_list else skipped_apks
+        }
+        # write output if requested
+        if args.output:
+            out_obj = {
+                "timestamp": datetime.datetime.utcnow().isoformat() + 'Z',
+                "device": serial,
+                "success_count": 0,
+                "failures_count": 0,
+                "treated_as_success": 0,
+                "total_app_count": 0,
+                "results": per_device_results
+            }
+            try:
+                with open(args.output, 'w', encoding='utf-8') as f:
+                    json.dump(out_obj, f, ensure_ascii=False, indent=2)
+                logger.info('Wrote JSON results to %s', args.output)
+            except Exception as e:
+                logger.exception('Failed to write JSON output: %s', e)
+        return
 
-        overall['success'] += per_device_results['success']
-        overall['failures'] += per_device_results['failures']['count']
-        overall['treated_as_success'] += per_device_results.get('treated_as_success', 0)
-
-        # store per-device results (serial string or 'default')
-        per_device_summary[serial if serial else 'default'] = per_device_results
-        # If device went offline and aborted installs, stop the whole process immediately
-        if per_device_results.get('aborted_offline'):
-            logger.error('Device %s went offline during installation. Aborting further work.', serial if serial else 'default')
-            # write output if requested
+    if args.package:
+        candidates = find_apk_paths_for_package(serial, apk_filtered_list, args.package)
+        if not candidates:
+            logger.info('Could not find APK for package %s on device %s; skipping.', args.package, serial if serial else 'default')
+            per_device_results = {"skipped": True, "reason": "package_not_found", "package": args.package}
             if args.output:
                 out_obj = {
                     "timestamp": datetime.datetime.utcnow().isoformat() + 'Z',
-                    "success_count": overall['success'],
-                    "failures_count": overall['failures'],
-                    "treated_as_success": overall.get('treated_as_success', 0),
-                    "total_app_count": overall['success'] + overall['failures'],
-                    "per_device": per_device_summary,
-                    "aborted_due_to_device_offline": True,
+                    "device": serial,
+                    "success_count": 0,
+                    "failures_count": 0,
+                    "treated_as_success": 0,
+                    "total_app_count": 0,
+                    "results": per_device_results
                 }
                 try:
                     with open(args.output, 'w', encoding='utf-8') as f:
@@ -619,23 +589,47 @@ def main():
                     logger.info('Wrote JSON results to %s', args.output)
                 except Exception as e:
                     logger.exception('Failed to write JSON output: %s', e)
-            sys.exit(2)
+            return
+        apk_filtered_list = candidates
 
-    # Overall summary
-    logger.info('\n=============================')
-    logger.info('Overall Summary:')
-    logger.info('  ✅ Total successful installs: %d', overall['success'])
-    logger.info('  ❌ Total failures: %d', overall['failures'])
+    logger.info('Found %d APK(s) to install on %s.', len(apk_filtered_list), serial if serial else 'default')
 
-    # Write JSON output if requested
+    per_device_results = run_install_for_device(serial, apk_filtered_list, args.workers)
+    if skipped_apks:
+        per_device_results.setdefault('skipped_items', skipped_apks)
+    if skipped_pkg_names:
+        per_device_results.setdefault('skipped_package_names', skipped_pkg_names)
+    try:
+        per_device_results['skipped'] = int(len(skipped_apks) + len(skipped_pkg_names))
+    except Exception:
+        per_device_results.setdefault('skipped', 0)
+
+    # print single-device summary
+    logger.info('\n📊 Installation Summary for %s:', serial if serial else 'default')
+    logger.info('  ✅ Successfully installed: %d', per_device_results['success'])
+    logger.info('  ℹ️ Treated-as-success (persistent): %d', per_device_results.get('treated_as_success', 0))
+    logger.info('  ❌ Failed installations: %d', per_device_results['failures']['count'])
+    if per_device_results['failures']['count'] > 0:
+        logger.warning('\n⚠️ Failure Details:')
+        for error, count in per_device_results['failures']['details'].items():
+            logger.warning('  %s: %d occurrences', error, count)
+
+    overall = {
+        'success': per_device_results['success'],
+        'failures': per_device_results['failures']['count'],
+        'treated_as_success': per_device_results.get('treated_as_success', 0)
+    }
+
+    # write final output if requested
     if args.output:
         out_obj = {
             "timestamp": datetime.datetime.utcnow().isoformat() + 'Z',
+            "device": serial,
             "success_count": overall['success'],
             "failures_count": overall['failures'],
             "treated_as_success": overall.get('treated_as_success', 0),
             "total_app_count": overall['success'] + overall['failures'],
-            "per_device": per_device_summary
+            "results": per_device_results
         }
         try:
             with open(args.output, 'w', encoding='utf-8') as f:
@@ -643,6 +637,13 @@ def main():
             logger.info('Wrote JSON results to %s', args.output)
         except Exception as e:
             logger.exception('Failed to write JSON output: %s', e)
+
+    # Overall summary
+    logger.info('\n=============================')
+    logger.info('Overall Summary:')
+    logger.info('  ✅ Total successful installs: %d', overall['success'])
+    logger.info('  ❌ Total failures: %d', overall['failures'])
+
 
 
 if __name__ == "__main__":
