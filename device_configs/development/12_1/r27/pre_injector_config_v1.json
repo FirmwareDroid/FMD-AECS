@@ -2526,7 +2526,7 @@
     },
     {
       "name": "PCAPdroid_toolbox",
-      "enable": true,
+      "enable": false,
       "path": "./toolbox/pcapdroid"
     }
   ],
