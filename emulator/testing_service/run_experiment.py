@@ -877,6 +877,45 @@ def stop_tcpdump():
     except Exception:
         logging.exception('Exception while pulling pcap from device')
 
+    # Attempt to pull SSL key log from common locations on the device. Save into OUT_DIR/pcaps
+    try:
+        ssl_dir = os.path.join(OUT_DIR, 'pcaps')
+        os.makedirs(ssl_dir, exist_ok=True)
+        # prefer a per-device filename to avoid collisions
+        local_ssl = os.path.join(ssl_dir, f'sslkeylog_{serial}.log')
+
+        remote_candidates = [
+            '/storage/emulated/0/Download/sslkeylog.log',
+            '/sdcard/Download/sslkeylog.log',
+            '/sdcard/sslkeylog.log',
+            '/data/local/tmp/sslkeylog.log',
+            '/data/misc/ssl/sslkeylog.log',
+        ]
+        pulled = False
+        for remote in remote_candidates:
+            try:
+                # Check existence
+                ls_cmd = ['adb', '-s', serial, 'shell', 'ls', '-l', remote]
+                ls_res = subprocess.run(ls_cmd, capture_output=True, text=True, timeout=5)
+                if ls_res.returncode != 0:
+                    continue
+                # Pull the file
+                pull_cmd = ['adb', '-s', serial, 'pull', remote, local_ssl]
+                pull_res = subprocess.run(pull_cmd, capture_output=True, text=True, timeout=20)
+                if pull_res.returncode == 0:
+                    logging.info('Pulled SSL keylog from device %s -> %s (remote=%s)', serial, local_ssl, remote)
+                    pulled = True
+                    break
+                else:
+                    logging.debug('adb pull of %s failed: %s', remote, (pull_res.stderr or pull_res.stdout).strip())
+            except Exception:
+                logging.debug('Exception while attempting to pull SSL key from %s', remote, exc_info=True)
+
+        if not pulled:
+            logging.info('No SSL keylog found on device %s at known locations; skipped pulling ssl keys', serial)
+    except Exception:
+        logging.exception('Failed to pull SSL keylog from device')
+
     # Retrieve package -> UID mapping from device
     try:
         adb_pm = ['adb', '-s', serial, 'shell', 'pm', 'list', 'packages', '-U']
