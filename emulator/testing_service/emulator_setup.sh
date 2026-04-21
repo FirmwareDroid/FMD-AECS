@@ -21,12 +21,12 @@ echo "[setup] Starting emulator environment helper (logs -> $LOG_DIR)"
 : > "$REAL_LOGCAT_LOG" 2>/dev/null || true
 
 # Start socat port forwarders for emulator connectivity
-echo "[setup] Starting socat listeners (5555 -> 5557, 8554 -> 8556)"
-socat -d tcp-listen:5555,reuseaddr,fork tcp:127.0.0.1:5557 2>"$LOG_DIR/socat-5555.log" &
-echo $! > "$LOG_DIR/.socat-5555.pid" 2>/dev/null || true
+#echo "[setup] Starting socat listeners (5555 -> 5557, 8554 -> 8556)"
+#socat -d tcp-listen:5555,reuseaddr,fork tcp:127.0.0.1:5557 2>"$LOG_DIR/socat-5555.log" &
+#echo $! > "$LOG_DIR/.socat-5555.pid" 2>/dev/null || true
 
-socat -d tcp-listen:8554,reuseaddr,fork tcp:127.0.0.1:8556 2>"$LOG_DIR/socat-8554.log" &
-echo $! > "$LOG_DIR/.socat-8554.pid" 2>/dev/null || true
+#socat -d tcp-listen:8554,reuseaddr,fork tcp:127.0.0.1:8556 2>"$LOG_DIR/socat-8554.log" &
+#echo $! > "$LOG_DIR/.socat-8554.pid" 2>/dev/null || true
 
 # Start pulseaudio in daemon mode if available
 if command -v pulseaudio >/dev/null 2>&1; then
