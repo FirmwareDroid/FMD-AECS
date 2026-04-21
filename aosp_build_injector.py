@@ -114,7 +114,7 @@ def _acv_instrument_worker(params):
             pass
 
 
-def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch_target=None, tag=None, max_workers=None):
+def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch_target=None, tag=None, delete_instrumented_apks=False, max_workers=None):
     """Parallel version of add_acvtool_instrumentation using multiple processes.
 
     Processes APKs in parallel using a process pool. Writes a timing JSON (same layout as
@@ -237,6 +237,20 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
         # shutil.make_archive will append the .zip extension
         logging.info(f"Creating ACVTool archive {archive_base}.zip from folder: {firmware_folder}")
         archive_path = shutil.make_archive(archive_base, 'zip', root_dir=firmware_folder)
+        # If requested, remove instrumented .apk files from the ACV output folder so they are not included in the archive
+        if delete_instrumented_apks:
+            removed_count = 0
+            for root, dirs, files in os.walk(firmware_folder):
+                for fname in files:
+                    if fname.lower().endswith('.apk'):
+                        fpath = os.path.join(root, fname)
+                        try:
+                            os.remove(fpath)
+                            removed_count += 1
+                        except Exception:
+                            logging.exception('Failed to remove instrumented apk: %s', fpath)
+            logging.info('Removed %d instrumented APK(s) from ACV output folder before archiving', removed_count)
+
         # If archive created successfully, remove the intermediate firmware_folder to save disk space
         if archive_path and os.path.exists(archive_path):
             try:
@@ -331,7 +345,13 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
         if PRE_INJECTOR_CONFIG["ENABLE_ACVTOOL_INSTRUMENTATION"]:
             #add_acvtool_instrumentation(firmware_id)
-            acv_result_dict = add_acvtool_instrumentation_multiprocessing(firmware_id, version=aosp_version, lunch_target=lunch_target, tag=tag)
+            acv_result_dict = add_acvtool_instrumentation_multiprocessing(
+                firmware_id,
+                version=aosp_version,
+                lunch_target=lunch_target,
+                tag=tag,
+                delete_instrumented_apks=ACVTOOL_DELETE_INSTRUMENTED_APKS
+            )
 
         if PRE_INJECTOR_CONFIG["ENABLE_INJECTION"]:
             included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target, aosp_version)
