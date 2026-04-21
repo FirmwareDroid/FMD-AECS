@@ -281,8 +281,6 @@ def setup_devices(mode='basic', pcapdroid=False, pcap_http_port=54320, socks5_ad
                 stop_appium_server(appium_proc)
         else:
             logging.error('Failed to start Appium server; skipping PCAPdroid configuration')
-    else:
-        logging.info('PCAPdroid not enabled: skipping Appium install and PCAPdroid configuration')
 
     if mode == 'droidrun':
         # Install Droidrun on all devices

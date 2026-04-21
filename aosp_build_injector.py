@@ -114,7 +114,7 @@ def _acv_instrument_worker(params):
             pass
 
 
-def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
+def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch_target=None, tag=None, max_workers=None):
     """Parallel version of add_acvtool_instrumentation using multiple processes.
 
     Processes APKs in parallel using a process pool. Writes a timing JSON (same layout as
@@ -222,9 +222,18 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
     logging.info(f"ACVTool instrumentation parallel result: {result_dict}")
     # Create a single zip archive for the firmware's ACVTool output to save space and remove intermediate files.
     try:
-        # sanitize firmware_id for filename
-        safe_firmware_id = re.sub(r"\W+", "_", firmware_id)
-        archive_base = os.path.join(base_path_acv, f"acvtool-{safe_firmware_id}")
+        # Build archive filename to match the emulator image artefact filename, prefixed with 'acvtool_'
+        # Determine tag part similar to process_firmware_ids
+        try:
+            tag_part = f"_{re.sub(r'\W+', '_', tag)}" if tag else ""
+        except Exception:
+            tag_part = ""
+        # If version or lunch_target are not provided, fall back to safe defaults
+        ver = version or ''
+        lt = lunch_target or ''
+        emulator_filename = f"{firmware_id}_v{ver}_{lt}{tag_part}.zip".replace('-', '_')
+        acv_filename = f"acvtool_{emulator_filename}"
+        archive_base = os.path.join(base_path_acv, acv_filename.replace('.zip', ''))
         # shutil.make_archive will append the .zip extension
         logging.info(f"Creating ACVTool archive {archive_base}.zip from folder: {firmware_folder}")
         archive_path = shutil.make_archive(archive_base, 'zip', root_dir=firmware_folder)
@@ -236,12 +245,54 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
             except Exception as e:
                 logging.warning(f"Failed to remove intermediate ACVTool folder {firmware_folder}: {e}")
         logging.info(f"ACVTool archive created: {archive_path}")
+        # Attempt to upload the created archive to the FMD Nexus repository raw_files
+        try:
+            # Use repository base provided via globals (set at startup) or environment variables
+            repo_base = globals().get('DOCKER_REPO_URL_GLOBAL')
+            repo_user = globals().get('DOCKER_REPO_USERNAME_GLOBAL')
+            repo_pass = globals().get('DOCKER_REPO_PASSWORD_GLOBAL')
+            if repo_base:
+                # Normalize the provided repo_base by stripping any path segments and keeping scheme+domain:port
+                try:
+                    tmp = repo_base
+                    if '://' not in tmp:
+                        tmp = 'https://' + tmp
+                    parsed = urlparse(tmp)
+                    scheme = parsed.scheme or 'https'
+                    netloc = parsed.netloc
+                    if not netloc:
+                        # Fallback: use the original string without trailing slash
+                        domain_base = repo_base.rstrip('/')
+                    else:
+                        domain_base = f"{scheme}://{netloc}"
+                    # Reconstruct repository path to point to repository/raw_files under the domain:port
+                    raw_repo = domain_base.rstrip('/') + '/repository/raw_files/'
+                except Exception:
+                    raw_repo = repo_base.rstrip('/') + '/raw_files/'
+                archive_filename = os.path.basename(archive_path)
+                logging.info(f'Uploading ACVTool archive {archive_filename} to raw_files repository {raw_repo}')
+                try:
+                    is_uploaded, download_url = upload_build_artefact(raw_repo, repo_user, repo_pass, archive_path, archive_filename)
+                    if is_uploaded:
+                        logging.info(f'ACVTool archive uploaded successfully: {download_url}')
+                        try:
+                            write_text_output(archive_filename, PATH_BUILD_FILE_ARTEFACT_LOG)
+                        except Exception:
+                            logging.exception('Failed to write artefact log for uploaded ACVTool archive')
+                    else:
+                        logging.error('Failed to upload ACVTool archive to raw_files repository')
+                except Exception as e:
+                    logging.exception(f'Error while uploading ACVTool archive to raw_files: {e}')
+            else:
+                logging.debug('No repository base provided; skipping upload of ACVTool archive')
+        except Exception:
+            logging.exception('Unexpected error during ACVTool archive upload step')
     except Exception as e:
         logging.error(f"Failed to create ACVTool archive for firmware {firmware_id}: {e}")
     return result_dict
 
 
-def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering, cookies):
+def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering, cookies, tag=None):
     """
     Wrapper method to start the firmware injection and build process.
 
@@ -280,7 +331,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
         if PRE_INJECTOR_CONFIG["ENABLE_ACVTOOL_INSTRUMENTATION"]:
             #add_acvtool_instrumentation(firmware_id)
-            acv_result_dict = add_acvtool_instrumentation_multiprocessing(firmware_id)
+            acv_result_dict = add_acvtool_instrumentation_multiprocessing(firmware_id, version=aosp_version, lunch_target=lunch_target, tag=tag)
 
         if PRE_INJECTOR_CONFIG["ENABLE_INJECTION"]:
             included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target, aosp_version)
@@ -1383,7 +1434,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
                                                     lunch_target=lunch_target,
                                                     aosp_version=args.version,
                                                     skip_filtering=args.skip_filtering,
-                                                    cookies=cookies)
+                                                    cookies=cookies,
+                                                    tag=getattr(args, 'tag', None))
                 end_time = time.time()
                 duration = end_time - start_time
 
@@ -1499,6 +1551,10 @@ def main():
     logging.info(f"Pre-injector config: {PRE_INJECTOR_CONFIG_PATH}, Post-injector config: {POST_INJECTOR_CONFIG_PATH}")
     set_skipped_module_names()
     fmd_password, docker_repo_password = get_passwords(args)
+    # Expose docker/nexus repo credentials as globals so helper functions can upload artefacts
+    globals()['DOCKER_REPO_URL_GLOBAL'] = args.docker_repo_url
+    globals()['DOCKER_REPO_USERNAME_GLOBAL'] = args.docker_repo_username
+    globals()['DOCKER_REPO_PASSWORD_GLOBAL'] = docker_repo_password
     csrf_cookie = get_csrf_token(args.fmd_url)
     firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
     process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, fmd_password)
