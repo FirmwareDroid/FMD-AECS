@@ -29,6 +29,7 @@ import sys
 import hashlib
 import base64
 import time
+import urllib.parse
 
 # Project base dir (same logic used elsewhere in this repo)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -252,24 +253,6 @@ def get_wifi_info(serial=None):
     return ssid, bssid
 
 
-def get_installed_apps(serial=None):
-    rc, out, err = run_adb(['shell', 'pm', 'list', 'packages', '-f'], serial=serial)
-    apps = []
-    if rc == 0 and out:
-        for line in out.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            # Format: package:/path/to.apk=com.example.app
-            m = re.match(r'package:(?P<path>[^=]+)=(?P<pkg>.+)', line)
-            if m:
-                apps.append({'package': m.group('pkg'), 'apk_path': m.group('path')})
-            else:
-                # fallback: extract package name
-                m2 = re.match(r'package:(.+)', line)
-                if m2:
-                    apps.append({'package': m2.group(1)})
-    return apps
 
 
 def get_sensors(serial=None):
@@ -337,6 +320,14 @@ def collect_all(serial=None):
         result['gaid'] = None
         result['oaid'] = None
 
+    # If certain advertising identifiers are null, set them to default 'OCTOPUS'
+    if not result.get('gaid'):
+        result['gaid'] = 'OCTOPUS'
+    if not result.get('oaid'):
+        result['oaid'] = 'OCTOPUS'
+    if not result.get('android_id'):
+        result['android_id'] = 'OCTOPUS'
+
     try:
         ssid, bssid = get_wifi_info(serial)
         result['wifi_ssid'] = ssid
@@ -346,11 +337,7 @@ def collect_all(serial=None):
         result['wifi_ssid'] = None
         result['wifi_bssid'] = None
 
-    try:
-        result['installed_apps'] = get_installed_apps(serial)
-    except Exception:
-        logger.exception('Failed to collect installed apps')
-        result['installed_apps'] = []
+    # installed_apps collection removed intentionally to avoid PII leakage
 
     try:
         result['sensors'] = get_sensors(serial)
@@ -379,6 +366,18 @@ def compute_encodings(value):
         enc['base64'] = base64.b64encode(b).decode('ascii')
     except Exception:
         enc['base64'] = None
+    try:
+        # URL-encode the UTF-8 representation
+        enc['url'] = urllib.parse.quote(s, safe='')
+        # Double URL-encode (useful for nested encoding contexts)
+        enc['url_double'] = urllib.parse.quote(enc['url'], safe='')
+    except Exception:
+        enc['url'] = enc['url_double'] = None
+    try:
+        # hex representation of the raw bytes
+        enc['hex'] = b.hex()
+    except Exception:
+        enc['hex'] = None
     try:
         enc['md5'] = hashlib.md5(b).hexdigest()
         enc['sha1'] = hashlib.sha1(b).hexdigest()
@@ -469,6 +468,74 @@ def apply_overrides(serial, overrides: dict, set_defaults: bool = False):
     return results
 
 
+def ensure_emulator_services(serial, lat=47.3769, lon=8.5417):
+    """Ensure GPS, Bluetooth and NFC are enabled on the device (best-effort) and set GPS to Zurich."""
+    results = {}
+    # Enable location mode (3 = high accuracy)
+    try:
+        rc, out, err = run_adb(['shell', 'settings', 'put', 'secure', 'location_mode', '3'], serial=serial)
+        results['location_mode'] = {'rc': rc, 'out': out, 'err': err}
+    except Exception as e:
+        results['location_mode'] = {'error': str(e)}
+
+    # Try to enable location service via svc (may not exist on all images)
+    try:
+        rc, out, err = run_adb(['shell', 'svc', 'location', 'enable'], serial=serial)
+        results['svc_location'] = {'rc': rc, 'out': out, 'err': err}
+    except Exception:
+        results['svc_location'] = {'error': 'svc location enable failed'}
+
+    # Enable Bluetooth
+    try:
+        rc, out, err = run_adb(['shell', 'svc', 'bluetooth', 'enable'], serial=serial)
+        results['svc_bluetooth'] = {'rc': rc, 'out': out, 'err': err}
+    except Exception:
+        # fallback to settings put
+        rc, out, err = run_adb(['shell', 'settings', 'put', 'global', 'bluetooth_on', '1'], serial=serial)
+        results['settings_bluetooth'] = {'rc': rc, 'out': out, 'err': err}
+
+    # Enable NFC
+    try:
+        rc, out, err = run_adb(['shell', 'svc', 'nfc', 'enable'], serial=serial)
+        results['svc_nfc'] = {'rc': rc, 'out': out, 'err': err}
+    except Exception:
+        rc, out, err = run_adb(['shell', 'settings', 'put', 'global', 'nfc_on', '1'], serial=serial)
+        results['settings_nfc'] = {'rc': rc, 'out': out, 'err': err}
+
+    # Set emulator GPS location to Zurich (longitude, latitude)
+    try:
+        # adb emu commands require connecting to an emulator; use 'emu' command which works with emulator serial
+        rc, out, err = run_adb(['emu', 'geo', 'fix', str(lon), str(lat)], serial=serial)
+        results['geo_fix'] = {'rc': rc, 'out': out, 'err': err}
+    except Exception:
+        results['geo_fix'] = {'error': 'geo fix failed'}
+
+    # Small pause to let services settle
+    try:
+        time.sleep(0.8)
+    except Exception:
+        pass
+
+    return results
+
+
+def adb_root(serial=None):
+    """Attempt to restart adbd as root on the target device/emulator (best-effort)."""
+    if not serial:
+        return {'success': False, 'error': 'no_serial'}
+    try:
+        rc, out, err = run_adb(['root'], serial=serial)
+        res = {'rc': rc, 'out': out, 'err': err}
+        if rc == 0:
+            logger.info('adb root succeeded on %s', serial)
+        else:
+            logger.warning('adb root returned non-zero on %s: %s', serial, err or out)
+        return res
+    except Exception as e:
+        logger.exception('adb root attempt failed: %s', e)
+        return {'success': False, 'error': str(e)}
+
+
 def main():
     parser = argparse.ArgumentParser(description='Collect device info from connected adb device and write JSON to out/')
     parser.add_argument('--serial', help='ADB device serial (default: first connected device)')
@@ -479,6 +546,16 @@ def main():
 
     outdir = args.outdir
     os.makedirs(outdir, exist_ok=True)
+
+    # Ensure adb runs as root on the selected device (best-effort)
+    target_serial = args.serial or get_first_connected_device()
+    if target_serial:
+        try:
+            adb_root(target_serial)
+        except Exception:
+            logger.exception('adb_root failed (continuing)')
+    else:
+        logger.debug('No serial specified; adb root skipped (no device)')
 
     # Apply overrides/set-defaults (best-effort) before collecting info
     # Parse overrides into dict
@@ -500,6 +577,11 @@ def main():
                 apply_overrides(target_serial, overrides, set_defaults=args.set_defaults)
             except Exception:
                 logger.exception('apply_overrides failed (continuing to collect)')
+            # Ensure emulator services and set GPS to Zurich (best-effort)
+            try:
+                ensure_emulator_services(target_serial)
+            except Exception:
+                logger.exception('Failed to ensure emulator services (continuing)')
 
     info = collect_all(serial=args.serial)
 
