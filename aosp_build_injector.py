@@ -344,7 +344,6 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     try:
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
         if PRE_INJECTOR_CONFIG["ENABLE_ACVTOOL_INSTRUMENTATION"]:
-            #add_acvtool_instrumentation(firmware_id)
             acv_result_dict = add_acvtool_instrumentation_multiprocessing(
                 firmware_id,
                 version=aosp_version,

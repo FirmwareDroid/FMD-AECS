@@ -806,6 +806,75 @@ def start_tcpdump():
 
     return False
 
+
+def ensure_sslkeylogfile_set():
+    """Ensure the device has SSLKEYLOGFILE exported via /data/local.prop so apps write keys.
+
+    This attempts to run `adb root` then append the line
+    export SSLKEYLOGFILE=/storage/emulated/0/Download/sslkeylog.log
+    to /data/local.prop if it is not already present. This is best-effort and non-fatal.
+    """
+    logging.info('Ensuring SSLKEYLOGFILE is set on device (/data/local.prop)')
+    if not shutil.which('adb'):
+        logging.error('adb binary not found in PATH; cannot set SSLKEYLOGFILE on device')
+        return False
+
+    # Select first connected device (same logic as start_tcpdump)
+    try:
+        out = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=10)
+        lines = [l.strip() for l in (out.stdout or '').splitlines() if l.strip()]
+        serial = None
+        for l in lines:
+            if l.startswith('List of devices'):
+                continue
+            parts = l.split()
+            if len(parts) >= 2 and parts[1] == 'device':
+                serial = parts[0]
+                break
+        if not serial:
+            logging.warning('No adb device found to set SSLKEYLOGFILE')
+            return False
+        logging.info('Selected adb device %s to set SSLKEYLOGFILE', serial)
+    except Exception:
+        logging.exception('Failed to run adb devices to select device for SSLKEYLOGFILE setup')
+        return False
+
+    # Try to become root (best-effort)
+    try:
+        res = subprocess.run(['adb', '-s', serial, 'root'], capture_output=True, text=True, timeout=10)
+        if res.returncode == 0:
+            logging.info('adb root: OK for setting SSLKEYLOGFILE')
+        else:
+            logging.warning('adb root returned non-zero while setting SSLKEYLOGFILE: %s', (res.stderr or res.stdout).strip())
+    except Exception:
+        logging.exception('adb root failed while attempting to set SSLKEYLOGFILE')
+
+    # Check current /data/local.prop contents (may require root)
+    try:
+        cat_cmd = ['adb', '-s', serial, 'shell', 'sh', '-c', "cat /data/local.prop 2>/dev/null || true"]
+        cat_res = subprocess.run(cat_cmd, capture_output=True, text=True, timeout=10)
+        cur = (cat_res.stdout or '')
+        if 'SSLKEYLOGFILE' in cur:
+            logging.info('/data/local.prop already contains SSLKEYLOGFILE entry; skipping append')
+            return True
+    except Exception:
+        logging.debug('Could not read /data/local.prop (may not exist or permission denied); will attempt to append', exc_info=True)
+
+    # Append export line using sh -c to ensure redirection happens on device
+    export_line = "export SSLKEYLOGFILE=/storage/emulated/0/Download/sslkeylog.log"
+    try:
+        append_cmd = ['adb', '-s', serial, 'shell', 'sh', '-c', f"echo '{export_line}' >> /data/local.prop"]
+        append_res = subprocess.run(append_cmd, capture_output=True, text=True, timeout=10)
+        if append_res.returncode == 0:
+            logging.info('Appended SSLKEYLOGFILE export to /data/local.prop on device %s', serial)
+            return True
+        else:
+            logging.warning('Failed to append SSLKEYLOGFILE to /data/local.prop: %s', (append_res.stderr or append_res.stdout).strip())
+            return False
+    except Exception:
+        logging.exception('Exception while appending SSLKEYLOGFILE to /data/local.prop')
+        return False
+
 def stop_tcpdump():
     logging.info('Stopping tcpdump')
 
@@ -1222,6 +1291,12 @@ def ensure_adb_available(results_dir):
 
 def start_background_services():
     """Start best-effort background services such as tcpdump and crash watcher."""
+    # Ensure SSL key logging environment is set on the device before starting other services
+    try:
+        ensure_sslkeylogfile_set()
+    except Exception:
+        logging.exception('Failed to ensure SSLKEYLOGFILE on device (continuing)')
+
     tcp_ok = start_tcpdump()
     if not tcp_ok:
         logging.error('Failed to start tcpdump; aborting this attempt so the experiment retry loop can retry')
