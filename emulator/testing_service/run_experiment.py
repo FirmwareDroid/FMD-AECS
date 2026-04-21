@@ -123,6 +123,10 @@ def parse_args():
     parser.add_argument('--retries', type=int, default=10, help='Number of times to retry the full experiment on failure (default: 1)')
     parser.add_argument('--retry-delay', type=int, default=30, help='Seconds to wait between retry attempts (default: 10)')
     parser.add_argument('--skip-install', action='store_true', help='Skip installing APKs on devices (do not run INSTALL_APPS)')
+    parser.add_argument('--device-info-override', '-D', action='append', default=[],
+                        help='Override key=value passed to device info collector (can be repeated)')
+    parser.add_argument('--device-info-set-defaults', action='store_true',
+                        help='Set OCTOPUS* default values on the device before collection', default=False)
     return parser.parse_args()
 
 def run_script(script_path, args=None, description=None):
@@ -1307,7 +1311,23 @@ def setup_and_run_experiment(args):
     # Collect device info before any setup or test runs. This is best-effort and
     # helps capture device state even if later steps fail.
     try:
-        run_script_capture(COLLECT_DEVICE_INFO, args=["--outdir", OUT_DIR], description='Collect device info')
+        collect_args = ["--outdir", OUT_DIR]
+        # forward overrides and set-defaults from main args to the collector
+        try:
+            overrides = getattr(args, 'device_info_override', None) or getattr(args, 'device-info-override', None)
+        except Exception:
+            overrides = None
+        if overrides:
+            for ov in overrides:
+                collect_args.extend(['-o', ov])
+        try:
+            set_defaults_flag = getattr(args, 'device_info_set_defaults', None) or getattr(args, 'device-info-set-defaults', None)
+        except Exception:
+            set_defaults_flag = None
+        if set_defaults_flag:
+            collect_args.append('--set-defaults')
+
+        run_script_capture(COLLECT_DEVICE_INFO, args=collect_args, description='Collect device info')
     except Exception:
         logging.exception('Collecting device info failed (will continue)')
 
