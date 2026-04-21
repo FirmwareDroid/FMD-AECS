@@ -561,16 +561,12 @@ def execute_app_with_coverage(package, mode, skip_install=False):
         run_script_capture(START_APPS_BASIC, args=["-p", package], description=f"Run basic start/stop test for {package}")
     else:
         run_script_capture(START_APPS_BASIC, args=["-p", package], description=f"Run basic start/stop test for {package}")
-
-    # Optionally skip installation-related steps if requested
-    if not skip_install:
-        run_script_capture(ACVTOOL, args=["snap", package, "--wd", OUT_DIR], description="Run ACVTool to get coverage measurement")
-        run_script_capture(ACVTOOL, args=["cover-pickles", package, "--wd", OUT_DIR],
-                           description="Run ACVTool to deserialize coverage measurement")
-        run_script_capture(ACVTOOL, args=["report", package, "--wd", OUT_DIR],
-                           description="Run ACVTool to generate html coverage report")
-    else:
-        logging.info('Skipping ACVTool snap/cover-pickles/report because --skip-install was requested')
+    acv_out_dir = os.path.join(OUT_DIR, 'acv_snaps')
+    run_script_capture(ACVTOOL, args=["snap", package, "--wd", acv_out_dir], description="Run ACVTool to get coverage measurement")
+    # run_script_capture(ACVTOOL, args=["cover-pickles", package, "--wd", OUT_DIR],
+    #                   description="Run ACVTool to deserialize coverage measurement")
+    # run_script_capture(ACVTOOL, args=["report", package, "--wd", OUT_DIR],
+    #                   description="Run ACVTool to generate html coverage report")
 
 
 
