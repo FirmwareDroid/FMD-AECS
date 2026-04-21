@@ -68,21 +68,12 @@ RUN set -eux; \
     apt-get clean
 RUN cp /usr/lib/android-sdk/platform-tools/* /android/sdk/platform-tools/
 
-# Install Android build-tools 36.1.0 using sdkmanager
-RUN yes | /android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses ; exit 0
-RUN set -eux; sdkmanager --sdk_root=/android/sdk "build-tools;36.1.0" || true
+# Install Android build-tools 36.1.0 using sdkmanager and verify installation
+RUN set -eux; yes | /android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true; /android/sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=/android/sdk "build-tools;36.1.0" || true
+RUN sh -c 'if [ -d /android/sdk/build-tools/36.1.0 ]; then echo "Installed Android build-tools: 36.1.0"; else echo "No build-tools 36.1.0 installed by sdkmanager"; echo "Contents of /android/sdk/build-tools:"; ls -la /android/sdk/build-tools || true; fi'
 
 # Install Android NDK (preferred recent stable). Create a stable symlink /android/ndk -> installed version
-RUN set -eux; \
-    # Try to install a modern NDK version; fallback if not available
-    sdkmanager --sdk_root=/android/sdk "ndk;29.0.14206865" || sdkmanager --sdk_root=/android/sdk "ndk;29.0.14206865" || true; \
-    if [ -d /android/sdk/ndk ]; then \
-        NDKVER=$(ls /android/sdk/ndk | sort -V | tail -n1); \
-        ln -sfn /android/sdk/ndk/${NDKVER} /android/ndk; \
-        echo "Installed Android NDK: ${NDKVER}"; \
-    else \
-        echo "No NDK installed by sdkmanager"; \
-    fi
+RUN sh -c 'set -eux; sdkmanager --sdk_root=/android/sdk "ndk;29.0.14206865" || sdkmanager --sdk_root=/android/sdk "ndk;29.0.14206865" || true; if [ -d /android/sdk/ndk ]; then NDKVER=$(ls /android/sdk/ndk | sort -V | tail -n1); ln -sfn /android/sdk/ndk/${NDKVER} /android/ndk; echo "Installed Android NDK: ${NDKVER}"; else echo "No NDK installed by sdkmanager"; fi'
 
 ENV ANDROID_HOME=/android/sdk
 ENV ANDROID_SDK_ROOT=/android/sdk
