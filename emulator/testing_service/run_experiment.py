@@ -34,6 +34,7 @@ RUN_APE = os.path.join(BASE_DIR, 'app_testing_tools', 'run_ape.py')
 RUN_FASTBOT = os.path.join(BASE_DIR, 'app_testing_tools', 'run_fastbot.py')
 RUN_KEA2 = os.path.join(BASE_DIR, 'app_testing_tools', 'run_kea2.py')
 RUN_DROIDRUN = os.path.join(BASE_DIR, 'app_testing_tools', 'droidrun_agent_cli.py')
+COLLECT_DEVICE_INFO = os.path.join(BASE_DIR, 'collect_device_info.py')
 
 OUT_DIR = os.path.join(BASE_DIR, 'out')
 
@@ -1303,6 +1304,13 @@ def do_preflight(results_dir):
 
 def setup_and_run_experiment(args):
     """Run setup_devices (unless skipped) and start_experiment."""
+    # Collect device info before any setup or test runs. This is best-effort and
+    # helps capture device state even if later steps fail.
+    try:
+        run_script_capture(COLLECT_DEVICE_INFO, args=["--outdir", OUT_DIR], description='Collect device info')
+    except Exception:
+        logging.exception('Collecting device info failed (will continue)')
+
     if args.skip_setup:
         logging.info('Skipping device setup as requested (--skip-setup)')
     else:
