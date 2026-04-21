@@ -72,6 +72,22 @@ def get_first_connected_device():
     return None
 
 
+def get_connected_devices():
+    """Return a list of connected adb device serials (state 'device')."""
+    rc, out, err = run_adb(['devices'])
+    devs = []
+    if rc != 0:
+        return devs
+    for line in (out or '').splitlines():
+        line = line.strip()
+        if not line or line.startswith('List of devices'):
+            continue
+        parts = line.split()
+        if len(parts) >= 2 and parts[1] == 'device':
+            devs.append(parts[0])
+    return devs
+
+
 def get_prop(prop, serial=None):
     rc, out, err = run_adb(['shell', 'getprop', prop], serial=serial)
     if rc == 0 and out:
@@ -171,6 +187,38 @@ def get_geo_location(serial=None):
         except Exception:
             return None
     return None
+
+
+def attempt_set_location_broadcast(serial, lat=47.3769, lon=8.5417):
+    """Fallback: send an intent broadcast that some emulator images/apps listen to
+    which sets the device location. Uses the pattern:
+      adb -s <serial> shell am broadcast -a android.intent.action.SET_LOCATION --es latitude <lat> --es longitude <lon>
+
+    Returns True if the broadcast command succeeded (returncode==0).
+    """
+    try:
+        cmd = ['shell', 'am', 'broadcast', '-a', 'android.intent.action.SET_LOCATION', '--es', 'latitude', str(lat), '--es', 'longitude', str(lon)]
+        rc, out, err = run_adb(cmd, serial=serial)
+        if rc == 0:
+            logger.info('Sent SET_LOCATION broadcast to %s: lat=%s lon=%s', serial, lat, lon)
+            return True
+        else:
+            logger.warning('SET_LOCATION broadcast returned non-zero on %s: %s %s', serial, out, err)
+            # Try the second connected device if available
+            devs = get_connected_devices()
+            if devs and len(devs) > 1:
+                second = devs[1]
+                logger.info('Attempting SET_LOCATION broadcast on second device %s', second)
+                rc2, out2, err2 = run_adb(cmd, serial=second)
+                if rc2 == 0:
+                    logger.info('Sent SET_LOCATION broadcast to second device %s', second)
+                    return True
+                else:
+                    logger.warning('SET_LOCATION broadcast failed on second device %s: %s %s', second, out2, err2)
+            return False
+    except Exception:
+        logger.exception('Exception while sending SET_LOCATION broadcast')
+        return False
 
 
 def get_unique_identifiers(serial=None):
@@ -299,6 +347,19 @@ def collect_all(serial=None):
     except Exception:
         logger.exception('Failed to collect geo location')
         result['geo_location'] = None
+    # If no location found, attempt to set via broadcast (some emulator images listen for this)
+    if not result['geo_location']:
+        try:
+            sent = attempt_set_location_broadcast(serial, lat=47.3769, lon=8.5417)
+            if sent:
+                # Give device a moment to update location providers
+                time.sleep(0.8)
+                try:
+                    result['geo_location'] = get_geo_location(serial)
+                except Exception:
+                    logger.exception('Failed to read geo location after broadcast')
+        except Exception:
+            logger.exception('Failed to attempt SET_LOCATION broadcast')
     try:
         result['unique_identifiers'] = get_unique_identifiers(serial)
     except Exception:
@@ -507,6 +568,14 @@ def ensure_emulator_services(serial, lat=47.3769, lon=8.5417):
         # adb emu commands require connecting to an emulator; use 'emu' command which works with emulator serial
         rc, out, err = run_adb(['emu', 'geo', 'fix', str(lon), str(lat)], serial=serial)
         results['geo_fix'] = {'rc': rc, 'out': out, 'err': err}
+        if rc != 0:
+            # Try the second connected device if available (best-effort)
+            devs = get_connected_devices()
+            if devs and len(devs) > 1:
+                second = devs[1]
+                logging.info('Primary geo fix failed on %s, attempting geo fix on second device %s', serial, second)
+                rc2, out2, err2 = run_adb(['emu', 'geo', 'fix', str(lon), str(lat)], serial=second)
+                results['geo_fix_second'] = {'rc': rc2, 'out': out2, 'err': err2}
     except Exception:
         results['geo_fix'] = {'error': 'geo fix failed'}
 
@@ -542,22 +611,13 @@ def main():
     parser.add_argument('--outdir', default=OUT_DIR_DEFAULT, help='Directory to write device info JSON (default: project out/)')
     parser.add_argument('--override', '-o', action='append', default=[], help='Override a collected value: key=value. Can be passed multiple times.')
     parser.add_argument('--set-defaults', action='store_true', help='Set default OCTOPUS* values for supported keys on the device before collection')
+    parser.add_argument('--collect-retries', type=int, default=3, help='Number of attempts to apply/setup and collect device info (default: 3)')
+    parser.add_argument('--collect-retry-delay', type=float, default=2.0, help='Seconds to wait between device-collection attempts (default: 2.0)')
     args = parser.parse_args()
 
     outdir = args.outdir
     os.makedirs(outdir, exist_ok=True)
 
-    # Ensure adb runs as root on the selected device (best-effort)
-    target_serial = args.serial or get_first_connected_device()
-    if target_serial:
-        try:
-            adb_root(target_serial)
-        except Exception:
-            logger.exception('adb_root failed (continuing)')
-    else:
-        logger.debug('No serial specified; adb root skipped (no device)')
-
-    # Apply overrides/set-defaults (best-effort) before collecting info
     # Parse overrides into dict
     overrides = {}
     for item in args.override:
@@ -567,23 +627,74 @@ def main():
         else:
             logger.warning('Ignoring malformed override (expected key=value): %s', item)
 
-    if args.set_defaults or overrides:
-        # pick device serial for adb operations
-        target_serial = args.serial or get_first_connected_device()
-        if not target_serial:
-            logger.error('No adb device found for applying overrides')
-        else:
+    # Retry loop: try to apply overrides, ensure services and collect device info
+    retries = int(getattr(args, 'collect_retries', 3)) if hasattr(args, 'collect_retries') else 3
+    retry_delay = float(getattr(args, 'collect_retry_delay', 2.0)) if hasattr(args, 'collect_retry_delay') else 2.0
+
+    target_serial = args.serial or get_first_connected_device()
+    if not target_serial:
+        logger.error('No adb device found; cannot collect device info')
+        sys.exit(2)
+
+    last_info = None
+    for attempt in range(1, retries + 1):
+        logger.info('Device-collection attempt %d/%d for serial %s', attempt, retries, target_serial)
+        try:
+            # Try to become root (best-effort)
             try:
-                apply_overrides(target_serial, overrides, set_defaults=args.set_defaults)
+                adb_root(target_serial)
             except Exception:
-                logger.exception('apply_overrides failed (continuing to collect)')
-            # Ensure emulator services and set GPS to Zurich (best-effort)
+                logger.debug('adb_root attempt raised exception; continuing')
+
+            # Apply overrides / set defaults if requested
+            if args.set_defaults or overrides:
+                try:
+                    apply_overrides(target_serial, overrides, set_defaults=args.set_defaults)
+                except Exception:
+                    logger.exception('apply_overrides failed')
+
+            # Ensure emulator services and set GPS
             try:
                 ensure_emulator_services(target_serial)
             except Exception:
-                logger.exception('Failed to ensure emulator services (continuing)')
+                logger.exception('ensure_emulator_services failed')
 
-    info = collect_all(serial=args.serial)
+            # Collect values
+            info = collect_all(serial=target_serial)
+            last_info = info
+
+            # Success heuristic: we have a geo_location
+            if info.get('geo_location'):
+                logger.info('Collected geo_location successfully on attempt %d', attempt)
+                break
+            else:
+                logger.warning('geo_location missing on attempt %d; will try broadcast fallback then retry after delay', attempt)
+                # Try broadcast fallback
+                try:
+                    sent = attempt_set_location_broadcast(target_serial)
+                    if sent:
+                        # re-collect
+                        time.sleep(0.8)
+                        info = collect_all(serial=target_serial)
+                        last_info = info
+                        if info.get('geo_location'):
+                            logger.info('Collected geo_location after broadcast on attempt %d', attempt)
+                            break
+                except Exception:
+                    logger.exception('attempt_set_location_broadcast failed')
+
+        except Exception:
+            logger.exception('Exception during device-collection attempt %d', attempt)
+
+        if attempt < retries:
+            logger.info('Waiting %.1f seconds before next device-collection attempt...', retry_delay)
+            time.sleep(retry_delay)
+
+    if last_info is None:
+        logger.error('Failed to collect device info after %d attempts', retries)
+        sys.exit(3)
+
+    info = last_info
 
     filename = f"device_info_{info.get('serial', 'unknown')}.json"
     path = os.path.join(outdir, filename)
