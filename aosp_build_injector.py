@@ -244,6 +244,10 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                         try:
                             os.remove(fpath)
                             removed_count += 1
+                            fpath = os.path.join(root, os.path.splitext(fname.replace("instr_", ""))[0] + ".txt")
+                            with open(fpath, "w", encoding="utf-8") as f:
+                                # empty file (creates/truncates)
+                                pass
                         except Exception:
                             logging.exception('Failed to remove instrumented apk: %s', fpath)
             logging.info('Removed %d instrumented APK(s) from ACV output folder before archiving', removed_count)
@@ -278,9 +282,9 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                     else:
                         domain_base = f"{scheme}://{netloc}"
                     # Reconstruct repository path to point to repository/raw_files under the domain:port
-                    raw_repo = domain_base.rstrip('/') + '/repository/raw_files/'
+                    raw_repo = domain_base.rstrip('/') + '/repository/coverage_files/'
                 except Exception:
-                    raw_repo = repo_base.rstrip('/') + '/raw_files/'
+                    raw_repo = repo_base.rstrip('/') + '/coverage_files/'
                 archive_filename = os.path.basename(archive_path)
                 logging.info(f'Uploading ACVTool archive {archive_filename} to raw_files repository {raw_repo}')
                 try:
