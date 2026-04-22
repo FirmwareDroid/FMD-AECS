@@ -1,8 +1,8 @@
 on post-fs-data
-    mkdir /data/ecpature 0777 root root
-    restorecon /data/ecpature
+    mkdir /data/ecapture 0777 root root
+    restorecon /data/ecapture
 
-service ecapture /system/bin/ecapture tls -
+service ecapture /system/bin/ecapture tls -m pcapng --pcapfile /data/tmp/exapture.pcapng -k /data/tmp/sslkey.log
     class late_start
     user root
     group root
