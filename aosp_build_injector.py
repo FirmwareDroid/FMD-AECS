@@ -234,9 +234,6 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
         emulator_filename = f"{firmware_id}_v{ver}_{lt}{tag_part}.zip".replace('-', '_')
         acv_filename = f"acvtool_{emulator_filename}"
         archive_base = os.path.join(base_path_acv, acv_filename.replace('.zip', ''))
-        # shutil.make_archive will append the .zip extension
-        logging.info(f"Creating ACVTool archive {archive_base}.zip from folder: {firmware_folder}")
-        archive_path = shutil.make_archive(archive_base, 'zip', root_dir=firmware_folder)
         # If requested, remove instrumented .apk files from the ACV output folder so they are not included in the archive
         if delete_instrumented_apks:
             removed_count = 0
@@ -250,7 +247,8 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                         except Exception:
                             logging.exception('Failed to remove instrumented apk: %s', fpath)
             logging.info('Removed %d instrumented APK(s) from ACV output folder before archiving', removed_count)
-
+        logging.info(f"Creating ACVTool archive {archive_base}.zip from folder: {firmware_folder}")
+        archive_path = shutil.make_archive(archive_base, 'zip', root_dir=firmware_folder)
         # If archive created successfully, remove the intermediate firmware_folder to save disk space
         if archive_path and os.path.exists(archive_path):
             try:
