@@ -225,7 +225,12 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
         # Build archive filename to match the emulator image artefact filename, prefixed with 'acvtool_'
         # Determine tag part similar to process_firmware_ids
         try:
-            tag_part = f"_{re.sub(r'\W+', '_', tag)}" if tag else ""
+            if tag:
+                # sanitize tag first to avoid using backslashes inside the f-string expression
+                sanitized_tag = re.sub(r'\W+', '_', tag)
+                tag_part = f"_{sanitized_tag}"
+            else:
+                tag_part = ""
         except Exception:
             tag_part = ""
         # If version or lunch_target are not provided, fall back to safe defaults
