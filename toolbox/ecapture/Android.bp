@@ -1,8 +1,0 @@
-cc_prebuilt_binary {
-    name: "ecapture_toolbox",
-    stem: "ecapture",
-    srcs: ["ecapture"],
-    init_rc: ["ecapture.rc"],
-    ldflags: ["-Wl,-z,max-page-size=16384"],
-    ignore_max_page_size: true
-}

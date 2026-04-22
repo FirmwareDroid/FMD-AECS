@@ -1,0 +1,6 @@
+cc_prebuilt_binary {
+    name: "ecapture_toolbox",
+    stem: "ecapture",
+    srcs: ["ecapture"],
+    init_rc: ["ecapture.rc"]
+}
