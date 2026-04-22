@@ -535,8 +535,6 @@ def wait_for_adb_available(max_wait_seconds=600, sleep_seconds=5):
 
 def execute_app_with_coverage(package, mode, skip_install=False):
     logging.info(f"Executing app test with package: {package}, mode: {mode}")
-    #run_script_capture(ACVTOOL, args=["flush", package, "--wd", OUT_DIR], description="Run ACVTool to flush coverage measurement.")
-    run_script_capture(ACVTOOL, args=["activate", package], description="Run ACVTool to activate coverage measurement.")
     if mode == 'droidrun':
         run_script_capture(RUN_DROIDRUN, args=["run"], description="Run Droidrun agent to test apps.")
     elif mode == 'monkey':
@@ -559,8 +557,7 @@ def execute_app_with_coverage(package, mode, skip_install=False):
         run_script_capture(START_APPS_BASIC, args=["-p", package], description=f"Run basic start/stop test for {package}")
     else:
         run_script_capture(START_APPS_BASIC, args=["-p", package], description=f"Run basic start/stop test for {package}")
-    acv_out_dir = os.path.join(OUT_DIR, 'acv_snaps')
-    run_script_capture(ACVTOOL, args=["snap", package, "--wd", acv_out_dir], description="Run ACVTool to get coverage measurement")
+
     # run_script_capture(ACVTOOL, args=["cover-pickles", package, "--wd", OUT_DIR],
     #                   description="Run ACVTool to deserialize coverage measurement")
     # run_script_capture(ACVTOOL, args=["report", package, "--wd", OUT_DIR],
@@ -591,8 +588,16 @@ def start_experiment(mode='single', test_only_one=False, skip_install=False):
             logging.info('No packages found to test')
             return
         for package in app_package_names:
+            run_script_capture(ACVTOOL, args=["activate", package], description="Run ACVTool to activate coverage measurement.")
+
+        for package in app_package_names:
             logging.info(f"Starting {package}")
             execute_app_with_coverage(package, mode)
+
+        for package in app_package_names:
+            acv_out_dir = os.path.join(OUT_DIR, 'acv_snaps')
+            run_script_capture(ACVTOOL, args=["snap", package, "--wd", acv_out_dir], description="Run ACVTool to get coverage measurement")
+
     logging.info('Starting logcat collector')
     run_script_capture(LOGCAT_COLLECTOR, args=["--full-dump"], description="Collect all logcat logs")
 
