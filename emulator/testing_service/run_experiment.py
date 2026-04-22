@@ -807,19 +807,18 @@ def start_tcpdump():
     return False
 
 
-def ensure_sslkeylogfile_set():
-    """Ensure the device has SSLKEYLOGFILE exported via /data/local.prop so apps write keys.
+def pull_ecapture_files():
+    """Pull all files from /data/ecapture on the device into OUT_DIR/ecapture/<serial>/.
 
-    This attempts to run `adb root` then append the line
-    export SSLKEYLOGFILE=/storage/emulated/0/Download/sslkeylog.log
-    to /data/local.prop if it is not already present. This is best-effort and non-fatal.
+    Best-effort: attempts to become root, checks for the remote folder, and pulls its contents.
+    Returns True if at least one file was pulled, False otherwise.
     """
-    logging.info('Ensuring SSLKEYLOGFILE is set on device (/data/local.prop)')
+    logging.info('Pulling /data/ecapture files from device')
     if not shutil.which('adb'):
-        logging.error('adb binary not found in PATH; cannot set SSLKEYLOGFILE on device')
+        logging.error('adb binary not found in PATH; cannot pull /data/ecapture')
         return False
 
-    # Select first connected device (same logic as start_tcpdump)
+    # select first connected device
     try:
         out = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=10)
         lines = [l.strip() for l in (out.stdout or '').splitlines() if l.strip()]
@@ -832,47 +831,54 @@ def ensure_sslkeylogfile_set():
                 serial = parts[0]
                 break
         if not serial:
-            logging.warning('No adb device found to set SSLKEYLOGFILE')
+            logging.warning('No adb device found to pull /data/ecapture')
             return False
-        logging.info('Selected adb device %s to set SSLKEYLOGFILE', serial)
+        logging.info('Selected adb device %s to pull /data/ecapture', serial)
     except Exception:
-        logging.exception('Failed to run adb devices to select device for SSLKEYLOGFILE setup')
+        logging.exception('Failed to run adb devices to select device for /data/ecapture pull')
         return False
 
-    # Try to become root (best-effort)
+    # try to become root (best-effort)
     try:
         res = subprocess.run(['adb', '-s', serial, 'root'], capture_output=True, text=True, timeout=10)
         if res.returncode == 0:
-            logging.info('adb root: OK for setting SSLKEYLOGFILE')
+            logging.info('adb root: OK for /data/ecapture pull')
         else:
-            logging.warning('adb root returned non-zero while setting SSLKEYLOGFILE: %s', (res.stderr or res.stdout).strip())
+            logging.debug('adb root returned non-zero for /data/ecapture pull: %s', (res.stderr or res.stdout).strip())
     except Exception:
-        logging.exception('adb root failed while attempting to set SSLKEYLOGFILE')
+        logging.debug('adb root attempt failed for /data/ecapture pull', exc_info=True)
 
-    # Check current /data/local.prop contents (may require root)
-    try:
-        cat_cmd = ['adb', '-s', serial, 'shell', 'sh', '-c', "cat /data/local.prop 2>/dev/null || true"]
-        cat_res = subprocess.run(cat_cmd, capture_output=True, text=True, timeout=10)
-        cur = (cat_res.stdout or '')
-        if 'SSLKEYLOGFILE' in cur:
-            logging.info('/data/local.prop already contains SSLKEYLOGFILE entry; skipping append')
-            return True
-    except Exception:
-        logging.debug('Could not read /data/local.prop (may not exist or permission denied); will attempt to append', exc_info=True)
+    remote_dir = '/data/ecapture'
 
-    # Append export line using sh -c to ensure redirection happens on device
-    export_line = "export SSLKEYLOGFILE=/storage/emulated/0/Download/sslkeylog.log"
+    # Check remote directory exists
     try:
-        append_cmd = ['adb', '-s', serial, 'shell', 'sh', '-c', f"echo '{export_line}' >> /data/local.prop"]
-        append_res = subprocess.run(append_cmd, capture_output=True, text=True, timeout=10)
-        if append_res.returncode == 0:
-            logging.info('Appended SSLKEYLOGFILE export to /data/local.prop on device %s', serial)
-            return True
-        else:
-            logging.warning('Failed to append SSLKEYLOGFILE to /data/local.prop: %s', (append_res.stderr or append_res.stdout).strip())
+        ls_cmd = ['adb', '-s', serial, 'shell', 'ls', '-l', remote_dir]
+        ls_res = subprocess.run(ls_cmd, capture_output=True, text=True, timeout=10)
+        if ls_res.returncode != 0 or not (ls_res.stdout or ls_res.stderr):
+            logging.info('Remote directory %s does not appear to exist or is empty on device %s', remote_dir, serial)
             return False
     except Exception:
-        logging.exception('Exception while appending SSLKEYLOGFILE to /data/local.prop')
+        logging.debug('Exception while checking remote /data/ecapture directory', exc_info=True)
+
+    local_base = os.path.join(OUT_DIR, 'ecapture', serial)
+    try:
+        os.makedirs(local_base, exist_ok=True)
+    except Exception:
+        logging.exception('Failed to create local directory for ecapture files: %s', local_base)
+        return False
+
+    # Pull the entire directory
+    try:
+        pull_cmd = ['adb', '-s', serial, 'pull', remote_dir, local_base]
+        pull_res = subprocess.run(pull_cmd, capture_output=True, text=True, timeout=300)
+        if pull_res.returncode == 0:
+            logging.info('Pulled /data/ecapture from device %s to %s', serial, local_base)
+            return True
+        else:
+            logging.warning('adb pull of /data/ecapture failed for device %s: %s', serial, (pull_res.stderr or pull_res.stdout).strip())
+            return False
+    except Exception:
+        logging.exception('Exception while pulling /data/ecapture from device')
         return False
 
 def stop_tcpdump():
@@ -1291,11 +1297,6 @@ def ensure_adb_available(results_dir):
 
 def start_background_services():
     """Start best-effort background services such as tcpdump and crash watcher."""
-    # Ensure SSL key logging environment is set on the device before starting other services
-    try:
-        ensure_sslkeylogfile_set()
-    except Exception:
-        logging.exception('Failed to ensure SSLKEYLOGFILE on device (continuing)')
 
     tcp_ok = start_tcpdump()
     if not tcp_ok:
@@ -1316,6 +1317,12 @@ def stop_background_services():
         stop_tcpdump()
     except Exception:
         logging.exception('Error while stopping tcpdump during cleanup')
+
+    # Attempt to pull any capture artifacts (including SSL key logs) from /data/ecapture
+    try:
+        pull_ecapture_files()
+    except Exception:
+        logging.exception('Failed to pull /data/ecapture files during cleanup')
 
     if crash_watcher:
         try:

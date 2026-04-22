@@ -62,7 +62,7 @@
     "libz.so",
     "libhbmsvmanager_jni.so"
   ],
-    "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
+  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
     "system_ext/framework",
     "system_ext/etc/permissions",
