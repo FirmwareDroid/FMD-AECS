@@ -2537,7 +2537,7 @@
     {
       "name": "ecapture_toolbox",
       "enable": true,
-      "path": "./toolbox/ecapture"
+      "path": "./toolbox/12_13_14/ecapture"
     }
   ],
   "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r450784d/runtimes_ndk_cxx/aarch64/lldb-server",
