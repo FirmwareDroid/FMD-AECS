@@ -17,7 +17,7 @@ mkdir -p /var/run/sshd
 mkdir -p /tmp/android-unknown
 # Set permissive permissions so mounted host files are accessible; host mount may override
 # permissions, but when the directory is created here ensure it is readable/executable by all.
-chmod 0777 /tmp/android-unknown || true
+chmod -R 0777 /tmp/android-unknown || true
 
 
 if [ -S /var/run/fail2ban/fail2ban.sock ]; then

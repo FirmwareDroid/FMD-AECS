@@ -256,6 +256,25 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                         except Exception:
                             logging.exception('Failed to remove instrumented apk: %s', fpath)
             logging.info('Removed %d instrumented APK(s) from ACV output folder before archiving', removed_count)
+        # Remove any directories named 'apktool' from the firmware_folder to avoid including build artifacts
+        try:
+            apktool_removed = 0
+            for root, dirs, files in os.walk(firmware_folder):
+                # iterate over a copy since we may modify dirs in-place
+                for d in list(dirs):
+                    if d.lower() == 'apktool':
+                        full_dpath = os.path.join(root, d)
+                        try:
+                            shutil.rmtree(full_dpath)
+                            apktool_removed += 1
+                            # prevent os.walk from descending into this directory
+                            dirs.remove(d)
+                        except Exception:
+                            logging.exception('Failed to remove apktool directory: %s', full_dpath)
+            if apktool_removed:
+                logging.info('Removed %d apktool directory(ies) from ACV output folder before archiving', apktool_removed)
+        except Exception:
+            logging.exception('Error while scanning for apktool directories in %s', firmware_folder)
         logging.info(f"Creating ACVTool archive {archive_base}.zip from folder: {firmware_folder}")
         archive_path = shutil.make_archive(archive_base, 'zip', root_dir=firmware_folder)
         # If archive created successfully, remove the intermediate firmware_folder to save disk space

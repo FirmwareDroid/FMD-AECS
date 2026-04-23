@@ -636,7 +636,7 @@ def main():
                         else:
                             failed_images.append({'image': data.get('image'), 'error': data.get('error')})
                 except Exception:
-                    logging.exception(f"Failed to read result file {fname}")
+                    logging.warning(f"Failed to read result file {fname}")
 
         logging.info(f"Finished processing images. Successful images: {successful_images}. Failed images: {failed_images}.")
     else:
