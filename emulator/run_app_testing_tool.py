@@ -27,6 +27,7 @@ import logging
 import shutil
 import subprocess
 import sys
+import os
 from typing import List
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -94,6 +95,9 @@ def parse_args():
 
     parser.add_argument('--dry-run', action='store_true', help='Print commands that would be executed but do not run them')
 
+    parser.add_argument('--start-watcher', action='store_true', help='Start the local container_watcher.py after launching experiments')
+    parser.add_argument('--watch-path', type=str, default="./emulator_out", help='Path for the container watcher to monitor (default: ./emulator_out)')
+
     return parser.parse_args()
 
 
@@ -154,6 +158,23 @@ def main():
         sys.exit(4)
 
     logging.info('All requested experiments started successfully (detached in containers)')
+
+    # Optionally start the local container watcher to stop containers when experiments complete
+    if args.start_watcher:
+        if args.dry_run:
+            logging.info('DRY-RUN: would start container_watcher.py to monitor path: %s', args.watch_path or os.path.join(os.path.dirname(__file__), 'out'))
+        else:
+            watcher_script = os.path.join(os.path.dirname(__file__), 'container_watcher.py')
+            watch_path = args.watch_path or os.path.join(os.path.dirname(__file__), 'out')
+            if not os.path.exists(watcher_script):
+                logging.error('container_watcher.py not found at %s; cannot start watcher', watcher_script)
+                sys.exit(5)
+            try:
+                # Start watcher in background; keep it independent of this process
+                proc = subprocess.Popen([sys.executable, watcher_script, watch_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                logging.info('Started container watcher (pid=%s) monitoring path: %s', getattr(proc, 'pid', None), watch_path)
+            except Exception as e:
+                logging.exception('Failed to start container watcher: %s', e)
 
 
 if __name__ == '__main__':
