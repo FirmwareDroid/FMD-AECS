@@ -131,6 +131,7 @@
     "sepolicy",
     "geotz",
     "virtualization",
+    "android.virt",
     "power",
     "thermal",
     "usb",
