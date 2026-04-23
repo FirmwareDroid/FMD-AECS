@@ -96,8 +96,8 @@ COPY ./emulator/prebuilts/adb/adbkey.pub /android/sdk/emulator/adbkey.pub
 ################################
 # Prepare Android emulator using prebuilt ARM64 binary
 ################################
-COPY ./emulator/prebuilts/arm64/sdk-repo-linux_aarch64-emulator-11774154.zip /android/
-RUN unzip /android/sdk-repo-linux_aarch64-emulator-11774154.zip -d /android/sdk/
+COPY ./emulator/prebuilts/arm64/sdk-repo-linux_aarch64-emulator-standalone-0.zip /android/
+RUN unzip /android/sdk-repo-linux_aarch64-emulator-standalone-0.zip -d /android/sdk/
 COPY ./emulator/avd/ /android/sdk/avd/
 
 ################################
