@@ -20,6 +20,7 @@ from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
 import time
+from urllib.parse import urlparse
 from aosp_apex_injector import repackage_apex_file
 from aosp_post_build_injector import start_post_build_injector
 from common import extract_zip, load_configs
@@ -164,8 +165,20 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(_acv_instrument_worker, args): args[0] for args in worker_args}
         for fut in concurrent.futures.as_completed(futures):
+            # `futures` maps each Future -> original apk path (or sometimes just a filename).
+            # Ensure we work with the original absolute path. If only a filename was stored,
+            # try to resolve it from the apk_path_list gathered earlier.
             apk = futures[fut]
             try:
+                # if apk is not an absolute path or doesn't exist on disk, attempt to find
+                # the original full path by matching the basename against the discovered list
+                if not apk or (not os.path.isabs(apk) or not os.path.exists(apk)):
+                    basename = os.path.basename(str(apk))
+                    matches = [p for p in apk_path_list if os.path.basename(p) == basename]
+                    if matches:
+                        apk = matches[0]
+                    else:
+                        apk = futures[fut]
                 filename, elapsed, status, error = fut.result()
                 per_file_times[filename] = {"duration_seconds": elapsed, "status": status}
                 if status == "success":
@@ -178,6 +191,7 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                         out_folder = os.path.join(firmware_folder, base_dir)
                         instr_name = f"instr_{filename}"
                         instr_path = os.path.join(out_folder, instr_name)
+                        logging.info(f"Attempt to replace original APK %s with instrumented APK %s", apk, instr_path)
                         if os.path.exists(instr_path):
                             try:
                                 # Overwrite the original APK with the instrumented APK
@@ -188,11 +202,11 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                                     os.remove(instr_path)
                                 except Exception:
                                     # Not fatal; leave file if removal fails
-                                    logging.debug('Could not remove instrumented APK %s after replacing original', instr_path)
+                                    logging.warning('Could not remove instrumented APK %s after replacing original', instr_path)
                             except Exception:
                                 logging.exception('Failed to replace original APK %s with instrumented APK %s', apk, instr_path)
                         else:
-                            logging.debug('Instrumented APK not found at expected location: %s', instr_path)
+                            logging.error('Instrumented APK not found at expected location: %s', instr_path)
                     except Exception:
                         logging.exception('Unexpected error while attempting to replace original APK for %s', filename)
                 else:
