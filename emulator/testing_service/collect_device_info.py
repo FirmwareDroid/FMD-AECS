@@ -54,7 +54,7 @@ def run_adb(cmd_args, serial=None, timeout=15):
             logger.debug('adb cmd failed: %s ; stderr=%s', ' '.join(cmd), err)
         return p.returncode, out, err
     except Exception as e:
-        logger.exception('Failed to run adb command: %s', e)
+        logger.warning('Failed to run adb command: %s', e)
         return -1, '', str(e)
 
 

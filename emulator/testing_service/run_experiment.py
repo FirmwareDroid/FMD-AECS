@@ -196,8 +196,18 @@ def run_script_capture(script_path, args=None, description=None):
     try:
         combined = (proc.stdout or '') + '\n' + (proc.stderr or '')
         low = combined.lower()
-        # Patterns indicating transient adb/device availability issues
-        offline_patterns = [r'device offline', r"device '\w+' not found", r"device '.*' not found", r'error: device not found', r'failed to get feature set: device offline', "No adb device found"]
+        # Patterns indicating transient adb/device availability issues (all lower-case)
+        offline_patterns = [
+            r'device offline',
+            r"device '\w+' not found",
+            r"device '.*' not found",
+            r'error: device not found',
+            r'failed to get feature set: device offline',
+            r'no adb device found',
+            r'no connected devices found',
+            r'no connected devices',
+            r'no devices found',
+        ]
         for pat in offline_patterns:
             if re.search(pat, low):
                 logging.error('Detected adb/device availability error in %s output; will treat as transient and retry full experiment: %s', script_path, pat)
@@ -1481,9 +1491,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-## Live Network Traffic Debugging
-# If you want to inspect the live network traffic from the device while running the experiment, you can use the
-# following commands to forward the PCAPdroid traffic to your local machine and open it in Wireshark:
-# adb forward tcp:54320 tcp:54320
-# curl -sNL http://127.0.0.1:54320 | /Applications/Wireshark.app/Contents/MacOS/Wireshark -k -i -
