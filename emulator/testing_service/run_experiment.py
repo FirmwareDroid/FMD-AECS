@@ -605,7 +605,8 @@ def start_experiment(mode='single', test_only_one=False, skip_install=False):
             execute_app_with_coverage(package, mode)
 
         for package in app_package_names:
-            acv_out_dir = os.path.join(OUT_DIR, 'acv_snaps')
+            acv_out_dir = os.path.join(OUT_DIR, 'acv_snaps', f"{package}")
+            os.makedirs(acv_out_dir, exist_ok=True)
             run_script_capture(ACVTOOL, args=["snap", package, "--wd", acv_out_dir], description="Run ACVTool to get coverage measurement")
 
     logging.info('Starting logcat collector')
