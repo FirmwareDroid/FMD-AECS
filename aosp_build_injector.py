@@ -171,6 +171,30 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                 if status == "success":
                     result_dict["success"].append(filename)
                     logging.info(f"ACVTool instrumentation succeeded for {filename} in {elapsed}s (parallel)")
+                    # If instrumentation succeeded, replace the original APK with the instrumented one
+                    try:
+                        # original apk path is in `apk` (from futures mapping)
+                        base_dir = os.path.basename(os.path.dirname(apk))
+                        out_folder = os.path.join(firmware_folder, base_dir)
+                        instr_name = f"instr_{filename}"
+                        instr_path = os.path.join(out_folder, instr_name)
+                        if os.path.exists(instr_path):
+                            try:
+                                # Overwrite the original APK with the instrumented APK
+                                shutil.copy2(instr_path, apk)
+                                logging.info('Replaced original APK %s with instrumented APK %s', apk, instr_path)
+                                # Optionally remove the instrumented file from the ACV output (it may be cleaned later)
+                                try:
+                                    os.remove(instr_path)
+                                except Exception:
+                                    # Not fatal; leave file if removal fails
+                                    logging.debug('Could not remove instrumented APK %s after replacing original', instr_path)
+                            except Exception:
+                                logging.exception('Failed to replace original APK %s with instrumented APK %s', apk, instr_path)
+                        else:
+                            logging.debug('Instrumented APK not found at expected location: %s', instr_path)
+                    except Exception:
+                        logging.exception('Unexpected error while attempting to replace original APK for %s', filename)
                 else:
                     result_dict["failed"].append(filename)
                     # Record error separately (do not include error strings inside the results_acv.json)
