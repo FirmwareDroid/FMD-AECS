@@ -135,6 +135,31 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
         return result_dict
 
     apk_path_list = glob.glob(os.path.join(EXTRACTED_PACKAGES_PATH, "**", "*.apk"), recursive=True)
+    # Allow pre-injector configuration to specify keywords which, when present in an APK filename,
+    # cause the APK to be skipped for ACVTool instrumentation.
+    skip_keywords = []
+    try:
+        skip_keywords = PRE_INJECTOR_CONFIG.get("ACVTOOL_SKIP_APK_KEYWORDS", []) or []
+        # normalize to lowercase for case-insensitive matching
+        skip_keywords = [k.lower() for k in skip_keywords if isinstance(k, str) and k.strip()]
+    except Exception:
+        skip_keywords = []
+
+    if skip_keywords:
+        initial_count = len(apk_path_list)
+        skipped_list = []
+        filtered = []
+        for p in apk_path_list:
+            name = os.path.basename(p).lower()
+            if any(kw in name for kw in skip_keywords):
+                skipped_list.append(p)
+            else:
+                filtered.append(p)
+        apk_path_list = filtered
+        logging.info(f"ACVTool instrumentation: skipped {len(skipped_list)} APK(s) matching skip keywords ({skip_keywords}).")
+        if skipped_list:
+            logging.debug(f"Skipped APKs: {skipped_list}")
+
     logging.info(f"Found {len(apk_path_list)} APK files for ACVTool instrumentation (parallel mode).")
 
     per_file_times = {}
