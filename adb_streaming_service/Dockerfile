@@ -50,6 +50,7 @@ RUN chown -R app:appgroup /app && chmod -R g+rX /app
 USER app
 
 WORKDIR /app/source
+RUN mkdir /app/source/uploads && chown app:appgroup /app/source/uploads
 
 # Health check — container orchestrators can restart unhealthy instances
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
