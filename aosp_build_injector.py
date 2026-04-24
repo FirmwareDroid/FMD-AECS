@@ -188,25 +188,43 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                     try:
                         # original apk path is in `apk` (from futures mapping)
                         base_dir = os.path.basename(os.path.dirname(apk))
-                        out_folder = os.path.join(firmware_folder, base_dir)
+                        out_folder = os.path.join(firmware_folder_abs, base_dir)
                         instr_name = f"instr_{filename}"
                         instr_path = os.path.join(out_folder, instr_name)
                         logging.info(f"Attempt to replace original APK %s with instrumented APK %s", apk, instr_path)
-                        if os.path.exists(instr_path):
-                            try:
-                                # Overwrite the original APK with the instrumented APK
-                                shutil.copy2(instr_path, apk)
-                                logging.info('Replaced original APK %s with instrumented APK %s', apk, instr_path)
-                                # Optionally remove the instrumented file from the ACV output (it may be cleaned later)
+                        try:
+                            if not os.path.exists(instr_path):
+                                # Fallback: search for any .apk file in the ACV output folder
                                 try:
-                                    os.remove(instr_path)
+                                    apk_files = [f for f in os.listdir(out_folder) if f.lower().endswith('.apk')]
                                 except Exception:
-                                    # Not fatal; leave file if removal fails
-                                    logging.warning('Could not remove instrumented APK %s after replacing original', instr_path)
-                            except Exception:
-                                logging.exception('Failed to replace original APK %s with instrumented APK %s', apk, instr_path)
-                        else:
-                            logging.error('Instrumented APK not found at expected location: %s', instr_path)
+                                    apk_files = []
+                                if len(apk_files) == 1:
+                                    found = os.path.join(out_folder, apk_files[0])
+                                    logging.info('Found single APK in ACV output folder %s; using %s as instrumented APK', out_folder, found)
+                                    instr_path = found
+                                elif len(apk_files) > 1:
+                                    logging.error('Multiple APKs found in ACV output folder %s; cannot deterministically pick instrumented APK. Files: %s', out_folder, apk_files)
+                                    instr_path = None
+                                else:
+                                    instr_path = None
+
+                            if instr_path and os.path.exists(instr_path):
+                                try:
+                                    # Copy the discovered instrumented APK over the original APK path (preserving original name)
+                                    shutil.copy2(instr_path, apk)
+                                    logging.info('Replaced original APK %s with instrumented APK %s', apk, instr_path)
+                                    # Attempt to remove the instrumented file in the ACV output (best-effort)
+                                    try:
+                                        os.remove(instr_path)
+                                    except Exception:
+                                        logging.warning('Could not remove instrumented APK %s after replacing original', instr_path)
+                                except Exception:
+                                    logging.exception('Failed to replace original APK %s with instrumented APK %s', apk, instr_path)
+                            else:
+                                logging.error('Instrumented APK not found at expected location: %s', os.path.join(out_folder, instr_name))
+                        except Exception:
+                            logging.exception('Unexpected error while attempting to replace original APK %s with instrumented APK in %s', apk, out_folder)
                     except Exception:
                         logging.exception('Unexpected error while attempting to replace original APK for %s', filename)
                 else:
