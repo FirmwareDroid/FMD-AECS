@@ -309,35 +309,39 @@ setInterval(async () => {
 // containers and merges any newcomers into the running pool list without
 // removing existing connections.  Interval is configurable via
 // ADB_DISCOVERY_REFRESH_INTERVAL_MS (default: 60 s). Set to 0 to disable.
-const _discoveryRefreshMs = process.env.ADB_DISCOVERY_REFRESH_INTERVAL_MS !== undefined
+const discoveryRefreshMs = process.env.ADB_DISCOVERY_REFRESH_INTERVAL_MS !== undefined
 	? Number(process.env.ADB_DISCOVERY_REFRESH_INTERVAL_MS)
 	: 60_000;
 
-if (_discoveryRefreshMs > 0) {
-	const _discoveryTimer = setInterval(async () => {
+if (discoveryRefreshMs > 0) {
+	const discoveryRefreshTimer = setInterval(async () => {
 		const { enabled, port, timeoutMs, additionalSubnets } = getDiscoveryConfig();
 		if (!enabled) return;
 		try {
 			const discovered = await discoverAdbServers({ port, timeoutMs, additionalSubnets, logger });
 			if (!discovered.length) return;
 
-			// Identify hosts that are not yet in the pool list.
-			const existingKeys = new Set(pools.map(p => p.key));
-			const newEntries = discovered.filter(e => {
-				const parts = e.split(':');
-				const key = `${parts[0] || 'localhost'}:${parts[1] ? Number(parts[1]) : 5037}`;
-				return !existingKeys.has(key);
-			});
-			if (!newEntries.length) return;
-
-			logger.info(`ADB discovery refresh: found ${newEntries.length} new server(s): ${newEntries.join(', ')}`);
-
-			// Create pool objects for the new servers and merge them.
+			// Acquire the mutex before reading the pool list so that the
+			// duplicate check and the pool update are performed atomically.
 			await acquirePoolMutex();
 			try {
+				// Re-read pools inside the mutex to get the up-to-date state.
+				const currentKeys = new Set(pools.map(p => p.key));
+				const newEntries = discovered.filter(e => {
+					const parts = e.split(':');
+					const key = `${parts[0] || 'localhost'}:${parts[1] ? Number(parts[1]) : 5037}`;
+					return !currentKeys.has(key);
+				});
+				if (!newEntries.length) return;
+
+				logger.info(`ADB discovery refresh: found ${newEntries.length} new server(s): ${newEntries.join(', ')}`);
+
 				const newPools = await createPoolsOnce(newEntries);
 				if (newPools.length > 0) {
-					pools = [...pools, ...newPools.filter(np => !existingKeys.has(np.key))];
+					// Filter once more with the latest key set in case a concurrent
+					// operation added the same server while createPoolsOnce ran.
+					const latestKeys = new Set(pools.map(p => p.key));
+					pools = [...pools, ...newPools.filter(np => !latestKeys.has(np.key))];
 					logger.info(`ADB discovery refresh: pool count is now ${pools.length}`);
 				}
 			} finally {
@@ -346,8 +350,8 @@ if (_discoveryRefreshMs > 0) {
 		} catch (e) {
 			logger.debug(`ADB discovery refresh error (non-fatal): ${e?.message || e}`);
 		}
-	}, _discoveryRefreshMs);
-	if (typeof _discoveryTimer.unref === 'function') _discoveryTimer.unref();
+	}, discoveryRefreshMs);
+	if (typeof discoveryRefreshTimer.unref === 'function') discoveryRefreshTimer.unref();
 }
 
 // helper to find the pool by key
