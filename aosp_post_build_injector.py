@@ -91,9 +91,24 @@ def start_post_build_injector(aosp_path,
     logging.info(
         f"Starting post build injector: {aosp_path} | {source_folder_path} | {target_out_path} | {lunch_target}")
 
-    if not os.path.exists(source_folder_path) or not os.path.isdir(source_folder_path) or not os.listdir(source_folder_path):
-        logging.error(f"Source folder does not exist or is empty: {source_folder_path}")
-        raise FileNotFoundError(f"Post-Injection Source folder does not exist or is empty: {source_folder_path}")
+    # Improved checks with separate logs to help debugging the root cause when post-injection fails
+    if not os.path.exists(source_folder_path):
+        logging.error(f"Source folder does not exist: {source_folder_path}")
+        raise FileNotFoundError(f"Post-Injection source folder does not exist: {source_folder_path}")
+
+    if not os.path.isdir(source_folder_path):
+        logging.error(f"Source path exists but is not a directory: {source_folder_path}")
+        raise NotADirectoryError(f"Post-Injection source path is not a directory: {source_folder_path}")
+
+    try:
+        entries = os.listdir(source_folder_path)
+    except Exception as e:
+        logging.error(f"Could not list contents of source folder {source_folder_path}: {e}")
+        raise
+
+    if not entries:
+        logging.error(f"Source folder is empty: {source_folder_path}")
+        raise FileNotFoundError(f"Post-Injection source folder is empty: {source_folder_path}")
 
     if POST_INJECTOR_CONFIG["ENABLE_INJECTION"]:
         with Executor() as executor:
