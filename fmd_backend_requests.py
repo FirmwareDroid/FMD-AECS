@@ -272,7 +272,7 @@ def upload_image_as_raw(repo_url, username, password, file_path, filename):
 
     # Successful status codes
     if response.status_code in (200, 201):
-        logging.info('File uploaded successfully')
+        logging.info(f'File uploaded successfully: {filename}')
         is_successful = True
     else:
         # Collect debugging information to help diagnose failures
