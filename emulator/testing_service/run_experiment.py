@@ -742,8 +742,15 @@ def start_tcpdump():
         except Exception:
             logging.exception('Exception while installing iptables NFLOG rule')
 
-        # Start tcpdump in background on the device and capture its pid
-        start_cmd = f"nohup tcpdump -i nflog:1 -w {remote_pcap} &"
+        # Ensure a writable working directory on the device for nohup output and run tcpdump there.
+        # Some Android shells have read-only root and nohup will try to write /nohup.out which fails.
+        # Create /data/tcpdump_log, cd into it, redirect stdout/stderr to a local nohup.out and
+        # echo the background PID so the host can capture it.
+        remote_workdir = '/data/tcpdump_log'
+        start_cmd = (
+            f"mkdir -p {remote_workdir} && cd {remote_workdir} && "
+            f"nohup tcpdump -i nflog:1 -w {remote_pcap} > {remote_workdir}/nohup.out 2>&1 & echo $!"
+        )
         try:
             adb_start_cmd = ['adb', '-s', serial, 'shell', start_cmd]
             res = subprocess.run(adb_start_cmd, capture_output=True, text=True, timeout=15)
