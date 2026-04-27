@@ -252,14 +252,58 @@ def upload_image_as_raw(repo_url, username, password, file_path, filename):
 
     url = f'{repo_url}{filename}'
     logging.info(f'Uploading image {file_path} as raw to {url}')
-    with open(file_path, 'rb') as f:
-        response = requests.put(url, auth=(username, password), data=f, verify=VERIFY_SSL)
+    response = None
+    try:
+        with open(file_path, 'rb') as f:
+            response = requests.put(url, auth=(username, password), data=f, verify=VERIFY_SSL)
+    except requests.exceptions.RequestException as req_err:
+        # Network / HTTP level errors
+        logging.exception("HTTP error while uploading file to %s: %s", url, req_err)
+        return False, url
+    except Exception as e:
+        # File I/O or unexpected errors
+        logging.exception("Unexpected error while uploading file to %s: %s", url, e)
+        return False, url
 
-    if response.status_code == 200 or response.status_code == 201:
+    # If we didn't get a response object for some reason
+    if response is None:
+        logging.error("No response received when uploading file to %s", url)
+        return False, url
+
+    # Successful status codes
+    if response.status_code in (200, 201):
         logging.info('File uploaded successfully')
         is_successful = True
     else:
-        logging.error(f'Failed to upload file: {response.text}')
+        # Collect debugging information to help diagnose failures
+        try:
+            status = response.status_code
+            reason = getattr(response, 'reason', None)
+            resp_url = getattr(response, 'url', url)
+            headers = dict(response.headers) if hasattr(response, 'headers') else None
+            # Try to get a preview of the response body but avoid huge logs
+            try:
+                text = response.text
+                if text is None:
+                    content_preview = None
+                else:
+                    content_preview = text if len(text) <= 2000 else text[:2000] + '...[truncated]'
+            except Exception:
+                content_preview = '<unable to read response.text>'
+            # Try parsing JSON error body if present
+            json_body = None
+            try:
+                json_body = response.json()
+            except Exception:
+                json_body = None
+
+            logging.error(
+                "Failed to upload file to %s. status_code=%s, reason=%s, response_url=%s, headers=%s, response_preview=%s, json=%s",
+                url, status, reason, resp_url, headers, content_preview, json_body
+            )
+        except Exception as e:
+            logging.exception("Error while logging upload failure details: %s", e)
+
     return is_successful, url
 
 

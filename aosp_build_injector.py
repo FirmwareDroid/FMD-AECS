@@ -62,9 +62,20 @@ def _acv_instrument_worker(params):
     start = None
     proc = None
     try:
-        # create out folder under firmware_folder using parent dir name
+        # create a unique out folder under firmware_folder using parent dir name
+        # If the folder already exists, append a suffix ("_1", "_2", ...) until a non-existing folder is found.
         base_dir = Path(apk_path).parent.name
         out_folder = os.path.join(firmware_folder, base_dir)
+        if os.path.exists(out_folder):
+            idx = 1
+            while True:
+                candidate_name = f"{base_dir}_{idx}"
+                candidate_path = os.path.join(firmware_folder, candidate_name)
+                if not os.path.exists(candidate_path):
+                    out_folder = candidate_path
+                    break
+                idx += 1
+        # create the (unique) out folder
         os.makedirs(out_folder, exist_ok=True)
         os.chdir(safe_cwd)
         cmd = [acv_executable, "instrument", "-f", apk_path, "--wd", out_folder]
@@ -76,8 +87,8 @@ def _acv_instrument_worker(params):
             elapsed = round(time.time() - start, 2)
             if proc.returncode != 0:
                 out_decoded = out.decode(errors='ignore') if out else ""
-                return (filename, elapsed, "failed", out_decoded)
-            return (filename, elapsed, "success", "")
+                return (filename, elapsed, "failed", out_decoded, os.path.basename(out_folder))
+            return (filename, elapsed, "success", "", os.path.basename(out_folder))
         except subprocess.TimeoutExpired:
             # Attempt to terminate the whole process group first, then force kill if necessary
             elapsed = round(time.time() - start, 2)
@@ -96,7 +107,7 @@ def _acv_instrument_worker(params):
             except Exception:
                 pass
             out_decoded = out.decode(errors='ignore') if out else ""
-            return (filename, elapsed, "failed", f"TimeoutExpired: {out_decoded}")
+            return (filename, elapsed, "failed", f"TimeoutExpired: {out_decoded}", os.path.basename(out_folder))
     except Exception as e:
         elapsed = round((time.time() - start) if start else 0.0, 2)
         # try to capture any remaining output
@@ -107,7 +118,7 @@ def _acv_instrument_worker(params):
         except Exception:
             pass
         out_decoded = out.decode(errors='ignore') if out else ""
-        return (filename, elapsed, "failed", f"{str(e)} {out_decoded}")
+        return (filename, elapsed, "failed", f"{str(e)} {out_decoded}", os.path.basename(out_folder) if 'out_folder' in locals() else "")
     finally:
         try:
             os.chdir(current_cwd)
@@ -168,16 +179,13 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
 
     base_path_acv = str(os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation"))
     firmware_folder = str(os.path.join(base_path_acv, firmware_id))
-    # remove previous results and recreate folder
     shutil.rmtree(firmware_folder, ignore_errors=True)
     os.makedirs(firmware_folder, exist_ok=True)
     logging.info(f"Deleted and recreated ACVTool instrumentation folder: {firmware_folder}")
 
     firmware_folder_abs = os.path.abspath(firmware_folder)
-    # prepare worker args
     worker_args = [(apk_path, firmware_folder, acv_executable, firmware_folder_abs) for apk_path in apk_path_list]
 
-    # decide number of workers
     if max_workers is None:
         try:
             max_workers = os.cpu_count() * 3 or 4
@@ -204,7 +212,8 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                         apk = matches[0]
                     else:
                         apk = futures[fut]
-                filename, elapsed, status, error = fut.result()
+                # _acv_instrument_worker returns (filename, elapsed, status, error, out_folder_basename)
+                filename, elapsed, status, error, out_dirname = fut.result()
                 per_file_times[filename] = {"duration_seconds": elapsed, "status": status}
                 if status == "success":
                     result_dict["success"].append(filename)
@@ -212,7 +221,9 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                     # If instrumentation succeeded, replace the original APK with the instrumented one
                     try:
                         # original apk path is in `apk` (from futures mapping)
-                        base_dir = os.path.basename(os.path.dirname(apk))
+                        # Use the actual output folder basename returned by the worker. Fall back to the
+                        # original parent folder name if, for some reason, the worker didn't provide it.
+                        base_dir = out_dirname or os.path.basename(os.path.dirname(apk))
                         out_folder = os.path.join(firmware_folder_abs, base_dir)
                         instr_name = f"instr_{filename}"
                         instr_path = os.path.join(out_folder, instr_name)
@@ -260,7 +271,7 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                         "duration_seconds": elapsed,
                         "error": error,
                     })
-                    logging.error(f"ACVTool instrumentation failed for {filename} in {elapsed}s (parallel): {error}")
+                    logging.error(f"ACVTool instrumentation failed for {filename} ({apk}) in {elapsed}s (parallel): {error}")
             except Exception as e:
                 # Shouldn't happen often; record generic failure
                 fname = os.path.basename(futures[fut])
