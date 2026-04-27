@@ -35,7 +35,8 @@
     "E2eeContactKeysProvider",
     "CtsShimPrivPrebuilt",
     "CtsShimPrebuilt",
-    "Launcher3"
+    "Launcher3",
+    "webview"
   ],
   "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
   "ALLOW_APP_KEYWORD_ALWAYS_LIST": [

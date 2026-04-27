@@ -680,7 +680,7 @@ def start_tcpdump():
         logging.error('adb binary not found in PATH; cannot configure tcpdump on device')
         return False
 
-    remote_pcap = '/storage/emulated/0/Download/tcpdump.pcap'
+    remote_pcap = '/data/tcpdump_log/tcpdump.pcap'
     pid_file = os.path.join(OUT_DIR, 'tcpdump_device.pid')
 
     # Retry loop: sometimes devices take a moment to be ready or tcpdump fails to start
@@ -738,7 +738,7 @@ def start_tcpdump():
             if res.returncode != 0:
                 logging.warning('Failed to add iptables NFLOG rule: %s', (res.stderr or res.stdout).strip())
             else:
-                logging.info('Installed iptables NFLOG rule')
+                logging.info(f'Installed iptables NFLOG rule: {adb_ipt_cmd}')
         except Exception:
             logging.exception('Exception while installing iptables NFLOG rule')
 
@@ -769,9 +769,9 @@ def start_tcpdump():
                             f.write(pid + '\n')
                         logging.info('Started tcpdump on device (pid=%s), pid written to %s', pid, pid_file)
                     except Exception:
-                        logging.exception('Failed to write tcpdump pid file')
+                        logging.exception(f'Failed to write tcpdump pid file: {adb_start_cmd}')
                 else:
-                    logging.warning('Could not determine tcpdump pid from adb output: %s', out or '(empty)')
+                    logging.warning('Could not determine tcpdump pid from adb output: %s - Start command: %s', out or '(empty)', adb_start_cmd)
 
                 # Verify that the remote pcap file exists. tcpdump should create the file
                 # shortly after starting; poll for a short period to allow for delays.
