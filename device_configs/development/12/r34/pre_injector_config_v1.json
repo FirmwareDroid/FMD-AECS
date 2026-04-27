@@ -2549,7 +2549,10 @@
   "ACVTOOL_SKIP_APK_KEYWORDS": [
     "MtkCarrierConfig",
     "SystemUI",
-    "Launcher"
+    "Launcher",
+    "Media",
+    "Phone",
+    "Print"
   ],
   "ENABLE_ACVTOOL_INSTRUMENTATION": true
 }
