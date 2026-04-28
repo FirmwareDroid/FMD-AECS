@@ -342,12 +342,18 @@ def upload_image_as_raw(repo_url, username, password, file_path, filename):
                         rest_api_url = f"{parsed.scheme}://{parsed.netloc}/service/rest/v1/components?repository={repo_name}"
                         logging.info("Attempting Nexus REST API upload to %s (repository=%s, raw_dir=%s)", rest_api_url, repo_name, raw_dir)
                         try:
-                            with open(file_path, 'rb') as f:
-                                files = {'raw.asset1': (filename, f, 'application/octet-stream')}
-                                data = {}
-                                if raw_dir:
-                                    data['raw.directory'] = raw_dir
-                                rest_resp = requests.post(rest_api_url, auth=(username, password), data=data, files=files, verify=VERIFY_SSL)
+                                with open(file_path, 'rb') as f:
+                                    # Nexus REST API expects the asset field filename to be present for raw uploads.
+                                    # Provide both raw.directory and raw.asset1.filename to satisfy different Nexus versions.
+                                    files = {'raw.asset1': (filename, f, 'application/octet-stream')}
+                                    data = {}
+                                    if raw_dir:
+                                        data['raw.directory'] = raw_dir
+                                    # Some Nexus instances require an explicit form field raw.asset1.filename
+                                    # and/or 'Filename' for the asset. Provide both as a best-effort.
+                                    data['raw.asset1.filename'] = filename
+                                    data['Filename'] = filename
+                                    rest_resp = requests.post(rest_api_url, auth=(username, password), data=data, files=files, verify=VERIFY_SSL)
                                 if rest_resp is not None and rest_resp.status_code in (200, 201, 204):
                                     logging.info('File uploaded successfully via Nexus REST API: %s', filename)
                                     return True, rest_resp.url if hasattr(rest_resp, 'url') else rest_api_url
