@@ -253,125 +253,58 @@ def upload_image_as_raw(repo_url, username, password, file_path, filename):
 
     url = f'{repo_url}{filename}'
     logging.info(f'Uploading image {file_path} as raw to {url}')
-    response = None
-    # Primary attempt: HTTP PUT to the full target URL (common for raw repositories)
     try:
         with open(file_path, 'rb') as f:
-            headers = {"Content-Type": "application/octet-stream", "Expect": ""}
-            logging.debug("Attempting HTTP PUT upload to %s with headers=%s", url, headers)
-            response = requests.put(url, auth=(username, password), data=f, headers=headers, verify=VERIFY_SSL)
-    except requests.exceptions.RequestException as req_err:
-        # Network / HTTP level errors
-        logging.exception("HTTP error while uploading file to %s: %s", url, req_err)
-        return False, url
-    except Exception as e:
-        # File I/O or unexpected errors
-        logging.exception("Unexpected error while uploading file to %s: %s", url, e)
-        return False, url
+            response = requests.put(url, auth=(username, password), data=f, verify=VERIFY_SSL)
+    except Exception as err:
+        logging.error(f"Failed to upload image: {err}")
 
-    # If we didn't get a response object for some reason
-    if response is None:
-        logging.error("No response received when uploading file to %s", url)
-        return False, url
-
-    # Successful status codes
-    if response.status_code in (200, 201):
-        logging.info(f'File uploaded successfully: {filename}')
+    if response is not None and (response.status_code == 200 or response.status_code == 201):
+        logging.info('File uploaded successfully')
         is_successful = True
     else:
-        # Collect debugging information to help diagnose failures
+        # Build helpful diagnostic information and a curl reproduction command for manual testing
         try:
-            status = response.status_code
-            reason = getattr(response, 'reason', None)
-            resp_url = getattr(response, 'url', url)
-            headers = dict(response.headers) if hasattr(response, 'headers') else None
-            # Try to get a preview of the response body but avoid huge logs
+            status = getattr(response, 'status_code', None)
+            resp_text = None
             try:
-                text = response.text
-                if text is None:
-                    content_preview = None
-                else:
-                    content_preview = text if len(text) <= 2000 else text[:2000] + '...[truncated]'
+                resp_text = response.text
             except Exception:
-                content_preview = '<unable to read response.text>'
-            # Try parsing JSON error body if present
-            json_body = None
-            try:
-                json_body = response.json()
-            except Exception:
-                json_body = None
+                resp_text = '<unable to read response.text>'
+            preview = resp_text if resp_text is None or len(resp_text) <= 2000 else resp_text[:2000] + '...[truncated]'
+            logging.error('Failed to upload file to %s. status=%s, preview=%s', url, status, preview)
 
-            logging.error(
-                "Failed to upload file to %s. status_code=%s, reason=%s, response_url=%s, headers=%s, response_preview=%s, json=%s",
-                url, status, reason, resp_url, headers, content_preview, json_body
+            # Construct a curl command for the original PUT attempt (safe: do NOT include password)
+            curl_put = (
+                f"curl -v -u '{username}:REPLACE_WITH_PASSWORD' -H 'Content-Type: application/octet-stream' "
+                f"--upload-file '{file_path}' '{url}'"
             )
-        except Exception as e:
-            logging.exception("Error while logging upload failure details: %s", e)
+            if not VERIFY_SSL:
+                curl_put += ' --insecure'
+            logging.error('To reproduce the PUT upload manually (replace REPLACE_WITH_PASSWORD):\n%s', curl_put)
 
-        # Fallback behavior for common server-side method rejections (e.g., Nexus returning 405 Method Not Allowed)
-        try:
-            if status == 405:
-                logging.info("Server returned 405 Method Not Allowed for PUT; attempting fallback POST upload to repository base URL %s", repo_url)
-                # Try POST to the repository base URL (repo_url already ends with '/'). Use multipart/form-data so servers that expect POST may accept it.
-                try:
-                    with open(file_path, 'rb') as f:
-                        files = {'file': (filename, f, 'application/octet-stream')}
-                        post_url = repo_url
-                        logging.debug("Attempting HTTP POST upload to %s (files=%s)", post_url, list(files.keys()))
-                        post_resp = requests.post(post_url, auth=(username, password), files=files, verify=VERIFY_SSL)
-                        if post_resp is not None and post_resp.status_code in (200, 201):
-                            logging.info(f'File uploaded successfully via POST: {filename}')
-                            return True, post_resp.url if hasattr(post_resp, 'url') else post_url
-                        else:
-                            # Log detailed info about POST attempt
-                            try:
-                                post_preview = post_resp.text if post_resp is not None else '<no response>'
-                            except Exception:
-                                post_preview = '<unable to read post response.text>'
-                            logging.error("Fallback POST upload failed. status=%s, url=%s, preview=%s",
-                                          getattr(post_resp, 'status_code', None), getattr(post_resp, 'url', post_url), post_preview)
-                except Exception as post_err:
-                    logging.exception("Fallback POST upload attempt failed with error: %s", post_err)
-                # If simple POST to the folder URL did not work, attempt Nexus OSS REST API for component upload
-                try:
-                    parsed = urlparse(repo_url)
-                    path_parts = [p for p in parsed.path.split('/') if p]
-                    if len(path_parts) >= 1:
-                        repo_name = path_parts[0]
-                        raw_dir = '/'.join(path_parts[1:]) if len(path_parts) > 1 else ''
-                        rest_api_url = f"{parsed.scheme}://{parsed.netloc}/service/rest/v1/components?repository={repo_name}"
-                        logging.info("Attempting Nexus REST API upload to %s (repository=%s, raw_dir=%s)", rest_api_url, repo_name, raw_dir)
-                        try:
-                                with open(file_path, 'rb') as f:
-                                    # Nexus REST API expects the asset field filename to be present for raw uploads.
-                                    # Provide both raw.directory and raw.asset1.filename to satisfy different Nexus versions.
-                                    files = {'raw.asset1': (filename, f, 'application/octet-stream')}
-                                    data = {}
-                                    if raw_dir:
-                                        data['raw.directory'] = raw_dir
-                                    # Some Nexus instances require an explicit form field raw.asset1.filename
-                                    # and/or 'Filename' for the asset. Provide both as a best-effort.
-                                    data['raw.asset1.filename'] = filename
-                                    data['Filename'] = filename
-                                    rest_resp = requests.post(rest_api_url, auth=(username, password), data=data, files=files, verify=VERIFY_SSL)
-                                if rest_resp is not None and rest_resp.status_code in (200, 201, 204):
-                                    logging.info('File uploaded successfully via Nexus REST API: %s', filename)
-                                    return True, rest_resp.url if hasattr(rest_resp, 'url') else rest_api_url
-                                else:
-                                    try:
-                                        rest_preview = rest_resp.text if rest_resp is not None else '<no response>'
-                                    except Exception:
-                                        rest_preview = '<unable to read rest response.text>'
-                                    logging.error("Nexus REST API upload failed. status=%s, url=%s, preview=%s",
-                                                  getattr(rest_resp, 'status_code', None), getattr(rest_resp, 'url', rest_api_url), rest_preview)
-                        except Exception as rest_err:
-                            logging.exception("Error during Nexus REST API upload attempt: %s", rest_err)
-                except Exception:
-                    # best-effort fallback; do not raise here
-                    pass
-        except Exception:
-            # swallow fallback exceptions to avoid hiding original error path
-            pass
+            # If the repo URL looks like it contains a repository name, suggest a Nexus REST API curl as well
+            try:
+                parsed = urlparse(repo_url)
+                path_parts = [p for p in parsed.path.split('/') if p]
+                if len(path_parts) >= 1:
+                    repo_name = path_parts[0]
+                    raw_dir = '/'.join(path_parts[1:]) if len(path_parts) > 1 else ''
+                    rest_api_url = f"{parsed.scheme}://{parsed.netloc}/service/rest/v1/components?repository={repo_name}"
+                    curl_rest = (
+                        f"curl -v -u '{username}:REPLACE_WITH_PASSWORD' \\"
+                        f"-F raw.asset1=@'{file_path}';filename={filename} ")
+                    if raw_dir:
+                        curl_rest += f"-F raw.directory={raw_dir} "
+                    curl_rest += f"-F raw.asset1.filename={filename} -F Filename={filename} '{rest_api_url}'"
+                    if not VERIFY_SSL:
+                        curl_rest += ' --insecure'
+                    logging.error('If the server requires Nexus REST API upload, try:\n%s', curl_rest)
+            except Exception:
+                # best-effort; don't fail logging
+                pass
+        except Exception as e:
+            logging.exception('Error while preparing upload diagnostics: %s', e)
 
     return is_successful, url
 

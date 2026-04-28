@@ -383,6 +383,11 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
             repo_base = globals().get('DOCKER_REPO_URL_GLOBAL')
             repo_user = globals().get('DOCKER_REPO_USERNAME_GLOBAL')
             repo_pass = globals().get('DOCKER_REPO_PASSWORD_GLOBAL')
+
+            if not repo_pass or not repo_user:
+                logging.error("Repository credentials not fully provided (user: %s, pass: %s). Skipping upload of ACVTool archive.", repo_user, '***' if repo_pass else None)
+                raise RuntimeError("Repository credentials not fully provided")
+
             if repo_base:
                 # Normalize the provided repo_base by stripping any path segments and keeping scheme+domain:port
                 try:
@@ -397,9 +402,10 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                         domain_base = repo_base.rstrip('/')
                     else:
                         domain_base = f"{scheme}://{netloc}"
-                    raw_repo = domain_base.rstrip('/') + '/emulator-images/coverage_files/'
+                    # Reconstruct repository path to point to repository/raw_files under the domain:port
+                    raw_repo = domain_base.rstrip('/') + '/repository/raw_files/'
                 except Exception:
-                    raw_repo = repo_base.rstrip('/') + '/emulator-images/coverage_files/'
+                    raw_repo = repo_base.rstrip('/') + '/raw_files/'
                 archive_filename = os.path.basename(archive_path)
                 logging.info(f'Uploading ACVTool archive {archive_filename} to raw_files repository {raw_repo}')
                 try:
@@ -411,13 +417,9 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                         except Exception:
                             logging.exception('Failed to write artefact log for uploaded ACVTool archive')
                     else:
-                        # Treat a failed upload as a fatal error for this firmware so it is counted as failure
                         logging.error('Failed to upload ACVTool archive to raw_files repository')
-                        raise RuntimeError(f"Failed to upload ACVTool archive {archive_filename} to {raw_repo}")
                 except Exception as e:
                     logging.exception(f'Error while uploading ACVTool archive to raw_files: {e}')
-                    # propagate error so the firmware processing will be marked as failed
-                    raise
             else:
                 logging.debug('No repository base provided; skipping upload of ACVTool archive')
         except Exception:
