@@ -405,10 +405,6 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                     is_uploaded, download_url = upload_build_artefact(raw_repo, repo_user, repo_pass, archive_path, archive_filename)
                     if is_uploaded:
                         logging.info(f'ACVTool archive uploaded successfully: {download_url}')
-                        try:
-                            write_text_output(archive_filename, PATH_BUILD_FILE_ARTEFACT_LOG)
-                        except Exception:
-                            logging.exception('Failed to write artefact log for uploaded ACVTool archive')
                     else:
                         logging.error('Failed to upload ACVTool archive to raw_files repository')
                 except Exception as e:

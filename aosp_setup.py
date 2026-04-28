@@ -408,6 +408,21 @@ def disable_dex_preopt(version: str, base_path: str, dry_run: bool = False, verb
     modify_file(path, r"WITH_DEXPREOPT := true", replacement, flags=0, dry_run=dry_run, verbose=verbose)
 
 
+def disable_zygote_onrestart(base_path: str, dry_run: bool = False, verbose: bool = False):
+    """Disable the 'onrestart restart zygote' line in init.zygote64_32.rc.
+
+    This function comments out the exact line 'onrestart restart zygote' in
+    system/core/rootdir/init.zygote64_32.rc so zygote won't be auto-restarted by init.
+
+    Usage: disable_zygote_onrestart(full_aosp_path, dry_run=True)
+    """
+    rc_path = os.path.join(base_path, "system/core/rootdir/init.zygote64_32.rc")
+    # Match the line with optional leading whitespace and comment it out.
+    pattern = r"^\s*onrestart\s+restart\s+zygote\s*$"
+    replacement = "# onrestart restart zygote"
+    modify_file(rc_path, pattern, replacement, flags=re.MULTILINE, dry_run=dry_run, verbose=verbose)
+
+
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="AOSP repository tweaks and helpers")
@@ -504,6 +519,7 @@ def main(args: argparse.Namespace):
     # 9. Add privapp permission for Launcher3 where applicable
     #add_privapp_permission(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
 
+
     # 10. Generate missing keys for DNSResolver apex
     generate_missing_dns_keys(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
 
@@ -513,6 +529,7 @@ def main(args: argparse.Namespace):
     disable_build_tests(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
     disable_avatarpicker(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
     disable_eyedropper(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
+    disable_zygote_onrestart(full_path, dry_run=args.dry_run, verbose=args.verbose)
     #disable_dex_preopt(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
 
 
