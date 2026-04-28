@@ -411,9 +411,13 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                         except Exception:
                             logging.exception('Failed to write artefact log for uploaded ACVTool archive')
                     else:
+                        # Treat a failed upload as a fatal error for this firmware so it is counted as failure
                         logging.error('Failed to upload ACVTool archive to raw_files repository')
+                        raise RuntimeError(f"Failed to upload ACVTool archive {archive_filename} to {raw_repo}")
                 except Exception as e:
                     logging.exception(f'Error while uploading ACVTool archive to raw_files: {e}')
+                    # propagate error so the firmware processing will be marked as failed
+                    raise
             else:
                 logging.debug('No repository base provided; skipping upload of ACVTool archive')
         except Exception:

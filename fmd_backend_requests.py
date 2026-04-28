@@ -9,6 +9,7 @@ import requests
 from werkzeug.utils import secure_filename
 from string import Template
 from tqdm import tqdm
+from urllib.parse import urlparse
 from config import FMD_AUTH_QUERY_TEMPLATE, VERIFY_SSL, FMD_CSRF_URL_TEMPLATE, FMD_AECS_FIRMWARE_QUERY_TEMPLATE, \
     FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE, FMD_GRAPHQL_URL_TEMPLATE, NEXUS_SERVICE_ENDPOINT, \
     FMD_APP_MANIFEST_QUERY_TEMPLATE
@@ -253,9 +254,12 @@ def upload_image_as_raw(repo_url, username, password, file_path, filename):
     url = f'{repo_url}{filename}'
     logging.info(f'Uploading image {file_path} as raw to {url}')
     response = None
+    # Primary attempt: HTTP PUT to the full target URL (common for raw repositories)
     try:
         with open(file_path, 'rb') as f:
-            response = requests.put(url, auth=(username, password), data=f, verify=VERIFY_SSL)
+            headers = {"Content-Type": "application/octet-stream", "Expect": ""}
+            logging.debug("Attempting HTTP PUT upload to %s with headers=%s", url, headers)
+            response = requests.put(url, auth=(username, password), data=f, headers=headers, verify=VERIFY_SSL)
     except requests.exceptions.RequestException as req_err:
         # Network / HTTP level errors
         logging.exception("HTTP error while uploading file to %s: %s", url, req_err)
@@ -303,6 +307,65 @@ def upload_image_as_raw(repo_url, username, password, file_path, filename):
             )
         except Exception as e:
             logging.exception("Error while logging upload failure details: %s", e)
+
+        # Fallback behavior for common server-side method rejections (e.g., Nexus returning 405 Method Not Allowed)
+        try:
+            if status == 405:
+                logging.info("Server returned 405 Method Not Allowed for PUT; attempting fallback POST upload to repository base URL %s", repo_url)
+                # Try POST to the repository base URL (repo_url already ends with '/'). Use multipart/form-data so servers that expect POST may accept it.
+                try:
+                    with open(file_path, 'rb') as f:
+                        files = {'file': (filename, f, 'application/octet-stream')}
+                        post_url = repo_url
+                        logging.debug("Attempting HTTP POST upload to %s (files=%s)", post_url, list(files.keys()))
+                        post_resp = requests.post(post_url, auth=(username, password), files=files, verify=VERIFY_SSL)
+                        if post_resp is not None and post_resp.status_code in (200, 201):
+                            logging.info(f'File uploaded successfully via POST: {filename}')
+                            return True, post_resp.url if hasattr(post_resp, 'url') else post_url
+                        else:
+                            # Log detailed info about POST attempt
+                            try:
+                                post_preview = post_resp.text if post_resp is not None else '<no response>'
+                            except Exception:
+                                post_preview = '<unable to read post response.text>'
+                            logging.error("Fallback POST upload failed. status=%s, url=%s, preview=%s",
+                                          getattr(post_resp, 'status_code', None), getattr(post_resp, 'url', post_url), post_preview)
+                except Exception as post_err:
+                    logging.exception("Fallback POST upload attempt failed with error: %s", post_err)
+                # If simple POST to the folder URL did not work, attempt Nexus OSS REST API for component upload
+                try:
+                    parsed = urlparse(repo_url)
+                    path_parts = [p for p in parsed.path.split('/') if p]
+                    if len(path_parts) >= 1:
+                        repo_name = path_parts[0]
+                        raw_dir = '/'.join(path_parts[1:]) if len(path_parts) > 1 else ''
+                        rest_api_url = f"{parsed.scheme}://{parsed.netloc}/service/rest/v1/components?repository={repo_name}"
+                        logging.info("Attempting Nexus REST API upload to %s (repository=%s, raw_dir=%s)", rest_api_url, repo_name, raw_dir)
+                        try:
+                            with open(file_path, 'rb') as f:
+                                files = {'raw.asset1': (filename, f, 'application/octet-stream')}
+                                data = {}
+                                if raw_dir:
+                                    data['raw.directory'] = raw_dir
+                                rest_resp = requests.post(rest_api_url, auth=(username, password), data=data, files=files, verify=VERIFY_SSL)
+                                if rest_resp is not None and rest_resp.status_code in (200, 201, 204):
+                                    logging.info('File uploaded successfully via Nexus REST API: %s', filename)
+                                    return True, rest_resp.url if hasattr(rest_resp, 'url') else rest_api_url
+                                else:
+                                    try:
+                                        rest_preview = rest_resp.text if rest_resp is not None else '<no response>'
+                                    except Exception:
+                                        rest_preview = '<unable to read rest response.text>'
+                                    logging.error("Nexus REST API upload failed. status=%s, url=%s, preview=%s",
+                                                  getattr(rest_resp, 'status_code', None), getattr(rest_resp, 'url', rest_api_url), rest_preview)
+                        except Exception as rest_err:
+                            logging.exception("Error during Nexus REST API upload attempt: %s", rest_err)
+                except Exception:
+                    # best-effort fallback; do not raise here
+                    pass
+        except Exception:
+            # swallow fallback exceptions to avoid hiding original error path
+            pass
 
     return is_successful, url
 
