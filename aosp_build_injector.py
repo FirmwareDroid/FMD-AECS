@@ -369,14 +369,7 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
             logging.exception('Error while scanning for apktool directories in %s', firmware_folder)
         logging.info(f"Creating ACVTool archive {archive_base}.zip from folder: {firmware_folder}")
         archive_path = shutil.make_archive(archive_base, 'zip', root_dir=firmware_folder)
-        # If archive created successfully, remove the intermediate firmware_folder to save disk space
-        if archive_path and os.path.exists(archive_path):
-            try:
-                shutil.rmtree(firmware_folder)
-                logging.info(f"Removed intermediate ACVTool folder after archiving: {firmware_folder}")
-            except Exception as e:
-                logging.warning(f"Failed to remove intermediate ACVTool folder {firmware_folder}: {e}")
-        logging.info(f"ACVTool archive created: {archive_path}")
+
         # Attempt to upload the created archive to the FMD Nexus repository raw_files
         try:
             # Use repository base provided via globals (set at startup) or environment variables
@@ -424,6 +417,15 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                 logging.debug('No repository base provided; skipping upload of ACVTool archive')
         except Exception:
             logging.exception('Unexpected error during ACVTool archive upload step')
+
+        # If archive created successfully, remove the intermediate firmware_folder to save disk space
+        if archive_path and os.path.exists(archive_path):
+            try:
+                shutil.rmtree(firmware_folder)
+                logging.info(f"Removed intermediate ACVTool folder after archiving: {firmware_folder}")
+            except Exception as e:
+                logging.warning(f"Failed to remove intermediate ACVTool folder {firmware_folder}: {e}")
+        logging.info(f"ACVTool archive created: {archive_path}")
     except Exception as e:
         logging.error(f"Failed to create ACVTool archive for firmware {firmware_id}: {e}")
     return result_dict
