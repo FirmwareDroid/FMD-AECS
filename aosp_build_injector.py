@@ -397,9 +397,9 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                         domain_base = repo_base.rstrip('/')
                     else:
                         domain_base = f"{scheme}://{netloc}"
-                    raw_repo = domain_base.rstrip('/') + '/raw_files/coverage_files/'
+                    raw_repo = domain_base.rstrip('/') + '/emulator_images/coverage_files/'
                 except Exception:
-                    raw_repo = repo_base.rstrip('/') + '/raw_files/coverage_files/'
+                    raw_repo = repo_base.rstrip('/') + '/emulator_images/coverage_files/'
                 archive_filename = os.path.basename(archive_path)
                 logging.info(f'Uploading ACVTool archive {archive_filename} to raw_files repository {raw_repo}')
                 try:
