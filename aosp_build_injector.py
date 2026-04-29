@@ -271,7 +271,8 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
                         "duration_seconds": elapsed,
                         "error": error,
                     })
-                    logging.error(f"ACVTool instrumentation failed for {filename} ({apk}) in {elapsed}s (parallel): {error}")
+                    logging.error(f"ACVTool instrumentation failed for {filename} ({apk}) in {elapsed}s (parallel)")
+                    logging.debug(f"ACVTool error: {error}")
             except Exception as e:
                 # Shouldn't happen often; record generic failure
                 fname = os.path.basename(futures[fut])
