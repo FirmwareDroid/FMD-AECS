@@ -271,6 +271,7 @@
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST": [
     "adb",
     "adbd",
+    "art",
     "conscrypt",
     "i18n",
     "media",
@@ -285,6 +286,7 @@
     "ipsec",
     "neuralnetworks",
     "permission",
+    "runtime",
     "swcodec",
     "tzdata",
     "tzdata3",
