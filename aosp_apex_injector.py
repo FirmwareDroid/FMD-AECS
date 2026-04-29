@@ -1231,6 +1231,7 @@ def get_existing_file_context(apex_file_name, aosp_path):
                 logging.info(f"APEX: File contexts found: {file_contexts_path}")
                 return file_contexts_path
             else:
+                logging.warning(f"APEX: File contexts not found: {file_contexts_path} using generic file context template for APEX: {apex_file_name}. This might fail during runtime.")
                 return FILE_CONTEXT_TEMPLATE_PATH
                 #raise ValueError(f"Error getting APEX file context file from AOSP: {apex_file_name}. file_context_name: {file_context_name}")
     return file_contexts_path

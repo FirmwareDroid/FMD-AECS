@@ -712,13 +712,13 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
     file_ext = os.path.splitext(file_name)[1]
     if file_ext in POST_INJECTOR_CONFIG["SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION"]:
         logging.info(f"Skipped indirect injection for file: {file_path} with extension: {file_ext}")
-        return None, inj_partition, None
+        return None, inj_partition, False
 
     if not file_name in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS"]:
         if POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"] and file_ext == ".so":
             logging.info(f"Skipped indirect injection for shared library file: {file_path} as "
                          f"ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS is set.")
-            return None, inj_partition, None
+            return None, inj_partition, False
 
     delete_intermediate_cached_files(target_file_injection_path, aosp_version, aosp_path)
 
@@ -822,7 +822,8 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
             # Fallback to Direct Injection
             target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
             inj_partition = (file_path, target_path, module_type)
-
+        else:
+            logging.info(f"Skipped direct+indirect injection: Target file was not injected: {file_path}")
     if target_path:
         try:
             md5sum = hashlib.md5(target_path).hexdigest()
