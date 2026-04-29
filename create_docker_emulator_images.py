@@ -519,12 +519,12 @@ def process_images(input_dir, docker_repo_url, repository_username, build_local,
     }
 
     # Write summary to results directory for easy inspection
-    try:
-        os.makedirs(os.path.join(ROOT_PATH, 'results'), exist_ok=True)
-        with open(os.path.join(ROOT_PATH, 'results', 'process_images_summary.json'), 'w', encoding='utf-8') as sf:
-            json.dump(summary, sf, indent=2)
-    except Exception:
-        logging.exception('Failed to write process_images_summary.json')
+    # try:
+    #     os.makedirs(os.path.join(ROOT_PATH, 'results'), exist_ok=True)
+    #     with open(os.path.join(ROOT_PATH, 'results', 'process_images_summary.json'), 'w', encoding='utf-8') as sf:
+    #         json.dump(summary, sf, indent=2)
+    # except Exception:
+    #     logging.exception('Failed to write process_images_summary.json')
 
     logging.info('Aggregated summary: %s', summary)
     return summary
@@ -820,12 +820,12 @@ def main():
             'failed_images': failed_images if 'failed_images' in locals() else []
         }
         # write to results
-        try:
-            os.makedirs(os.path.join(ROOT_PATH, 'results'), exist_ok=True)
-            with open(os.path.join(ROOT_PATH, 'results', 'aggregate_summary.json'), 'w', encoding='utf-8') as af:
-                json.dump(aggregate_summary, af, indent=2)
-        except Exception:
-            logging.exception('Failed to write aggregate_summary.json')
+        #try:
+        #    os.makedirs(os.path.join(ROOT_PATH, 'results'), exist_ok=True)
+        #    with open(os.path.join(ROOT_PATH, 'results', 'aggregate_summary.json'), 'w', encoding='utf-8') as af:
+        #        json.dump(aggregate_summary, af, indent=2)
+        #except Exception:
+        #     logging.exception('Failed to write aggregate_summary.json')
 
         # Human-readable logging
         logging.info('FINAL AGGREGATED SUMMARY: elapsed=%.2fs (%.2f minutes) | downloads: total=%s success=%s failed=%s | builds: submitted=%s completed=%s failed=%s',
