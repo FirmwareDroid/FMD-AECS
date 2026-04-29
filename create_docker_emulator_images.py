@@ -8,6 +8,7 @@ import subprocess
 import time
 from getpass import getpass
 import platform
+import csv
 try:
     import docker
 except Exception as _e:
@@ -577,10 +578,11 @@ def parse_arguments():
                         required=False,
                         default=None,
                         help="Number of parallel workers to build images. Defaults to CPU count.")
-    parser.add_argument("--file-list",
+    parser.add_argument("--file-list-file",
                         type=str,
                         required=False,
-                        help="Comma-separated list of filenames to download from the repository.")
+                        help="Path to a file that contains a comma-separated list of filenames to download from the repository."
+                             " The file may contain quoted names (CSV style) or multiple rows.")
     parser.add_argument('--skip-push', action='store_true', required=False,
                         help='If set, built images will NOT be pushed to the remote docker registry (useful for testing).')
     return parser.parse_args()
@@ -601,8 +603,18 @@ def main():
             raise ValueError("Repository URL, Docker repository URL and repository username must be provided.")
         if not args.input_dir:
             raise ValueError("Download destination must be provided.")
-        if args.file_list:
-            file_list = args.file_list.split(",")
+        # Read requested file list from a file (CSV-style). The file may contain
+        # quoted entries and multiple rows; use the csv module to parse robustly.
+        if args.file_list_file:
+            try:
+                with open(args.file_list_file, 'r', encoding='utf-8') as ff:
+                    reader = csv.reader(ff)
+                    # flatten rows and strip quotes/whitespace
+                    entries = [item.strip() for row in reader for item in row if item is not None]
+                    # remove surrounding quotes if present and filter empties
+                    file_list = [e.strip().strip('"').strip("'") for e in entries if e.strip()]
+            except Exception as e:
+                raise RuntimeError(f"Failed to read file list from {args.file_list_file}: {e}")
         else:
             file_list = []
         filtered_image_list = get_filtered_emulator_image_list(args.repository_url, file_list)
