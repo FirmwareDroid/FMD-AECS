@@ -1389,7 +1389,10 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
         if not os.path.exists(source_file_path):
             logging.error(f"Injecting file: Source file does not exist anymore: {source_file_path}")
         else:
-            os.makedirs(os.path.dirname(target_file_injection_path), exist_ok=True)
+            try:
+                os.makedirs(os.path.dirname(target_file_injection_path), exist_ok=True)
+            except Exception as e:
+                logging.error(f"Error creating directory: {target_file_injection_path} -> {e}")
             try:
                 if os.path.isfile(source_file_path) and not os.path.islink(source_file_path):
                     shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
