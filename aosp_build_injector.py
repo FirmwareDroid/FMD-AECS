@@ -426,6 +426,20 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch
         logging.error(f"Failed to create ACVTool archive for firmware {firmware_id}: {e}")
     return result_dict
 
+def fix_missing_file(aosp_path, aosp_version):
+    """
+    Creates the displayconfig file to fix an aosp error on Android 14
+    """
+    if aosp_version in ["14"]:
+        # out / target / product / emulator64_arm64 / vendor / etc / displayconfig
+        display_config_path = os.path.join(aosp_path, 'out/target/product/emulator64_arm64/vendor/etc/')
+        os.makedirs(display_config_path, exist_ok=True)
+        file_path = os.path.join(display_config_path, "displayconfig")
+        try:
+            with open(file_path) as f:
+                f.seek(0)
+        except Exception:
+            logging.warning(f"Could not create displayconfig: {file_path}")
 
 def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering, cookies, tag=None):
     """
@@ -519,6 +533,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
         try:
+            fix_missing_file(aosp_path, aosp_version)
             main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
             build_start_time = time.time()
             execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
