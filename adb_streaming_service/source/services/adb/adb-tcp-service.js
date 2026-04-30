@@ -979,40 +979,10 @@ class AdbTcpService {
 				throw err;
 			}
 
-			// Now attempt to ensure video/audio streams are available (if requested). Use short timeouts to fail fast.
-			try {
-				if (options && options.value) {
-					const checks = [];
-					if (options.value.video === true && client.videoStream) {
-						checks.push((async () => {
-							try {
-								// await videoStream promise with timeout
-								await withTimeout(client.videoStream, 5000, 'video-stream-creation-timeout');
-							} catch (e) { throw new Error('videoStream failed: ' + (e?.message || String(e))); }
-						})());
-					}
-					if (options.value.audio === true && client.audioStream) {
-						checks.push((async () => {
-							try {
-								await withTimeout(client.audioStream, 5000, 'audio-stream-creation-timeout');
-							} catch (e) { throw new Error('audioStream failed: ' + (e?.message || String(e))); }
-						})());
-					}
-					if (checks.length) await Promise.all(checks);
-				}
-			} catch (e) {
-				// collect diagnostics and close client
-				let diag = { message: e?.message || String(e), initialOutputLines };
-				try {
-					if (deviceAdb && deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') {
-						diag.logcat = await deviceAdb.subprocess.exec(["logcat", "-d", "-t", "200"]);
-						diag.device_ls = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]);
-					}
-				} catch (ee) { logger.debug('diag collection after stream failure failed', ee?.message || ee); }
-				try { if (client && typeof client.close === 'function') await client.close(); } catch (ee) { logger.debug('client.close failed', ee?.message || ee); }
-				const err = new Error('scrcpy stream creation failed: ' + diag.message); err.details = diag; throw err;
-			}
-
+			// Stream readiness is validated by setupVideoStream (10s timeout) and setupAudioStream (8s timeout)
+			// in the websocket open handler. Performing premature short-timeout checks here (e.g. 5s) caused
+			// the client to be destroyed before streams were ready on slower emulators, preventing streaming
+			// from ever starting. Return the client directly so the caller can set up streams at its own pace.
 			return { client, options };
 		} catch (err) {
 			// If this was the first attempt and audio was requested, retry without audio (some devices/servers fail on audio)
@@ -1048,17 +1018,9 @@ class AdbTcpService {
 						try { if (client2 && typeof client2.close === 'function') await client2.close(); } catch (e3) { logger.debug('client2.close failed', e3?.message || e3); }
 						// fall through to original error handling below
 					} else {
-						// attempt stream checks for video only
-						try {
-							if (optionsNoAudio && optionsNoAudio.value && optionsNoAudio.value.video === true && client2.videoStream) {
-								await withTimeout(client2.videoStream, 5000, 'video-stream-creation-timeout-retry');
-							}
-							logger.info('Retry without audio succeeded');
-							return { client: client2, options: optionsNoAudio };
-						} catch (e4) {
-							logger.error('Retry without audio failed during stream checks', e4?.message || e4);
-							try { if (client2 && typeof client2.close === 'function') await client2.close(); } catch (e5) { logger.debug('client2.close failed', e5?.message || e5); }
-						}
+						// Stream readiness is handled by setupVideoStream/setupAudioStream; return client directly.
+						logger.info('Retry without audio succeeded');
+						return { client: client2, options: optionsNoAudio };
 					}
 				} catch (retryErr) {
 					logger.error('scrcpy retry (no-audio) failed:', retryErr?.message || retryErr);
