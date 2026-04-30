@@ -33,6 +33,7 @@ import {
 	DEFAULT_BACKOFF_BASE_MS as DEVICE_FAIL_BACKOFF_BASE_MS,
 	DEFAULT_BACKOFF_MAX_MS  as DEVICE_FAIL_BACKOFF_MAX_MS,
 } from "./device-backoff.js";
+import { probeRemoteServer, pushServerWithCLI } from "./push-server.js";
 // inline __dirname when needed to avoid keeping an unused constant
 
 export class ProgressStream extends InspectStream {
@@ -474,45 +475,12 @@ const pushServer = async (adbInstance, force = false) => {
 	logger.info(`Pushing scrcpy server to device if not already present with Instance: ${JSON.stringify(adbInstance)}`);
 	const serial = resolveSerialFromAdbInstance(adbInstance);
 	logger.info(`Got serial from adb instance: ${serial}`);
-	// probe remote server file via ls -l to verify existence/size.
-	// Try the preferred DEVICE_SERVER_PATH first, then fall back to ALT_DEVICE_SERVER_PATH.
-	const probeRemoteServer = async (adbInst) => {
-		try {
-			if (!adbInst || !adbInst.subprocess || typeof adbInst.subprocess.exec !== 'function') return { exists: null, size: null, path: null };
-			const tryPaths = [DEVICE_SERVER_PATH, ALT_DEVICE_SERVER_PATH];
-			for (const p of tryPaths) {
-				try {
-					const out = await adbInst.subprocess.exec(["ls", "-l", p]);
-					const outStr = Array.isArray(out) ? out.join('\n') : String(out);
-					if (/No such file|No such file or directory/i.test(outStr)) continue;
-					const lines = outStr.split(/\r?\n/).filter(Boolean);
-					if (!lines.length) return { exists: null, size: null, path: p };
-					const first = lines[0];
-					const m = first.match(/^\S+\s+\d+\s+\S+\s+\S+\s+(\d+)/);
-					if (m && m[1]) return { exists: true, size: Number(m[1]), path: p };
-					// fallback - find numeric token
-					const tokens = first.split(/\s+/);
-					for (let t of tokens) if (/^\d+$/.test(t)) return { exists: true, size: Number(t), path: p };
-					logger.info("probeRemoteServer: could not parse ls -l output for size");
-					return { exists: true, size: null, path: p };
-				} catch (e) {
-					// Try next path
-					logger.debug(`probeRemoteServer: ls -l ${p} failed: ${e?.message || e}`);
-					continue;
-				}
-			}
-			return { exists: false, size: null, path: null };
-		} catch (e) {
-			logger.error(`probeRemoteServer failed: ${e?.message || e}`);
-			return { exists: null, size: null, path: null };
-		}
-	};
 
 	if (serial) {
 		logger.info(`pushServer: resolved serial=${serial}`);
 		if (pushedBySerial.has(serial) && !force) {
 				try {
-					const remote = await probeRemoteServer(adbInstance);
+					const remote = await probeRemoteServer(adbInstance, [DEVICE_SERVER_PATH, ALT_DEVICE_SERVER_PATH], logger);
 					const localSize = server ? (server.byteLength || server.length || null) : null;
 					if (remote.exists === true && remote.size != null && localSize != null && remote.size === localSize) {
 						// record detected path so subsequent operations reuse it
@@ -550,6 +518,7 @@ const pushServer = async (adbInstance, force = false) => {
 				logger.debug(`Pushing scrcpy server to device serial=${serial} path: ${DEVICE_SERVER_PATH} (force=${!!force})`);
 				// Attempt primary push to DEVICE_SERVER_PATH, fall back to ALT_DEVICE_SERVER_PATH if that fails.
 				const attemptPaths = [DEVICE_SERVER_PATH, ALT_DEVICE_SERVER_PATH];
+				const localSize = server ? (server.byteLength || server.length || null) : null;
 				let pushedPath = null;
 				for (const targetPath of attemptPaths) {
 					try {
@@ -562,17 +531,49 @@ const pushServer = async (adbInstance, force = false) => {
 								.pipeThrough(new ProgressStream((progress) => logger.debug(`scrcpy server upload progress: ${progress}`))),
 							targetPath,
 						);
-						pushedPath = targetPath;
+						// Verify the binary actually arrived on the device before marking as pushed.
+						const verification = await probeRemoteServer(adbInstance, [targetPath], logger);
+						if (verification.exists === null) {
+							// subprocess unavailable — trust the push succeeded
+							pushedPath = targetPath;
+						} else if (verification.exists === true && (localSize === null || verification.size === null || verification.size === localSize)) {
+							pushedPath = targetPath;
+							logger.debug(`pushServer: verified binary at ${targetPath} (remote=${verification.size}, local=${localSize})`);
+						} else {
+							logger.warn(`pushServer: push to ${targetPath} reported success but binary verification failed (remote=${verification.size}, local=${localSize}); trying next path`);
+							continue;
+						}
 						// record which path we used for this serial so future operations reuse it
 						pushPathBySerial.set(serial, pushedPath);
 						pushedBySerial.add(serial);
 						logger.debug(`pushServer: marked serial=${serial} as pushed at path=${pushedPath}`);
-						logger.debug('scrcpy server pushed successfully');
+						logger.debug('scrcpy server pushed and verified successfully');
 						break;
 					} catch (err) {
 						logger.warn(`pushServer: push to ${targetPath} failed for serial=${serial}: ${err?.message || err}`);
 						// try next path
 						continue;
+					}
+				}
+				// CLI fallback when all JS API push attempts failed or could not be verified.
+				if (!pushedPath) {
+					logger.info(`pushServer: JS API push failed for all paths for serial=${serial}; attempting CLI (adb push) fallback`);
+					for (const targetPath of attemptPaths) {
+						try {
+							await pushServerWithCLI(serial, server, targetPath, { logger });
+							const verification = await probeRemoteServer(adbInstance, [targetPath], logger);
+							if (verification.exists === null ||
+								(verification.exists === true && (localSize === null || verification.size === null || verification.size === localSize))) {
+								pushedPath = targetPath;
+								pushPathBySerial.set(serial, pushedPath);
+								pushedBySerial.add(serial);
+								logger.info(`pushServer: CLI fallback succeeded at ${pushedPath} for serial=${serial}`);
+								break;
+							}
+							logger.warn(`pushServer: CLI push to ${targetPath} for serial=${serial} succeeded but verification failed (remote=${verification.size}, local=${localSize})`);
+						} catch (err) {
+							logger.warn(`pushServer: CLI push to ${targetPath} failed for serial=${serial}: ${err?.message || err}`);
+						}
 					}
 				}
 				if (!pushedPath) {
@@ -592,6 +593,7 @@ const pushServer = async (adbInstance, force = false) => {
 			logger.debug(`Pushing scrcpy server (fallback by instance) to device (force=${!!force})`);
 			try {
 				const attemptPaths = [DEVICE_SERVER_PATH, ALT_DEVICE_SERVER_PATH];
+				const localSize = server ? (server.byteLength || server.length || null) : null;
 				let pushedPath = null;
 				for (const targetPath of attemptPaths) {
 					try {
@@ -602,10 +604,21 @@ const pushServer = async (adbInstance, force = false) => {
 								.pipeThrough(new ProgressStream((progress) => logger.debug(`scrcpy server upload progress: ${progress}`))),
 							targetPath,
 						);
-						pushedPath = targetPath;
+						// Verify the binary actually arrived on the device before marking as pushed.
+						const verification = await probeRemoteServer(adbInstance, [targetPath], logger);
+						if (verification.exists === null) {
+							// subprocess unavailable — trust the push succeeded
+							pushedPath = targetPath;
+						} else if (verification.exists === true && (localSize === null || verification.size === null || verification.size === localSize)) {
+							pushedPath = targetPath;
+							logger.debug(`pushServer: verified binary at ${targetPath} (remote=${verification.size}, local=${localSize}) (instance fallback)`);
+						} else {
+							logger.warn(`pushServer: push to ${targetPath} reported success but verification failed (remote=${verification.size}, local=${localSize}) (instance fallback); trying next path`);
+							continue;
+						}
 						// record for this instance
 						try { pushPathByInstance.set(adbInstance, pushedPath); } catch (e) { logger.debug('pushServer: could not set pushPathByInstance', e?.message || e); }
-						logger.debug(`scrcpy server pushed successfully (fallback) to ${pushedPath}`);
+						logger.debug(`scrcpy server pushed and verified successfully (fallback) to ${pushedPath}`);
 						break;
 					} catch (err) {
 						logger.warn(`pushServer: push to ${targetPath} failed (instance fallback): ${err?.message || err}`);
