@@ -21,7 +21,7 @@ import {
 } from "@yume-chan/adb-scrcpy";
 import { logger } from "../logger.js";
 import { global } from "../../state/global.js";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { withTimeout } from "../../utils/timeout.js";
 import { createDeviceMonitor } from "./adb-device-monitor.js";
@@ -432,6 +432,14 @@ const pushedBySerial = new Set();
 const pushInFlightBySerial = new Map();
 const pushInFlightByInstance = new WeakMap();
 
+// Remember which device path we successfully pushed the server to. We prefer the
+// original DEVICE_SERVER_PATH but fall back to ALT_DEVICE_SERVER_PATH when needed.
+const pushPathBySerial = new Map();
+const pushPathByInstance = new WeakMap();
+
+const ALT_DEVICE_SERVER_DIR = "/sdcard/Download";
+const ALT_DEVICE_SERVER_PATH = `${ALT_DEVICE_SERVER_DIR}/${basename(DEVICE_SERVER_PATH)}`;
+
 function resolveSerialFromAdbInstance(adbInstance) {
 	try {
 		if (global && global.metainfo && Array.isArray(global.metainfo.devices)) {
@@ -450,54 +458,80 @@ function resolveSerialFromAdbInstance(adbInstance) {
 	return null;
 }
 
+// Determine which server path to use for a given adb instance. This prefers a
+// recorded path (per-serial or per-instance) and falls back to the default
+// DEVICE_SERVER_PATH.
+function getServerPathForAdbInstance(adbInstance) {
+	try {
+		const serial = resolveSerialFromAdbInstance(adbInstance);
+		if (serial && pushPathBySerial.has(serial)) return pushPathBySerial.get(serial);
+		if (pushPathByInstance.has(adbInstance)) return pushPathByInstance.get(adbInstance);
+	} catch (e) { logger.debug('getServerPathForAdbInstance error', e?.message || e); }
+	return DEVICE_SERVER_PATH;
+}
+
 const pushServer = async (adbInstance, force = false) => {
 	logger.info(`Pushing scrcpy server to device if not already present with Instance: ${JSON.stringify(adbInstance)}`);
 	const serial = resolveSerialFromAdbInstance(adbInstance);
 	logger.info(`Got serial from adb instance: ${serial}`);
-	// probe remote server file via ls -l to verify existence/size
+	// probe remote server file via ls -l to verify existence/size.
+	// Try the preferred DEVICE_SERVER_PATH first, then fall back to ALT_DEVICE_SERVER_PATH.
 	const probeRemoteServer = async (adbInst) => {
 		try {
-			if (!adbInst || !adbInst.subprocess || typeof adbInst.subprocess.exec !== 'function') return { exists: null, size: null };
-			const out = await adbInst.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]);
-			const outStr = Array.isArray(out) ? out.join('\n') : String(out);
-			if (/No such file|No such file or directory/i.test(outStr)) return { exists: false, size: null };
-			const lines = outStr.split(/\r?\n/).filter(Boolean);
-			if (!lines.length) return { exists: null, size: null };
-			const first = lines[0];
-			const m = first.match(/^\S+\s+\d+\s+\S+\s+\S+\s+(\d+)/);
-			if (m && m[1]) return { exists: true, size: Number(m[1]) };
-			// fallback - find numeric token
-			const tokens = first.split(/\s+/);
-			for (let t of tokens) if (/^\d+$/.test(t)) return { exists: true, size: Number(t) };
-			logger.info("probeRemoteServer: could not parse ls -l output for size");
-			return { exists: true, size: null };
+			if (!adbInst || !adbInst.subprocess || typeof adbInst.subprocess.exec !== 'function') return { exists: null, size: null, path: null };
+			const tryPaths = [DEVICE_SERVER_PATH, ALT_DEVICE_SERVER_PATH];
+			for (const p of tryPaths) {
+				try {
+					const out = await adbInst.subprocess.exec(["ls", "-l", p]);
+					const outStr = Array.isArray(out) ? out.join('\n') : String(out);
+					if (/No such file|No such file or directory/i.test(outStr)) continue;
+					const lines = outStr.split(/\r?\n/).filter(Boolean);
+					if (!lines.length) return { exists: null, size: null, path: p };
+					const first = lines[0];
+					const m = first.match(/^\S+\s+\d+\s+\S+\s+\S+\s+(\d+)/);
+					if (m && m[1]) return { exists: true, size: Number(m[1]), path: p };
+					// fallback - find numeric token
+					const tokens = first.split(/\s+/);
+					for (let t of tokens) if (/^\d+$/.test(t)) return { exists: true, size: Number(t), path: p };
+					logger.info("probeRemoteServer: could not parse ls -l output for size");
+					return { exists: true, size: null, path: p };
+				} catch (e) {
+					// Try next path
+					logger.debug(`probeRemoteServer: ls -l ${p} failed: ${e?.message || e}`);
+					continue;
+				}
+			}
+			return { exists: false, size: null, path: null };
 		} catch (e) {
 			logger.error(`probeRemoteServer failed: ${e?.message || e}`);
+			return { exists: null, size: null, path: null };
 		}
 	};
 
 	if (serial) {
 		logger.info(`pushServer: resolved serial=${serial}`);
 		if (pushedBySerial.has(serial) && !force) {
-			try {
-				const remote = await probeRemoteServer(adbInstance);
-				const localSize = server ? (server.byteLength || server.length || null) : null;
-				if (remote.exists === true && remote.size != null && localSize != null && remote.size === localSize) {
-					logger.debug(`pushServer: server already pushed to device serial=${serial}, remote file exists and size matches, skipping`);
-					return;
+				try {
+					const remote = await probeRemoteServer(adbInstance);
+					const localSize = server ? (server.byteLength || server.length || null) : null;
+					if (remote.exists === true && remote.size != null && localSize != null && remote.size === localSize) {
+						// record detected path so subsequent operations reuse it
+						if (remote.path) try { pushPathBySerial.set(serial, remote.path); } catch (e) { logger.debug('pushServer: could not set pushPathBySerial', e?.message || e); }
+						logger.debug(`pushServer: server already pushed to device serial=${serial}, remote file exists and size matches, skipping (path=${remote.path || DEVICE_SERVER_PATH})`);
+						return;
+					}
+					// When probe is inconclusive (subprocess unavailable on this transport type),
+					// trust the cached push state to avoid a misleading re-push cycle.
+					if (remote.exists === null) {
+						logger.debug(`pushServer: probe inconclusive for serial=${serial} (subprocess unavailable); trusting cached push state`);
+						return;
+					}
+					logger.warn(`pushServer: server previously marked pushed for serial=${serial} but remote file missing or size mismatch (remote=${remote.size} local=${localSize}); re-pushing`);
+					pushedBySerial.delete(serial);
+				} catch (e) {
+					logger.debug('pushServer: verification probe failed, proceeding to re-push', e?.message || e);
+					pushedBySerial.delete(serial);
 				}
-				// When probe is inconclusive (subprocess unavailable on this transport type),
-				// trust the cached push state to avoid a misleading re-push cycle.
-				if (remote.exists === null) {
-					logger.debug(`pushServer: probe inconclusive for serial=${serial} (subprocess unavailable); trusting cached push state`);
-					return;
-				}
-				logger.warn(`pushServer: server previously marked pushed for serial=${serial} but remote file missing or size mismatch (remote=${remote.size} local=${localSize}); re-pushing`);
-				pushedBySerial.delete(serial);
-			} catch (e) {
-				logger.debug('pushServer: verification probe failed, proceeding to re-push', e?.message || e);
-				pushedBySerial.delete(serial);
-			}
 		}
 
 		if (pushInFlightBySerial.has(serial)) {
@@ -512,23 +546,39 @@ const pushServer = async (adbInstance, force = false) => {
 		}
 
 		const promise = (async () => {
-			logger.debug(`Pushing scrcpy server to device serial=${serial} path: ${DEVICE_SERVER_PATH} (force=${!!force})`);
 			try {
-				await AdbScrcpyClient.pushServer(
-					adbInstance,
-					new ReadableStream({
-						start(controller) { controller.enqueue(new Consumable(server)); controller.close(); },
-					})
-						.pipeThrough(new DistributionStream(ADB_SYNC_MAX_PACKET_SIZE))
-						.pipeThrough(new ProgressStream((progress) => logger.debug(`scrcpy server upload progress: ${progress}`))),
-					DEVICE_SERVER_PATH,
-				);
-				pushedBySerial.add(serial);
-				logger.debug(`pushServer: marked serial=${serial} as pushed`);
-				logger.debug('scrcpy server pushed successfully');
-			} catch (err) {
-				logger.error('Error while pushing scrcpy server to device:', err);
-				throw err;
+				logger.debug(`Pushing scrcpy server to device serial=${serial} path: ${DEVICE_SERVER_PATH} (force=${!!force})`);
+				// Attempt primary push to DEVICE_SERVER_PATH, fall back to ALT_DEVICE_SERVER_PATH if that fails.
+				const attemptPaths = [DEVICE_SERVER_PATH, ALT_DEVICE_SERVER_PATH];
+				let pushedPath = null;
+				for (const targetPath of attemptPaths) {
+					try {
+						await AdbScrcpyClient.pushServer(
+							adbInstance,
+							new ReadableStream({
+								start(controller) { controller.enqueue(new Consumable(server)); controller.close(); },
+							})
+								.pipeThrough(new DistributionStream(ADB_SYNC_MAX_PACKET_SIZE))
+								.pipeThrough(new ProgressStream((progress) => logger.debug(`scrcpy server upload progress: ${progress}`))),
+							targetPath,
+						);
+						pushedPath = targetPath;
+						// record which path we used for this serial so future operations reuse it
+						pushPathBySerial.set(serial, pushedPath);
+						pushedBySerial.add(serial);
+						logger.debug(`pushServer: marked serial=${serial} as pushed at path=${pushedPath}`);
+						logger.debug('scrcpy server pushed successfully');
+						break;
+					} catch (err) {
+						logger.warn(`pushServer: push to ${targetPath} failed for serial=${serial}: ${err?.message || err}`);
+						// try next path
+						continue;
+					}
+				}
+				if (!pushedPath) {
+					logger.error(`pushServer: failed to push scrcpy server to any known path for serial=${serial}`);
+					throw new Error('Failed to push scrcpy server to device');
+				}
 			} finally { pushInFlightBySerial.delete(serial); }
 		})();
 		pushInFlightBySerial.set(serial, promise);
@@ -539,16 +589,33 @@ const pushServer = async (adbInstance, force = false) => {
 			return await pushInFlightByInstance.get(adbInstance);
 		}
 		const promise = (async () => {
-			logger.debug(`Pushing scrcpy server (fallback by instance) to device path: ${DEVICE_SERVER_PATH} (force=${!!force})`);
+			logger.debug(`Pushing scrcpy server (fallback by instance) to device (force=${!!force})`);
 			try {
-				await AdbScrcpyClient.pushServer(
-					adbInstance,
-					new ReadableStream({ start(controller) { controller.enqueue(new Consumable(server)); controller.close(); } })
-						.pipeThrough(new DistributionStream(ADB_SYNC_MAX_PACKET_SIZE))
-						.pipeThrough(new ProgressStream((progress) => logger.debug(`scrcpy server upload progress: ${progress}`))),
-					DEVICE_SERVER_PATH,
-				);
-				logger.debug('scrcpy server pushed successfully (fallback)');
+				const attemptPaths = [DEVICE_SERVER_PATH, ALT_DEVICE_SERVER_PATH];
+				let pushedPath = null;
+				for (const targetPath of attemptPaths) {
+					try {
+						await AdbScrcpyClient.pushServer(
+							adbInstance,
+							new ReadableStream({ start(controller) { controller.enqueue(new Consumable(server)); controller.close(); } })
+								.pipeThrough(new DistributionStream(ADB_SYNC_MAX_PACKET_SIZE))
+								.pipeThrough(new ProgressStream((progress) => logger.debug(`scrcpy server upload progress: ${progress}`))),
+							targetPath,
+						);
+						pushedPath = targetPath;
+						// record for this instance
+						try { pushPathByInstance.set(adbInstance, pushedPath); } catch (e) { logger.debug('pushServer: could not set pushPathByInstance', e?.message || e); }
+						logger.debug(`scrcpy server pushed successfully (fallback) to ${pushedPath}`);
+						break;
+					} catch (err) {
+						logger.warn(`pushServer: push to ${targetPath} failed (instance fallback): ${err?.message || err}`);
+						continue;
+					}
+				}
+				if (!pushedPath) {
+					logger.error('pushServer: failed to push scrcpy server to any known path (instance fallback)');
+					throw new Error('Failed to push scrcpy server to device (instance fallback)');
+				}
 			} catch (err) { logger.error('Error while pushing scrcpy server to device (fallback):', err); throw err; }
 			finally { try { pushInFlightByInstance.delete(adbInstance); } catch (e) {} }
 		})();
@@ -666,13 +733,15 @@ class AdbTcpService {
 
 		try { await pushServer(deviceAdb); } catch (err) { logger.error({ err }, 'Initial pushServer failed in getDeviceDisplays'); }
 		// optional: try to verify file exists on device (best-effort)
-		logger.info('Verifying scrcpy server file existence on device before getDeviceDisplays');
-		try { if (deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') { const check = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]); logger.debug(`device ls output: ${JSON.stringify(check)}`); } } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
+		const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
+		logger.info(`Verifying scrcpy server file existence on device before getDeviceDisplays (path=${serverPathForDevice})`);
+		try { if (deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') { const check = await deviceAdb.subprocess.exec(["ls", "-l", serverPathForDevice]); logger.debug(`device ls output: ${JSON.stringify(check)}`); } } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
 		while (!result?.length && trial < this.numOfTrials) {
 			try {
 				logger.debug(`Attempt ${trial + 1} to get displays`);
 				const minimalInitForList = { cleanup: true, tunnelForward: true };
-				const displays = await AdbScrcpyClient.getDisplays(deviceAdb, DEVICE_SERVER_PATH, new AdbScrcpyOptionsLatest(minimalInitForList, { version: VERSION }));
+				const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
+				const displays = await AdbScrcpyClient.getDisplays(deviceAdb, serverPathForDevice, new AdbScrcpyOptionsLatest(minimalInitForList, { version: VERSION }));
 				logger.debug(`getDisplays returned: ${JSON.stringify(displays)}`);
 				result = displays || [];
 				if (!result.length) {
@@ -715,12 +784,14 @@ class AdbTcpService {
 		}
 
 		try { await pushServer(deviceAdb); } catch (err) { logger.error({ err }, 'Initial pushServer failed in getDeviceEncoders'); }
-		try { if (deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') { const check = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]); logger.debug(`device ls output: ${JSON.stringify(check)}`); } } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
+		const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
+		try { if (deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') { const check = await deviceAdb.subprocess.exec(["ls", "-l", serverPathForDevice]); logger.debug(`device ls output: ${JSON.stringify(check)}`); } } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
 		while (!result?.length && trial < this.numOfTrials) {
 			try {
 				logger.debug(`Attempt ${trial + 1} to get encoders`);
 				const minimalInitForList = { cleanup: true, tunnelForward: true };
-				const encoders = await AdbScrcpyClient.getEncoders(deviceAdb, DEVICE_SERVER_PATH, new AdbScrcpyOptionsLatest(minimalInitForList, { version: VERSION }));
+				const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
+				const encoders = await AdbScrcpyClient.getEncoders(deviceAdb, serverPathForDevice, new AdbScrcpyOptionsLatest(minimalInitForList, { version: VERSION }));
 				logger.debug(`getEncoders returned: ${JSON.stringify(encoders)}`);
 				result = encoders || [];
 				if (!result.length) {
@@ -923,9 +994,10 @@ class AdbTcpService {
 
 		// ensure server binary is present on the device
 		await pushServer(deviceAdb);
+		const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
 		try {
-			logger.info(`Starting scrcpy client with options: ${JSON.stringify(options)} \n and deviceAdb: ${JSON.stringify(deviceAdb)} \n and server path: ${DEVICE_SERVER_PATH}`);
-			const client = await AdbScrcpyClient.start(deviceAdb, DEVICE_SERVER_PATH, options);
+			logger.info(`Starting scrcpy client with options: ${JSON.stringify(options)} \n and deviceAdb: ${JSON.stringify(deviceAdb)} \n and server path: ${serverPathForDevice}`);
+			const client = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, options);
 			// read some initial output lines from client.output to help debugging
 			let initialOutputLines = [];
 			try {
@@ -969,12 +1041,13 @@ class AdbTcpService {
 			if (!client || !hasClose || !hasOutput || (controlRequested && !hasController)) {
 				// collect diagnostics and throw detailed error to be visible to caller
 				const details = { clientTruthy: !!client, protoKeys: protoNames.slice(0,50), hasClose, hasOutput: !!hasOutput, controlRequested, hasController, server_length: server ? (server.byteLength || server.length || null) : null, initialOutputLines };
-				try {
-					if (deviceAdb && deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') {
-						details.logcat = await deviceAdb.subprocess.exec(["logcat", "-d", "-t", "200"]);
-						details.device_ls = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]);
-					}
-				} catch (e) {
+					try {
+						if (deviceAdb && deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') {
+							details.logcat = await deviceAdb.subprocess.exec(["logcat", "-d", "-t", "200"]);
+							const probePath = getServerPathForAdbInstance(deviceAdb) || DEVICE_SERVER_PATH;
+							details.device_ls = await deviceAdb.subprocess.exec(["ls", "-l", probePath]);
+						}
+					} catch (e) {
 					logger.debug('Diagnostics collection failed', e?.message || e);
 				}
 				const err = new Error('AdbScrcpyClient.start returned unexpected/insufficient client object');
@@ -997,7 +1070,8 @@ class AdbTcpService {
 					delete initNoAudio.audioEncoder;
 					const optionsNoAudio = new AdbScrcpyOptions2_1(initNoAudio, { version: VERSION });
 					logger.info('Retrying scrcpy start with options (audio disabled)');
-					const client2 = await AdbScrcpyClient.start(deviceAdb, DEVICE_SERVER_PATH, optionsNoAudio);
+					const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
+					const client2 = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsNoAudio);
 					// perform the same validation checks as above (inspect, read output, stream checks)
 					let initialOutputLines2 = [];
 					try {
@@ -1043,7 +1117,8 @@ class AdbTcpService {
 			// Try to inspect server file on device
 			try {
 				if (deviceAdb && deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') {
-					details.device_ls = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]);
+					const probePath = getServerPathForAdbInstance(deviceAdb) || DEVICE_SERVER_PATH;
+					details.device_ls = await deviceAdb.subprocess.exec(["ls", "-l", probePath]);
 				}
 			} catch (e) { logger.debug('Failed to run ls on device for server file:', e?.message || e); }
 			const e2 = new Error(`scrcpy start failed: ${details.message}`); e2.details = details; throw e2;
