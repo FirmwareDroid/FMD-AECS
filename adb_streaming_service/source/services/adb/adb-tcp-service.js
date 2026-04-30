@@ -931,14 +931,17 @@ class AdbTcpService {
 			try {
 				if (client && client.output && typeof client.output.getReader === 'function') {
 					const reader = client.output.getReader();
-					// read up to 40 lines, with a short timeout for each
-					for (let i = 0; i < 40; i++) {
-						const p = reader.read();
-						const r = await Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('output-read-timeout')), 300))]);
-						if (r && r.done) { break; }
-						if (r && r.value) initialOutputLines.push(String(r.value));
+					try {
+						// read up to 40 lines, with a short timeout for each
+						for (let i = 0; i < 40; i++) {
+							const p = reader.read();
+							const r = await Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('output-read-timeout')), 300))]);
+							if (r && r.done) { break; }
+							if (r && r.value) initialOutputLines.push(String(r.value));
+						}
+					} finally {
+						try { reader.releaseLock(); } catch (e) {}
 					}
-					try { reader.releaseLock(); } catch (e) {}
 				}
 			} catch (e) {
 				logger.debug(`Reading initial client.output failed: ${e?.message || e}`);
@@ -1000,13 +1003,16 @@ class AdbTcpService {
 					try {
 						if (client2 && client2.output && typeof client2.output.getReader === 'function') {
 							const reader2 = client2.output.getReader();
-							for (let i = 0; i < 40; i++) {
-								const p2 = reader2.read();
-								const r2 = await Promise.race([p2, new Promise((_, rej) => setTimeout(() => rej(new Error('output-read-timeout')), 300))]);
-								if (r2 && r2.done) break;
-								if (r2 && r2.value) initialOutputLines2.push(String(r2.value));
+							try {
+								for (let i = 0; i < 40; i++) {
+									const p2 = reader2.read();
+									const r2 = await Promise.race([p2, new Promise((_, rej) => setTimeout(() => rej(new Error('output-read-timeout')), 300))]);
+									if (r2 && r2.done) break;
+									if (r2 && r2.value) initialOutputLines2.push(String(r2.value));
+								}
+							} finally {
+								try { reader2.releaseLock(); } catch (e) {}
 							}
-							try { reader2.releaseLock(); } catch (e) {}
 						}
 					} catch (e2) { logger.debug('Reading initial client2.output failed:', e2?.message || e2); }
 
