@@ -52,6 +52,30 @@ You can place environment variables in the repository `.env` files. Key variable
 - `AUTH_USER` — Basic auth username
 - `AUTH_PASS` — Basic auth password
 
+### ADB server discovery
+
+The service can connect to ADB servers in two complementary ways:
+
+**Auto-discovery (default, Docker-friendly)**
+
+On startup the service scans every host address on the container's local private IPv4 subnet (clamped to /24 = 254 hosts) for an open TCP connection on port 5037.  Only [RFC 1918](https://datatracker.ietf.org/doc/html/rfc1918) private addresses are ever probed.  Newly started ADB containers are picked up periodically without a restart.
+
+| Variable | Default | Description |
+|---|---|---|
+| `ADB_DISCOVERY_ENABLED` | `true` | Set to `false` to disable auto-discovery entirely. |
+| `ADB_DISCOVERY_PORT` | `5037` | ADB port to probe on each candidate host. |
+| `ADB_DISCOVERY_TIMEOUT_MS` | `500` | Per-host TCP probe timeout in milliseconds. |
+| `ADB_DISCOVERY_REFRESH_INTERVAL_MS` | `60000` | How often (ms) to re-scan for new containers. Set to `0` to disable. |
+| `ADB_DISCOVERY_SUBNETS` | _(none)_ | Optional extra subnets to scan (`"addr/mask"`, comma-separated). |
+
+**Static list (optional)**
+
+Set `ADB_SERVER_LIST` to a comma-separated list of `host:port` endpoints to add known servers directly. When not set the service relies entirely on auto-discovery.  When both are set, the lists are merged and deduplicated.
+
+- `ADB_SERVER_LIST` — e.g. `192.168.1.10:5037,192.168.1.11:5037` (optional)
+
+> **Fallback:** If neither static config nor discovery produces any reachable server, `localhost:5037` is tried as a last resort (useful for single-container / development setups).
+
 The startup script attempts to load `.env` from several fallback locations. The primary file is `adb_streaming_service/source/.env` then `env/adb_streamer/.env`, etc. You can also set environment variables directly in your environment or Docker container.
 
 ## Running

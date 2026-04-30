@@ -25,6 +25,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { withTimeout } from "../../utils/timeout.js";
 import { createDeviceMonitor } from "./adb-device-monitor.js";
+import { discoverAdbServers } from "./adb-discovery.js";
 // inline __dirname when needed to avoid keeping an unused constant
 
 export class ProgressStream extends InspectStream {
@@ -88,16 +89,80 @@ const server = await loadServerBinary();
 // helper sleep
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Support multiple ADB servers via env var ADB_SERVER_LIST (comma-separated host:port entries).
-// Fallback to localhost:5037 for backward compatibility.
-function getAdbServerEntries() {
-	const adbServerListStr = (process.env.ADB_SERVER_LIST || process.env.ADB_SERVERS || 'localhost:5037').toString();
-	return adbServerListStr.split(',').map(s => s.trim()).filter(Boolean);
+// Read statically configured ADB server entries from the environment.
+// ADB_SERVER_LIST (or its alias ADB_SERVERS) is optional: when not set, auto-
+// discovery is used to find servers in the Docker network.
+function getStaticAdbServerEntries() {
+	const raw = process.env.ADB_SERVER_LIST || process.env.ADB_SERVERS || '';
+	return raw.toString().split(',').map(s => s.trim()).filter(Boolean);
+}
+
+// Read auto-discovery configuration from environment variables.
+function getDiscoveryConfig() {
+	const enabled = process.env.ADB_DISCOVERY_ENABLED !== 'false' && process.env.ADB_DISCOVERY_ENABLED !== '0';
+	const port = process.env.ADB_DISCOVERY_PORT ? Number(process.env.ADB_DISCOVERY_PORT) : 5037;
+	const timeoutMs = process.env.ADB_DISCOVERY_TIMEOUT_MS ? Number(process.env.ADB_DISCOVERY_TIMEOUT_MS) : 500;
+	const additionalSubnets = process.env.ADB_DISCOVERY_SUBNETS
+		? process.env.ADB_DISCOVERY_SUBNETS.split(',').map(s => s.trim()).filter(Boolean)
+		: [];
+	return { enabled, port, timeoutMs, additionalSubnets };
+}
+
+// Collect all ADB server entries: static (from env) plus auto-discovered hosts.
+// Deduplicates by key.  Falls back to localhost:5037 only when both sources
+// return nothing (preserves single-container / dev-machine behavior).
+async function getAllAdbServerEntries() {
+	const staticEntries = getStaticAdbServerEntries();
+	const { enabled, port, timeoutMs, additionalSubnets } = getDiscoveryConfig();
+
+	let discovered = [];
+	if (enabled) {
+		try {
+			discovered = await discoverAdbServers({ port, timeoutMs, additionalSubnets, logger });
+			if (discovered.length > 0) {
+				logger.info(`ADB discovery: found ${discovered.length} server(s): ${discovered.join(', ')}`);
+			} else {
+				logger.debug('ADB discovery: no additional servers found on the local network');
+			}
+		} catch (e) {
+			logger.error(`ADB discovery error (non-fatal): ${e?.message || e}`);
+		}
+	} else {
+		logger.info('ADB discovery: disabled via ADB_DISCOVERY_ENABLED=false');
+	}
+
+	// Merge and deduplicate by normalised "host:port" key.
+	const seen = new Set();
+	const merged = [];
+	for (const entry of [...staticEntries, ...discovered]) {
+		const parts = entry.split(':');
+		const host = parts[0] || 'localhost';
+		const p = parts[1] ? Number(parts[1]) : 5037;
+		const key = `${host}:${p}`;
+		if (!seen.has(key)) {
+			seen.add(key);
+			merged.push(entry);
+		}
+	}
+
+	// Last-resort fallback: if nothing was found at all, try localhost so the
+	// service can still start in a development / single-container setup.
+	if (merged.length === 0) {
+		logger.warn('No ADB servers found via static config or discovery. Falling back to localhost:5037.');
+		merged.push('localhost:5037');
+	}
+
+	return merged;
 }
 
 // Create pools function (attempts once)
 async function createPoolsOnce(adbServerEntriesParam) {
-	const adbServerEntries = Array.isArray(adbServerEntriesParam) && adbServerEntriesParam.length ? adbServerEntriesParam : (typeof adbServerEntriesParam === 'string' && adbServerEntriesParam.length ? adbServerEntriesParam.split(',').map(s => s.trim()).filter(Boolean) : getAdbServerEntries());
+	// Accept an explicit list for refresh cycles; otherwise collect fresh entries.
+	const adbServerEntries = Array.isArray(adbServerEntriesParam) && adbServerEntriesParam.length
+		? adbServerEntriesParam
+		: (typeof adbServerEntriesParam === 'string' && adbServerEntriesParam.length
+			? adbServerEntriesParam.split(',').map(s => s.trim()).filter(Boolean)
+			: await getAllAdbServerEntries());
 	const results = await Promise.all(adbServerEntries.map(async (entry) => {
 		const parts = entry.split(':');
 		const host = parts[0] || 'localhost';
@@ -239,6 +304,55 @@ setInterval(async () => {
 		}
 	}
 }, POOL_HEALTH_PROBE_MS);
+
+// Periodic re-discovery: probes the Docker network for newly started ADB server
+// containers and merges any newcomers into the running pool list without
+// removing existing connections.  Interval is configurable via
+// ADB_DISCOVERY_REFRESH_INTERVAL_MS (default: 60 s). Set to 0 to disable.
+const discoveryRefreshMs = process.env.ADB_DISCOVERY_REFRESH_INTERVAL_MS !== undefined
+	? Number(process.env.ADB_DISCOVERY_REFRESH_INTERVAL_MS)
+	: 60_000;
+
+if (discoveryRefreshMs > 0) {
+	const discoveryRefreshTimer = setInterval(async () => {
+		const { enabled, port, timeoutMs, additionalSubnets } = getDiscoveryConfig();
+		if (!enabled) return;
+		try {
+			const discovered = await discoverAdbServers({ port, timeoutMs, additionalSubnets, logger });
+			if (!discovered.length) return;
+
+			// Acquire the mutex before reading the pool list so that the
+			// duplicate check and the pool update are performed atomically.
+			await acquirePoolMutex();
+			try {
+				// Re-read pools inside the mutex to get the up-to-date state.
+				const currentKeys = new Set(pools.map(p => p.key));
+				const newEntries = discovered.filter(e => {
+					const parts = e.split(':');
+					const key = `${parts[0] || 'localhost'}:${parts[1] ? Number(parts[1]) : 5037}`;
+					return !currentKeys.has(key);
+				});
+				if (!newEntries.length) return;
+
+				logger.info(`ADB discovery refresh: found ${newEntries.length} new server(s): ${newEntries.join(', ')}`);
+
+				const newPools = await createPoolsOnce(newEntries);
+				if (newPools.length > 0) {
+					// Filter once more with the latest key set in case a concurrent
+					// operation added the same server while createPoolsOnce ran.
+					const latestKeys = new Set(pools.map(p => p.key));
+					pools = [...pools, ...newPools.filter(np => !latestKeys.has(np.key))];
+					logger.info(`ADB discovery refresh: pool count is now ${pools.length}`);
+				}
+			} finally {
+				releasePoolMutex();
+			}
+		} catch (e) {
+			logger.debug(`ADB discovery refresh error (non-fatal): ${e?.message || e}`);
+		}
+	}, discoveryRefreshMs);
+	if (typeof discoveryRefreshTimer.unref === 'function') discoveryRefreshTimer.unref();
+}
 
 // helper to find the pool by key
 function findPoolByKey(key) {
