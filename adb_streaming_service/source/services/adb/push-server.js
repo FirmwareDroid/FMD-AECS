@@ -50,10 +50,13 @@ export async function probeRemoteServer(adbInstance, tryPaths, logger = null) {
                 const lines = outStr.split(/\r?\n/).filter(Boolean);
                 if (!lines.length) return { exists: null, size: null, path: p };
                 const first = lines[0];
-                // Standard `ls -l` output: permissions links user group size date time name
+                // Match standard POSIX `ls -l` output format:
+                //   <permissions> <links> <user> <group> <size> <date> <time> <name>
+                // Example: -rw-rw-rw- 1 shell shell 98765 2024-01-01 10:00 server.jar
+                // The fifth whitespace-delimited field (capture group 1) is the file size.
                 const m = first.match(/^\S+\s+\d+\s+\S+\s+\S+\s+(\d+)/);
                 if (m && m[1]) return { exists: true, size: Number(m[1]), path: p };
-                // Fallback: find the first numeric-only token (size)
+                // Fallback: find the first numeric-only token (handles compact BusyBox ls output)
                 const tokens = first.split(/\s+/);
                 for (const t of tokens) {
                     if (/^\d+$/.test(t)) return { exists: true, size: Number(t), path: p };

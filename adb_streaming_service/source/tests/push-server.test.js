@@ -413,33 +413,33 @@ describe('pushServerWithCLI — failure handling', () => {
 
 describe('probeRemoteServer — confirms binary existence after a push', () => {
     test('reports the binary as present when ls -l confirms correct size', async () => {
-        const EXPECTED_SIZE = 102400;
+        const FIXTURE_SIZE = 102400;
         // Simulate the device having the binary at the correct path after push
         const adb = makeAdb(async (args) => {
             const path = args[args.length - 1];
-            return `-rw-rw-rw- 1 shell shell ${EXPECTED_SIZE} 2024-01-01 10:00 ${path}`;
+            return `-rw-rw-rw- 1 shell shell ${FIXTURE_SIZE} 2024-01-01 10:00 ${path}`;
         });
 
         const result = await probeRemoteServer(adb, ['/data/local/tmp/server.jar']);
 
         assert.equal(result.exists, true,  'binary should exist on device');
-        assert.equal(result.size, EXPECTED_SIZE, 'reported size should match expected size');
+        assert.equal(result.size, FIXTURE_SIZE, 'reported size should match fixture size');
         assert.equal(result.path, '/data/local/tmp/server.jar', 'path should be the primary path');
     });
 
-    test('detects a size mismatch that would indicate a corrupt or incomplete push', async () => {
-        const EXPECTED_SIZE = 102400;
-        const CORRUPT_SIZE  =  51200;  // half the expected size
+    test('detects a size mismatch that would indicate an incomplete push', async () => {
+        const FIXTURE_SIZE    = 102400;
+        const MISMATCHED_SIZE =  51200;  // half the expected size — simulates an incomplete transfer
         const adb = makeAdb(async (args) => {
             const path = args[args.length - 1];
-            return `-rw-rw-rw- 1 shell shell ${CORRUPT_SIZE} 2024-01-01 10:00 ${path}`;
+            return `-rw-rw-rw- 1 shell shell ${MISMATCHED_SIZE} 2024-01-01 10:00 ${path}`;
         });
 
         const result = await probeRemoteServer(adb, ['/data/local/tmp/server.jar']);
 
         assert.equal(result.exists, true);
-        assert.notEqual(result.size, EXPECTED_SIZE,
-            'probe should return the actual (mismatched) size so the caller can detect the corruption');
+        assert.notEqual(result.size, FIXTURE_SIZE,
+            'probe should return the actual (mismatched) size so the caller can detect the mismatch');
     });
 
     test('reports binary at alt path when primary is absent', async () => {
