@@ -103,9 +103,12 @@ export async function pushServerWithCLI(serial, serverBuffer, targetPath, {
     logger = null,
 } = {}) {
     const log = logger ?? { info: () => {}, debug: () => {}, error: () => {}, warn: () => {} };
+    if (!serverBuffer) {
+        throw new Error('pushServerWithCLI: serverBuffer must be provided');
+    }
     const tempPath = join(getTmpdir(), `scrcpy-server-${uuid()}.jar`);
     try {
-        const byteLen = serverBuffer?.byteLength ?? serverBuffer?.length ?? 0;
+        const byteLen = serverBuffer.byteLength ?? serverBuffer.length ?? 0;
         log.debug(`pushServerWithCLI: writing server binary (${byteLen} bytes) to temp file ${tempPath}`);
         await writeTempFile(tempPath, serverBuffer);
 

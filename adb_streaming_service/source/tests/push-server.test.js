@@ -383,6 +383,30 @@ describe('pushServerWithCLI — failure handling', () => {
 
         assert.equal(removed.length, 1, 'expected cleanup even when writeTempFile throws');
     });
+
+    test('throws immediately when serverBuffer is null', async () => {
+        await assert.rejects(
+            () => pushServerWithCLI('device-1', null, '/data/local/tmp/server.jar', {
+                spawnFn: makeMockSpawn(),
+                writeTempFile: async () => {},
+                removeTempFile: async () => {},
+                getTmpdir: () => '/tmp',
+            }),
+            /serverBuffer must be provided/
+        );
+    });
+
+    test('throws immediately when serverBuffer is undefined', async () => {
+        await assert.rejects(
+            () => pushServerWithCLI('device-1', undefined, '/data/local/tmp/server.jar', {
+                spawnFn: makeMockSpawn(),
+                writeTempFile: async () => {},
+                removeTempFile: async () => {},
+                getTmpdir: () => '/tmp',
+            }),
+            /serverBuffer must be provided/
+        );
+    });
 });
 
 // ─── Interaction: probe after push ───────────────────────────────────────────

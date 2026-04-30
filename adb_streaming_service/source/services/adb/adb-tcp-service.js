@@ -441,6 +441,26 @@ const pushPathByInstance = new WeakMap();
 const ALT_DEVICE_SERVER_DIR = "/sdcard/Download";
 const ALT_DEVICE_SERVER_PATH = `${ALT_DEVICE_SERVER_DIR}/${basename(DEVICE_SERVER_PATH)}`;
 
+/**
+ * Returns true when the probe result is consistent with the local binary size,
+ * meaning the push can be considered successful.
+ *
+ * Passes when:
+ *  - The subprocess was unavailable (exists === null) — inconclusive, trust the push.
+ *  - The file exists on the device and either side has no size information (can't compare).
+ *  - The file exists on the device and the remote size matches the local size exactly.
+ *
+ * @param {{ exists: boolean|null, size: number|null }} verification
+ * @param {number|null} localSize
+ * @returns {boolean}
+ */
+function isSizeVerified(verification, localSize) {
+	if (verification.exists === null) return true;
+	if (verification.exists !== true) return false;
+	if (localSize === null || verification.size === null) return true;
+	return verification.size === localSize;
+}
+
 function resolveSerialFromAdbInstance(adbInstance) {
 	try {
 		if (global && global.metainfo && Array.isArray(global.metainfo.devices)) {
@@ -531,14 +551,13 @@ const pushServer = async (adbInstance, force = false) => {
 								.pipeThrough(new ProgressStream((progress) => logger.debug(`scrcpy server upload progress: ${progress}`))),
 							targetPath,
 						);
-						// Verify the binary actually arrived on the device before marking as pushed.
+							// Verify the binary actually arrived on the device before marking as pushed.
 						const verification = await probeRemoteServer(adbInstance, [targetPath], logger);
-						if (verification.exists === null) {
-							// subprocess unavailable — trust the push succeeded
+						if (isSizeVerified(verification, localSize)) {
 							pushedPath = targetPath;
-						} else if (verification.exists === true && (localSize === null || verification.size === null || verification.size === localSize)) {
-							pushedPath = targetPath;
-							logger.debug(`pushServer: verified binary at ${targetPath} (remote=${verification.size}, local=${localSize})`);
+							if (verification.exists !== null) {
+								logger.debug(`pushServer: verified binary at ${targetPath} (remote=${verification.size}, local=${localSize})`);
+							}
 						} else {
 							logger.warn(`pushServer: push to ${targetPath} reported success but binary verification failed (remote=${verification.size}, local=${localSize}); trying next path`);
 							continue;
@@ -562,8 +581,7 @@ const pushServer = async (adbInstance, force = false) => {
 						try {
 							await pushServerWithCLI(serial, server, targetPath, { logger });
 							const verification = await probeRemoteServer(adbInstance, [targetPath], logger);
-							if (verification.exists === null ||
-								(verification.exists === true && (localSize === null || verification.size === null || verification.size === localSize))) {
+							if (isSizeVerified(verification, localSize)) {
 								pushedPath = targetPath;
 								pushPathBySerial.set(serial, pushedPath);
 								pushedBySerial.add(serial);
@@ -606,12 +624,11 @@ const pushServer = async (adbInstance, force = false) => {
 						);
 						// Verify the binary actually arrived on the device before marking as pushed.
 						const verification = await probeRemoteServer(adbInstance, [targetPath], logger);
-						if (verification.exists === null) {
-							// subprocess unavailable — trust the push succeeded
+						if (isSizeVerified(verification, localSize)) {
 							pushedPath = targetPath;
-						} else if (verification.exists === true && (localSize === null || verification.size === null || verification.size === localSize)) {
-							pushedPath = targetPath;
-							logger.debug(`pushServer: verified binary at ${targetPath} (remote=${verification.size}, local=${localSize}) (instance fallback)`);
+							if (verification.exists !== null) {
+								logger.debug(`pushServer: verified binary at ${targetPath} (remote=${verification.size}, local=${localSize}) (instance fallback)`);
+							}
 						} else {
 							logger.warn(`pushServer: push to ${targetPath} reported success but verification failed (remote=${verification.size}, local=${localSize}) (instance fallback); trying next path`);
 							continue;
