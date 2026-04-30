@@ -26,6 +26,13 @@ import { fileURLToPath } from "node:url";
 import { withTimeout } from "../../utils/timeout.js";
 import { createDeviceMonitor } from "./adb-device-monitor.js";
 import { discoverAdbServers } from "./adb-discovery.js";
+import {
+	getDeviceBackoffRemaining,
+	recordDeviceFailure,
+	clearDeviceFailure,
+	DEFAULT_BACKOFF_BASE_MS as DEVICE_FAIL_BACKOFF_BASE_MS,
+	DEFAULT_BACKOFF_MAX_MS  as DEVICE_FAIL_BACKOFF_MAX_MS,
+} from "./device-backoff.js";
 // inline __dirname when needed to avoid keeping an unused constant
 
 export class ProgressStream extends InspectStream {
@@ -479,6 +486,12 @@ const pushServer = async (adbInstance, force = false) => {
 					logger.debug(`pushServer: server already pushed to device serial=${serial}, remote file exists and size matches, skipping`);
 					return;
 				}
+				// When probe is inconclusive (subprocess unavailable on this transport type),
+				// trust the cached push state to avoid a misleading re-push cycle.
+				if (remote.exists === null) {
+					logger.debug(`pushServer: probe inconclusive for serial=${serial} (subprocess unavailable); trusting cached push state`);
+					return;
+				}
 				logger.warn(`pushServer: server previously marked pushed for serial=${serial} but remote file missing or size mismatch (remote=${remote.size} local=${localSize}); re-pushing`);
 				pushedBySerial.delete(serial);
 			} catch (e) {
@@ -543,6 +556,10 @@ const pushServer = async (adbInstance, force = false) => {
 		return await promise;
 	}
 };
+
+// Per-device failure Maps used by getDeviceDisplays / getDeviceEncoders.
+const deviceDisplayFailures = new Map(); // serial -> { count: number, lastFailTs: number }
+const deviceEncoderFailures = new Map(); // serial -> { count: number, lastFailTs: number }
 
 class AdbTcpService {
 	numOfTrials = 10;
@@ -637,8 +654,17 @@ class AdbTcpService {
 		let result = [];
 		let trial = 0;
 		// push server once before trials
-		logger.info(`Getting device displays for deficeAdb: ${JSON.stringify(deviceAdb)}`)
-		try { await pushServer(deviceAdb); } catch (err) { logger.error('Initial pushServer failed in getDeviceDisplays:', err); }
+		logger.info(`Getting device displays for deviceAdb: ${JSON.stringify(deviceAdb)}`)
+
+		// Check per-device back-off to avoid hammering a consistently failing device.
+		const serial = resolveSerialFromAdbInstance(deviceAdb);
+		const displayBackoff = getDeviceBackoffRemaining(deviceDisplayFailures, serial);
+		if (displayBackoff > 0) {
+			logger.warn(`getDeviceDisplays: skipping serial=${serial} — in back-off period (${Math.round(displayBackoff / 1000)}s remaining)`);
+			return [];
+		}
+
+		try { await pushServer(deviceAdb); } catch (err) { logger.error({ err }, 'Initial pushServer failed in getDeviceDisplays'); }
 		// optional: try to verify file exists on device (best-effort)
 		logger.info('Verifying scrcpy server file existence on device before getDeviceDisplays');
 		try { if (deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') { const check = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]); logger.debug(`device ls output: ${JSON.stringify(check)}`); } } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
@@ -651,23 +677,44 @@ class AdbTcpService {
 				result = displays || [];
 				if (!result.length) {
 					logger.warn(`getDisplays returned empty on attempt ${trial + 1}; attempting to re-push scrcpy server and retry.`);
-					try { await pushServer(deviceAdb, true); await new Promise((r) => setTimeout(r, 300)); } catch (pushErr) { logger.error('Re-push scrcpy server after empty displays failed:', pushErr); }
+					try { await pushServer(deviceAdb, true); await new Promise((r) => setTimeout(r, 300)); } catch (pushErr) { logger.error({ err: pushErr }, 'Re-push scrcpy server after empty displays failed'); }
 				}
 			} catch (err) {
-				logger.error('Error while getting displays:', err);
-				try { logger.debug('Retrying pushServer after getDisplays error'); await pushServer(deviceAdb); } catch (pushErr) { logger.error('Retry pushServer failed:', pushErr); }
+				logger.error({ err }, 'Error while getting displays');
+				try { logger.debug('Retrying pushServer after getDisplays error'); await pushServer(deviceAdb); } catch (pushErr) { logger.error({ err: pushErr }, 'Retry pushServer failed'); }
 			}
 			trial++;
 			if (!result?.length) await new Promise((r) => setTimeout(r, 250));
 		}
 		logger.info(`getDeviceDisplays in trial=${trial} resultCount=${result?.length || 0}`);
+
+		// Update per-device failure tracking.
+		if (serial) {
+			if (!result?.length) {
+				const count = recordDeviceFailure(deviceDisplayFailures, serial);
+				const nextBackoff = Math.min(DEVICE_FAIL_BACKOFF_BASE_MS * Math.pow(2, count - 1), DEVICE_FAIL_BACKOFF_MAX_MS);
+				logger.warn(`getDeviceDisplays: serial=${serial} failed all ${trial} attempt(s) — back-off ${Math.round(nextBackoff / 1000)}s (failure #${count})`);
+			} else {
+				clearDeviceFailure(deviceDisplayFailures, serial);
+			}
+		}
+
 		return result;
 	}
 
 	async getDeviceEncoders(deviceAdb) {
 		let result = [];
 		let trial = 0;
-		try { await pushServer(deviceAdb); } catch (err) { logger.error('Initial pushServer failed in getDeviceEncoders:', err); }
+
+		// Check per-device back-off.
+		const serial = resolveSerialFromAdbInstance(deviceAdb);
+		const encoderBackoff = getDeviceBackoffRemaining(deviceEncoderFailures, serial);
+		if (encoderBackoff > 0) {
+			logger.warn(`getDeviceEncoders: skipping serial=${serial} — in back-off period (${Math.round(encoderBackoff / 1000)}s remaining)`);
+			return [];
+		}
+
+		try { await pushServer(deviceAdb); } catch (err) { logger.error({ err }, 'Initial pushServer failed in getDeviceEncoders'); }
 		try { if (deviceAdb.subprocess && typeof deviceAdb.subprocess.exec === 'function') { const check = await deviceAdb.subprocess.exec(["ls", "-l", DEVICE_SERVER_PATH]); logger.debug(`device ls output: ${JSON.stringify(check)}`); } } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
 		while (!result?.length && trial < this.numOfTrials) {
 			try {
@@ -678,16 +725,28 @@ class AdbTcpService {
 				result = encoders || [];
 				if (!result.length) {
 					logger.warn(`getEncoders returned empty on attempt ${trial + 1}; attempting to re-push scrcpy server and retry.`);
-					try { await pushServer(deviceAdb, true); await new Promise((r) => setTimeout(r, 300)); } catch (pushErr) { logger.error('Re-push scrcpy server after empty encoders failed:', pushErr); }
+					try { await pushServer(deviceAdb, true); await new Promise((r) => setTimeout(r, 300)); } catch (pushErr) { logger.error({ err: pushErr }, 'Re-push scrcpy server after empty encoders failed'); }
 				}
 			} catch (err) {
-				logger.error('Error while getting encoders:', err);
-				try { logger.debug('Retrying pushServer after getEncoders error'); await pushServer(deviceAdb); } catch (pushErr) { logger.error('Retry pushServer failed:', pushErr); }
+				logger.error({ err }, 'Error while getting encoders');
+				try { logger.debug('Retrying pushServer after getEncoders error'); await pushServer(deviceAdb); } catch (pushErr) { logger.error({ err: pushErr }, 'Retry pushServer failed'); }
 			}
 			trial++;
 			if (!result?.length) await new Promise((r) => setTimeout(r, 250));
 		}
 		logger.info(`getDeviceEncoders in trial=${trial} resultCount=${result?.length || 0}`);
+
+		// Update per-device failure tracking.
+		if (serial) {
+			if (!result?.length) {
+				const count = recordDeviceFailure(deviceEncoderFailures, serial);
+				const nextBackoff = Math.min(DEVICE_FAIL_BACKOFF_BASE_MS * Math.pow(2, count - 1), DEVICE_FAIL_BACKOFF_MAX_MS);
+				logger.warn(`getDeviceEncoders: serial=${serial} failed all ${trial} attempt(s) — back-off ${Math.round(nextBackoff / 1000)}s (failure #${count})`);
+			} else {
+				clearDeviceFailure(deviceEncoderFailures, serial);
+			}
+		}
+
 		return result;
 	}
 
@@ -1180,7 +1239,10 @@ export function startDeviceMonitor(intervalMs = 30_000) {
 export function evictPushedSerial(serial) {
 	if (serial) {
 		pushedBySerial.delete(serial);
-		logger.debug(`evictPushedSerial: cleared push cache for serial=${serial}`);
+		// Also clear any back-off penalties so the next session gets a fresh attempt.
+		deviceDisplayFailures.delete(serial);
+		deviceEncoderFailures.delete(serial);
+		logger.debug(`evictPushedSerial: cleared push cache and back-off state for serial=${serial}`);
 	}
 }
 
