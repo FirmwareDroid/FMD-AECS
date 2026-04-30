@@ -94,6 +94,15 @@ COPY ./emulator/prebuilts/adb/adbkey /android/sdk/emulator/adbkey
 COPY ./emulator/prebuilts/adb/adbkey.pub /android/sdk/emulator/adbkey.pub
 
 ################################
+# Copy scrcpy
+################################
+COPY ./emulator/prebuilts/adb/scrcpy-server.jar /android/scrcpy/scrcpy-server.jar
+
+# Copy helper watcher script to image so entrypoint can launch it
+COPY ./scripts/adb_push_and_start_scrcpy.py /usr/local/bin/adb_push_and_start_scrcpy.py
+RUN chmod +x /usr/local/bin/adb_push_and_start_scrcpy.py || true
+
+################################
 # Prepare Android emulator using prebuilt ARM64 binary
 ################################
 COPY ./emulator/prebuilts/arm64/sdk-repo-linux_aarch64-emulator-standalone-0.zip /android/

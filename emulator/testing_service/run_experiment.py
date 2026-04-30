@@ -597,6 +597,7 @@ def start_experiment(mode='single', test_only_one=False, skip_install=False):
         if not app_package_names:
             logging.info('No packages found to test')
             return
+        app_package_names.remove("android")
         for package in app_package_names:
             run_script_capture(ACVTOOL, args=["activate", package], description="Run ACVTool to activate coverage measurement.")
 

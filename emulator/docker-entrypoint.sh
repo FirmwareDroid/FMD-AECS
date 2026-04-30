@@ -67,6 +67,23 @@ if [ -f "$EMULATOR_START_SCRIPT" ]; then
     sleep 0.5
   fi
 
+  # Start adb scrcpy watcher (if available) in background so devices get the
+  # scrcpy server pushed and started automatically. The script is installed
+  # into /usr/local/bin by the Dockerfile. Logs are appended to
+  # /var/log/adb_scrcpy_watcher.log by default.
+  ADB_SCRCPY_WATCHER_SCRIPT="${ADB_SCRCPY_WATCHER_SCRIPT:-/usr/local/bin/adb_push_and_start_scrcpy.py}"
+  ADB_SCRCPY_WATCHER_LOG="${ADB_SCRCPY_WATCHER_LOG:-/var/log/adb_scrcpy_watcher.log}"
+  if command -v python3 >/dev/null 2>&1 && [ -f "$ADB_SCRCPY_WATCHER_SCRIPT" ]; then
+    echo "Starting adb scrcpy watcher: $ADB_SCRCPY_WATCHER_SCRIPT -> $ADB_SCRCPY_WATCHER_LOG"
+    mkdir -p "$(dirname "$ADB_SCRCPY_WATCHER_LOG")"
+    chmod +x "$ADB_SCRCPY_WATCHER_SCRIPT" || true
+    LOCAL_JAR_PATH="/android/scrcpy/scrcpy-server.jar"
+    /bin/bash -c "python3 -u \"$ADB_SCRCPY_WATCHER_SCRIPT\" --local-jar \"$LOCAL_JAR_PATH\" 2>&1 | tee -a \"$ADB_SCRCPY_WATCHER_LOG\"" &
+    sleep 0.5
+  else
+    echo "adb scrcpy watcher not found or python3 missing: $ADB_SCRCPY_WATCHER_SCRIPT"
+  fi
+
   # Launch the Python-based launcher which starts and watches the emulator
   # helper script. The launcher will restart the emulator_start.sh on
   # failures and applies cooldowns / limits.
