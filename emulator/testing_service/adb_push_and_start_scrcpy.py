@@ -124,6 +124,16 @@ def push_jar(serial: str, local_path: str, remote_path: str) -> bool:
 
     if exists is True and size is not None and local_size == size:
         logger.info("Remote jar already present and size matches on %s: %s", serial, remote_path)
+        # Ensure the remote jar is executable so it can be launched via app_process
+        try:
+            cp_chmod = run_adb(["-s", serial, "shell", "chmod", "755", remote_path], timeout=8)
+            if cp_chmod.returncode == 0:
+                logger.info("Set executable permissions on %s for device %s", remote_path, serial)
+            else:
+                logger.warning("Failed to set executable permissions on %s for device %s: rc=%s stderr=%s",
+                               remote_path, serial, cp_chmod.returncode, (cp_chmod.stderr or '').strip())
+        except AdbError as e:
+            logger.warning("chmod via adb failed for %s on device %s: %s", remote_path, serial, e)
         return True
     # If a remote file exists but size differs, and the server is running, do not overwrite
     if exists is True and size is not None and local_size != size:
@@ -139,6 +149,16 @@ def push_jar(serial: str, local_path: str, remote_path: str) -> bool:
     exists2, size2, _ = remote_file_info(serial, remote_path)
     if exists2 and size2 == local_size:
         logger.info("Push verified for device %s", serial)
+        # Ensure the remote jar is executable so it can be launched via app_process
+        try:
+            cp_chmod = run_adb(["-s", serial, "shell", "chmod", "755", remote_path], timeout=8)
+            if cp_chmod.returncode == 0:
+                logger.info("Set executable permissions on %s for device %s", remote_path, serial)
+            else:
+                logger.warning("Failed to set executable permissions on %s for device %s: rc=%s stderr=%s",
+                               remote_path, serial, cp_chmod.returncode, (cp_chmod.stderr or '').strip())
+        except AdbError as e:
+            logger.warning("chmod via adb failed for %s on device %s: %s", remote_path, serial, e)
         return True
     logger.warning("Push completed but verification failed for device %s (expected %s got %s)", serial, local_size, size2)
     return False
@@ -270,7 +290,8 @@ def main_loop(local_jar: str, remote_path: str, interval: float, once: bool = Fa
 
 def parse_args():
     p = argparse.ArgumentParser(description="Push and start scrcpy-server.jar on connected adb devices (looping watcher)")
-    p.add_argument("--local-jar", help="Path to local scrcpy-server.jar to push (default: %(default)s)")
+    p.add_argument("--local-jar", default="./emulator/prebuilts/adb/scrcpy-server.jar",
+                   help="Path to local scrcpy-server.jar to push (default: %(default)s)")
     p.add_argument("--remote-path", default=DEFAULT_REMOTE_PATH, help="Remote destination path for the jar on device (default: %(default)s)")
     p.add_argument("--interval", type=float, default=DEFAULT_POLL_INTERVAL, help="Polling interval in seconds")
     p.add_argument("--once", action="store_true", help="Run one check cycle then exit (useful for scripting)")

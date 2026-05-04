@@ -97,6 +97,7 @@ COPY ./emulator/prebuilts/adb/adbkey.pub /android/sdk/emulator/adbkey.pub
 # Copy scrcpy
 ################################
 COPY ./emulator/prebuilts/adb/scrcpy-server.jar /android/scrcpy/scrcpy-server.jar
+RUN chmod +x /android/scrcpy/scrcpy-server.jar || true
 
 # Copy helper watcher script to image so entrypoint can launch it
 COPY ./emulator/testing_service/adb_push_and_start_scrcpy.py /usr/local/bin/adb_push_and_start_scrcpy.py
