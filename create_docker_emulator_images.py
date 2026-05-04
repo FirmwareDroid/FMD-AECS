@@ -578,6 +578,16 @@ def parse_arguments():
                         required=False,
                         default=None,
                         help="Number of parallel workers to build images. Defaults to CPU count.")
+    parser.add_argument("--download-workers",
+                        type=int,
+                        required=False,
+                        default=None,
+                        help="Number of parallel download worker threads to use (overrides automatic default).")
+    parser.add_argument("--aria2-connections",
+                        type=int,
+                        required=False,
+                        default=4,
+                        help="Number of connections per aria2c instance when aria2c is used (default: 4).")
     parser.add_argument("--file-list-file",
                         type=str,
                         required=False,
@@ -639,7 +649,14 @@ def main():
             create_base_images()
 
         if filtered_image_list:
-            download_max_workers = min(len(filtered_image_list), max(2, multiprocessing.cpu_count() * 2))
+            # Increase download concurrency to improve throughput on high-bandwidth
+            # networks. Allow more I/O-bound download workers than CPU cores.
+            # Allow user-specified download concurrency; otherwise choose an
+            # I/O-optimized default (more threads than CPU cores).
+            if args.download_workers and int(args.download_workers) > 0:
+                download_max_workers = min(len(filtered_image_list), int(args.download_workers))
+            else:
+                download_max_workers = min(len(filtered_image_list), max(4, multiprocessing.cpu_count() * 4))
             # Limit concurrent builds to avoid saturating CPU/Docker resources. Use args.workers if provided;
             # otherwise default to number of CPUs.
             build_max_workers = min(len(filtered_image_list), max(1, getattr(args, 'workers', multiprocessing.cpu_count())))
@@ -665,7 +682,9 @@ def main():
                         dest_file = os.path.join(args.input_dir, asset['path'])
                         os.makedirs(os.path.dirname(dest_file), exist_ok=True)
                         logging.info(f"Downloading {asset['path']} -> {dest_file}")
-                        download_file(asset['downloadUrl'], dest_file)
+                        # Prefer aria2 multi-connection download when available; pass
+                        # configured number of connections.
+                        download_file(asset['downloadUrl'], dest_file, connections=args.aria2_connections)
                         return (True, asset['path'], dest_file, None)
                     except Exception as e:
                         logging.exception(f"Failed to download {asset.get('path')}: {e}")
