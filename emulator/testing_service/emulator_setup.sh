@@ -99,12 +99,10 @@ echo $! > "$LOG_DIR/.tail-logcat.pid" 2>/dev/null || true
 
 echo "[setup] Emulator environment helper finished starting components"
 
-# Exit; components run in background. The entrypoint can start emulator_start.sh
-exit 0
-
 # Background monitor to periodically trim the kernel/logcat logs to the
 # configured MAX_LOG_BYTES to avoid unbounded disk usage. Runs every 60s.
 (
+  echo "[setup] Starting background log-trim monitor (max ${MAX_LOG_BYTES} bytes)"
   while true; do
     sleep 60
     truncate_keep_tail "$REAL_KERNEL_LOG" "$MAX_LOG_BYTES"
@@ -112,4 +110,8 @@ exit 0
   done
 ) &
 echo $! > "$LOG_DIR/.log-trim-monitor.pid" 2>/dev/null || true
+
+# Exit; components (tails and monitor) run in background. The entrypoint can
+# start emulator_start.sh or other startup scripts.
+exit 0
 
