@@ -1516,6 +1516,7 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
                 try:
                     # Skip file, if path contains specific keyword
                     if any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST"]):
+                        logging.info(f"Skipping {file_path} because it was a keyword in SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST that matched the file_path")
                         continue
                     schedule_copy(source_file_path, file_path)
                     logging.debug(f"Scheduled indirect injection of .intermediate file: {file_path} with {source_file_path}")

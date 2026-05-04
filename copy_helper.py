@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import tempfile
@@ -59,6 +60,7 @@ def copy_fast(src_path, dst_path,
                         if n == 0:
                             break
                 # success if we reach here; copy_file_range preserves data, fall through to finalize
+                logging.info(f"Copy success with copy_file_range for {src_path} -> {dst_path}")
                 copied = True
             else:
                 copied = False
@@ -84,6 +86,7 @@ def copy_fast(src_path, dst_path,
                             break
                         offset += sent
                         remaining -= sent
+                logging.info(f"Copy success with sendfile for {src_path} -> {dst_path}")
                 copied = True
             except (OSError, NotImplementedError, TypeError):
                 copied = False
@@ -95,6 +98,7 @@ def copy_fast(src_path, dst_path,
                 args = [cp, "--reflink=auto", src_path, tmpname]
                 try:
                     subprocess.run(args, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    logging.info(f"Copy success with cp for {src_path} -> {tmpname}")
                     copied = True
                 except subprocess.CalledProcessError:
                     copied = False
