@@ -160,12 +160,16 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
             if output_file_path and os.path.exists(output_file_path):
                 current_size = os.path.getsize(output_file_path)
                 headers["Range"] = f"bytes={current_size}-"
+            # Use an explicit (connect, read) timeout tuple. ReadTimeouts were
+            # observed previously — increase the read timeout to allow slower
+            # transfers to proceed without aborting prematurely.
             response = requests.post(download_url,
                                      data=request_body,
                                      headers=headers,
                                      stream=True,
                                      verify=VERIFY_SSL,
-                                     cookies=cookies)
+                                     cookies=cookies,
+                                     timeout=(10, 600))
             # If we get a 403 Forbidden, try to re-authenticate (best-effort) and retry.
             if response is not None and response.status_code == 403:
                 logging.warning("Received 403 Forbidden while downloading build files. Attempting re-authentication...")
@@ -208,7 +212,9 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
             progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
             logging.info(f"Downloading firmware build files to {output_file_path}...")
             with open(output_file_path, mode="ab") as file:
-                for chunk in response.iter_content(chunk_size=10 * 1024):
+                for chunk in response.iter_content(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
                     progress_bar.update(len(chunk))
                     file.write(chunk)
             progress_bar.close()
@@ -364,7 +370,8 @@ def download_file(url, destination, connections: int = None):
     # Use a larger chunk size for faster writes (reduce Python overhead)
     chunk_size = 64 * 1024  # 64 KiB
 
-    with _HTTP_SESSION.get(url, stream=True, verify=VERIFY_SSL, timeout=(5, 300)) as response:
+    # Increase connect and read timeout to be tolerant of slow servers / networks.
+    with _HTTP_SESSION.get(url, stream=True, verify=VERIFY_SSL, timeout=(10, 600)) as response:
         if response.status_code == 200:
             file_size = int(response.headers.get('Content-Length', 0))
             # Use tqdm for progress reporting
