@@ -162,6 +162,24 @@ def add_boardconfig_flags(version: str, base_path: str, dry_run: bool = False, v
                     "BUILD_BROKEN_DUP_RULES := true\nSELINUX_IGNORE_NEVERALLOWS := true",
                     append=True, dry_run=dry_run, verbose=verbose)
 
+    if version in ("12", "12_1"):
+        paths = [
+            "device/generic/goldfish/emulator_arm64/BoardConfig.mk",
+        ]
+    elif version == ["13", "14"]:
+        paths = ["device/generic/goldfish/emulator_arm64/BoardConfig.mk" 
+                 "device/generic/goldfish/emu64a/BoardConfig.mk"]
+    elif version in ("15", "16"):
+        paths = ["device/generic/goldfish/board/emu64a//BoardConfig.mk"]
+
+    for p in paths:
+        try:
+            modify_file(os.path.join(base_path, p), "",
+                        "BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive\n",
+                        append=True, dry_run=dry_run, verbose=verbose)
+        except Exception:
+            logging.warning("Warning: '%s' not found in PATH", p)
+
 
 def add_build_properties(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Add property overrides and other build flags to product/vendor files as required."""
