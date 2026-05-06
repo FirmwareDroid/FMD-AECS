@@ -243,22 +243,17 @@ def start_server(serial: str, remote_path: str, use_app_process64: bool = True) 
     return False
 
 
-def ensure_server_on_device(serial: str, local_jar: str, remote_path: str, start_if_missing: bool = True):
-    """Ensure the jar is pushed and (optionally) started on the device."""
+def ensure_server_on_device(serial: str, local_jar: str, remote_path: str):
+    """Ensure the jar is pushed to the device. This function will NOT attempt
+    to start the server; it only ensures the file exists (and matches size)
+    on the remote device.
+    """
     try:
         ok_push = push_jar(serial, local_jar, remote_path)
         if not ok_push:
             logger.warning("Push failed for device %s; will retry later", serial)
             return False
-        if start_if_missing:
-            if is_server_running(serial):
-                logger.info("Server already running on %s", serial)
-                return True
-            started = start_server(serial, remote_path)
-            if not started:
-                logger.warning("Starting server failed for %s", serial)
-                return False
-            return True
+        # We purposely do not attempt to start or check the running server here.
         return True
     except Exception as e:
         logger.exception("ensure_server_on_device error for %s: %s", serial, e)
@@ -278,7 +273,8 @@ def main_loop(local_jar: str, remote_path: str, interval: float, once: bool = Fa
                 logger.debug("No devices connected")
             for s in serials:
                 try:
-                    ensure_server_on_device(s, local_jar, remote_path, start_if_missing=True)
+                    # Only ensure the JAR is present on the device; do not start the server
+                    ensure_server_on_device(s, local_jar, remote_path)
                 except Exception:
                     logger.exception("Device processing failed for %s", s)
             if once:

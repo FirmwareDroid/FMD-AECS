@@ -96,6 +96,7 @@ COPY ./emulator/prebuilts/adb/adbkey.pub /android/sdk/emulator/adbkey.pub
 ################################
 # Copy scrcpy
 ################################
+RUN mkdir -p /android/scrcpy
 COPY ./emulator/prebuilts/adb/scrcpy-server.jar /android/scrcpy/scrcpy-server.jar
 RUN chmod +x /android/scrcpy/scrcpy-server.jar || true
 
