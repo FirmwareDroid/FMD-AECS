@@ -28,7 +28,8 @@ from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
     check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file
-from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, MEASURE_LOOKUP_PERFORMANCE
+from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, \
+    MEASURE_LOOKUP_PERFORMANCE, EXTRACTION_ALL_FILES_PATH
 from config_post_injector import *
 from fmd_backend_requests import get_csrf_token, authenticate_fmd
 from json_writer import write_json_nd_output, write_json_output
@@ -204,6 +205,146 @@ def build_intermediate_file_index(aosp_path, target_out_path):
     return target_obj_path
 
 
+def create_error_statistics(error_list):
+    """
+    Analyze skipped errors and produce statistics about skipped file types.
+
+    The function extracts file paths from error messages that indicate a skipped file
+    (messages like: "Skipped File post-inject ...: /path/to/file | module_type: SKIPPED")
+    and computes frequency counts of file extensions. Files without an extension are
+    recorded under the key "<no_extension>" and — when the file exists on disk —
+    additionally checked for ELF magic to estimate how many no-extension files are
+    ELF binaries.
+
+    The resulting statistics are logged and written to `SKIPPED_ERROR_LIST_FILE_PATH`.
+
+    :param error_list: list of error message strings
+    :return: dict with statistics
+    """
+    skipped_paths = []
+    # Pattern to capture a filesystem path after the colon and before the pipe
+    path_re = re.compile(r'Skipped File[^"]*:\s*(/[^|\n]+)\s*\|', re.IGNORECASE)
+
+    for err in error_list:
+        m = path_re.search(err)
+        if m:
+            path = m.group(1).strip()
+            skipped_paths.append(path)
+
+    total_skipped = len(skipped_paths)
+
+    ext_counts = defaultdict(int)
+    ext_samples = defaultdict(list)
+    no_ext_elf_count = 0
+    no_ext_paths = []
+
+    for p in skipped_paths:
+        _, ext = os.path.splitext(p)
+        ext = ext.lower()
+        if not ext:
+            key = "<no_extension>"
+            no_ext_paths.append(p)
+            # If file exists try to detect ELF magic
+            try:
+                if os.path.exists(p) and os.path.isfile(p):
+                    with open(p, 'rb') as fh:
+                        hdr = fh.read(4)
+                        if hdr == b'\x7fELF':
+                            no_ext_elf_count += 1
+            except Exception:
+                # ignore any IO errors while probing files
+                pass
+        else:
+            key = ext
+
+        ext_counts[key] += 1
+        if len(ext_samples[key]) < 5:
+            ext_samples[key].append(p)
+
+    # Prepare sorted list of extensions by frequency
+    sorted_ext = sorted(ext_counts.items(), key=lambda kv: kv[1], reverse=True)
+
+    stats = {
+        "total_skipped": total_skipped,
+        "extension_counts": dict(sorted_ext),
+        "extension_samples": {k: v for k, v in ext_samples.items()},
+        "no_extension_count": len(no_ext_paths),
+        "no_extension_elf_count": no_ext_elf_count,
+        "no_extension_examples": no_ext_paths[:10]
+    }
+
+    logging.info("Skipped files summary: total_skipped=%d", total_skipped)
+    for ext, cnt in sorted_ext:
+        logging.info("Skipped extension %s: %d occurrences", ext, cnt)
+
+    if stats["no_extension_count"]:
+        logging.info("Files without extension: %d (ELF detected: %d)", stats["no_extension_count"], stats["no_extension_elf_count"]) 
+
+    # Persist statistics to the skipped error list path for further analysis
+    try:
+        write_json_output(stats, SKIPPED_ERROR_LIST_FILE_PATH)
+    except Exception as e:
+        logging.warning(f"Could not write skipped error statistics to {SKIPPED_ERROR_LIST_FILE_PATH}: {e}")
+
+    # Additionally compute path-frequency statistics for files under the extracted ALL_FILES root
+    try:
+        all_files_prefix = None
+        try:
+            all_files_prefix = os.path.abspath(EXTRACTION_ALL_FILES_PATH)
+        except Exception:
+            logging.error(f"Could not resolve absolute path for ALL_FILES: {EXTRACTION_ALL_FILES_PATH}")
+            return
+
+        path_counts = defaultdict(int)
+        path_samples = defaultdict(list)
+
+        for p in skipped_paths:
+            try:
+                abs_p = os.path.abspath(p)
+            except Exception:
+                continue
+            if not abs_p.startswith(all_files_prefix + os.sep) and abs_p != all_files_prefix:
+                # skip files not under the ALL_FILES prefix
+                continue
+
+            # compute relative components under ALL_FILES
+            rel = abs_p[len(all_files_prefix):].lstrip(os.sep)
+            parts = rel.split(os.sep)
+            # drop trailing filename if present
+            if len(parts) == 0:
+                continue
+            # if last component contains a dot and looks like a filename, exclude it from directory components
+            dir_parts = parts[:-1] if len(parts) > 1 else []
+
+            # create subpath fragments of depth 1..4 starting at any position to capture patterns like /etc/security
+            max_depth = 4
+            for i in range(len(dir_parts)):
+                for depth in range(1, min(max_depth, len(dir_parts) - i) + 1):
+                    sub = "/" + "/".join(dir_parts[i:i+depth])
+                    path_counts[sub] += 1
+                    if len(path_samples[sub]) < 5:
+                        path_samples[sub].append(abs_p)
+
+        # Prepare sorted list of path frequencies (most common first)
+        sorted_paths = sorted(path_counts.items(), key=lambda kv: kv[1], reverse=True)
+        stats["all_files_prefix"] = all_files_prefix
+        stats["all_files_path_counts"] = dict(sorted_paths[:200])
+        stats["all_files_path_samples"] = {k: v for k, v in path_samples.items() if k in dict(sorted_paths[:200])}
+
+        logging.info("Top skipped paths under ALL_FILES:")
+        for path_key, count in sorted_paths[:20]:
+            logging.info("%s: %d", path_key, count)
+
+        # persist extended stats as well
+        try:
+            write_json_output(stats, SKIPPED_ERROR_LIST_FILE_PATH)
+        except Exception:
+            pass
+    except Exception as e:
+        logging.debug(f"Error while computing ALL_FILES path frequency stats: {e}")
+
+    return stats
+
 def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list, cookies, aosp_version):
     start_time = time.time()
     logging.info(f"Injection started at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
@@ -329,6 +470,9 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     }
 
     write_json_output(result, PATH_EXECUTION_TIME_LOG)
+    stats = create_error_statistics(error_list)
+    if stats:
+        write_json_output(stats, SKIPPED_ERROR_LIST_FILE_PATH)
 
 
 
