@@ -68,7 +68,9 @@
     "system/fonts/",
     "system/etc/security/cacerts",
     "system/etc/permissions/",
-    "system/etc/security/cacerts_google/"
+    "system/etc/security/cacerts_google/",
+    "libandroid",
+    "_jni.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "Overlay",

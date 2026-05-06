@@ -38,7 +38,8 @@
     "ServiceUwbResources",
     "WifiDialog",
     "OnDevicePersonalization",
-    "AdServices"
+    "AdServices",
+    "SdkSandbox"
   ],
   "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
   "ALLOW_APP_KEYWORD_ALWAYS_LIST": ["ExtServices", "ExtShared", "AndroidPlatformServices", "ServicesFramework", "SystemUIGoogle", "DocumentsUIGoogle", "NexusLauncherRelease"],
