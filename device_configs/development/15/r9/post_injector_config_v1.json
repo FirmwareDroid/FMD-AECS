@@ -43,7 +43,12 @@
     "libbluetooth_jni.so",
     "TrichromeLibrary.apk.gz",
     "Chrome.apk.gz",
-    "libactivitymanager_aidl.so"
+    "libactivitymanager_aidl.so",
+    "libhwui.so",
+    "libgui.so",
+    "libgui_vendor.so",
+    "libz.so",
+    "libhbmsvmanager_jni.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "Overlay",
@@ -77,7 +82,8 @@
     "system/fonts/",
     "system/etc/security/cacerts",
     "system/etc/permissions/",
-    "system/etc/security/cacerts_google/"
+    "system/etc/security/cacerts_google/",
+    "libandroid"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [],
