@@ -4,6 +4,19 @@ from common import is_elf_binary
 POST_INJECTOR_CONFIG = None
 
 
+def _find_matching_keyword(s, keywords):
+    """Return the first keyword from keywords that appears in s, or None."""
+    if not keywords:
+        return None
+    for kw in keywords:
+        try:
+            if kw and kw in s:
+                return kw
+        except Exception:
+            continue
+    return None
+
+
 def is_file_inject_allowed(file_name):
     """
     Determines if a file is allowed to be injected based on various criteria.
@@ -100,9 +113,12 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
 
 
     if module_type == "APPS" and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_APP_KEYWORDLIST"]):
+        kw = _find_matching_keyword(file_name, POST_INJECTOR_CONFIG["SKIPPED_APP_KEYWORDLIST"])
+        logging.info(f"Skipping {source_file_path}: matched SKIPPED_APP_KEYWORDLIST keyword: {kw}")
         module_type = "SKIPPED"
     if module_type == "APPS" and (file_name_no_ext in POST_INJECTOR_CONFIG["SKIPPED_APP_LIST"]
                                   or file_name in POST_INJECTOR_CONFIG["SKIPPED_APP_LIST"]):
+        logging.info(f"Skipping {source_file_path}: filename found in SKIPPED_APP_LIST")
         module_type = "SKIPPED"
     if module_type == "APPS" and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["ALLOWED_APP_INJECTION_KEYWORD"]):
         module_type = "APPS"
@@ -113,6 +129,29 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
     if (not is_file_path_allowed(source_file_path)
             or (file_extension not in ["", None] and not is_file_extension_allowed(file_extension))
             or not is_file_inject_allowed(file_name)):
+        # Determine which sub-condition triggered the skip and log details
+        if not is_file_path_allowed(source_file_path):
+            kw = _find_matching_keyword(source_file_path, POST_INJECTOR_CONFIG.get("SKIPPED_KEYWORD_LIST", []))
+            logging.info(f"Skipping {source_file_path}: path contains skipped keyword: {kw}")
+        if file_extension not in ["", None] and not is_file_extension_allowed(file_extension):
+            # Distinguish between allow-list and general-skip-list
+            allow_only = POST_INJECTOR_CONFIG.get("ALLOW_ONLY_EXTENSION_LIST", [])
+            skipped_general = POST_INJECTOR_CONFIG.get("SKIPPED_FILE_EXTENSION_LIST_GENERAL", [])
+            if allow_only and file_extension not in allow_only:
+                logging.info(f"Skipping {source_file_path}: extension '{file_extension}' not in ALLOW_ONLY_EXTENSION_LIST")
+            elif file_extension in skipped_general:
+                logging.info(f"Skipping {source_file_path}: extension '{file_extension}' in SKIPPED_FILE_EXTENSION_LIST_GENERAL")
+            else:
+                logging.info(f"Skipping {source_file_path}: extension '{file_extension}' disallowed")
+        if not is_file_inject_allowed(file_name):
+            if file_name in POST_INJECTOR_CONFIG.get("SKIPPED_BINARY_LIST", []):
+                logging.info(f"Skipping {source_file_path}: filename in SKIPPED_BINARY_LIST")
+            else:
+                # which ending matched?
+                for ending in POST_INJECTOR_CONFIG.get("SKIPPED_FILE_ENDING_LIST", []):
+                    if file_name.endswith(ending):
+                        logging.info(f"Skipping {source_file_path}: filename endswith skipped ending '{ending}'")
+                        break
         module_type = "SKIPPED"
 
     if module_type in ["SHARED_LIBRARIES", "ETC", "APPS"]:
@@ -135,6 +174,8 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
             module_type = tmp_module_type
 
     if is_apex and any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_APEX_KEYWORD_LIST"]):
+        keyword_match = next(keyword for keyword in POST_INJECTOR_CONFIG["SKIPPED_APEX_KEYWORD_LIST"] if keyword in file_name)
+        logging.info(f"Skipping {source_file_path} as it is an APEX file and contains a keyword from SKIPPED_APEX_KEYWORD_LIST: {keyword_match}")
         module_type = "SKIPPED"
 
     if POST_INJECTOR_CONFIG["ENABLE_ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST"]:
@@ -147,7 +188,7 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
         module_type = "ETC"
 
     if module_type == "APPS" and POST_INJECTOR_CONFIG["DISALLOW_APP_INJECTION"]:
-        logging.error(f"Post-Build App injection is disallowed by configuration: {source_file_path}")
+        logging.info(f"Post-Build App injection is disallowed by configuration: {source_file_path}")
         module_type = "SKIPPED"
 
     if module_type == "JAVA_LIBRARIES" and POST_INJECTOR_CONFIG["DISABLE_JAVA_LIBRARIES_INJECTION"]:
@@ -160,6 +201,13 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
                             or any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_MISC_KEYWORD_LIST"])
                             or file_extension in POST_INJECTOR_CONFIG["SKIPPED_MISC_EXTENSION_LIST"]
     ):
+        if POST_INJECTOR_CONFIG.get("DISABLE_MISC_INJECTION"):
+            logging.info(f"Skipping {source_file_path}: DISABLE_MISC_INJECTION is enabled")
+        kw = _find_matching_keyword(file_name, POST_INJECTOR_CONFIG.get("SKIPPED_MISC_KEYWORD_LIST", []))
+        if kw:
+            logging.info(f"Skipping {source_file_path}: matched SKIPPED_MISC_KEYWORD_LIST keyword: {kw}")
+        if file_extension in POST_INJECTOR_CONFIG.get("SKIPPED_MISC_EXTENSION_LIST", []):
+            logging.info(f"Skipping {source_file_path}: extension '{file_extension}' in SKIPPED_MISC_EXTENSION_LIST")
         module_type = "SKIPPED"
 
     if file_extension in [".apk"] and (file_name in POST_INJECTOR_CONFIG["ALLOW_APP_INJECT_ALWAYS"] or any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST"])):
