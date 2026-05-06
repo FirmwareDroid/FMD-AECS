@@ -1529,7 +1529,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
                     inj_md5 = get_md5_from_file(source_file_path)
                     org_md5 = get_md5_from_file(target_file_injection_path)
                     shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
-                    logging.warning(f"File overwrite: {source_file_path}:{inj_md5} into {target_file_injection_path}:{org_md5}")
+                    logging.error(f"File overwrite: {source_file_path}:{inj_md5} into {target_file_injection_path}:{org_md5}. This overwrite is likely to be reverted by the AOSP build system.")
                     if not set_executable_permission(target_file_injection_path):
                         raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
             except Exception as e:
