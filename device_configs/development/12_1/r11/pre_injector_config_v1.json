@@ -2541,7 +2541,8 @@
     "Launcher",
     "Media",
     "Phone",
-    "Print"
+    "Print",
+    "CarrierConfig"
   ],
   "ENABLE_ACVTOOL_INSTRUMENTATION": true
 }

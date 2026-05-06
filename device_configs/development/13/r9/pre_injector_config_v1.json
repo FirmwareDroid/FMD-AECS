@@ -2544,7 +2544,7 @@
   ],
   "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r450784d/runtimes_ndk_cxx/aarch64/lldb-server",
   "ACVTOOL_SKIP_APK_KEYWORDS": [
-    "MtkCarrierConfig"
+    "CarrierConfig"
   ],
   "ENABLE_ACVTOOL_INSTRUMENTATION": true
 }
