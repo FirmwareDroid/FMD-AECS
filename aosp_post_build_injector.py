@@ -858,7 +858,8 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
         logging.info(f"Skipped indirect injection for file: {file_path} with extension: {file_ext}")
         return None, inj_partition, False
 
-    if not file_name in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS"]:
+    if not (file_name in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS"]
+            or any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST"])):
         if POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"] and file_ext == ".so":
             if os.path.exists(target_file_injection_path):
                 logging.info(f"Skipped indirect injection for shared library file: {file_path} as "
