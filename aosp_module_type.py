@@ -162,6 +162,10 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
                 module_type = "SKIPPED"
                 break
 
+    if module_type in ["SHARED_LIBRARIES"] and file_extension in [".so"]:
+        if POST_INJECTOR_CONFIG["DISABLE_SHARED_LIBRARY_INJECTION"]:
+            module_type = "SKIPPED"
+
     if POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"] and file_extension in [".so"]:
         if file_name in POST_INJECTOR_CONFIG["SKIPPED_SHARED_LIBRARIES_EVEN_IF_NOT_EXISTS_LIST"] or any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["SKIPPED_KEYWORD_SHARED_LIBRARIES_EVEN_IF_NOT_EXISTS_LIST"]):
             logging.info(f"File {source_file_path} is skipped from injection even if it does not exist in the system, as"

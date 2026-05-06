@@ -9,7 +9,7 @@
     "networkstack": ["android.networkstack", "android.uid.networkstack"],
     "bluetooth": ["android.bluetooth", "android.uid.bluetooth"]
   },
-  "ALLOW_ALL_JAVA_LIBRARIES_INJECTION": true,
+  "ALLOW_ALL_JAVA_LIBRARIES_INJECTION":true,
   "DISABLE_JAVA_LIBRARIES_INJECTION": false,
   "DISALLOW_APP_INJECTION": false,
   "INJECT_APEX_VENDOR_APPS": true,
@@ -17,9 +17,20 @@
   "INJECT_APEX_VENDOR_FILES": true,
   "ALLOW_MIXED_APEX_FILES": false,
   "ALLOW_APEX_INJECTION_MERGE": true,
-  "ALLOW_DIRECT_INJECTION_LIB_OVERWRITE": true,
+  "ALLOW_DIRECT_INJECTION_LIB_OVERWRITE": false,
   "DISABLE_BINARY_INJECTION": false,
+  "DISABLE_SHARED_LIBRARY_INJECTION": false,
   "SKIPPED_APP_KEYWORDLIST": [
+  ],
+  "SKIPPED_MISC_KEYWORD_LIST": [],
+  "SKIPPED_MISC_EXTENSION_LIST": [
+    ".kl",
+    ".vdex",
+    ".odex",
+    ".oat",
+    ".art",
+    ".idc",
+    ".fsv_meta"
   ],
   "USE_ISOLATED_NAMESPACE": false,
   "ISOLATED_NAMESPACE_LIST": [],
@@ -33,7 +44,35 @@
     "libhbmsvmanager_jni.so",
     "libbluetooth_jni.so",
     "TrichromeLibrary.apk.gz",
-    "Chrome.apk.gz"
+    "Chrome.apk.gz",
+    "libhwui.so",
+    "libgui.so",
+    "libgui_vendor.so",
+    "libz.so",
+    "libhbmsvmanager_jni.so",
+    "cameraserver"
+  ],
+  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
+    "system/framework",
+    "system_ext/framework",
+    "system_ext/etc/permissions",
+    "system_ext/etc/default-permissions/",
+    "system_other/framework",
+    "system_other/etc/permissions",
+    "vendor/framework",
+    "vendor/etc/permissions",
+    "vendor/etc/database/",
+    "product/framework",
+    "product/app/Chrome/",
+    "product/tts/",
+    "product/media/",
+    "product/app/WebViewGoogle",
+    "product/etc/permissions",
+    "system_ext/apex/etc/fs/include/",
+    "system/fonts/",
+    "system/etc/security/cacerts",
+    "system/etc/permissions/",
+    "system/etc/security/cacerts_google/"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
@@ -218,32 +257,18 @@
     "WallpaperBackup.apk",
     "ONS.apk"
   ],
-  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
-    "system/framework",
-    "system_ext/framework",
-    "system_ext/etc/permissions",
-    "system_other/framework",
-    "system_other/etc/permissions",
-    "vendor/framework",
-    "vendor/etc/permissions",
-    "product/framework",
-    "product/app/Chrome/",
-    "product/tts/",
-    "product/media/",
-    "product/app/WebViewGoogle",
-    "product/etc/permissions",
-    "system_ext/apex/etc/fs/include/",
-    "system/fonts/",
-    "system/etc/security/cacerts",
-    "system/etc/permissions/",
-    "system/etc/security/cacerts_google/",
-    "android.extservices.apex"
-  ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [],
   "ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS": true,
   "SKIPPED_SHARED_LIBRARIES_EVEN_IF_NOT_EXISTS_LIST": [],
-  "SKIPPED_KEYWORD_SHARED_LIBRARIES_EVEN_IF_NOT_EXISTS_LIST": [],
+  "SKIPPED_KEYWORD_SHARED_LIBRARIES_EVEN_IF_NOT_EXISTS_LIST": [
+    "android.hardware.graphics",
+    "android.hardware.audio",
+    "audio",
+    "keymaster",
+    "keystore",
+    "strongbox"
+  ],
   "ENABLE_ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST": true,
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST": [
     "adb",
@@ -318,8 +343,13 @@
     "android.ipsec.apex"
   ],
   "SKIPPED_FILE_EXTENSION_LIST_GENERAL": [
+    ".rc",
+    ".ko",
+    ".prop",
     ".original_apex",
     ".idsig",
+    ".art",
+    ".oat",
     ".apex_original",
     ".capex_original",
     ".imgxtract",
@@ -327,9 +357,12 @@
     ".raw"
   ],
   "EMULATOR_VNDK_VERSION": 33,
-  "SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION": [],
-  "SKIPPED_FILE_ENDING_LIST": [],
-  "CHECK_VNDK_VERSION_MISMATCH": false,
+  "SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION": [
+    ".rc"
+  ],
+  "SKIPPED_FILE_ENDING_LIST": [
+  ],
+  "CHECK_VNDK_VERSION_MISMATCH": true,
   "OVERWRITE_APP_PROCESS_32": false,
   "DEFAULT_EMULATOR_BINARIES": [
     "blockdev", "cksum", "disable-verity", "fgrep", "head", "input", "keystore2", "logwrapper", "mkfs.ext3", "nohup",
@@ -371,11 +404,29 @@
 ],
   "SKIPPED_BINARY_LIST": [
   ],
-  "SKIPPED_KEYWORD_LIST": ["_apex", "_capex"],
-  "SKIPPED_APEX_KEYWORD_LIST": [
-    "adb"
+  "SKIPPED_KEYWORD_LIST": [
+    "keystore",
+    "keymaster",
+    "selinux",
+    "android.system.suspend",
+    "android.hardware",
+    "vintf",
+    "recovery-refresh",
+    "vendor.sensors",
+    "atrace",
+    "qseecom",
+    "exfat",
+    "secureboot",
+    "_apex",
+    "_capex"
   ],
-  "SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST": ["telephony-common.jar"],
+  "SKIPPED_APEX_KEYWORD_LIST": [
+    "adb",
+    "vndk"
+  ],
+  "SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST": [
+    "telephony-common.jar"
+  ],
   "ALLOWED_FILE_OVERWRITE_EXTENSION_LIST": [
   ],
   "ALLOWED_APP_INJECTION_KEYWORD": [

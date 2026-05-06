@@ -3,7 +3,7 @@
   "DISABLE_APEX_APP_INJECTION": true,
   "ALLOW_APEX_REPACKING_IN_PRE_INJECTOR": false,
   "DISABLE_NATIVE_LIBRARY_INJECTION": true,
-  "DISABLE_APP_INJECTION": true,
+  "DISABLE_APP_INJECTION": false,
   "DISALLOWED_APK_KEYWORDS": [
     "PermissionController",
     "GooglePermissionControllerOverlay",
@@ -34,7 +34,9 @@
     "CompOSPayloadApp",
     "CtsShimPrivPrebuilt",
     "CtsShimPrebuilt",
-    "Launcher3"
+    "Launcher3",
+    "ServiceUwbResources",
+    "WifiDialog"
   ],
   "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
   "ALLOW_APP_KEYWORD_ALWAYS_LIST": ["ExtServices", "ExtShared", "AndroidPlatformServices", "ServicesFramework", "SystemUIGoogle", "DocumentsUIGoogle", "NexusLauncherRelease"],
@@ -2508,13 +2510,41 @@
     "./toolbox/ca_certificates/9a5ba575.0",
     "./toolbox/ca_certificates/c8750f0d.0"
   ],
-  "TOOLBOX_PACKAGE_DICT": {
-    "frida-server_toolbox": "./toolbox/12_13_14/frida",
-    "fsmon_toolbox": "./toolbox/12_13_14/fsmon",
-    "lldb-server_toolbox": "./toolbox/lldb-server",
-    "wireguard_toolbox": "./toolbox/wireguard_app",
-    "PCAPdroid_toolbox": "./toolbox/pcapdroid"
-  },
+  "TOOLBOX_PACKAGE_LIST": [
+    {
+      "name": "frida_toolbox",
+      "enable": false,
+      "path":"./toolbox/12_13_14/frida"
+    },
+    {
+        "name": "fsmon_toolbox",
+      "enable": false,
+      "path":"./toolbox/12_13_14/fsmon"
+    },
+    {
+      "name": "lldb-server_toolbox",
+      "enable": false,
+      "path":"./toolbox/lldb-server"
+    },
+    {
+      "name": "wireguard_toolbox",
+      "enable": false,
+      "path": "./toolbox/wireguard_app"
+    },
+    {
+      "name": "PCAPdroid_toolbox",
+      "enable": false,
+      "path": "./toolbox/pcapdroid"
+    },
+    {
+      "name": "ecapture_toolbox",
+      "enable": true,
+      "path": "./toolbox/12_13_14/ecapture"
+    }
+  ],
   "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r450784d/runtimes_ndk_cxx/aarch64/lldb-server",
-  "ENABLE_ACVTOOL_INSTRUMENTATION": false
+  "ACVTOOL_SKIP_APK_KEYWORDS": [
+    "CarrierConfig"
+  ],
+  "ENABLE_ACVTOOL_INSTRUMENTATION": true
 }
