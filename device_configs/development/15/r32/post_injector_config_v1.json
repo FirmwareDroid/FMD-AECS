@@ -38,6 +38,7 @@
   "DISALLOW_APEX_FILE_OVERWRITE": [],
   "ALLOW_MIXED_APEX_KEYWORD_LIST": [],
   "DISABLE_APEX_BINARY_INJECTION": false,
+  "NEVERALLOW_FILE_INJECT": [],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
     "libhbmsvmanager_jni.so",
