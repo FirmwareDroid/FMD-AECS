@@ -39,9 +39,6 @@
   "ALLOW_MIXED_APEX_KEYWORD_LIST": [],
   "DISABLE_APEX_BINARY_INJECTION": false,
   "NEVERALLOW_FILE_INJECT": [
-    "android.hardware.keystore.app_attest_key.xml",
-    "android.hardware.strongbox_keystore.xml",
-    "android.hardware.hardware_keystore.xml"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
