@@ -860,9 +860,13 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
 
     if not file_name in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS"]:
         if POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"] and file_ext == ".so":
-            logging.info(f"Skipped indirect injection for shared library file: {file_path} as "
-                         f"ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS is set.")
-            return None, inj_partition, False
+            if os.path.exists(target_file_injection_path):
+                logging.info(f"Skipped indirect injection for shared library file: {file_path} as "
+                             f"ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS is set.")
+                return None, inj_partition, False
+            else:
+                logging.info(f"Allow indirect injection for shared library file: {file_path}")
+
 
     delete_intermediate_cached_files(target_file_injection_path, aosp_version, aosp_path)
 
@@ -963,6 +967,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                     partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version)
         if not is_injected and is_injected is not None:
+            logging.info(f"Fallback to Direct injection: {file_path}")
             # Fallback to Direct Injection
             target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
             inj_partition = (file_path, target_path, module_type)
