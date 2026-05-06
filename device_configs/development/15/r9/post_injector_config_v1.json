@@ -83,7 +83,8 @@
     "system/etc/security/cacerts",
     "system/etc/permissions/",
     "system/etc/security/cacerts_google/",
-    "libandroid"
+    "libandroid",
+    "_jni.so"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [],
