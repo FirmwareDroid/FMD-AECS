@@ -1028,7 +1028,11 @@ def is_package_skipped(dir_name, package_path):
     :returns: bool - True if the package should be skipped, False otherwise.
     """
     dir_name_cleaned = clean_package_name(dir_name)
-    if dir_name_cleaned in SKIPPED_MODULE_NAMES or any(keyword in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["BLACKLISTED_KEYWORDS"]):
+    if dir_name_cleaned in SKIPPED_MODULE_NAMES or any(
+            (match := keyword) in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["BLACKLISTED_KEYWORDS"]):
+        keyword_match = match if "match" in locals() else "SKIPPED_MODULE_NAME"
+        logging.info(
+            f"Skipping package due to blacklisted keyword: {dir_name_cleaned} - matching keyword: {keyword_match}")
         return True
     elif check_file_extension(package_path, [".apk"]):
         if not "_FMD_APEX" in dir_name:
