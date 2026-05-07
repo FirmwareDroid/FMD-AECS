@@ -12,6 +12,8 @@
  */
 
 import { spawn as nodeSpawn } from 'node:child_process';
+import { execFile as nodeExecFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { tmpdir as osTmpdir } from 'node:os';
 import { join } from 'node:path';
 import fs from 'node:fs/promises';
@@ -39,19 +41,41 @@ import { v4 as uuid } from 'uuid';
 export async function probeRemoteServer(adbInstance, tryPaths, logger = null) {
     const log = logger ?? { info: () => {}, debug: () => {}, error: () => {}, warn: () => {} };
     try {
-        if (!adbInstance || !adbInstance.subprocess || typeof adbInstance.subprocess.exec !== 'function') {
-            return { exists: null, size: null, path: null };
-        }
+        // Prefer querying the device via the adb CLI 'ls -l <path>' command.
+        // Some transports do not expose the subprocess.exec API reliably, so
+        // use the adb binary as a robust fallback.
+        const execFile = promisify(nodeExecFile);
         for (const p of tryPaths) {
             try {
-                const cmd = ['sh', '-c', `find ${JSON.stringify(p)} -maxdepth 0 -type f -print 2>/dev/null`];
-                const out = await adbInstance.subprocess.exec(cmd);
-                const outStr = Array.isArray(out) ? out.join('\n') : String(out);
+                // Attempt to resolve a serial from the adbInstance when available
+                let serial = null;
+                try {
+                    if (adbInstance) {
+                        if (adbInstance.transport && adbInstance.transport.serial) serial = adbInstance.transport.serial;
+                        if (!serial && adbInstance._transport && adbInstance._transport.serial) serial = adbInstance._transport.serial;
+                        if (!serial && typeof adbInstance.serial === 'string') serial = adbInstance.serial;
+                    }
+                } catch (e) {
+                    // ignore resolution errors and fall back to default adb
+                }
+
+                const args = serial ? ['-s', serial, 'shell', 'ls', '-l', p] : ['shell', 'ls', '-l', p];
+                const res = await execFile('adb', args).catch((e) => ({ stdout: '', stderr: String(e && e.message ? e.message : e) }));
+                const outStr = String(res && res.stdout ? res.stdout : '');
+                const errStr = String(res && res.stderr ? res.stderr : '');
+                // If ls produced output on stdout, the file exists. Some devices
+                // write "No such file" to stderr — treat stderr containing that
+                // message as not existing.
                 if (outStr && outStr.trim()) {
                     return { exists: true, size: null, path: p };
                 }
+                if (errStr && !/no such file/i.test(errStr)) {
+                    // stderr without "No such file" may indicate permission or other
+                    // messages but still indicate presence; treat conservatively as exists.
+                    return { exists: true, size: null, path: p };
+                }
             } catch (e) {
-                log.debug(`probeRemoteServer: find ${p} failed: ${e?.message || e}`);
+                log.error(`probeRemoteServer: adb ls ${p} failed: ${e?.message || e}`);
             }
         }
         return { exists: false, size: null, path: null };
