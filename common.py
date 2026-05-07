@@ -6,10 +6,11 @@ import zipfile
 from ConfigManager import ConfigManager
 from config import VENDOR_NAMES
 import hashlib
+import subprocess
 
 
 def extract_zip(file_path, destination):
-    print(f"Extracting {file_path} to {destination}")
+    logging.info("Extracting %s to %s", file_path, destination)
     with zipfile.ZipFile(file_path, 'r') as zip_ref:
         zip_ref.extractall(destination)
 
@@ -218,4 +219,6 @@ def get_md5_from_file(file_path):
                     digest.update(chunk)
             return digest.hexdigest()
     return digest.hexdigest()
+
+
 

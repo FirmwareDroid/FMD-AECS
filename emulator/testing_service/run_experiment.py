@@ -12,25 +12,100 @@ import json
 import shutil
 import atexit
 import time
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-INSTALL_APPIUM = os.path.join(BASE_DIR, 'appium', 'install_appium.py')
-RUN_PCAPDROID = os.path.join(BASE_DIR, 'appium', 'run_pcapdroid_on_all.py')
-DROIDRUN_AGENT = os.path.join(BASE_DIR, 'bots', 'droidrun_agent_cli.py')
-ACVTOOL = os.path.join(BASE_DIR, 'coverage', 'acvtool_wrapper.py')
-LOGCAT_COLLECTOR = os.path.join(BASE_DIR, 'coverage', 'collect_logcat.py')
-INSTALL_APPS = os.path.join(BASE_DIR, 'install_apps.py')
-START_APPS_BASIC = os.path.join(BASE_DIR, 'start_apps.py')
-LAUNCHER_TEST = os.path.join(BASE_DIR, 'launcher_test.py')
-CONNECTIVITY_TEST = os.path.join(BASE_DIR, 'connectivity_test.py')
-
 import glob
+import re
 try:
     import crash_watcher
 except Exception:
     crash_watcher = None
-    
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INSTALL_APPIUM = os.path.join(BASE_DIR, 'appium', 'install_appium.py')
+RUN_PCAPDROID = os.path.join(BASE_DIR, 'appium', 'run_pcapdroid_on_all.py')
+ACVTOOL = os.path.join(BASE_DIR, 'coverage', 'acvtool_wrapper.py')
+LOGCAT_COLLECTOR = os.path.join(BASE_DIR, 'coverage', 'collect_logcat.py')
+INSTALL_APPS = os.path.join(BASE_DIR, 'install_apps.py')
+LAUNCHER_TEST = os.path.join(BASE_DIR, 'launcher_test.py')
+CONNECTIVITY_TEST = os.path.join(BASE_DIR, 'connectivity_test.py')
+
+# App testing tool wrappers (app_testing_tools/)
+START_APPS_BASIC = os.path.join(BASE_DIR, 'app_testing_tools', 'run_apps_start_stop.py')
+RUN_APE = os.path.join(BASE_DIR, 'app_testing_tools', 'run_ape.py')
+RUN_FASTBOT = os.path.join(BASE_DIR, 'app_testing_tools', 'run_fastbot.py')
+RUN_KEA2 = os.path.join(BASE_DIR, 'app_testing_tools', 'run_kea2.py')
+RUN_DROIDRUN = os.path.join(BASE_DIR, 'app_testing_tools', 'droidrun_agent_cli.py')
+COLLECT_DEVICE_INFO = os.path.join(BASE_DIR, 'collect_device_info.py')
+
 OUT_DIR = os.path.join(BASE_DIR, 'out')
+
+# Global timeout control (set by main)
+GLOBAL_START_TIME = None
+GLOBAL_MAX_SECONDS = None
+
+
+class GlobalTimeoutReached(Exception):
+    """Raised when the global runtime limit has been exceeded.
+
+    Attributes:
+        attempt: current attempt index (optional)
+        attempts: total attempts configured (optional)
+    """
+    def __init__(self, message="Global timeout reached", attempt=None, attempts=None):
+        super().__init__(message)
+        self.attempt = attempt
+        self.attempts = attempts
+
+def init_global_timeout(start_time_val, max_seconds_val):
+    global GLOBAL_START_TIME, GLOBAL_MAX_SECONDS
+    GLOBAL_START_TIME = start_time_val
+    GLOBAL_MAX_SECONDS = max_seconds_val
+
+def remaining_seconds():
+    """Return remaining seconds until global timeout, or None if no timeout set."""
+    if GLOBAL_START_TIME is None or GLOBAL_MAX_SECONDS is None:
+        return None
+    rem = GLOBAL_MAX_SECONDS - (time.time() - GLOBAL_START_TIME)
+    return max(0.0, rem)
+
+def get_effective_timeout(requested_timeout):
+    """Given a requested timeout (seconds or None), return an effective timeout
+    that does not exceed remaining global time. Returns None when no timeout.
+    If remaining_seconds() is 0, returns 0.0 which will cause immediate Timeout.
+    """
+    rem = remaining_seconds()
+    if rem is None:
+        return requested_timeout
+    # If no time left, indicate zero
+    if rem <= 0:
+        return 0.0
+    if requested_timeout is None:
+        return rem
+    try:
+        return min(float(requested_timeout), rem)
+    except Exception:
+        return rem
+
+# If a tools venv was created by install_tools.py, prefer using it for launching
+# app-testing scripts and ensure its bin/ directory is on PATH so commands installed
+# into the venv are discoverable when run via shell.
+VENV_PYTHON = None
+try:
+    _tools_venv = os.path.join(BASE_DIR, 'app_testing_tools', 'tools', 'venv')
+    if os.path.isdir(_tools_venv):
+        for pyname in ('python3', 'python'):
+            candidate = os.path.join(_tools_venv, 'bin', pyname)
+            if os.path.exists(candidate) and os.access(candidate, os.X_OK):
+                VENV_PYTHON = candidate
+                break
+        venv_bin = os.path.join(_tools_venv, 'bin')
+        if os.path.isdir(venv_bin):
+            # Prepend venv bin to PATH so shell-invoked commands find venv-installed tools
+            os.environ['PATH'] = venv_bin + os.pathsep + os.environ.get('PATH', '')
+            logging.info('Prepended tools venv bin to PATH: %s', venv_bin)
+        if VENV_PYTHON:
+            logging.info('Using tools venv python for helper scripts: %s', VENV_PYTHON)
+except Exception:
+    logging.exception('Failed to detect/apply tools venv')
 
 
 def configure_logging(out_dir: str, log_filename: str = 'run_experiment.log', level: int = logging.INFO):
@@ -70,46 +145,115 @@ configure_logging(OUT_DIR)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run experiment pipeline')
-    parser.add_argument('--mode', choices=['basic', 'droidrun', 'single', 'monkey'], default='single',
-                        help='Test mode: "basic" runs the START_APPS_BASIC start/stop test;'
-                             '"droidrun" runs the Droidrun agent (default: basic);'
-                             '"single" runs a simple test cycle (for development/debugging)')
+    parser.add_argument(
+        '--mode',
+        choices=['basic', 'droidrun', 'single', 'monkey', 'ape', 'fastbot', 'kea2', 'pipeline'],
+        default='single',
+        help=(
+            'Test mode: '
+            '"basic" runs the START_APPS_BASIC start/stop test; '
+            '"monkey" runs Android Monkey; '
+            '"droidrun" runs the Droidrun LLM agent; '
+            '"ape" runs the Ape search-based testing tool; '
+            '"fastbot" runs Fastbot2.0 model-based testing; '
+            '"kea2" runs Kea2 property-based testing; '
+            '"single" runs a simple test cycle (default); '
+            '"pipeline" runs Fastbot -> Kea2 -> Ape -> Monkey -> basic in sequence'
+        ),
+    )
     parser.add_argument('--test-only-one', action='store_true', help='If set, only the first app in the list will be tested')
     parser.add_argument('--skip-setup', action='store_true', help='Skip device setup steps (installing Appium/PCAPdroid/Droidrun)')
     # pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address
     parser.add_argument('--pcapdroid', action='store_true', help='Enable PCAPdroid setup on connected devices')
     parser.add_argument('--pcap-http-port', type=int, default=54320, help='Port to use for pcap http server (used when --pcapdroid set)')
     parser.add_argument('--socks5-address', type=str, default='127.0.0.1', help='The SOCKS5 proxy address (used when --pcapdroid set)')
+    parser.add_argument('--retries', type=int, default=10, help='Number of times to retry the full experiment on failure (default: 1)')
+    parser.add_argument('--retry-delay', type=int, default=30, help='Seconds to wait between retry attempts (default: 10)')
+    parser.add_argument('--skip-install', action='store_true', help='Skip installing APKs on devices (do not run INSTALL_APPS)')
+    parser.add_argument('--device-info-override', '-D', action='append', default=[],
+                        help='Override key=value passed to device info collector (can be repeated)')
+    parser.add_argument('--device-info-set-defaults', action='store_true',
+                        help='Set OCTOPUS* default values on the device before collection', default=False)
+    parser.add_argument('--max-duration-hours', type=float, default=24.0,
+                        help='Maximum total runtime for this script in hours (default: 24)')
     return parser.parse_args()
 
 def run_script(script_path, args=None, description=None):
-    cmd = [sys.executable, script_path]
+    interpreter = VENV_PYTHON or sys.executable
+    cmd = [interpreter, script_path]
     if args:
         cmd.extend(args)
     logging.info(f"Running: {description or script_path}")
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    logging.info(result.stdout)
-    if result.stderr:
-        logging.error(result.stderr)
+    # Apply global timeout if configured
+    eff_timeout = get_effective_timeout(None)
+    if eff_timeout == 0.0:
+        logging.error('Global timeout reached before running script %s', script_path)
+        raise GlobalTimeoutReached('Global timeout reached before running script', attempt=None, attempts=None)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=eff_timeout)
+    except subprocess.TimeoutExpired as e:
+        logging.error('Script %s timed out after %.1f seconds', script_path, get_effective_timeout(None) or 0.0)
+        # mimic non-zero return code and print stderr
+        if e.stdout:
+            logging.info(e.stdout)
+        if e.stderr:
+            logging.error(e.stderr)
+        raise GlobalTimeoutReached(f'Script timed out: {script_path}', attempt=None, attempts=None)
+    out = (result.stdout or '').strip()
+    err = (result.stderr or '').strip()
+    if out:
+        logging.info(out)
+    if err:
+        # Some tools (e.g. ACVTool) log informational messages to stderr while
+        # still returning exit code 0. Treat stderr as INFO when returncode==0.
+        if result.returncode == 0:
+            logging.info(err)
+        else:
+            logging.error(err)
     if result.returncode != 0:
         logging.error(f"Failed: {description or script_path} (exit code {result.returncode})")
-        sys.exit(result.returncode)
+        raise RuntimeError(f"Script failed: {description or script_path} (exit code {result.returncode})")
 
 def run_script_capture(script_path, args=None, description=None):
     """Run a python script and capture detailed result without exiting the process.
 
     Returns a dict with keys: script, args, description, returncode, stdout, stderr, start_time, end_time, duration
     """
-    cmd = [sys.executable, script_path]
+    interpreter = VENV_PYTHON or sys.executable
+    cmd = [interpreter, script_path]
     if args:
         cmd.extend(args)
     start = datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z'
     t0 = datetime.datetime.now(datetime.timezone.utc)
     logging.info(f"Running (capture): {description or script_path}")
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    t1 = datetime.datetime.now(datetime.timezone.utc)
-    end = t1.isoformat() + 'Z'
-    duration = (t1 - t0).total_seconds()
+    # Compute effective timeout for this subprocess based on global remaining time
+    eff_timeout = get_effective_timeout(None)
+    if eff_timeout == 0.0:
+        raise GlobalTimeoutReached('Global timeout reached before starting subprocess')
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=eff_timeout)
+        t1 = datetime.datetime.now(datetime.timezone.utc)
+        end = t1.isoformat() + 'Z'
+        duration = (t1 - t0).total_seconds()
+    except subprocess.TimeoutExpired as e:
+        t1 = datetime.datetime.now(datetime.timezone.utc)
+        end = t1.isoformat() + 'Z'
+        duration = (t1 - t0).total_seconds()
+        # Build a result object indicating timeout
+        res = {
+            'script': script_path,
+            'args': args or [],
+            'description': description or script_path,
+            'returncode': -2,
+            'stdout': e.stdout or '',
+            'stderr': (e.stderr or '') + f"\n[timeout after {duration:.1f}s]",
+            'start_time': start,
+            'end_time': end,
+            'duration_seconds': duration,
+        }
+        logging.error('Command timed out after %.1f seconds: %s', duration, script_path)
+        # Escalate to global timeout exception so main can handle writing summary
+        raise GlobalTimeoutReached(f'Subprocess timed out: {script_path}')
     res = {
         'script': script_path,
         'args': args or [],
@@ -121,21 +265,68 @@ def run_script_capture(script_path, args=None, description=None):
         'end_time': end,
         'duration_seconds': duration,
     }
-    if proc.stdout:
-        logging.info(proc.stdout)
-    if proc.stderr:
-        logging.error(proc.stderr)
+    out = (proc.stdout or '').strip()
+    err = (proc.stderr or '').strip()
+    if out:
+        logging.info(out)
+    if err:
+        # Some CLI tools write informational logs to stderr but still succeed.
+        # Log stderr as INFO when the command succeeded (returncode==0), otherwise
+        # treat it as an error.
+        if proc.returncode == 0:
+            logging.info(err)
+        else:
+            logging.error(err)
+    # Detect common adb/device transient failures in tool output and raise
+    # a RuntimeError so the outer experiment retry loop can re-run the full
+    # attempt. We look for phrases such as "device offline" or "device 'X' not found".
+    try:
+        combined = (proc.stdout or '') + '\n' + (proc.stderr or '')
+        low = combined.lower()
+        # Patterns indicating transient adb/device availability issues (all lower-case)
+        offline_patterns = [
+            r'device offline',
+            r"device '\w+' not found",
+            r"device '.*' not found",
+            r'error: device not found',
+            r'failed to get feature set: device offline',
+            r'no adb device found',
+            r'no connected devices found',
+            r'no connected devices',
+            r'no devices found',
+        ]
+        for pat in offline_patterns:
+            if re.search(pat, low):
+                logging.error('Detected adb/device availability error in %s output; will treat as transient and retry full experiment: %s', script_path, pat)
+                # Include some context in the exception
+                snippet = '\n'.join((combined or '').splitlines()[-20:])
+                raise RuntimeError(f'ADB/device offline detected while running {script_path}: {snippet}')
+    except RuntimeError:
+        # propagate to be handled by outer retry loop
+        raise
+    except Exception:
+        logging.debug('Error while checking tool output for adb/device offline patterns', exc_info=True)
+
     return res
 
 def run_command(cmd, description=None):
     logging.info(f"Running: {description or cmd}")
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    # Apply global timeout if configured
+    eff_timeout = get_effective_timeout(None)
+    if eff_timeout == 0.0:
+        logging.error('Global timeout reached before running command %s', cmd)
+        raise GlobalTimeoutReached('Global timeout reached before running command')
+    try:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=eff_timeout)
+    except subprocess.TimeoutExpired:
+        logging.error('Command timed out: %s', cmd)
+        raise GlobalTimeoutReached(f'Command timed out: {cmd}')
     logging.info(result.stdout)
     if result.stderr:
         logging.error(result.stderr)
     if result.returncode != 0:
         logging.error(f"Failed: {description or cmd} (exit code {result.returncode})")
-        sys.exit(result.returncode)
+        raise RuntimeError(f"Command failed: {description or cmd} (exit code {result.returncode})")
 
 def start_appium_server():
     logging.info("Starting Appium server...")
@@ -188,20 +379,35 @@ def setup_devices(mode='basic', pcapdroid=False, pcap_http_port=54320, socks5_ad
                 logging.info('PCAPdroid enabled: installing Appium and configuring PCAPdroid on devices')
                 run_script_capture(INSTALL_APPIUM, args=["--all"], description="Install Appium driver on all devices")
                 # Configure PCAPdroid on all devices
-                cmd_clear_pcapdroid = "adb shell pm clear com.emanuelef.remote_capture"
-                run_script_capture(cmd_clear_pcapdroid, description="Clear PCAPdroid data on all devices before configuration")
+                # Clear PCAPdroid app data on the selected device
+                run_adb_shell(['pm', 'clear', 'com.emanuelef.remote_capture'], description='Clear PCAPdroid data on all devices before configuration', check=False)
                 run_script_capture(RUN_PCAPDROID, args=["--http-port", str(pcap_http_port), "--socks5-address", socks5_address],
                                    description="Configure PCAPdroid on all devices")
             finally:
                 stop_appium_server(appium_proc)
         else:
             logging.error('Failed to start Appium server; skipping PCAPdroid configuration')
-    else:
-        logging.info('PCAPdroid not enabled: skipping Appium install and PCAPdroid configuration')
 
     if mode == 'droidrun':
         # Install Droidrun on all devices
         run_command("droidrun setup --latest", description="Install Droidrun on all devices")
+    elif mode == 'ape':
+        # Verify Ape binaries are present (they will be pushed per-app in execute_app_with_coverage)
+        ape_jar = os.path.join(BASE_DIR, 'app_testing_tools', 'tools', 'ape-bin', 'ape.jar')
+        if os.path.exists(ape_jar):
+            logging.info("Ape binaries verified at %s", ape_jar)
+        else:
+            logging.warning("Ape binaries not found at %s. Run install_tools.py.", ape_jar)
+    elif mode == 'fastbot':
+        # Verify Fastbot binaries are present (they will be pushed per-app in execute_app_with_coverage)
+        fastbot_jar = os.path.join(BASE_DIR, 'app_testing_tools', 'tools', 'Fastbot_Android', 'monkeyq.jar')
+        if os.path.exists(fastbot_jar):
+            logging.info("Fastbot2.0 binaries verified at %s", fastbot_jar)
+        else:
+            logging.warning("Fastbot2.0 binaries not found at %s. Run install_tools.py.", fastbot_jar)
+    elif mode == 'kea2':
+        logging.info("Kea2 setup: verifying kea2 is available…")
+        run_command("kea2 -h", description="Verify Kea2 installation")
 
 
 def get_testing_apps():
@@ -210,11 +416,50 @@ def get_testing_apps():
 
 def get_installed_packages():
     """Get a list of installed package names on the connected device(s) using adb."""
-    result = subprocess.run(["adb", "shell", "pm", "list", "packages"], capture_output=True, text=True)
-    if result.returncode != 0:
-        logging.error(f"Failed to get installed packages: {result.stderr}")
+    try:
+        result = run_adb_shell(['pm', 'list', 'packages'], description='pm list packages', check=False)
+    except Exception:
         return []
-    lines = result.stdout.strip().splitlines()
+    if result.returncode != 0:
+        stderr = (result.stderr or '').lower()
+        # If adb reports no devices available, treat this as a fatal condition for
+        # this attempt so the top-level retry loop can re-run the whole experiment.
+        if 'no devices' in stderr or 'no devices/emulators' in stderr or 'no devices/emulator' in stderr:
+            logging.error('No adb devices found while listing packages: %s', result.stderr or result.stdout)
+            # Raise an exception so the outer retry loop in main() will catch and retry
+            raise RuntimeError('No adb devices found')
+
+        if 'more than one device' in stderr or 'more than one device/emulator' in stderr:
+            # find first connected device and retry with explicit -s
+            try:
+                proc = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=5)
+                lines = [l.strip() for l in (proc.stdout or '').splitlines()]
+                serial = None
+                for l in lines[1:]:
+                    if not l:
+                        continue
+                    parts = l.split()
+                    if len(parts) >= 2 and parts[1] == 'device':
+                        serial = parts[0]
+                        break
+                if serial:
+                    logging.info('Multiple adb devices present; auto-selecting first device %s for package listing', serial)
+                    res2 = subprocess.run(['adb', '-s', serial, 'shell', 'pm', 'list', 'packages'], capture_output=True, text=True, timeout=15)
+                    if res2.returncode != 0:
+                        logging.error('Failed to get installed packages from device %s: %s', serial, res2.stderr or res2.stdout)
+                        return []
+                    lines = (res2.stdout or '').strip().splitlines()
+                else:
+                    logging.error('adb reported multiple devices but no available device found in `adb devices` output')
+                    return []
+            except Exception:
+                logging.exception('Error while attempting to auto-select first adb device')
+                return []
+        else:
+            logging.error(f"Failed to get installed packages: {result.stderr}")
+            return []
+    else:
+        lines = (result.stdout or '').strip().splitlines()
     packages = [line.replace("package:", "").strip() for line in lines if line.startswith("package:")]
     return packages
 
@@ -226,49 +471,132 @@ def _adb_base_cmd():
     """
     serial = os.environ.get('ANDROID_SERIAL') or os.environ.get('ADB_SERIAL')
     cmd = ['adb']
+
+    if not serial:
+        # If no explicit serial is provided, try to pick the first connected device
+        # This avoids 'adb shell' failing with "error: more than one device/emulator".
+        try:
+            res = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=5)
+            out = (res.stdout or '')
+            for l in out.splitlines():
+                l = l.strip()
+                if not l or l.startswith('List of devices'):
+                    continue
+                parts = l.split()
+                if len(parts) >= 2 and parts[1] == 'device':
+                    serial = parts[0]
+                    logging.debug('Auto-selected adb serial: %s', serial)
+                    break
+        except Exception as e:
+            logging.debug('Failed to auto-detect adb serial: %s', e)
+
     if serial:
         cmd.extend(['-s', serial])
     return cmd
 
 
-def wait_for_bootanim_stop(max_wait_seconds=300, sleep_seconds=30):
+def run_adb_shell(args_list, description=None, check=True, timeout=30):
+    """Run an adb shell command against the selected device.
+
+    args_list: list of arguments to pass after 'shell', e.g. ['pm', 'list', 'packages']
+    check: if True, raise SystemExit on non-zero returncode (same behavior as older run_command)
+    Returns CompletedProcess
+    """
+    adb_cmd = _adb_base_cmd() + ['shell'] + list(args_list)
+    logging.info('Running adb shell: %s', ' '.join(adb_cmd))
+    # Respect global remaining time: shorten the requested timeout if necessary
+    eff_timeout = get_effective_timeout(timeout)
+    if eff_timeout == 0.0:
+        logging.error('Global timeout reached before running adb shell: %s', args_list)
+        raise GlobalTimeoutReached('Global timeout reached before running adb shell', attempt=None, attempts=None)
+    try:
+        res = subprocess.run(adb_cmd, capture_output=True, text=True, timeout=eff_timeout)
+        if res.stdout:
+            logging.info(res.stdout)
+        if res.stderr:
+            logging.warning(res.stderr)
+        if check and res.returncode != 0:
+            logging.error('Failed: %s (exit code %s)', description or 'adb shell', res.returncode)
+            raise RuntimeError(f"adb shell failed: {description or 'adb shell'} (exit code {res.returncode})")
+        return res
+    except Exception as e:
+        logging.exception('Exception while running adb shell %s: %s', args_list, e)
+        if check:
+            raise
+        raise
+
+
+def wait_for_boot_completed(max_wait_seconds=300, sleep_seconds=30):
     """
     Poll 'adb shell getprop init.svc.bootanim' and wait while it is 'running'.
 
+    Additionally checks the "boot complete" flag `sys.boot_completed` and treats the
+    device as successfully booted if that property is set (e.g., '1' or 'true'), even if
+    the boot animation property still reports 'running'. This helps when some devices
+    finish boot but the boot animation remains in a running state longer.
+
     - Sleeps sleep_seconds between checks.
-    - Stops waiting after max_wait_seconds and returns False (timed out).
-    - Returns True if the property is observed not 'running' before timeout.
+    - Stops waiting after max_wait_seconds and returns a tuple:
+        (timed_out_or_still_running: bool, last_value: str, last_error: Optional[str])
+      where the boolean is True when the wait ended due to timeout (bootanim still running),
+      False when the property was observed not 'running' OR the boot-complete flag is set
+      (i.e., boot finished).
     """
     adb_cmd_base = _adb_base_cmd()
     max_tries = max(1, int(max_wait_seconds // sleep_seconds))
     tries = 0
+    last_error = None
+    last_value = ''
 
     logging.info("Waiting for init.svc.bootanim to stop (max %s seconds, interval %s seconds)...",
                  max_wait_seconds, sleep_seconds)
 
     while True:
-        try:
-            proc = subprocess.run(adb_cmd_base + ['shell', 'getprop', 'init.svc.bootanim'],
-                                  capture_output=True, text=True, timeout=10)
-            value = (proc.stdout or "").strip().strip('\r\n')
-        except Exception as e:
-            logging.warning("Failed to query adb for bootanim state: %s", e)
-            value = ""
+        bootanim_value = ''
+        boot_completed_value = ''
 
-        if value.lower() != 'running':
-            logging.info("init.svc.bootanim reported as %r -> proceeding", value)
+        # Query both properties in a single adb shell invocation to avoid session differences
+        combined_cmd = "getprop init.svc.bootanim; getprop sys.boot_completed"
+        try:
+            proc = subprocess.run(adb_cmd_base + ['shell', combined_cmd], capture_output=True, text=True, timeout=10)
+            out = (proc.stdout or '')
+            # Normalize and split into lines; ignore empty lines
+            lines = [l.strip() for l in out.splitlines() if l.strip()]
+            if len(lines) >= 1:
+                bootanim_value = lines[0]
+            if len(lines) >= 2:
+                boot_completed_value = lines[1]
+            if proc.stderr:
+                # capture stderr for diagnostics but don't treat as fatal
+                logging.warning('adb stderr while querying boot props: %s', proc.stderr.strip())
+        except Exception as e:
+            last_error = str(e)
+            logging.warning("Failed to query adb for boot properties: %s", e)
+
+        # Prepare a combined last_value for diagnostics
+        last_value = f"init.svc.bootanim={bootanim_value}; sys.boot_completed={boot_completed_value}"
+
+        # Determine success: either bootanim stopped OR boot_completed indicates boot finished
+        if bootanim_value and bootanim_value.strip().lower() == 'stopped':
+            logging.info("Bootanim reported 'stopped'")
+            is_running = False
+            break
+
+        if boot_completed_value and boot_completed_value.strip().lower() in ('1', 'true'):
+            logging.info("sys.boot_completed indicates boot finished (value=%s). Treating as success.", boot_completed_value)
             is_running = False
             break
 
         tries += 1
         if tries >= max_tries:
-            logging.warning("init.svc.bootanim remained 'running' after %s seconds (max wait).", max_wait_seconds)
+            logging.warning("init.svc.bootanim remained '%s' after %s seconds (max wait).", last_value, max_wait_seconds)
             is_running = True
             break
 
-        logging.info("init.svc.bootanim is 'running' (try %d/%d). Sleeping %s seconds...", tries, max_tries, sleep_seconds)
+        logging.info("init.svc.bootanim is '%s' (try %d/%d). Sleeping %s seconds...", last_value, tries, max_tries, sleep_seconds)
         time.sleep(sleep_seconds)
-    return is_running
+
+    return is_running, last_value, last_error
 
 
 def wait_for_adb_available(max_wait_seconds=600, sleep_seconds=5):
@@ -316,43 +644,74 @@ def wait_for_adb_available(max_wait_seconds=600, sleep_seconds=5):
         time.sleep(sleep_seconds)
 
 
-def execute_app_with_coverage(package, mode):
-    logging.info(f"Executing appium with package: {package}, mode: {mode}")
-    run_script_capture(ACVTOOL, args=["flush", package, "--wd", OUT_DIR], description="Run ACVTool to flush coverage measurement.")
-    run_script_capture(ACVTOOL, args=["activate", package, "--wd", OUT_DIR], description="Run ACVTool to activate coverage measurement.")
+def execute_app_with_coverage(package, mode, skip_install=False):
+    logging.info(f"Executing app test with package: {package}, mode: {mode}")
     if mode == 'droidrun':
-        run_script_capture(DROIDRUN_AGENT, args=["run"], description="Run Droidrun agent to test apps.")
+        run_script_capture(RUN_DROIDRUN, args=["run"], description="Run Droidrun agent to test apps.")
     elif mode == 'monkey':
-        run_script_capture(START_APPS_BASIC, args=["-m", "1", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package])
+        run_script_capture(START_APPS_BASIC, args=["-m", "5000", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package])
+    elif mode == 'ape':
+        run_script_capture(RUN_APE, args=["-p", package], description=f"Run Ape search-based testing for {package}")
+    elif mode == 'fastbot':
+        run_script_capture(RUN_FASTBOT, args=["-p", package], description=f"Run Fastbot2.0 model-based testing for {package}")
+    elif mode == 'kea2':
+        run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
+    elif mode == 'pipeline':
+        # Run tools sequentially: Fastbot -> Kea2 -> Ape -> Monkey -> basic
+        logging.info('Running pipeline: Fastbot -> Kea2 -> Ape -> Monkey -> basic for %s', package)
+        run_script_capture(RUN_FASTBOT, args=["-p", package], description=f"Run Fastbot2.0 model-based testing for {package}")
+        run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
+        run_script_capture(RUN_APE, args=["-p", package], description=f"Run Ape search-based testing for {package}")
+        # Monkey: use a small number of events to try to exercise the launcher
+        run_script_capture(START_APPS_BASIC, args=["-m", "5000", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package], description=f"Run Monkey for {package}")
+        # Basic start/stop
+        run_script_capture(START_APPS_BASIC, args=["-p", package], description=f"Run basic start/stop test for {package}")
     else:
-        run_script_capture(START_APPS_BASIC, args=[package], description=f"Run basic start/stop test for {package}")
-    run_script_capture(ACVTOOL, args=["snap", package, "--wd", OUT_DIR], description="Run ACVTool to get coverage measurement")
-    run_script_capture(ACVTOOL, args=["cover-pickles", package, "--wd", OUT_DIR],
-                       description="Run ACVTool to deserialize coverage measurement")
-    run_script_capture(ACVTOOL, args=["report", package, "--wd", OUT_DIR],
-                       description="Run ACVTool to generate html coverage report")
+        run_script_capture(START_APPS_BASIC, args=["-p", package], description=f"Run basic start/stop test for {package}")
+
+    # run_script_capture(ACVTOOL, args=["cover-pickles", package, "--wd", OUT_DIR],
+    #                   description="Run ACVTool to deserialize coverage measurement")
+    # run_script_capture(ACVTOOL, args=["report", package, "--wd", OUT_DIR],
+    #                   description="Run ACVTool to generate html coverage report")
 
 
-def start_experiment(mode='single', test_only_one=False):
-    app_package_names = get_installed_packages()
-    if not app_package_names:
-        logging.info('No packages found to test')
-        return
 
+def start_experiment(mode='single', test_only_one=False, skip_install=False):
     install_output_path = os.path.join(OUT_DIR, 'install_results.json')
     if test_only_one:
         app_package_names = get_testing_apps()
         first_pkg = app_package_names[0]
         logging.info('Test-only-one enabled; testing only first package: %s', first_pkg)
-        run_script_capture(INSTALL_APPS, args=["--package", first_pkg, "--output", install_output_path], description=f"Install app {first_pkg} on devices.")
-        execute_app_with_coverage(first_pkg, mode)
+        if not skip_install:
+            run_script_capture(INSTALL_APPS, args=["--package", first_pkg, "--output", install_output_path], description=f"Install app {first_pkg} on devices.")
+        else:
+            logging.info('Skipping installation of %s due to --skip-install', first_pkg)
+        execute_app_with_coverage(first_pkg, mode, skip_install=skip_install)
     else:
-        run_script_capture(INSTALL_APPS, args=["-a", "--output", install_output_path], description=f"Install all apps on devices.")
+        if not skip_install:
+            run_script_capture(INSTALL_APPS, args=["-a", "--output", install_output_path], description=f"Install all apps on devices.")
+        else:
+            logging.info('Skipping installation of apps due to --skip-install')
+        app_package_names = get_installed_packages()
+        # TODO Filter apps that have an Activity
+        logging.info('Testing all packages; total count: %d', len(app_package_names))
+        if not app_package_names:
+            logging.info('No packages found to test')
+            return
+        app_package_names.remove("android")
+        for package in app_package_names:
+            run_script_capture(ACVTOOL, args=["activate", package], description="Run ACVTool to activate coverage measurement.")
+
         for package in app_package_names:
             logging.info(f"Starting {package}")
-            #TODO Filter apps that have an Activity
             execute_app_with_coverage(package, mode)
 
+        for package in app_package_names:
+            acv_out_dir = os.path.join(OUT_DIR, 'acv_snaps', f"{package}")
+            os.makedirs(acv_out_dir, exist_ok=True)
+            run_script_capture(ACVTOOL, args=["snap", package, "--wd", acv_out_dir], description="Run ACVTool to get coverage measurement")
+
+    logging.info('Starting logcat collector')
     run_script_capture(LOGCAT_COLLECTOR, args=["--full-dump"], description="Collect all logcat logs")
 
 def run_launcher_test(results_dir):
@@ -362,7 +721,7 @@ def run_launcher_test(results_dir):
     res = run_script_capture(LAUNCHER_TEST, args=['--output-dir', results_dir, '--name', preflight_name], description='Run launcher preflight test')
 
     # find the newest JSON file produced (preflight_*.json)
-    json_matches = glob.glob(os.path.join(results_dir, f"{preflight_name}_*.json"))
+    json_matches = glob.glob(os.path.join(results_dir, f"{preflight_name}.json"))
     if json_matches:
         json_path = max(json_matches, key=os.path.getmtime)
         logging.info('Found launcher test JSON output: %s', json_path)
@@ -373,7 +732,7 @@ def run_launcher_test(results_dir):
             logging.error('Failed to read launcher test JSON: %s', e)
             jdata = None
     else:
-        logging.error('No launcher test JSON output found in %s', results_dir)
+        logging.error('No %s JSON output found in %s', preflight_name, results_dir)
         jdata = None
 
     if jdata and isinstance(jdata, dict):
@@ -393,6 +752,8 @@ def run_connectivity_test(results_dir):
     os.makedirs(results_dir, exist_ok=True)
     out_file = os.path.join(results_dir, 'connectivity_results.json')
     try:
+        # Add an explicit success field based on the returncode (0 -> success)
+        res['success'] = (res.get('returncode', 1) == 0)
         with open(out_file, 'w', encoding='utf-8') as of:
             json.dump(res, of, indent=2)
         logging.info('Wrote connectivity test results to %s', out_file)
@@ -421,7 +782,168 @@ def start_tcpdump():
         logging.error('adb binary not found in PATH; cannot configure tcpdump on device')
         return False
 
-    # If multiple devices are connected, pick the first one from `adb devices`.
+    remote_pcap = '/data/tcpdump_log/tcpdump.pcap'
+    pid_file = os.path.join(OUT_DIR, 'tcpdump_device.pid')
+
+    # Retry loop: sometimes devices take a moment to be ready or tcpdump fails to start
+    max_start_attempts = 30
+    per_attempt_wait_seconds = 30.0
+    check_sleep = 30
+    check_attempts = max(1, int(per_attempt_wait_seconds / check_sleep))
+
+    for attempt in range(1, max_start_attempts + 1):
+        logging.info('tcpdump start attempt %d/%d', attempt, max_start_attempts)
+
+        # If multiple devices are connected, pick the first one from `adb devices`.
+        try:
+            out = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=10)
+            lines = [l.strip() for l in (out.stdout or '').splitlines() if l.strip()]
+            serial = None
+            for l in lines:
+                if l.startswith('List of devices'):
+                    continue
+                parts = l.split()
+                if len(parts) >= 2 and parts[1] == 'device':
+                    serial = parts[0]
+                    break
+            if not serial:
+                logging.error('No adb device found to start tcpdump (attempt %d/%d)', attempt, max_start_attempts)
+                # If not the last attempt, wait and retry device selection
+                if attempt < max_start_attempts:
+                    time.sleep(2.0)
+                    continue
+                return False
+            logging.info('Selected first adb device: %s', serial)
+        except Exception:
+            logging.exception('Failed to run adb devices to select device')
+            if attempt < max_start_attempts:
+                time.sleep(2.0)
+                continue
+            return False
+
+        # try to become root (best-effort) on selected device
+        try:
+            adb_root_cmd = ['adb', '-s', serial, 'root']
+            res = subprocess.run(adb_root_cmd, capture_output=True, text=True, timeout=10)
+            if res.returncode == 0:
+                logging.info('adb root: OK')
+            else:
+                logging.warning('adb root returned non-zero: %s. Continuing (may still work if device already has privileges).', res.stderr.strip() or res.stdout.strip())
+        except Exception as e:
+            logging.warning('adb root failed: %s', e)
+
+        # Add iptables rule to send OUTPUT to NFLOG group 1 (best-effort)
+        ipt_cmd = 'iptables -t mangle -I OUTPUT 1 -j NFLOG --nflog-group 1'
+        try:
+            adb_ipt_cmd = ['adb', '-s', serial, 'shell', ipt_cmd]
+            res = subprocess.run(adb_ipt_cmd, capture_output=True, text=True, timeout=10)
+            if res.returncode != 0:
+                logging.warning('Failed to add iptables NFLOG rule: %s', (res.stderr or res.stdout).strip())
+            else:
+                logging.info(f'Installed iptables NFLOG rule: {adb_ipt_cmd}')
+        except Exception:
+            logging.exception('Exception while installing iptables NFLOG rule')
+
+        # Ensure a writable working directory on the device for nohup output and run tcpdump there.
+        # Some Android shells have read-only root and nohup will try to write /nohup.out which fails.
+        # Create /data/tcpdump_log, cd into it, redirect stdout/stderr to a local nohup.out and
+        # echo the background PID so the host can capture it.
+        remote_workdir = '/data/tcpdump_log'
+        start_cmd = (
+            f"mkdir -p {remote_workdir} && cd {remote_workdir} && "
+            f"nohup tcpdump -i nflog:1 -w {remote_pcap} > {remote_workdir}/nohup.out 2>&1 & echo $!"
+        )
+        try:
+            adb_start_cmd = ['adb', '-s', serial, 'shell', start_cmd]
+            res = subprocess.run(adb_start_cmd, capture_output=True, text=True, timeout=15)
+            if res.returncode == 0:
+                out = (res.stdout or '').strip()
+                # stdout may contain extra messages; take last line as pid
+                pid = None
+                if out:
+                    pid = out.splitlines()[-1].strip()
+
+                # Write pid file if we can determine pid (best-effort)
+                if pid and pid.isdigit():
+                    try:
+                        os.makedirs(OUT_DIR, exist_ok=True)
+                        with open(pid_file, 'w', encoding='utf-8') as f:
+                            f.write(pid + '\n')
+                        logging.info('Started tcpdump on device (pid=%s), pid written to %s', pid, pid_file)
+                    except Exception:
+                        logging.exception(f'Failed to write tcpdump pid file: {adb_start_cmd}')
+                else:
+                    logging.warning('Could not determine tcpdump pid from adb output: %s - Start command: %s', out or '(empty)', adb_start_cmd)
+
+                # Verify that the remote pcap file exists. tcpdump should create the file
+                # shortly after starting; poll for a short period to allow for delays.
+                pcap_exists = False
+                for attempt_check in range(1, check_attempts + 1):
+                    try:
+                        # Use ls to check existence; ls returns 0 when file present
+                        adb_ls = ['adb', '-s', serial, 'shell', 'ls', '-l', remote_pcap]
+                        ls_res = subprocess.run(adb_ls, capture_output=True, text=True, timeout=5)
+                        if ls_res.returncode == 0 and (ls_res.stdout or '').strip():
+                            pcap_exists = True
+                            logging.info('Remote pcap file exists: %s (check %d/%d)', remote_pcap, attempt_check, check_attempts)
+                            break
+                        else:
+                            logging.debug('Remote pcap not yet present (check %d/%d): %s', attempt_check, check_attempts, (ls_res.stderr or ls_res.stdout).strip())
+                    except Exception:
+                        logging.debug('Exception while checking remote pcap existence (attempt %d)', attempt_check)
+                    time.sleep(check_sleep)
+
+                if pcap_exists:
+                    return True
+                else:
+                    logging.error('tcpdump did not create remote pcap %s within %.1f seconds (attempt %d/%d)', remote_pcap, check_attempts * check_sleep, attempt, max_start_attempts)
+                    # Try to clean up any running tcpdump before retrying (best-effort)
+                    try:
+                        adb_pkill = ['adb', '-s', serial, 'shell', 'pkill -2 tcpdump']
+                        subprocess.run(adb_pkill, capture_output=True, text=True, timeout=10)
+                    except Exception:
+                        logging.debug('pkill attempt during cleanup failed')
+
+                    # Remove pid file if present
+                    try:
+                        if os.path.exists(pid_file):
+                            os.remove(pid_file)
+                    except Exception:
+                        logging.debug('Failed to remove pid file during cleanup')
+
+                    # If not last attempt, wait a bit and retry
+                    if attempt < max_start_attempts:
+                        time.sleep(2.0)
+                        continue
+                    return False
+            else:
+                logging.error('Failed to start tcpdump on device: %s', (res.stderr or res.stdout).strip())
+                if attempt < max_start_attempts:
+                    time.sleep(2.0)
+                    continue
+                return False
+        except Exception:
+            logging.exception('Exception while starting tcpdump on device')
+            if attempt < max_start_attempts:
+                time.sleep(2.0)
+                continue
+            return False
+
+    return False
+
+
+def pull_ecapture_files():
+    """Pull all files from /data/ecapture on the device into OUT_DIR/ecapture/<serial>/.
+
+    Best-effort: attempts to become root, checks for the remote folder, and pulls its contents.
+    Returns True if at least one file was pulled, False otherwise.
+    """
+    logging.info('Pulling /data/ecapture files from device')
+    if not shutil.which('adb'):
+        logging.error('adb binary not found in PATH; cannot pull /data/ecapture')
+        return False
+
+    # select first connected device
     try:
         out = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=10)
         lines = [l.strip() for l in (out.stdout or '').splitlines() if l.strip()]
@@ -434,67 +956,54 @@ def start_tcpdump():
                 serial = parts[0]
                 break
         if not serial:
-            logging.error('No adb device found to start tcpdump')
+            logging.warning('No adb device found to pull /data/ecapture')
             return False
-        logging.info('Selected first adb device: %s', serial)
+        logging.info('Selected adb device %s to pull /data/ecapture', serial)
     except Exception:
-        logging.exception('Failed to run adb devices to select device')
+        logging.exception('Failed to run adb devices to select device for /data/ecapture pull')
         return False
 
-    # try to become root (best-effort) on selected device
+    # try to become root (best-effort)
     try:
-        adb_root_cmd = ['adb', '-s', serial, 'root']
-        res = subprocess.run(adb_root_cmd, capture_output=True, text=True, timeout=10)
+        res = subprocess.run(['adb', '-s', serial, 'root'], capture_output=True, text=True, timeout=10)
         if res.returncode == 0:
-            logging.info('adb root: OK')
+            logging.info('adb root: OK for /data/ecapture pull')
         else:
-            logging.warning('adb root returned non-zero: %s. Continuing (may still work if device already has privileges).', res.stderr.strip() or res.stdout.strip())
-    except Exception as e:
-        logging.warning('adb root failed: %s', e)
-
-    # Add iptables rule to send OUTPUT to NFLOG group 1
-    ipt_cmd = 'iptables -t mangle -I OUTPUT 1 -j NFLOG --nflog-group 1'
-    try:
-        adb_ipt_cmd = ['adb', '-s', serial, 'shell', ipt_cmd]
-        res = subprocess.run(adb_ipt_cmd, capture_output=True, text=True, timeout=10)
-        if res.returncode != 0:
-            logging.warning('Failed to add iptables NFLOG rule: %s', (res.stderr or res.stdout).strip())
-        else:
-            logging.info('Installed iptables NFLOG rule')
+            logging.debug('adb root returned non-zero for /data/ecapture pull: %s', (res.stderr or res.stdout).strip())
     except Exception:
-        logging.exception('Exception while installing iptables NFLOG rule')
+        logging.debug('adb root attempt failed for /data/ecapture pull', exc_info=True)
 
-    # Start tcpdump in background on the device and capture its pid
-    remote_pcap = '/storage/emulated/0/Download/tcpdump.pcap'
-    start_cmd = f"nohup tcpdump -i nflog:1 -w {remote_pcap} >/dev/null 2>&1 & echo $!"
+    remote_dir = '/data/ecapture'
+
+    # Check remote directory exists
     try:
-        adb_start_cmd = ['adb', '-s', serial, 'shell', start_cmd]
-        res = subprocess.run(adb_start_cmd, capture_output=True, text=True, timeout=15)
-        if res.returncode == 0:
-            out = (res.stdout or '').strip()
-            # stdout may contain extra messages; take last line as pid
-            pid = None
-            if out:
-                pid = out.splitlines()[-1].strip()
-            if pid and pid.isdigit():
-                pid_file = os.path.join(OUT_DIR, 'tcpdump_device.pid')
-                try:
-                    os.makedirs(OUT_DIR, exist_ok=True)
-                    with open(pid_file, 'w', encoding='utf-8') as f:
-                        f.write(pid + '\n')
-                    logging.info('Started tcpdump on device (pid=%s), pid written to %s', pid, pid_file)
-                    return True
-                except Exception:
-                    logging.exception('Failed to write tcpdump pid file')
-                    return True
-            else:
-                logging.warning('Could not determine tcpdump pid from adb output: %s', out or '(empty)')
-                return True
-        else:
-            logging.error('Failed to start tcpdump on device: %s', (res.stderr or res.stdout).strip())
+        ls_cmd = ['adb', '-s', serial, 'shell', 'ls', '-l', remote_dir]
+        ls_res = subprocess.run(ls_cmd, capture_output=True, text=True, timeout=10)
+        if ls_res.returncode != 0 or not (ls_res.stdout or ls_res.stderr):
+            logging.info('Remote directory %s does not appear to exist or is empty on device %s', remote_dir, serial)
             return False
     except Exception:
-        logging.exception('Exception while starting tcpdump on device')
+        logging.debug('Exception while checking remote /data/ecapture directory', exc_info=True)
+
+    local_base = os.path.join(OUT_DIR, 'ecapture', serial)
+    try:
+        os.makedirs(local_base, exist_ok=True)
+    except Exception:
+        logging.exception('Failed to create local directory for ecapture files: %s', local_base)
+        return False
+
+    # Pull the entire directory
+    try:
+        pull_cmd = ['adb', '-s', serial, 'pull', remote_dir, local_base]
+        pull_res = subprocess.run(pull_cmd, capture_output=True, text=True, timeout=300)
+        if pull_res.returncode == 0:
+            logging.info('Pulled /data/ecapture from device %s to %s', serial, local_base)
+            return True
+        else:
+            logging.warning('adb pull of /data/ecapture failed for device %s: %s', serial, (pull_res.stderr or pull_res.stdout).strip())
+            return False
+    except Exception:
+        logging.exception('Exception while pulling /data/ecapture from device')
         return False
 
 def stop_tcpdump():
@@ -530,12 +1039,34 @@ def stop_tcpdump():
 
     # Try to stop tcpdump on device. Prefer pkill, then kill by pid if available.
     try:
+        # Try to become root on the device so pkill/kill have permission to send signals
+        try:
+            adb_root_cmd = ['adb', '-s', serial, 'root']
+            root_res = subprocess.run(adb_root_cmd, capture_output=True, text=True, timeout=10)
+            if root_res.returncode == 0:
+                logging.info('adb root: OK on device %s', serial)
+            else:
+                logging.debug('adb root returned non-zero on device %s: %s', serial, (root_res.stderr or root_res.stdout).strip())
+        except Exception:
+            logging.exception('adb root attempt failed')
+
         adb_pkill = ['adb', '-s', serial, 'shell', 'pkill -2 tcpdump']
         res = subprocess.run(adb_pkill, shell=False, capture_output=True, text=True, timeout=10)
         if res.returncode == 0:
             logging.info('Requested tcpdump termination via pkill on device %s', serial)
         else:
-            logging.info('pkill returned non-zero (may be fine): %s', (res.stderr or res.stdout).strip())
+            # If pkill failed due to permission, try running via su on-device if available
+            stderr_out = (res.stderr or res.stdout).strip()
+            logging.info('pkill returned non-zero (may be fine): %s', stderr_out)
+            try:
+                adb_su_pkill = ['adb', '-s', serial, 'shell', 'su', '-c', 'pkill -2 tcpdump']
+                su_res = subprocess.run(adb_su_pkill, shell=False, capture_output=True, text=True, timeout=10)
+                if su_res.returncode == 0:
+                    logging.info('Requested tcpdump termination via su+pkill on device %s', serial)
+                else:
+                    logging.debug('su+pkill returned non-zero on device %s: %s', serial, (su_res.stderr or su_res.stdout).strip())
+            except Exception:
+                logging.exception('su+pkill attempt failed')
     except Exception:
         logging.exception('pkill on device failed')
 
@@ -555,7 +1086,7 @@ def stop_tcpdump():
 
     # Attempt to pull pcap from device to OUT_DIR
     remote_pcap = '/storage/emulated/0/Download/tcpdump.pcap'
-    local_pcap = os.path.join(OUT_DIR, f'tcpdump_{serial}.pcap')
+    local_pcap = os.path.join(OUT_DIR, "pcaps", f'tcpdump_{serial}.pcap')
     try:
         adb_pull = ['adb', '-s', serial, 'pull', remote_pcap, local_pcap]
         res = subprocess.run(adb_pull, capture_output=True, text=True, timeout=60)
@@ -566,12 +1097,53 @@ def stop_tcpdump():
     except Exception:
         logging.exception('Exception while pulling pcap from device')
 
+    # Attempt to pull SSL key log from common locations on the device. Save into OUT_DIR/pcaps
+    try:
+        ssl_dir = os.path.join(OUT_DIR, 'pcaps')
+        os.makedirs(ssl_dir, exist_ok=True)
+        # prefer a per-device filename to avoid collisions
+        local_ssl = os.path.join(ssl_dir, f'sslkeylog_{serial}.log')
+
+        remote_candidates = [
+            '/storage/emulated/0/Download/sslkeylog.log',
+            '/sdcard/Download/sslkeylog.log',
+            '/sdcard/sslkeylog.log',
+            '/data/local/tmp/sslkeylog.log',
+            '/data/misc/ssl/sslkeylog.log',
+        ]
+        pulled = False
+        for remote in remote_candidates:
+            try:
+                # Check existence
+                ls_cmd = ['adb', '-s', serial, 'shell', 'ls', '-l', remote]
+                ls_res = subprocess.run(ls_cmd, capture_output=True, text=True, timeout=5)
+                if ls_res.returncode != 0:
+                    continue
+                # Pull the file
+                pull_cmd = ['adb', '-s', serial, 'pull', remote, local_ssl]
+                pull_res = subprocess.run(pull_cmd, capture_output=True, text=True, timeout=20)
+                if pull_res.returncode == 0:
+                    logging.info('Pulled SSL keylog from device %s -> %s (remote=%s)', serial, local_ssl, remote)
+                    pulled = True
+                    break
+                else:
+                    logging.debug('adb pull of %s failed: %s', remote, (pull_res.stderr or pull_res.stdout).strip())
+            except Exception:
+                logging.debug('Exception while attempting to pull SSL key from %s', remote, exc_info=True)
+
+        if not pulled:
+            logging.info('No SSL keylog found on device %s at known locations; skipped pulling ssl keys', serial)
+    except Exception:
+        logging.exception('Failed to pull SSL keylog from device')
+
     # Retrieve package -> UID mapping from device
     try:
         adb_pm = ['adb', '-s', serial, 'shell', 'pm', 'list', 'packages', '-U']
         res = subprocess.run(adb_pm, capture_output=True, text=True, timeout=20)
         pkg_map = {}
-        if res.returncode == 0:
+        pm_success = (res.returncode == 0)
+        pm_error = None
+        if pm_success:
             out = res.stdout or ''
             for line in out.splitlines():
                 line = line.strip()
@@ -594,17 +1166,49 @@ def stop_tcpdump():
                     if pkg:
                         pkg_map[pkg] = uid
         else:
-            logging.warning('pm list packages -U returned non-zero: %s', (res.stderr or res.stdout).strip())
+            pm_error = (res.stderr or res.stdout or '').strip()
+            logging.warning('pm list packages -U returned non-zero: %s', pm_error)
 
-        # Write mapping to OUT_DIR
+        # Prepare JSON content with diagnostics so the file is never left empty and
+        # contains useful information when the pm command failed.
+        mapping_content = {
+            'success': pm_success,
+            'error': pm_error,
+            'mapping': pkg_map,
+        }
+
+        # Write mapping to OUT_DIR (retry and write atomically to avoid partial writes)
         try:
             os.makedirs(OUT_DIR, exist_ok=True)
             mapping_file = os.path.join(OUT_DIR, f'package_uids_{serial}.json')
-            with open(mapping_file, 'w', encoding='utf-8') as mf:
-                json.dump(pkg_map, mf, indent=2)
-            logging.info('Wrote package->UID mapping to %s', mapping_file)
+            tmp_path = mapping_file + '.tmp'
+            write_ok = False
+            for attempt_write in range(1, 4):
+                try:
+                    with open(tmp_path, 'w', encoding='utf-8') as mf:
+                        json.dump(mapping_content, mf, indent=2)
+                        mf.flush()
+                        try:
+                            os.fsync(mf.fileno())
+                        except Exception:
+                            # best-effort; some filesystems may not support fsync on writer
+                            pass
+                    os.replace(tmp_path, mapping_file)
+                    logging.info('Wrote package->UID mapping to %s (attempt %d)', mapping_file, attempt_write)
+                    write_ok = True
+                    break
+                except Exception as e:
+                    logging.exception('Attempt %d: Failed to write package->UID mapping to %s: %s', attempt_write, mapping_file, e)
+                    try:
+                        if os.path.exists(tmp_path):
+                            os.remove(tmp_path)
+                    except Exception:
+                        pass
+                    time.sleep(0.5 * attempt_write)
+            if not write_ok:
+                logging.error('Failed to write package->UID mapping to %s after multiple attempts', mapping_file)
         except Exception:
-            logging.exception('Failed to write package->UID mapping')
+            logging.exception('Failed to prepare directory for package->UID mapping')
     except Exception:
         logging.exception('Failed to retrieve package UID mapping from device')
 
@@ -617,34 +1221,212 @@ def stop_tcpdump():
 
     return True
 
-def main():
-    args = parse_args()
-    results_dir = os.path.join(BASE_DIR, 'out')
-    os.makedirs(results_dir, exist_ok=True)
 
-    # Wait for adb to be available (max 5 minutes). If adb not available, fail early.
-    adb_ok = wait_for_adb_available(max_wait_seconds=300, sleep_seconds=5)
+def _write_json(path, obj):
     try:
-        out_file = os.path.join(results_dir, 'adb_availability.json')
-        if adb_ok:
-            message = {'success': adb_ok}
-        else:
-            message = {'success': adb_ok, 'error': 'adb not available within timeout'}
-        with open(out_file, 'w', encoding='utf-8') as of:
-            json.dump(message, of, indent=2)
-        logging.info('Wrote adb availability failure to %s', out_file)
-        if not adb_ok:
-            logging.error('ADB not available - aborting experiment pipeline')
-            sys.exit(2)
-        else:
-            logging.info('ADB available')
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = path + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(obj, f, indent=2)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+        os.replace(tmp, path)
+    except Exception:
+        logging.exception('Failed to write JSON to %s', path)
+
+
+def _read_json_if_exists(path):
+    try:
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception:
+        logging.exception('Failed to read JSON from %s', path)
+    return None
+
+
+def _determine_success_from_result(obj):
+    """Try to determine a boolean success value from a result JSON object.
+
+    Heuristics used (in order):
+    - If 'success' key present and boolean -> use it
+    - If 'returncode' present -> success when returncode == 0
+    - If 'success_count' present -> success when success_count > 0
+    - Otherwise return None
+    """
+    if not isinstance(obj, dict):
+        return None
+    if 'success' in obj:
+        val = obj.get('success')
+        if isinstance(val, bool):
+            return val
+        # sometimes success might be numeric
+        try:
+            return bool(int(val))
+        except Exception:
+            pass
+    if 'returncode' in obj:
+        try:
+            return int(obj.get('returncode', 1)) == 0
+        except Exception:
+            pass
+    if 'success_count' in obj:
+        try:
+            return int(obj.get('success_count', 0)) > 0
+        except Exception:
+            pass
+    return None
+
+
+def write_experiment_summary(results_dir, overall_success, attempt=None, attempts=None):
+    """Collect main test results and write a concise experiment summary JSON.
+
+    This will only be called when the experiment succeeded (overall_success=True)
+    or when all attempts have been exhausted (attempt == attempts).
+    """
+    summary = {
+        'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z',
+        'overall_success': bool(overall_success),
+        'attempt': attempt,
+        'attempts': attempts,
+        'tests': {},
+    }
+
+    # Known/top-level result files we want to summarise if present
+    base_candidates = [
+        'adb_availability.json',
+        'bootanim_results.json',
+        'preflight_launcher.json',
+        'connectivity_results.json',
+        'install_results.json',
+    ]
+
+    # Also include additional known result locations that may live outside results_dir
+    extra_paths = [
+        os.path.join(BASE_DIR, 'app_testing_tools', 'out', 'app_start_summary.json'),
+    ]
+
+    # Collect JSON files to include: start with base_candidates under results_dir,
+    # then discover any JSON files under results_dir and app_testing_tools/out.
+    paths = set()
+    for fname in base_candidates:
+        paths.add(os.path.join(results_dir, fname))
+    for p in extra_paths:
+        paths.add(p)
+
+    # Discover JSON files in results_dir and in app_testing_tools/out (if present)
+    try:
+        search_dirs = [results_dir, os.path.join(BASE_DIR, 'app_testing_tools', 'out')]
+        for sd in search_dirs:
+            if os.path.isdir(sd):
+                for match in glob.glob(os.path.join(sd, '**', '*.json'), recursive=True):
+                    paths.add(os.path.abspath(match))
+    except Exception:
+        logging.exception('Error while discovering additional result JSON files')
+
+    # Process each discovered path and add a concise entry to the summary
+    for path in sorted(paths):
+        try:
+            # Compute a friendly key for the summary: prefer relative to results_dir, else relative to BASE_DIR
+            try:
+                if os.path.commonpath([os.path.abspath(path), os.path.abspath(results_dir)]) == os.path.abspath(results_dir):
+                    key = os.path.relpath(path, results_dir)
+                else:
+                    key = os.path.relpath(path, BASE_DIR)
+            except Exception:
+                key = os.path.basename(path)
+            # Normalize key separators to '/'
+            key = key.replace(os.path.sep, '/')
+
+            entry = {
+                'exists': os.path.exists(path),
+            }
+
+            if os.path.exists(path):
+                try:
+                    stat = os.stat(path)
+                    entry['size_bytes'] = stat.st_size
+                    entry['modified_time'] = datetime.datetime.fromtimestamp(stat.st_mtime, datetime.timezone.utc).isoformat() + 'Z'
+                except Exception:
+                    logging.debug('Failed to stat %s', path)
+
+                # Heuristic: avoid loading extremely large JSON blobs into the summary
+                try:
+                    size = os.path.getsize(path)
+                except Exception:
+                    size = 0
+
+                obj = None
+                if size > 200 * 1024:
+                    entry['raw_skipped_due_to_size'] = True
+                else:
+                    obj = _read_json_if_exists(path)
+
+                if obj is not None:
+                    entry['raw'] = {}
+                    if isinstance(obj, dict):
+                        # include a few informative fields but avoid dumping huge blobs
+                        for key_field in ('success', 'returncode', 'error', 'stderr', 'stdout', 'success_count', 'failures_count', 'total_app_count'):
+                            if key_field in obj:
+                                try:
+                                    entry['raw'][key_field] = obj.get(key_field)
+                                except Exception:
+                                    entry['raw'][key_field] = str(obj.get(key_field))
+                        # Also include top-level small scalar fields (non-list/dict)
+                        for k, v in obj.items():
+                            if k in entry['raw']:
+                                continue
+                            if isinstance(v, (str, int, float, bool)):
+                                # limit string length
+                                if isinstance(v, str) and len(v) > 400:
+                                    entry['raw'][k] = v[:400] + '...'
+                                else:
+                                    entry['raw'][k] = v
+                    else:
+                        entry['raw']['value'] = obj
+
+                    entry['success'] = _determine_success_from_result(obj)
+                else:
+                    # if object could not be read, leave success unknown
+                    if 'raw_skipped_due_to_size' not in entry:
+                        entry['success'] = None
+            else:
+                entry['success'] = None
+
+            summary['tests'][key] = entry
+        except Exception:
+            logging.exception('Failed to include result file %s in summary', path)
+
+    # Atomically write the summary JSON to results_dir/experiment_summary.json
+    out_file = os.path.join(results_dir, 'experiment_summary.json')
+    _write_json(out_file, summary)
+    logging.info('Wrote experiment summary to %s', out_file)
+def ensure_adb_available(results_dir):
+    """Ensure adb is available and at least one device is connected.
+
+    Writes adb_availability.json into results_dir. Raises RuntimeError on failure.
+    """
+    adb_ok = wait_for_adb_available(max_wait_seconds=300, sleep_seconds=5)
+    out_file = os.path.join(results_dir, 'adb_availability.json')
+    try:
+        _write_json(out_file, {'success': bool(adb_ok)})
+        logging.info('Wrote adb availability result to %s', out_file)
     except Exception:
         logging.exception('Failed to write adb availability result')
-        sys.exit(2)
+    if not adb_ok:
+        raise RuntimeError('ADB not available')
 
-    start_tcpdump()
 
-    # Start crash watcher in background to dismiss random ANR/crash dialogs during the pipeline
+def start_background_services():
+    """Start best-effort background services such as tcpdump and crash watcher."""
+
+    tcp_ok = start_tcpdump()
+    if not tcp_ok:
+        logging.error('Failed to start tcpdump; aborting this attempt so the experiment retry loop can retry')
+        raise RuntimeError('Failed to start tcpdump')
     if crash_watcher:
         try:
             crash_watcher.start_crash_watcher(device=None, interval=5.0)
@@ -653,72 +1435,215 @@ def main():
         except Exception:
             logging.exception('Failed to start crash watcher')
 
-    # Wait for boot animation (init.svc.bootanim) to stop (max 5 minutes) before running the launcher test
-    preflight_ok = False
+
+def stop_background_services():
+    """Stop background services started by start_background_services()."""
     try:
-        is_running = wait_for_bootanim_stop(max_wait_seconds=600, sleep_seconds=10)
-        message = {'success': is_running}
-        out_file = os.path.join(results_dir, 'bootanim_results.json')
-        with open(out_file, 'w', encoding='utf-8') as of:
-            json.dump(message, of, indent=2)
-        if not is_running:
-            preflight_ok = run_launcher_test(results_dir)
-        else:
-            logging.info('Bootanim timeout reached. Stopping.')
-            sys.exit(2)
-    except Exception:
-        logging.exception('Error while waiting for boot animation to stop;')
-        sys.exit(2)
-
-    # First: connectivity test
-    try:
-        if not run_connectivity_test(results_dir):
-            logging.error('Connectivity test failed; aborting experiment pipeline')
-            out_file = os.path.join(results_dir, 'connectivity_results.json')
-            if os.path.exists(out_file):
-                with open(out_file, 'r', encoding='utf-8') as cf:
-                    logging.error('Connectivity details:\n%s', cf.read())
-            sys.exit(2)
-    except Exception:
-        logging.exception('Error while running connectivity test; aborting')
-        sys.exit(2)
-
-    disable_anr_message = "adb shell settings put global show_annoying_receivers_in_background 0"
-    run_command(disable_anr_message, description='Disable show_annoying_receivers_in_background: This suppresses the "Application Not Responding" dialogs')
-    disable_anr_message = "adb shell settings put global anr_show_background 0"
-    run_command(disable_anr_message, description='Disable anr_show_background: This suppresses the "Application Not Responding" dialogs')
-    disable_anr_message = "adb shell settings put global hide_error_dialogs 1"
-    run_command(disable_anr_message, description='Disable hide_error_dialogs: This suppresses the "Application Not Responding" dialogs')
-
-    if not preflight_ok:
-        logging.error('Launcher preflight test failed; aborting experiment pipeline')
-        out_file = os.path.join(results_dir, 'launcher_test_results.json')
-        with open(out_file, 'w', encoding='utf-8') as of:
-            json.dump({
-                'success': False,
-                'error': 'Launcher preflight test failed or did not produce valid output',
-            }, of, indent=2)
-        sys.exit(2)
-
-    logging.info('Launcher preflight succeeded; continuing with Appium start and device setup')
-
-    try:
-        if args.skip_setup:
-            logging.info('Skipping device setup as requested (--skip-setup)')
-        else:
-            setup_devices(mode=args.mode, pcapdroid=getattr(args, 'pcapdroid', False), pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address)
-        start_experiment(mode=args.mode, test_only_one=getattr(args, 'test-only-one', False) or getattr(args, 'test_only_one', False) or args.test_only_one)
-    except KeyboardInterrupt:
-        logging.info('Interrupted by user')
-    finally:
         stop_tcpdump()
+    except Exception:
+        logging.exception('Error while stopping tcpdump during cleanup')
+
+    # Attempt to pull any capture artifacts (including SSL key logs) from /data/ecapture
+    try:
+        pull_ecapture_files()
+    except Exception:
+        logging.exception('Failed to pull /data/ecapture files during cleanup')
+
+    if crash_watcher:
+        try:
+            crash_watcher.stop_crash_watcher()
+            logging.info('Stopped crash watcher')
+        except Exception:
+            logging.debug('Crash watcher stop failed (may not have been started)')
+
+
+def do_preflight(results_dir):
+    """Perform boot wait, launcher preflight and connectivity checks.
+
+    Raises RuntimeError on any preflight failure.
+    """
+    # Wait for boot animation to finish (or sys.boot_completed)
+    is_running, last_value, last_error = wait_for_boot_completed(max_wait_seconds=600, sleep_seconds=10)
+    bootanim_val = ''
+    boot_completed_val = ''
+    try:
+        parts = [p.strip() for p in (last_value or '').split(';') if p.strip()]
+        for p in parts:
+            if p.startswith('init.svc.bootanim='):
+                bootanim_val = p.split('=', 1)[1]
+            if p.startswith('sys.boot_completed='):
+                boot_completed_val = p.split('=', 1)[1]
+    except Exception:
+        logging.debug('Failed to parse last_value for boot properties: %s', last_value)
+
+    message = {
+        'success': (not is_running),
+        'bootanim_timed_out': bool(is_running),
+        'bootanim': bootanim_val,
+        'boot_completed': boot_completed_val,
+        'last_value': last_value,
+        'error': last_error,
+    }
+    out_file = os.path.join(results_dir, 'bootanim_results.json')
+    _write_json(out_file, message)
+    if is_running:
+        raise RuntimeError('Boot animation did not stop')
+
+    preflight_ok = run_launcher_test(results_dir)
+    if not preflight_ok:
+        raise RuntimeError('Launcher preflight failed')
+
+    # Connectivity
+    ok = run_connectivity_test(results_dir)
+    if not ok:
+        raise RuntimeError('Connectivity test failed')
+
+    # Disable ANR / error dialogs on the selected device (best-effort)
+    run_adb_shell(['settings', 'put', 'global', 'show_annoying_receivers_in_background', '0'],
+                  description='Disable show_annoying_receivers_in_background', check=False)
+    run_adb_shell(['settings', 'put', 'global', 'anr_show_background', '0'],
+                  description='Disable anr_show_background', check=False)
+    run_adb_shell(['settings', 'put', 'global', 'hide_error_dialogs', '1'],
+                  description='Disable hide_error_dialogs', check=False)
+
+
+def setup_and_run_experiment(args):
+    """Run setup_devices (unless skipped) and start_experiment."""
+    # Collect device info before any setup or test runs. This is best-effort and
+    # helps capture device state even if later steps fail.
+    try:
+        collect_args = ["--outdir", OUT_DIR]
+        # forward overrides and set-defaults from main args to the collector
+        try:
+            overrides = getattr(args, 'device_info_override', None) or getattr(args, 'device-info-override', None)
+        except Exception:
+            overrides = None
+        if overrides:
+            for ov in overrides:
+                collect_args.extend(['-o', ov])
+        try:
+            set_defaults_flag = getattr(args, 'device_info_set_defaults', None) or getattr(args, 'device-info-set-defaults', None)
+        except Exception:
+            set_defaults_flag = None
+        if set_defaults_flag:
+            collect_args.append('--set-defaults')
+
+        run_script_capture(COLLECT_DEVICE_INFO, args=collect_args, description='Collect device info')
+    except Exception:
+        logging.exception('Collecting device info failed (will continue)')
+
+    if args.skip_setup:
+        logging.info('Skipping device setup as requested (--skip-setup)')
+    else:
+        setup_devices(mode=args.mode, pcapdroid=getattr(args, 'pcapdroid', False), pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address)
+
+    start_experiment(mode=args.mode, test_only_one=(getattr(args, 'test-only-one', False) or getattr(args, 'test_only_one', False) or args.test_only_one), skip_install=getattr(args, 'skip_install', False))
+
+def main():
+    args = parse_args()
+    results_dir = os.path.join(BASE_DIR, 'out')
+    os.makedirs(results_dir, exist_ok=True)
+
+    # Enforce a global maximum runtime for this process. When the duration is
+    # exceeded we attempt graceful shutdown (stop background services) and write
+    # the experiment summary with the results collected so far.
+    start_time = time.time()
+    max_duration_hours = float(getattr(args, 'max_duration_hours', 24.0))
+    max_seconds = max(0.0, max_duration_hours * 3600.0)
+    # Initialize module-global timeout helpers used by subprocess wrappers
+    init_global_timeout(start_time, max_seconds)
+
+    def _check_timeout_and_exit(current_attempt=None, total_attempts=None):
+        if max_seconds <= 0:
+            return
+        elapsed = time.time() - start_time
+        if elapsed >= max_seconds:
+            # Signal the global timeout to the outer loop so it can perform
+            # orderly shutdown and write results. Do not exit here.
+            logging.warning('Maximum runtime of %.2f hours exceeded (elapsed %.2f hours). Signalling timeout.', max_duration_hours, elapsed / 3600.0)
+            raise GlobalTimeoutReached('Maximum runtime exceeded', attempt=current_attempt, attempts=total_attempts)
+
+
+    attempts = max(1, int(getattr(args, 'retries', 30)))
+    retry_delay = int(getattr(args, 'retry_delay', 15))
+
+    # Single unified retry loop: perform the entire preflight and experiment in one attempt
+    for attempt in range(1, attempts + 1):
+        logging.info('Full-run attempt %d/%d starting...', attempt, attempts)
+        # Check timeout before starting each attempt
+        _check_timeout_and_exit(current_attempt=attempt, total_attempts=attempts)
+        try:
+            # 1) Ensure adb available
+            ensure_adb_available(results_dir)
+            _check_timeout_and_exit(current_attempt=attempt, total_attempts=attempts)
+
+            # 2) Start background helpers (tcpdump, crash watcher)
+            start_background_services()
+            _check_timeout_and_exit(current_attempt=attempt, total_attempts=attempts)
+
+            # 3) Preflight checks: boot, launcher, connectivity
+            do_preflight(results_dir)
+            _check_timeout_and_exit(current_attempt=attempt, total_attempts=attempts)
+
+            # 4) Setup devices and run experiment
+            setup_and_run_experiment(args)
+            _check_timeout_and_exit(current_attempt=attempt, total_attempts=attempts)
+
+            # Success: cleanup, write summary and exit
+            stop_background_services()
+            logging.info('Full-run attempt %d/%d completed successfully', attempt, attempts)
+            try:
+                write_experiment_summary(results_dir, overall_success=True, attempt=attempt, attempts=attempts)
+            except Exception:
+                logging.exception('Failed to write experiment summary on success')
+            return
+
+        except GlobalTimeoutReached as e:
+            logging.error('Global timeout reached: %s', e)
+            # Attempt graceful shutdown and write partial results
+            try:
+                stop_background_services()
+            except Exception:
+                logging.exception('Error while stopping background services after timeout')
+            try:
+                write_experiment_summary(results_dir, overall_success=False, attempt=e.attempt or attempt, attempts=e.attempts or attempts)
+            except Exception:
+                logging.exception('Failed to write experiment summary after timeout')
+            # write an explicit timeout marker
+            try:
+                timeout_file = os.path.join(results_dir, 'experiment_timed_out.json')
+                _write_json(timeout_file, {'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z', 'attempt': e.attempt, 'attempts': e.attempts})
+            except Exception:
+                logging.exception('Failed to write timeout marker')
+            # Exit with non-zero to indicate timeout
+            sys.exit(2)
+
+        except KeyboardInterrupt:
+            logging.info('Interrupted by user; stopping background services and aborting')
+            stop_background_services()
+            raise
+        except Exception:
+            logging.exception('Full-run attempt %d/%d failed', attempt, attempts)
+            stop_background_services()
+            if attempt < attempts:
+                logging.info('Retrying full-run after %s seconds (attempt %d/%d)', retry_delay, attempt + 1, attempts)
+                time.sleep(retry_delay)
+                # try to restart tcpdump before next attempt
+                try:
+                    start_tcpdump()
+                except Exception:
+                    logging.exception('Failed to restart tcpdump before next attempt')
+                continue
+            else:
+                logging.error('Experiment failed after %d attempt(s). Aborting.', attempts)
+                try:
+                    # Write final summary indicating overall failure
+                    write_experiment_summary(results_dir, overall_success=False, attempt=attempt, attempts=attempts)
+                except Exception:
+                    logging.exception('Failed to write experiment summary on final failure')
+                sys.exit(2)
+
 
 
 if __name__ == "__main__":
     main()
-
-## Live Network Traffic Debugging
-# If you want to inspect the live network traffic from the device while running the experiment, you can use the
-# following commands to forward the PCAPdroid traffic to your local machine and open it in Wireshark:
-# adb forward tcp:54320 tcp:54320
-# curl -sNL http://127.0.0.1:54320 | /Applications/Wireshark.app/Contents/MacOS/Wireshark -k -i -

@@ -1,10 +1,6 @@
 import { service as adbShellService } from "../../services/adb/adb-shell-service.js";
 import { service as adbTcpService } from "../../services/adb/adb-tcp-service.js";
 import { logger } from "../../services/logger.js";
-import { getAppPath } from "../../services/adb/getAppPath.js";
-import { basename } from "node:path";
-
-const ALLOWED_INSTALL_EXTENSIONS = new Set(['apk', 'apkm', 'xapk']);
 
 class AdbController {
 	async metainfo(res, _req) {
@@ -85,52 +81,6 @@ class AdbController {
 			res.send(result);
 		} catch (ex) {
 			logger.error('refreshPools handler error', ex);
-			res.setStatus('500').send({ ok: false, error: String(ex) });
-		}
-	}
-
-	/**
-	 * Install an APK from the uploads or apps directory onto a specific ADB
-	 * device using the ADB protocol (no shell invocation).
-	 *
-	 * Query parameters:
-	 *   - app    {string} filename of the APK (required)
-	 *   - device {string} device serial or unique name host:port/serial (required)
-	 *   - source {string} "uploads" (default) or "apps"
-	 */
-	async installApp(res, req) {
-		const rawApp = req.getQuery('app') ?? null;
-		const device = req.getQuery('device') ?? null;
-		const source = req.getQuery('source') ?? 'uploads';
-
-		if (!rawApp) {
-			res.setStatus('400').send({ ok: false, error: 'Missing required query parameter: app' });
-			return;
-		}
-		if (!device) {
-			res.setStatus('400').send({ ok: false, error: 'Missing required query parameter: device' });
-			return;
-		}
-
-		// Sanitize the filename: strip directory components and null bytes, then
-		// validate the extension to prevent path traversal and unexpected file types.
-		const app = basename(rawApp.replace(/\0/g, ''));
-		if (!app || /^\.+$/.test(app)) {
-			res.setStatus('400').send({ ok: false, error: 'Invalid app filename' });
-			return;
-		}
-		const ext = app.split('.').pop()?.toLowerCase();
-		if (!ext || !ALLOWED_INSTALL_EXTENSIONS.has(ext)) {
-			res.setStatus('400').send({ ok: false, error: `Disallowed file extension: .${ext}. Allowed: ${[...ALLOWED_INSTALL_EXTENSIONS].join(', ')}` });
-			return;
-		}
-
-		const apkPath = getAppPath(source, app);
-		try {
-			const result = await adbTcpService.installApk(device, apkPath);
-			res.send(result);
-		} catch (ex) {
-			logger.error('installApp handler error', ex);
 			res.setStatus('500').send({ ok: false, error: String(ex) });
 		}
 	}

@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@yume-chan/adb':
-        specifier: ^2.6.0
-        version: 2.6.0
+        specifier: ^2.5.1
+        version: 2.5.1
       '@yume-chan/adb-scrcpy':
         specifier: ^2.3.2
         version: 2.3.2
@@ -33,8 +33,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.0
       '@yume-chan/stream-extra':
-        specifier: ^2.5.3
-        version: 2.5.3
+        specifier: ^2.1.0
+        version: 2.1.0
       cookie:
         specifier: ^1.1.1
         version: 1.1.1
@@ -42,23 +42,23 @@ importers:
         specifier: ^10.1.0
         version: 10.1.0
       dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
+        specifier: ^17.2.3
+        version: 17.2.3
       fast-json-stringify:
-        specifier: ^6.3.0
-        version: 6.3.0
+        specifier: ^6.1.1
+        version: 6.1.1
       mime-types:
         specifier: ^3.0.2
         version: 3.0.2
       msgpackr:
-        specifier: ^1.11.9
-        version: 1.11.9
+        specifier: ^1.11.8
+        version: 1.11.8
       nodemon:
-        specifier: ^3.1.14
-        version: 3.1.14
+        specifier: ^3.1.11
+        version: 3.1.11
       pino:
-        specifier: ^10.3.1
-        version: 10.3.1
+        specifier: ^10.1.0
+        version: 10.1.0
       pino-pretty:
         specifier: ^13.1.3
         version: 13.1.3
@@ -66,8 +66,8 @@ importers:
         specifier: ^6.0.14
         version: 6.0.14
       qs:
-        specifier: ^6.15.1
-        version: 6.15.1
+        specifier: ^6.14.1
+        version: 6.14.1
       uWebSockets.js:
         specifier: github:uNetworking/uWebSockets.js#v20.56.0
         version: https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/d04e707a1292928d50163ff7545e45c3e84c5ec3
@@ -186,8 +186,8 @@ packages:
   '@yume-chan/adb-server-node-tcp@2.5.2':
     resolution: {integrity: sha512-ga9icFBRUk1n6lO+ymlj83qE+90kMLV8sQA3w9mZAisfdxxEEIq1cvXitFQJvDgL0NuFQruVI4JoZA/wrgpKOw==}
 
-  '@yume-chan/adb@2.6.0':
-    resolution: {integrity: sha512-1bM4/YwLUr7UHkvC3pe5fIPNNIgOQ97nUIvC4ooPZwRKG9pyHG39EihivZVmu3pm28XwHSGh5PC3sQi4ycoUXA==}
+  '@yume-chan/adb@2.5.1':
+    resolution: {integrity: sha512-Nm9ZA0cOxfINE+BlZ7whgqjtoLpaZg1xcV8e0C7YbpG/KOHnQGseGTwbfqJFR6xdqbRvvrNL4jIGGpxvn31ykw==}
 
   '@yume-chan/android-bin@2.1.0':
     resolution: {integrity: sha512-is97IQwmSTmGCLe8GKO3rRDib2is6Xumo9KzeArgHwizIF0XnpCUm/xIVJLnpifR9PlMyLldDUttTZMTnaNivg==}
@@ -211,8 +211,8 @@ packages:
   '@yume-chan/scrcpy@2.3.0':
     resolution: {integrity: sha512-rpsNvy7H8mf6gVsWYRSkIXmk0wVsP3XOdw3kASokwZkSWtygB2Z1wjoPaEAvaayVCjsz+y/YfG35TOcykEihGw==}
 
-  '@yume-chan/stream-extra@2.5.3':
-    resolution: {integrity: sha512-eRZcl0+SMIt/cAp9UZfBbh74mYe+DZf5l3C6eX8zYYA1cx71nZce2NCf8Vp+/XNw3UtPaEz6IiES9o7Ax5xJdg==}
+  '@yume-chan/stream-extra@2.1.0':
+    resolution: {integrity: sha512-Sq1mDCLTIOu+TbI3VmFhcKL5hi+qZkDA3S+JezZb/AJm4ESC3hB7+LgQIQs3QEK/ZeRwMg37w4IOYHSh30R7BQ==}
 
   '@yume-chan/struct@2.3.2':
     resolution: {integrity: sha512-afoCnSKV+5HRK7e4innVd9YTYDyNWdjA1CVQa1j8rWYnmr7HGZfdkHMQr+AESLk6GxWFMzOIPQIG6nYOTGMFIw==}
@@ -283,9 +283,8 @@ packages:
       react-native-b4a:
         optional: true
 
-  balanced-match@4.0.4:
-    resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
-    engines: {node: 18 || 20 || >=22}
+  balanced-match@1.0.2:
+    resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
 
   bare-events@2.8.2:
     resolution: {integrity: sha512-riJjyv1/mHLIPX4RwiK+oW9/4c3TEUeORHKefKAKnZ5kyslbN+HXowtbaVEqt4IMUB7OXlfixcs6gsFeo/jhiQ==}
@@ -309,9 +308,8 @@ packages:
   bodec@0.1.0:
     resolution: {integrity: sha512-Ylo+MAo5BDUq1KA3f3R/MFhh+g8cnHmo8bz3YPGhI1znrMaf77ol1sfvYJzsw3nTE+Y2GryfDxBaR+AqpAkEHQ==}
 
-  brace-expansion@5.0.5:
-    resolution: {integrity: sha512-VZznLgtwhn+Mact9tfiwx64fA9erHH/MCXEUfB/0bX/6Fz6ny5EGTXYltMocqg4xFAQZtnO3DHWWXi8RiuN7cQ==}
-    engines: {node: 18 || 20 || >=22}
+  brace-expansion@1.1.12:
+    resolution: {integrity: sha512-9T9UjW3r0UW5c1Q7GTwllptXwhvYmEzFhzMfZ9H7FQWt+uZePjZPjBP/W1ZEyZ1twGWom5/56TF4lPcqjnDHcg==}
 
   braces@3.0.3:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
@@ -375,6 +373,9 @@ packages:
 
   commander@2.20.3:
     resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
+
+  concat-map@0.0.1:
+    resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
 
   content-disposition@0.5.4:
     resolution: {integrity: sha512-FveZTNuGw04cxlAiWbzi6zTAL/lhehaWbTtgluJh4/E95DqMwTmha3KZN1aAWA8cFIhHzMZUvLevkw5Rqk+tSQ==}
@@ -462,8 +463,8 @@ packages:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
 
-  dotenv@17.4.2:
-    resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
+  dotenv@17.2.3:
+    resolution: {integrity: sha512-JVUnt+DUIzu87TABbhPmNfVdBDt18BLOWjMUFJMSi/Qqg7NTYtabbvSNJGOJ7afbRuv9D/lngizHtP7QyLQ+9w==}
     engines: {node: '>=12'}
 
   dunder-proto@1.0.1:
@@ -555,8 +556,8 @@ packages:
   fast-json-patch@3.1.1:
     resolution: {integrity: sha512-vf6IHUX2SBcA+5/+4883dsIjpBTqmfBjmYiWK1savxQmFk4JfBMLa7ynTYOs1Rolp/T1betJxHiGD3g1Mn8lUQ==}
 
-  fast-json-stringify@6.3.0:
-    resolution: {integrity: sha512-oRCntNDY/329HJPlmdNLIdogNtt6Vyjb1WuT01Soss3slIdyUp8kAcDU3saQTOquEK8KFVfwIIF7FebxUAu+yA==}
+  fast-json-stringify@6.1.1:
+    resolution: {integrity: sha512-DbgptncYEXZqDUOEl4krff4mUiVrTZZVI7BBrQR/T3BqMj/eM1flTC1Uk2uUoLcWCxjT95xKulV/Lc6hhOZsBQ==}
 
   fast-safe-stringify@2.1.1:
     resolution: {integrity: sha512-W+KJc2dmILlPplD/H4K9l9LcAHAfPtP6BY84uVLXQ6Evcz9Lcg33Y2z1IVblT6xdY54PXYVHEv+0Wpq8Io6zkA==}
@@ -823,9 +824,8 @@ packages:
     resolution: {integrity: sha512-e5ISH9xMYU0DzrT+jl8q2ze9D6eWBto+I8CNpe+VI+K2J/F/k3PdkdTdz4wvGVH4NTpo+NRYTVIuMQEMMcsLqg==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
-  minimatch@10.2.5:
-    resolution: {integrity: sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg==}
-    engines: {node: 18 || 20 || >=22}
+  minimatch@3.1.2:
+    resolution: {integrity: sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw==}
 
   minimist@1.2.8:
     resolution: {integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==}
@@ -845,8 +845,8 @@ packages:
     resolution: {integrity: sha512-P0efT1C9jIdVRefqjzOQ9Xml57zpOXnIuS+csaB4MdZbTdmGDLo8XhzBG1N7aO11gKDDkJvBLULeFTo46wwreA==}
     hasBin: true
 
-  msgpackr@1.11.9:
-    resolution: {integrity: sha512-FkoAAyyA6HM8wL882EcEyFZ9s7hVADSwG9xrVx3dxxNQAtgADTrJoEWivID82Iv1zWDsv/OtbrrcZAzGzOMdNw==}
+  msgpackr@1.11.8:
+    resolution: {integrity: sha512-bC4UGzHhVvgDNS7kn9tV8fAucIYUBuGojcaLiz7v+P63Lmtm0Xeji8B/8tYKddALXxJLpwIeBmUN3u64C4YkRA==}
 
   mute-stream@0.0.8:
     resolution: {integrity: sha512-nnbWWOkoWyUsTjKrhgD0dcz22mdkSnpYqbEjIm2nhwhuxlSkpywJmBo8h0ZqJdkp73mb90SssHkN4rsRaBAfAA==}
@@ -873,8 +873,8 @@ packages:
     resolution: {integrity: sha512-s+w+rBWnpTMwSFbaE0UXsRlg7hU4FjekKU4eyAih5T8nJuNZT1nNsskXpxmeqSK9UzkBl6UgRlnKc8hz8IEqOw==}
     hasBin: true
 
-  nodemon@3.1.14:
-    resolution: {integrity: sha512-jakjZi93UtB3jHMWsXL68FXSAosbLfY0In5gtKq3niLSkrWznrVBzXFNOEMJUfc9+Ke7SHWoAZsiMkNP3vq6Jw==}
+  nodemon@3.1.11:
+    resolution: {integrity: sha512-is96t8F/1//UHAjNPHpbsNY46ELPpftGUoSVNXwUfMk/qdjSylYrWSu1XavVTBOn526kFiOR733ATgNBCQyH0g==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -946,6 +946,9 @@ packages:
     resolution: {integrity: sha512-g0VU+y08pKw5M8EZ2rIGiEBaB8wrQMjYGFfW2QVIfyT8V+fq8YFLkvlz4bz5ljvFDJYNFCWT3PWqcRr2FKO81w==}
     engines: {node: '>=10'}
 
+  pino-abstract-transport@2.0.0:
+    resolution: {integrity: sha512-F63x5tizV6WCh4R6RHyi2Ml+M70DNRXt/+HANowMflpgGFMAym/VKm6G7ZOQRjqN7XbGxK1Lg9t6ZrtzOaivMw==}
+
   pino-abstract-transport@3.0.0:
     resolution: {integrity: sha512-wlfUczU+n7Hy/Ha5j9a/gZNy7We5+cXp8YL+X+PG8S0KXxw7n/JXA3c46Y0zQznIJ83URJiwy7Lh56WLokNuxg==}
 
@@ -956,8 +959,8 @@ packages:
   pino-std-serializers@7.0.0:
     resolution: {integrity: sha512-e906FRY0+tV27iq4juKzSYPbUj2do2X2JX4EzSca1631EB2QJQUqGbDuERal7LCtOpxl6x3+nvo9NPZcmjkiFA==}
 
-  pino@10.3.1:
-    resolution: {integrity: sha512-r34yH/GlQpKZbU1BvFFqOjhISRo1MNx1tWYsYvmj6KIRHSPMT2+yHOEb1SG6NMvRoHRF0a07kCOox/9yakl1vg==}
+  pino@10.1.0:
+    resolution: {integrity: sha512-0zZC2ygfdqvqK8zJIr1e+wT1T/L+LF6qvqvbzEQ6tiMAoTqEVK9a1K3YRu8HEUvGEvNqZyPJTtb2sNIoTkB83w==}
     hasBin: true
 
   pm2-axon-rpc@0.7.1:
@@ -1006,8 +1009,8 @@ packages:
   pump@3.0.3:
     resolution: {integrity: sha512-todwxLMY7/heScKmntwQG8CXVkWUOdYxIvY2s0VWAAMh/nd8SoYiRaKjlr7+iCs984f2P8zvrfWcDDYVb73NfA==}
 
-  qs@6.15.1:
-    resolution: {integrity: sha512-6YHEFRL9mfgcAvql/XhwTvf5jKcOiiupt2FiJxHkiX1z4j7WL8J/jRHYLluORvc1XxB5rV20KoeK00gVJamspg==}
+  qs@6.14.1:
+    resolution: {integrity: sha512-4EK3+xJl8Ts67nLYNwqw/dsFVnCf+qR7RgXSK9jEEm9unao3njwMDdmsdvoKBKHzxd7tCYz5e5M+SnMjdtXGQQ==}
     engines: {node: '>=0.6'}
 
   quick-format-unescaped@4.0.4:
@@ -1214,9 +1217,8 @@ packages:
   text-decoder@1.2.3:
     resolution: {integrity: sha512-3/o9z3X0X0fTupwsYvR03pJ/DjWuqqrfwBgTQzdWDiQSm9KitAyz/9WqsT2JQW7KV2m+bC2ol/zqpW37NHxLaA==}
 
-  thread-stream@4.0.0:
-    resolution: {integrity: sha512-4iMVL6HAINXWf1ZKZjIPcz5wYaOdPhtO8ATvZ+Xqp3BTdaqtAwQkNmKORqcIo5YkQqGXq5cwfswDwMqqQNrpJA==}
-    engines: {node: '>=20'}
+  thread-stream@3.1.0:
+    resolution: {integrity: sha512-OqyPZ9u96VohAyMfJykzmivOrY2wfMSf3C5TtFJVgN+Hm6aj+voFhlK+kZEIv2FBh1X6Xp3DlnCOfEQ3B2J86A==}
 
   through@2.3.8:
     resolution: {integrity: sha512-w89qg7PI8wAdvX60bMDP+bFoD5Dvhm9oLheFp5O4a2QF0cSBGsBX4qZmadPMvVqlLJBBci+WqGGOAPvcDeNSVg==}
@@ -1469,32 +1471,32 @@ snapshots:
 
   '@yume-chan/adb-scrcpy@2.3.2':
     dependencies:
-      '@yume-chan/adb': 2.6.0
+      '@yume-chan/adb': 2.5.1
       '@yume-chan/async': 4.1.3
       '@yume-chan/event': 2.0.0
       '@yume-chan/scrcpy': 2.3.0
-      '@yume-chan/stream-extra': 2.5.3
+      '@yume-chan/stream-extra': 2.1.0
       '@yume-chan/struct': 2.3.2
 
   '@yume-chan/adb-server-node-tcp@2.5.2':
     dependencies:
-      '@yume-chan/adb': 2.6.0
+      '@yume-chan/adb': 2.5.1
       '@yume-chan/async': 4.1.3
-      '@yume-chan/stream-extra': 2.5.3
+      '@yume-chan/stream-extra': 2.1.0
       '@yume-chan/struct': 2.3.2
 
-  '@yume-chan/adb@2.6.0':
+  '@yume-chan/adb@2.5.1':
     dependencies:
       '@yume-chan/async': 4.1.3
       '@yume-chan/event': 2.0.0
       '@yume-chan/no-data-view': 2.0.0
-      '@yume-chan/stream-extra': 2.5.3
+      '@yume-chan/stream-extra': 2.1.0
       '@yume-chan/struct': 2.3.2
 
   '@yume-chan/android-bin@2.1.0':
     dependencies:
-      '@yume-chan/adb': 2.6.0
-      '@yume-chan/stream-extra': 2.5.3
+      '@yume-chan/adb': 2.5.1
+      '@yume-chan/stream-extra': 2.1.0
       '@yume-chan/struct': 2.3.2
 
   '@yume-chan/async@4.1.3': {}
@@ -1517,7 +1519,7 @@ snapshots:
       '@yume-chan/async': 4.1.3
       '@yume-chan/event': 2.0.0
       '@yume-chan/scrcpy': 2.3.0
-      '@yume-chan/stream-extra': 2.5.3
+      '@yume-chan/stream-extra': 2.1.0
       tinyh264: 0.0.7
       yuv-buffer: 1.0.1
       yuv-canvas: 1.3.0
@@ -1526,10 +1528,10 @@ snapshots:
     dependencies:
       '@yume-chan/async': 4.1.3
       '@yume-chan/no-data-view': 2.0.0
-      '@yume-chan/stream-extra': 2.5.3
+      '@yume-chan/stream-extra': 2.1.0
       '@yume-chan/struct': 2.3.2
 
-  '@yume-chan/stream-extra@2.5.3':
+  '@yume-chan/stream-extra@2.1.0':
     dependencies:
       '@yume-chan/async': 4.1.3
       '@yume-chan/struct': 2.3.2
@@ -1591,7 +1593,7 @@ snapshots:
 
   b4a@1.7.3: {}
 
-  balanced-match@4.0.4: {}
+  balanced-match@1.0.2: {}
 
   bare-events@2.8.2: {}
 
@@ -1603,9 +1605,10 @@ snapshots:
 
   bodec@0.1.0: {}
 
-  brace-expansion@5.0.5:
+  brace-expansion@1.1.12:
     dependencies:
-      balanced-match: 4.0.4
+      balanced-match: 1.0.2
+      concat-map: 0.0.1
 
   braces@3.0.3:
     dependencies:
@@ -1682,6 +1685,8 @@ snapshots:
 
   commander@2.20.3: {}
 
+  concat-map@0.0.1: {}
+
   content-disposition@0.5.4:
     dependencies:
       safe-buffer: 5.2.1
@@ -1744,7 +1749,7 @@ snapshots:
   detect-libc@2.1.2:
     optional: true
 
-  dotenv@17.4.2: {}
+  dotenv@17.2.3: {}
 
   dunder-proto@1.0.1:
     dependencies:
@@ -1823,7 +1828,7 @@ snapshots:
 
   fast-json-patch@3.1.1: {}
 
-  fast-json-stringify@6.3.0:
+  fast-json-stringify@6.1.1:
     dependencies:
       '@fastify/merge-json-schemas': 0.2.1
       ajv: 8.17.1
@@ -2078,9 +2083,9 @@ snapshots:
 
   mimic-response@4.0.0: {}
 
-  minimatch@10.2.5:
+  minimatch@3.1.2:
     dependencies:
-      brace-expansion: 5.0.5
+      brace-expansion: 1.1.12
 
   minimist@1.2.8: {}
 
@@ -2102,7 +2107,7 @@ snapshots:
       '@msgpackr-extract/msgpackr-extract-win32-x64': 3.0.3
     optional: true
 
-  msgpackr@1.11.9:
+  msgpackr@1.11.8:
     optionalDependencies:
       msgpackr-extract: 3.0.3
 
@@ -2131,12 +2136,12 @@ snapshots:
       detect-libc: 2.1.2
     optional: true
 
-  nodemon@3.1.14:
+  nodemon@3.1.11:
     dependencies:
       chokidar: 3.6.0
       debug: 4.4.3(supports-color@5.5.0)
       ignore-by-default: 1.0.1
-      minimatch: 10.2.5
+      minimatch: 3.1.2
       pstree.remy: 1.1.8
       semver: 7.7.3
       simple-update-notifier: 2.0.0
@@ -2203,6 +2208,10 @@ snapshots:
     dependencies:
       safe-buffer: 5.2.1
 
+  pino-abstract-transport@2.0.0:
+    dependencies:
+      split2: 4.2.0
+
   pino-abstract-transport@3.0.0:
     dependencies:
       split2: 4.2.0
@@ -2225,19 +2234,19 @@ snapshots:
 
   pino-std-serializers@7.0.0: {}
 
-  pino@10.3.1:
+  pino@10.1.0:
     dependencies:
       '@pinojs/redact': 0.4.0
       atomic-sleep: 1.0.0
       on-exit-leak-free: 2.1.2
-      pino-abstract-transport: 3.0.0
+      pino-abstract-transport: 2.0.0
       pino-std-serializers: 7.0.0
       process-warning: 5.0.0
       quick-format-unescaped: 4.0.4
       real-require: 0.2.0
       safe-stable-stringify: 2.5.0
       sonic-boom: 4.2.0
-      thread-stream: 4.0.0
+      thread-stream: 3.1.0
 
   pm2-axon-rpc@0.7.1:
     dependencies:
@@ -2342,7 +2351,7 @@ snapshots:
       end-of-stream: 1.4.5
       once: 1.4.0
 
-  qs@6.15.1:
+  qs@6.14.1:
     dependencies:
       side-channel: 1.1.0
 
@@ -2555,7 +2564,7 @@ snapshots:
     transitivePeerDependencies:
       - react-native-b4a
 
-  thread-stream@4.0.0:
+  thread-stream@3.1.0:
     dependencies:
       real-require: 0.2.0
 

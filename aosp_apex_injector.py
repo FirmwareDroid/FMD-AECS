@@ -782,8 +782,7 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
         apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
         apex_keyword = get_matching_apex_key(filename_input, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"])
         if not apex_keyword:
-            logging.error(
-                f"APEX: No matching keyword found in APEX_DEFAULT_PATHS_DICT for {filename_input}. EXIT PROGRAM!")
+            logging.error(f"APEX: No matching keyword found in APEX_DEFAULT_PATHS_DICT for {filename_input}. EXIT PROGRAM!")
             traceback.print_stack()
             exit(-1)
         logging.info(f"APEX Keyword: {apex_keyword} found for apex: {filename_input}")
@@ -1131,18 +1130,18 @@ def change_file_permission(file_path, permission):
     try:
         command = ['sudo', 'chmod', permission, file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True)
-        print(f"Permissions for {file_path} changed to {permission}")
+        logging.info("Permissions for %s changed to %s", file_path, permission)
     except subprocess.CalledProcessError as e:
-        print(f"Error changing permissions for {file_path}: {e.stderr}")
+        logging.error("Error changing permissions for %s: %s", file_path, e.stderr)
 
 def change_file_ownership(file_path):
     try:
         current_user = os.getlogin()
         command = ['sudo', 'chown', current_user, file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True)
-        print(f"Ownership of {file_path} changed to {current_user}")
+        logging.info("Ownership of %s changed to %s", file_path, current_user)
     except subprocess.CalledProcessError as e:
-        print(f"Error changing ownership of {file_path}: {e.stderr}")
+        logging.error("Error changing ownership of %s: %s", file_path, e.stderr)
 
 def can_read_file(file_path):
     return os.access(file_path, os.R_OK)
@@ -1231,6 +1230,7 @@ def get_existing_file_context(apex_file_name, aosp_path):
                 logging.info(f"APEX: File contexts found: {file_contexts_path}")
                 return file_contexts_path
             else:
+                logging.warning(f"APEX: File contexts not found: {file_contexts_path} using generic file context template for APEX: {apex_file_name}. This might fail during runtime.")
                 return FILE_CONTEXT_TEMPLATE_PATH
                 #raise ValueError(f"Error getting APEX file context file from AOSP: {apex_file_name}. file_context_name: {file_context_name}")
     return file_contexts_path

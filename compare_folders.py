@@ -4,6 +4,9 @@ import os
 import argparse
 import hashlib
 from collections import defaultdict
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 def compute_hash(file_path):
     """Compute SHA-256 hash of a file."""
@@ -36,27 +39,27 @@ def compare_folders(folder1, folder2):
         if compute_hash(file1) != compute_hash(file2):
             differing_files.append(file)
 
-    print("✅ Files only in folder1:")
+    logging.info("✅ Files only in folder1:")
     for f in sorted(only_in_folder1):
-        print(f"  {f}")
+        logging.info("  %s", f)
 
-    print("\n⚠️ Files in both folders but differ (grouped by extension):")
+    logging.info("\n⚠️ Files in both folders but differ (grouped by extension):")
     grouped_by_ext = defaultdict(list)
     for f in differing_files:
         ext = os.path.splitext(f)[1] or "<no extension>"
         grouped_by_ext[ext].append(f)
 
     for ext in sorted(grouped_by_ext.keys()):
-        print(f"\n  🔹 Extension: {ext}")
+        logging.info("\n  🔹 Extension: %s", ext)
         for f in sorted(grouped_by_ext[ext]):
-            print(f"    {f}")
+            logging.info("    %s", f)
 
-    print("\n📊 Statistics:")
-    print(f"  Total files in folder1: {len(folder1_files)}")
-    print(f"  Total files in folder2: {len(folder2_files)}")
-    print(f"  Files only in folder1 : {len(only_in_folder1)}")
-    print(f"  Files in both folders : {len(in_both)}")
-    print(f"  Differing files       : {len(differing_files)}")
+    logging.info("\n📊 Statistics:")
+    logging.info("  Total files in folder1: %d", len(folder1_files))
+    logging.info("  Total files in folder2: %d", len(folder2_files))
+    logging.info("  Files only in folder1 : %d", len(only_in_folder1))
+    logging.info("  Files in both folders : %d", len(in_both))
+    logging.info("  Differing files       : %d", len(differing_files))
 
 def main():
     parser = argparse.ArgumentParser(
@@ -67,11 +70,11 @@ def main():
     args = parser.parse_args()
 
     if not os.path.isdir(args.folder1):
-        print(f"Error: '{args.folder1}' is not a valid directory.")
+        logging.error("Error: '%s' is not a valid directory.", args.folder1)
         return
 
     if not os.path.isdir(args.folder2):
-        print(f"Error: '{args.folder2}' is not a valid directory.")
+        logging.error("Error: '%s' is not a valid directory.", args.folder2)
         return
 
     compare_folders(args.folder1, args.folder2)

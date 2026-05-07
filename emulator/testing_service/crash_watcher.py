@@ -147,17 +147,17 @@ def handle_crash_dialog(device: Optional[str] = None) -> bool:
 
 
 def _watcher_loop(device: Optional[str], interval: float, stop_event: threading.Event):
-    logging.info('Starting crash watcher thread (interval=%.1fs)', interval)
+    logging.debug('Starting crash watcher thread (interval=%.1fs)', interval)
     while not stop_event.is_set():
         try:
             handled = handle_crash_dialog(device=device)
             if handled:
-                logging.info('Crash watcher dismissed a dialog')
+                logging.debug('Crash watcher dismissed a dialog')
         except Exception:
             logging.exception('Error in crash watcher')
         # wait with early exit
         stop_event.wait(interval)
-    logging.info('Crash watcher thread exiting')
+    logging.debug('Crash watcher thread exiting')
 
 
 def start_crash_watcher(device: Optional[str] = None, interval: float = 5.0) -> None:

@@ -20,6 +20,7 @@ import datetime
 import sys
 import re
 import os
+import logging
 from typing import Optional, List
 
 # Default output directory for collect_logcat: ./testing_service/out
@@ -30,6 +31,23 @@ def run_adb(args: List[str], capture_output=True, text=True) -> subprocess.Compl
     cmd = ['adb'] + args
     return subprocess.run(cmd, stdout=(subprocess.PIPE if capture_output else None),
                           stderr=(subprocess.PIPE if capture_output else None), text=text)
+
+
+def get_first_connected_device() -> Optional[str]:
+    """Return serial of first connected adb device in 'device' state, or None."""
+    try:
+        proc = run_adb(['devices'])
+    except FileNotFoundError:
+        return None
+    out = (proc.stdout or '').strip()
+    lines = [l.strip() for l in out.splitlines() if l.strip()]
+    for l in lines[1:]:
+        if l.startswith('List of devices'):
+            continue
+        parts = l.split()
+        if len(parts) >= 2 and parts[1] == 'device':
+            return parts[0]
+    return None
 
 
 def get_package_uid(device: Optional[str], package: str) -> Optional[int]:
@@ -212,17 +230,26 @@ def main():
     parser.add_argument('--flush', action='store_true', help='Clear device logcat after collecting (flush buffers)')
     parser.add_argument('--full-dump', action='store_true', help='Create a full logcat dump')
     args = parser.parse_args()
-    print(f"Start Logcat Collector")
+    # If no device specified, pick the first connected adb device as default
+    if not args.device:
+        serial = get_first_connected_device()
+        if serial:
+            args.device = serial
+            logging.info("No device specified; using first connected adb device: %s", serial)
+        else:
+            logging.error('No adb device found. Please connect a device or specify --device')
+            sys.exit(2)
+    logging.info("Start Logcat Collector")
     try:
         # If flush is specified and neither package nor output is given, perform flush-only mode
         if args.flush and not args.package and not args.output:
-            print(f'Flushing (clearing) device logcat on device {args.device or "default"}...')
+            logging.info('Flushing (clearing) device logcat on device %s...', args.device or "default")
             clear_logcat(args.device)
-            print('Flush complete.')
+            logging.info('Flush complete.')
             return
 
         if args.full_dump:
-            print('Dumping full logcat...')
+            logging.info('Dumping full logcat...')
             full_log = dump_full_logcat(args.device)
             # default output path inside DEFAULT_OUT_DIR
             out_dir = DEFAULT_OUT_DIR
@@ -230,7 +257,7 @@ def main():
             out_path = os.path.join(out_dir, 'logcat_full_dump.json')
             # write as JSON payload (package=None indicates a generic dump)
             write_json_output(out_path, package=None, uid=None, logcat=full_log)
-            print(f'Wrote logs to {out_path} (entries length: {len(full_log)} characters)')
+            logging.info('Wrote logs to %s (entries length: %d characters)', out_path, len(full_log))
             return
 
         # Otherwise, require package; output defaults to DEFAULT_OUT_DIR/<package>.json
@@ -248,33 +275,33 @@ def main():
         if not out_path.endswith('.json'):
             out_path += '.json'
 
-        print(f'Querying UID for package {args.package} on device {args.device or "default"}...')
+        logging.info('Querying UID for package %s on device %s...', args.package, args.device or "default")
         uid = get_package_uid(args.device, args.package)
         if uid is not None:
-            print(f'Found UID: {uid}')
+            logging.info('Found UID: %s', uid)
             full_log = dump_full_logcat(args.device)
             full_log_delimited = dump_full_logcat(args.device)
         else:
             full_log = dump_uid_logcat(uid, args.device)
             full_log_delimited = dump_uid_logcat(args.device)
-            print('UID not found for package; continuing to dump full logcat')
+            logging.info('UID not found for package; continuing to dump full logcat')
         write_json_output(out_path, args.package, uid, full_log)
         out_path_2 = os.path.join(out_path.replace('.json', '_delimited_2.json'))
         write_json_output(out_path_2, args.package, uid, full_log_delimited)
         
         if args.clear:
-            print('Clearing device logcat before collection...')
+            logging.info('Clearing device logcat before collection...')
             clear_logcat(args.device)
 
         if args.flush:
             try:
-                print('Flushing (clearing) device logcat after collection...')
+                logging.info('Flushing (clearing) device logcat after collection...')
                 clear_logcat(args.device)
-                print('Flush complete.')
+                logging.info('Flush complete.')
             except Exception as e:
-                print(f'Warning: failed to flush logcat after collection: {e}', file=sys.stderr)
+                logging.warning('failed to flush logcat after collection: %s', e)
     except Exception as e:
-        print(f'Error: {e}', file=sys.stderr)
+        logging.exception('Error during logcat collection: %s', e)
         sys.exit(2)
 
 

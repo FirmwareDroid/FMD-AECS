@@ -63,11 +63,13 @@ NAME_BUILD_FILE_LOG = "results_build_times.json"
 NAME_BUILD_INJECTOR_LOG = "results_build_injector.json"
 NAME_BUILD_ARTEFACT_LOG = "uploaded_artefacts.txt"
 NAME_BUILD_ACV_LOG = "results_acv.json"
+NAME_BUILD_ACV_ERROR_LOG = "acv_error.log"
 MEASURE_LOOKUP_PERFORMANCE = False
 PATH_BUILD_FILE_LOG = os.path.join(BUILD_OUT_PATH, NAME_BUILD_FILE_LOG)
 PATH_BUILD_FILE_ARTEFACT_LOG =  os.path.join(BUILD_OUT_PATH, NAME_BUILD_ARTEFACT_LOG)
 PATH_BUILD_INJECTOR_LOG = os.path.join(BUILD_OUT_PATH, NAME_BUILD_INJECTOR_LOG)
 PATH_BUILD_ACV_LOG = os.path.join(BUILD_OUT_PATH, NAME_BUILD_ACV_LOG)
+PATH_BUILD_ACV_ERROR_LOG = os.path.join(BUILD_OUT_PATH, NAME_BUILD_ACV_ERROR_LOG)
 FILE_CONTEXT_TEMPLATE_PATH = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "file_contexts")
 APEX_PRIVATE_KEY_PATH = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "apex.key")
 APEX_PUBKEY_PATH = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "apex.x509.pem")
@@ -93,9 +95,14 @@ FMD_CSRF_URL_TEMPLATE = "${url}/csrf/"
 PACKAGE_EXTRACTION_DIR_NAME = "extracted_packages"
 EXTRACTION_ALL_FILES_DIR_NAME = "ALL_FILES"
 EXTRACTED_PACKAGES_PATH = str(os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME))
+EXTRACTION_ALL_FILES_PATH = str(os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME, EXTRACTION_ALL_FILES_DIR_NAME))
 VERIFY_SSL = False  # You can suppress warnings with: export PYTHONWARNINGS="ignore:Unverified HTTPS request"
 
 MODULE_BASE_INJECT_DIR = "packages/modules/fmd/"
+
+# When True, ACVTool's instrumented APK files will be deleted from the ACV output folder
+# before creating the archive so they are not included in the uploaded zip.
+ACVTOOL_DELETE_INSTRUMENTED_APKS = True
 
 VENDOR_NAMES = [
     "Google", "Samsung", "Apple", "Huawei", "Xiaomi", "Oppo", "Vivo", "OnePlus",

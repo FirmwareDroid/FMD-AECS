@@ -2526,10 +2526,23 @@
     },
     {
       "name": "PCAPdroid_toolbox",
-      "enable": true,
+      "enable": false,
       "path": "./toolbox/pcapdroid"
+    },
+    {
+      "name": "ecapture_toolbox",
+      "enable": true,
+      "path": "./toolbox/12_13_14/ecapture"
     }
   ],
   "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r416183b/runtimes_ndk_cxx/aarch64/lldb-server",
+  "ACVTOOL_SKIP_APK_KEYWORDS": [
+    "SystemUI",
+    "Launcher",
+    "Media",
+    "Phone",
+    "Print",
+    "CarrierConfig"
+  ],
   "ENABLE_ACVTOOL_INSTRUMENTATION": true
 }

@@ -50,6 +50,7 @@ def _do_copy(src_path: str,
                         n = os.copy_file_range(src_fd, None, dst_fd, None, bufsize)
                         if n == 0:
                             break
+                logging.info(f"Copied {src_path} to {dst_path}")
                 copied = True
         except Exception:
             copied = False
@@ -69,6 +70,7 @@ def _do_copy(src_path: str,
                             break
                         offset += sent
                         remaining -= sent
+                logging.info(f"Copied {src_path} to {dst_path}")
                 copied = True
             except Exception:
                 copied = False
@@ -80,6 +82,7 @@ def _do_copy(src_path: str,
                 args = [cp, "--reflink=auto", src_path, tmpname]
                 try:
                     subprocess.run(args, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    logging.info(f"Copied {src_path} to {dst_path}")
                     copied = True
                 except Exception:
                     copied = False

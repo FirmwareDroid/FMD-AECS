@@ -8,12 +8,19 @@ import subprocess
 import time
 from getpass import getpass
 import platform
-import docker
+import csv
+try:
+    import docker
+except Exception as _e:
+    # docker SDK may not be available or may fail to initialize on some platforms.
+    # We'll fall back to using the docker CLI where appropriate.
+    docker = None
 from common import extract_zip
 from fmd_backend_requests import download_file, fetch_emulator_image_list
 from setup_logger import setup_logger
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import multiprocessing
+import threading
 import datetime
 
 setup_logger()
@@ -298,7 +305,6 @@ def check_if_base_images_exists():
     Check if the base image for the current host architecture exists in the local Docker.
     Returns True if the image fmd-emulator_<arch> exists for the detected arch, False otherwise.
     """
-    client = docker.from_env()
     mach = (platform.machine() or '').lower()
 
     # Normalize common machine names to our image suffixes
@@ -311,23 +317,35 @@ def check_if_base_images_exists():
 
     system_name = (platform.system() or '').lower()
 
-    # Try docker SDK on Linux first
+    # Try docker SDK on Linux first. On macOS/Darwin we will use the docker CLI only.
+    logging.debug(f"Docker host OS detected: {system_name}. docker SDK available: {docker is not None}")
     if system_name == 'linux' and docker is not None:
+        logging.info("Attempting to check base image using docker Python SDK (linux host)")
         try:
+            if docker is None:
+                raise RuntimeError("docker python SDK not available")
             client = docker.from_env()
             try:
                 client.images.get(f"fmd-emulator_{arch}")
                 logging.info(f"Base image fmd-emulator_{arch} exists (checked via docker SDK)")
                 return True
-            except docker.errors.ImageNotFound:
-                logging.info(f"Base image fmd-emulator_{arch} not found (docker SDK)")
-                return False
             except Exception as err:
+                # If the docker SDK is present and the exception type indicates ImageNotFound,
+                # treat it as 'not found'. Otherwise, log and fall back to CLI.
+                try:
+                    img_not_found = docker.errors.ImageNotFound if docker is not None else None
+                except Exception:
+                    img_not_found = None
+
+                if img_not_found is not None and isinstance(err, img_not_found):
+                    logging.info(f"Base image fmd-emulator_{arch} not found (docker SDK)")
+                    return False
                 logging.warning(f"docker SDK check failed, falling back to CLI: {err}")
         except Exception as err:
-            logging.debug(f"docker.from_env() failed: {err}")
+            logging.debug(f"docker.from_env() failed or unavailable: {err}")
 
-    # Fallback to docker CLI
+    # Fallback to docker CLI (used on darwin/macOS or when SDK is unavailable)
+    logging.info("Falling back to docker CLI to check base image")
     docker_cli = shutil.which('docker')
     if not docker_cli:
         logging.warning('docker CLI not found in PATH; cannot check for base image')
@@ -363,7 +381,7 @@ def _is_docker_available() -> bool:
     Prefer `docker info` via subprocess because docker-py may surface low-level
     socket errors that are harder to interpret. This works on macOS/Linux.
     """
-    # First try docker CLI
+    # First try docker CLI (works on macOS and Linux with Docker Desktop)
     try:
         docker_bin = shutil.which('docker') or 'docker'
         res = subprocess.run([docker_bin, 'info'], capture_output=True, text=True, timeout=8)
@@ -375,6 +393,7 @@ def _is_docker_available() -> bool:
     # On Linux try docker SDK as a fallback (it may connect to daemon directly).
     system_name = (platform.system() or '').lower()
     if system_name == 'linux' and docker is not None:
+        logging.info('Docker CLI not reachable; attempting docker Python SDK on linux')
         try:
             client = docker.from_env()
             # use low-level ping to verify connectivity
@@ -383,7 +402,8 @@ def _is_docker_available() -> bool:
                 return True
             except Exception:
                 return False
-        except Exception:
+        except Exception as err:
+            logging.debug(f'docker.from_env() failed: {err}')
             return False
 
     return False
@@ -418,12 +438,14 @@ def delete_emulator_images(local_repo_path):
         logging.warning(f"Local repository path does not exist: {local_repo_path}")
 
 
-def process_images(input_dir, docker_repo_url, repository_username, build_local):
+def process_images(input_dir, docker_repo_url, repository_username, build_local, skip_push=False):
+    start_time = time.time()
     if not check_if_base_images_exists():
         create_base_images()
 
     emulator_zip_file_list = get_image_file_list_form_disk(input_dir)
     logging.info(f"Processing images: {len(emulator_zip_file_list)}")
+    logging.info(f"build_local={build_local} skip_push={skip_push}")
 
     # Determine worker count (can be changed by setting process_images._workers before calling)
     worker_count = getattr(process_images, '_workers', max(1, multiprocessing.cpu_count()))
@@ -458,7 +480,8 @@ def process_images(input_dir, docker_repo_url, repository_username, build_local)
     logging.info(f"Finished processing images. Successful: {len(successes)} Failed: {len(failures)}")
 
     # If we're pushing to a remote registry, perform pushes in parallel from the main process.
-    if not build_local and successes:
+    # The `skip_push` flag allows skipping the push step even when images were built from non-local sources.
+    if not build_local and not skip_push and successes:
         # Authenticate once before pushing (so workers don't race on docker login)
         if not repository_password:
             raise RuntimeError("Repository password not provided; cannot push")
@@ -480,6 +503,32 @@ def process_images(input_dir, docker_repo_url, repository_username, build_local)
                     logging.info(f"Pushed image: {tag}")
                 except Exception as e:
                     logging.exception(f"Failed to push image {tag}: {e}")
+
+    # Final aggregated summary for process_images
+    end_time = time.time()
+    elapsed_time_seconds = end_time - start_time
+    elapsed_time_minutes = elapsed_time_seconds / 60.0
+    summary = {
+        'mode': 'local' if build_local else 'remote',
+        'elapsed_seconds': elapsed_time_seconds,
+        'elapsed_minutes': elapsed_time_minutes,
+        'total_images_processed': len(aggregate),
+        'successful_images_count': len(successes),
+        'failed_images_count': len(failures),
+        'successful_tags': [r.get('tag') for r in successes],
+        'failed_images': [{'image': r.get('image'), 'error': r.get('error')} for r in failures]
+    }
+
+    # Write summary to results directory for easy inspection
+    # try:
+    #     os.makedirs(os.path.join(ROOT_PATH, 'results'), exist_ok=True)
+    #     with open(os.path.join(ROOT_PATH, 'results', 'process_images_summary.json'), 'w', encoding='utf-8') as sf:
+    #         json.dump(summary, sf, indent=2)
+    # except Exception:
+    #     logging.exception('Failed to write process_images_summary.json')
+
+    logging.info('Aggregated summary: %s', summary)
+    return summary
 
 
 def clear_environment(local_repo_path):
@@ -529,10 +578,23 @@ def parse_arguments():
                         required=False,
                         default=None,
                         help="Number of parallel workers to build images. Defaults to CPU count.")
-    parser.add_argument("--file-list",
+    parser.add_argument("--download-workers",
+                        type=int,
+                        required=False,
+                        default=None,
+                        help="Number of parallel download worker threads to use (overrides automatic default).")
+    parser.add_argument("--aria2-connections",
+                        type=int,
+                        required=False,
+                        default=4,
+                        help="Number of connections per aria2c instance when aria2c is used (default: 4).")
+    parser.add_argument("--file-list-file",
                         type=str,
                         required=False,
-                        help="Comma-separated list of filenames to download from the repository.")
+                        help="Path to a file that contains a comma-separated list of filenames to download from the repository."
+                             " The file may contain quoted names (CSV style) or multiple rows.")
+    parser.add_argument('--skip-push', action='store_true', required=False,
+                        help='If set, built images will NOT be pushed to the remote docker registry (useful for testing).')
     return parser.parse_args()
 
 
@@ -551,46 +613,161 @@ def main():
             raise ValueError("Repository URL, Docker repository URL and repository username must be provided.")
         if not args.input_dir:
             raise ValueError("Download destination must be provided.")
-        if args.file_list:
-            file_list = args.file_list.split(",")
+        # Read requested file list from a file (CSV-style). The file may contain
+        # quoted entries and multiple rows; use the csv module to parse robustly.
+        if args.file_list_file:
+            try:
+                with open(args.file_list_file, 'r', encoding='utf-8') as ff:
+                    reader = csv.reader(ff)
+                    # flatten rows and strip quotes/whitespace
+                    entries = [item.strip() for row in reader for item in row if item is not None]
+                    # remove surrounding quotes if present and filter empties
+                    file_list = [e.strip().strip('"').strip("'") for e in entries if e.strip()]
+            except Exception as e:
+                raise RuntimeError(f"Failed to read file list from {args.file_list_file}: {e}")
         else:
             file_list = []
         filtered_image_list = get_filtered_emulator_image_list(args.repository_url, file_list)
-        # Download all filtered images in parallel
+        # Download images in parallel and start building each image as soon as its download completes.
         download_failed = []
         download_success = []
+        build_futures = []
+        aggregate = []
+
+        # Prepare result directory and repository password before downloads/builds
+        results_dir = os.path.join(ROOT_PATH, 'results', 'emulator_image_processing')
+        os.makedirs(results_dir, exist_ok=True)
+
+        repository_password = None
+        if not args.create_local:
+            repository_password = get_repo_password(args.repository_username)
+
+        start_time = time.time()
+
+        # Ensure base images exist before starting any builds
+        if not check_if_base_images_exists():
+            create_base_images()
+
         if filtered_image_list:
-            max_workers = min(len(filtered_image_list), max(2, multiprocessing.cpu_count() * 2))
-            logging.info(f"Downloading {len(filtered_image_list)} images in parallel using {max_workers} threads")
+            # Increase download concurrency to improve throughput on high-bandwidth
+            # networks. Allow more I/O-bound download workers than CPU cores.
+            # Allow user-specified download concurrency; otherwise choose an
+            # I/O-optimized default (more threads than CPU cores).
+            if args.download_workers and int(args.download_workers) > 0:
+                download_max_workers = min(len(filtered_image_list), int(args.download_workers))
+            else:
+                download_max_workers = min(len(filtered_image_list), max(4, multiprocessing.cpu_count() * 4))
+            # Limit concurrent builds to avoid saturating CPU/Docker resources. Use args.workers if provided;
+            # otherwise default to number of CPUs.
+            build_max_workers = min(len(filtered_image_list), max(1, getattr(args, 'workers', multiprocessing.cpu_count())))
 
-            def _download_asset(asset):
-                try:
-                    dest_file = os.path.join(args.input_dir, asset['path'])
-                    logging.info(f"Downloading {asset['path']} -> {dest_file}")
-                    download_file(asset['downloadUrl'], dest_file)
-                    return (True, asset['path'], dest_file, None)
-                except Exception as e:
-                    logging.exception(f"Failed to download {asset.get('path')}: {e}")
-                    return (False, asset.get('path'), None, str(e))
+            logging.info(f"Downloading {len(filtered_image_list)} images in parallel using {download_max_workers} threads")
+            logging.info(f"Building up to {build_max_workers} images in parallel as downloads finish")
 
-            with ThreadPoolExecutor(max_workers=max_workers) as ex:
-                futures = {ex.submit(_download_asset, asset): asset for asset in filtered_image_list}
-                for fut in as_completed(futures):
+            # Executor for downloads (I/O bound) and builds (CPU / docker bound)
+            # Progress counters and synchronization
+            total_downloads = len(filtered_image_list)
+            lock = threading.Lock()
+            downloaded_count = 0
+            failed_download_count = 0
+            build_submitted_count = 0
+            builds_completed_count = 0
+            failed_build_count = 0
+
+            with ThreadPoolExecutor(max_workers=download_max_workers) as dl_ex, \
+                    ThreadPoolExecutor(max_workers=build_max_workers) as build_ex:
+
+                def _download_asset(asset):
+                    try:
+                        dest_file = os.path.join(args.input_dir, asset['path'])
+                        os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+                        logging.info(f"Downloading {asset['path']} -> {dest_file}")
+                        # Prefer aria2 multi-connection download when available; pass
+                        # configured number of connections.
+                        download_file(asset['downloadUrl'], dest_file, connections=args.aria2_connections)
+                        return (True, asset['path'], dest_file, None)
+                    except Exception as e:
+                        logging.exception(f"Failed to download {asset.get('path')}: {e}")
+                        return (False, asset.get('path'), None, str(e))
+
+                # Map of download futures -> asset
+                dl_futures = {dl_ex.submit(_download_asset, asset): asset for asset in filtered_image_list}
+
+                # Periodic reporter thread to summarize progress every N seconds
+                report_interval = 30.0
+                stop_event = threading.Event()
+
+                def _reporter():
+                    while not stop_event.is_set():
+                        stop_event.wait(report_interval)
+                        with lock:
+                            pending_downloads = sum(1 for f in dl_futures if not f.done())
+                            pending_builds = sum(1 for b in build_futures if not b.done())
+                            d_done = downloaded_count
+                            d_failed = failed_download_count
+                            b_sub = build_submitted_count
+                            b_done = builds_completed_count
+                            b_failed = failed_build_count
+                        logging.info(
+                            "Progress summary: downloads completed=%d failed=%d pending=%d | builds submitted=%d completed=%d failed=%d pending=%d",
+                            d_done, d_failed, pending_downloads, b_sub, b_done, b_failed, pending_builds
+                        )
+
+                reporter_thread = threading.Thread(target=_reporter, name='emulator-image-reporter', daemon=True)
+                reporter_thread.start()
+
+                # As downloads complete, immediately schedule build tasks (limited by build_ex)
+                for fut in as_completed(dl_futures):
                     ok, name, path, err = fut.result()
+                    with lock:
+                        if ok:
+                            downloaded_count += 1
+                        else:
+                            failed_download_count += 1
                     if ok:
                         download_success.append((name, path))
+                        logging.info(f"Download complete for {name}; submitted build task ({downloaded_count}/{total_downloads} downloads completed, {failed_download_count} failed)")
+                        # prepare task tuple for process_single_image
+                        task = (path, args.docker_repo_url, args.repository_username, repository_password, args.create_local, results_dir)
+                        build_fut = build_ex.submit(process_single_image, task)
+                        build_futures.append(build_fut)
+                        with lock:
+                            build_submitted_count += 1
+                        logging.info(f"Build queue size: {sum(1 for b in build_futures if not b.done())} (submitted {build_submitted_count})")
                     else:
                         download_failed.append((name, err))
 
+                logging.info(f"All downloads completed. Waiting for {len(build_futures)} build task(s) to finish...")
+                # Wait for all builds to finish and collect their results
+                for bf in as_completed(build_futures):
+                    try:
+                        res = bf.result()
+                        aggregate.append(res)
+                        with lock:
+                            builds_completed_count += 1
+                        logging.info(f"Build completed ({builds_completed_count}/{build_submitted_count}) for {res.get('tag')}.")
+                        if not res.get('success'):
+                            with lock:
+                                failed_build_count += 1
+                    except Exception as e:
+                        with lock:
+                            failed_build_count += 1
+                        logging.exception(f"Build task failed: {e}")
+
+                # Stop reporter thread and print final summary
+                stop_event.set()
+                try:
+                    reporter_thread.join(timeout=5.0)
+                except Exception:
+                    pass
+
         logging.info(f"Downloaded {len(download_success)} images, {len(download_failed)} failed downloads")
 
-        if len(download_success) == 0:
-            logging.error("No images were downloaded successfully; aborting processing")
+        if not aggregate and not download_success:
+            logging.error("No images were downloaded and built successfully; aborting processing")
             return
 
-        # Now process all images in input_dir (process_images is parallel internally)
-        start_time = time.time()
-        process_images(args.input_dir, args.docker_repo_url, args.repository_username, args.create_local)
+        # Write timing/log info for processing duration
         end_time = time.time()
         elapsed_time_seconds = end_time - start_time
         elapsed_time_minutes = elapsed_time_seconds / 60
@@ -610,16 +787,92 @@ def main():
                     with open(os.path.join(results_dir, fname), 'r', encoding='utf-8') as rf:
                         data = json.load(rf)
                         if data.get('success'):
-                            successful_images.append(data.get('image'))
+                            # collect tag (image name without zip extension) for pushing
+                            successful_images.append(data.get('tag'))
                         else:
                             failed_images.append({'image': data.get('image'), 'error': data.get('error')})
                 except Exception:
-                    logging.exception(f"Failed to read result file {fname}")
+                    logging.warning(f"Failed to read result file {fname}")
 
         logging.info(f"Finished processing images. Successful images: {successful_images}. Failed images: {failed_images}.")
     else:
         logging.info("Skipping download of emulator images.")
-        process_images(args.input_dir, args.docker_repo_url, args.repository_username, args.create_local)
+        summary = process_images(args.input_dir, args.docker_repo_url, args.repository_username, args.create_local, skip_push=args.skip_push)
+        # Print final aggregated summary for create_local path
+        try:
+            logging.info('Final aggregated summary: elapsed=%.2fs (%.2f minutes) | total=%d | success=%d | failed=%d',
+                         summary.get('elapsed_seconds', 0.0),
+                         summary.get('elapsed_minutes', 0.0),
+                         summary.get('total_images_processed', 0),
+                         summary.get('successful_images_count', 0),
+                         summary.get('failed_images_count', 0))
+            if summary.get('failed_images'):
+                logging.info('Short failure report: %s', summary.get('failed_images'))
+        except Exception:
+            logging.exception('Failed to log final aggregated summary for local path')
+        return
+
+    # If we reached here, we performed downloads and builds in the streaming pipeline.
+    # If pushing to remote repo is requested, perform pushes now based on result JSONs.
+    if not args.create_local and not args.skip_push:
+        # Build list of tags from the per-image result files
+        tags_to_push = successful_images
+        if tags_to_push:
+            # Authenticate once before pushing
+            if not repository_password:
+                raise RuntimeError("Repository password not provided; cannot push")
+            logging.info("Authenticating to docker registry before parallel pushes")
+            authenticate_docker_registry(args.docker_repo_url, args.repository_username, repository_password)
+
+            max_push_workers = min(8, max(1, multiprocessing.cpu_count()))
+            with ThreadPoolExecutor(max_workers=max_push_workers) as push_ex:
+                push_futures = {push_ex.submit(push_container_image, args.docker_repo_url, tag): tag for tag in tags_to_push}
+                for fut in as_completed(push_futures):
+                    tag = push_futures[fut]
+                    try:
+                        fut.result()
+                        logging.info(f"Pushed image: {tag}")
+                    except Exception as e:
+                        logging.exception(f"Failed to push image {tag}: {e}")
+
+    # Final aggregated summary for the streaming pipeline
+    try:
+        aggregate_summary = {
+            'mode': 'streaming',
+            'elapsed_seconds': elapsed_time_seconds,
+            'elapsed_minutes': elapsed_time_minutes,
+            'downloads_total': total_downloads if 'total_downloads' in locals() else None,
+            'downloads_success': len(download_success) if 'download_success' in locals() else None,
+            'downloads_failed': len(download_failed) if 'download_failed' in locals() else None,
+            'builds_submitted': build_submitted_count if 'build_submitted_count' in locals() else None,
+            'builds_completed': builds_completed_count if 'builds_completed_count' in locals() else None,
+            'builds_failed': failed_build_count if 'failed_build_count' in locals() else None,
+            'successful_images': successful_images if 'successful_images' in locals() else [],
+            'failed_images': failed_images if 'failed_images' in locals() else []
+        }
+        # write to results
+        #try:
+        #    os.makedirs(os.path.join(ROOT_PATH, 'results'), exist_ok=True)
+        #    with open(os.path.join(ROOT_PATH, 'results', 'aggregate_summary.json'), 'w', encoding='utf-8') as af:
+        #        json.dump(aggregate_summary, af, indent=2)
+        #except Exception:
+        #     logging.exception('Failed to write aggregate_summary.json')
+
+        # Human-readable logging
+        logging.info('FINAL AGGREGATED SUMMARY: elapsed=%.2fs (%.2f minutes) | downloads: total=%s success=%s failed=%s | builds: submitted=%s completed=%s failed=%s',
+                     aggregate_summary.get('elapsed_seconds'),
+                     aggregate_summary.get('elapsed_minutes'),
+                     aggregate_summary.get('downloads_total'),
+                     aggregate_summary.get('downloads_success'),
+                     aggregate_summary.get('downloads_failed'),
+                     aggregate_summary.get('builds_submitted'),
+                     aggregate_summary.get('builds_completed'),
+                     aggregate_summary.get('builds_failed'))
+
+        if aggregate_summary.get('failed_images'):
+            logging.info('Short failure report (failed images and errors): %s', aggregate_summary.get('failed_images'))
+    except Exception:
+        logging.exception('Failed to compose final aggregated summary for streaming pipeline')
 
 
 if __name__ == "__main__":

@@ -147,22 +147,25 @@ export function createOpenHandler(deps) {
                 logger.debug('Could not set user.deviceAdb/serial', e?.message || e);
             }
 
-            // Pipe client stdout to logger
-            logger.info(`Setting up client.stdout piping for id='${id}'`);
-            if (client.stdout && typeof client.stdout.pipeTo === 'function') {
+            // Pipe client output to logger.
+            // The scrcpy library requires client.output to be consumed; if left unread the
+            // ADB stdout channel will eventually fill up and stall the entire ADB connection
+            // (including video/audio channels). Note: the property is `output`, not `stdout`.
+            logger.info(`Setting up client.output piping for id='${id}'`);
+            if (client.output && typeof client.output.pipeTo === 'function') {
                 try {
-                    client.stdout.pipeTo(
+                    client.output.pipeTo(
                         new WritableStream({ write: (line) => logger.info(line) }),
                         { signal: user.abortController?.signal || undefined },
                     ).catch((e) => {
                         if (user?.abortController?.signal?.aborted) return;
-                        logger.error('Error piping client.stdout:', e);
+                        logger.error('Error piping client.output:', e);
                     });
                 } catch (e) {
-                    logger.error('Exception while piping client.stdout:', e);
+                    logger.error('Exception while piping client.output:', e);
                 }
             } else {
-                logger.debug('client.stdout not available, skipping stdout piping');
+                logger.debug('client.output not available, skipping output piping');
             }
 
             // Pipe clipboard events to client

@@ -18,8 +18,9 @@
     dns:
       - 172.31.250.2
     volumes:
-        - ./emulator_out/{{ image_name }}:/android/testing_service/out
-        - ./emulator_out/{{ image_name }}/crash:/tmp/android-unknown/
+        - ./emulator/emulator_out/{{ image_name }}:/android/testing_service/out
+        - ./emulator/emulator_out/{{ image_name }}/app_testing_tools/out:/android/testing_service/app_testing_tools/out
+        #- ./emulator/emulator_out/{{ image_name }}/crash:/tmp/android-unknown/
 {%- for line in optional_settings %}
     {{ line }}
 {%- endfor %}

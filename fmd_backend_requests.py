@@ -4,11 +4,16 @@ import logging
 import os
 import re
 import time
+import shutil
+import subprocess
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from werkzeug.utils import secure_filename
 from string import Template
 from tqdm import tqdm
+from urllib.parse import urlparse
 from config import FMD_AUTH_QUERY_TEMPLATE, VERIFY_SSL, FMD_CSRF_URL_TEMPLATE, FMD_AECS_FIRMWARE_QUERY_TEMPLATE, \
     FMD_FIRMWARE_BUILD_FILES_DOWNLOAD_TEMPLATE, FMD_GRAPHQL_URL_TEMPLATE, NEXUS_SERVICE_ENDPOINT, \
     FMD_APP_MANIFEST_QUERY_TEMPLATE
@@ -116,7 +121,8 @@ def get_firmware_ids(graphql_url, cookies, arch=None, pk_filter=None):
     return object_id_list
 
 
-def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_abs_path, max_attempts=100):
+def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_abs_path,
+                                  auth_username=None, auth_password=None, max_attempts=10):
     """
     Downloads the build files for the given Android app (object id) and shows a progress bar of the download.
 
@@ -154,12 +160,48 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
             if output_file_path and os.path.exists(output_file_path):
                 current_size = os.path.getsize(output_file_path)
                 headers["Range"] = f"bytes={current_size}-"
+            # Use an explicit (connect, read) timeout tuple. ReadTimeouts were
+            # observed previously — increase the read timeout to allow slower
+            # transfers to proceed without aborting prematurely.
             response = requests.post(download_url,
                                      data=request_body,
                                      headers=headers,
                                      stream=True,
                                      verify=VERIFY_SSL,
-                                     cookies=cookies)
+                                     cookies=cookies,
+                                     timeout=(10, 600))
+            # If we get a 403 Forbidden, try to re-authenticate (best-effort) and retry.
+            if response is not None and response.status_code == 403:
+                logging.warning("Received 403 Forbidden while downloading build files. Attempting re-authentication...")
+                # Only attempt re-authentication if credentials were provided
+                if auth_username and auth_password:
+                    try:
+                        # Fetch fresh CSRF token and authenticate to update cookies
+                        new_csrf = get_csrf_token(fmd_url)
+                        graphql_url = get_graphql_url(fmd_url)
+                        new_auth_cookies = authenticate_fmd(graphql_url, auth_username, auth_password, new_csrf)
+                        # Update cookies and headers for subsequent attempts. Try to update the passed-in
+                        # cookie jar in-place so callers see the refreshed cookies as well.
+                        try:
+                            # If cookies is a cookiejar-like object, update it in-place
+                            cookies.clear()
+                            for k, v in new_auth_cookies.items():
+                                cookies.set(k, v)
+                        except Exception:
+                            # Fallback: replace local reference
+                            cookies = new_auth_cookies
+                        headers["X-CSRFToken"] = (cookies.get("csrftoken") if hasattr(cookies, 'get') else headers.get("X-CSRFToken"))
+                        if cookies and "jwt-session" in cookies.keys():
+                            headers["Authorization"] = f"Bearer {cookies['jwt-session']}"
+                        logging.info("Re-authentication succeeded; will retry download request.")
+                        attempt += 1
+                        time.sleep(1)
+                        continue
+                    except Exception as reauth_err:
+                        logging.error(f"Re-authentication failed: {reauth_err}")
+                        # fall through to raise below and trigger backoff
+                else:
+                    logging.error("No credentials provided; cannot re-authenticate after 403")
             response.raise_for_status()
             if not content_disposition_header:
                 content_disposition_header = response.headers['Content-Disposition']
@@ -170,7 +212,9 @@ def download_firmware_build_files(fmd_url, firmware_id, cookies, aosp_packages_a
             progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
             logging.info(f"Downloading firmware build files to {output_file_path}...")
             with open(output_file_path, mode="ab") as file:
-                for chunk in response.iter_content(chunk_size=10 * 1024):
+                for chunk in response.iter_content(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
                     progress_bar.update(len(chunk))
                     file.write(chunk)
             progress_bar.close()
@@ -219,36 +263,129 @@ def upload_image_as_raw(repo_url, username, password, file_path, filename):
 
     url = f'{repo_url}{filename}'
     logging.info(f'Uploading image {file_path} as raw to {url}')
-    with open(file_path, 'rb') as f:
-        response = requests.put(url, auth=(username, password), data=f, verify=VERIFY_SSL)
+    try:
+        with open(file_path, 'rb') as f:
+            response = requests.put(url, auth=(username, password), data=f, verify=VERIFY_SSL)
+    except Exception as err:
+        logging.error(f"Failed to upload image: {err}")
 
-    if response.status_code == 200 or response.status_code == 201:
+    if response is not None and (response.status_code == 200 or response.status_code == 201):
         logging.info('File uploaded successfully')
         is_successful = True
     else:
-        logging.error(f'Failed to upload file: {response.text}')
+        # Build helpful diagnostic information and a curl reproduction command for manual testing
+        try:
+            status = getattr(response, 'status_code', None)
+            resp_text = None
+            try:
+                resp_text = response.text
+            except Exception:
+                resp_text = '<unable to read response.text>'
+            preview = resp_text if resp_text is None or len(resp_text) <= 2000 else resp_text[:2000] + '...[truncated]'
+            logging.error('Failed to upload file to %s. status=%s, preview=%s', url, status, preview)
+
+            # Construct a curl command for the original PUT attempt (safe: do NOT include password)
+            curl_put = (
+                f"curl -v -u '{username}:REPLACE_WITH_PASSWORD' -H 'Content-Type: application/octet-stream' "
+                f"--upload-file '{file_path}' '{url}'"
+            )
+            if not VERIFY_SSL:
+                curl_put += ' --insecure'
+            logging.error('To reproduce the PUT upload manually (replace REPLACE_WITH_PASSWORD):\n%s', curl_put)
+
+            # If the repo URL looks like it contains a repository name, suggest a Nexus REST API curl as well
+            try:
+                parsed = urlparse(repo_url)
+                path_parts = [p for p in parsed.path.split('/') if p]
+                if len(path_parts) >= 1:
+                    repo_name = path_parts[0]
+                    raw_dir = '/'.join(path_parts[1:]) if len(path_parts) > 1 else ''
+                    rest_api_url = f"{parsed.scheme}://{parsed.netloc}/service/rest/v1/components?repository={repo_name}"
+                    curl_rest = (
+                        f"curl -v -u '{username}:REPLACE_WITH_PASSWORD' \\"
+                        f"-F raw.asset1=@'{file_path}';filename={filename} ")
+                    if raw_dir:
+                        curl_rest += f"-F raw.directory={raw_dir} "
+                    curl_rest += f"-F raw.asset1.filename={filename} -F Filename={filename} '{rest_api_url}'"
+                    if not VERIFY_SSL:
+                        curl_rest += ' --insecure'
+                    logging.error('If the server requires Nexus REST API upload, try:\n%s', curl_rest)
+            except Exception:
+                # best-effort; don't fail logging
+                pass
+        except Exception as e:
+            logging.exception('Error while preparing upload diagnostics: %s', e)
+
     return is_successful, url
 
 
-def download_file(url, destination):
+def download_file(url, destination, connections: int = None):
     """
     Downloads a file from the given URL and saves it to the specified destination.
 
+    If `aria2c` is available on PATH, spawn it with multiple connections to
+    accelerate downloads. Otherwise fall back to a requests-based downloader
+    using a pooled Session and retries.
+
     :param url: str - URL of the file to download.
     :param destination: str - Path where the downloaded file should be saved.
+    :param connections: int - number of parallel connections for aria2c (optional)
     """
-    response = requests.get(url, stream=True, verify=VERIFY_SSL)
+    # Prefer aria2c when available for multi-connection downloads
+    aria2c = shutil.which('aria2c')
+    if aria2c:
+        try:
+            dest_dir = os.path.dirname(destination) or '.'
+            dest_name = os.path.basename(destination)
+            os.makedirs(dest_dir, exist_ok=True)
+            # Determine number of connections to use; default to 4 if not provided
+            conns = int(connections) if connections and int(connections) > 0 else 4
+            aria2_cmd = [aria2c, '-x', str(conns), '-s', str(conns), f'--max-connection-per-server={conns}',
+                         '--dir', dest_dir, '--out', dest_name, '--continue=true', '--max-tries=5', '--retry-wait=5', url]
+            logging.info('Downloading via aria2c: %s', ' '.join(aria2_cmd))
+            res = subprocess.run(aria2_cmd, capture_output=True, text=True)
+            if res.returncode == 0:
+                logging.info('aria2c download succeeded: %s', destination)
+                return
+            else:
+                logging.warning('aria2c failed (rc=%s). Falling back to requests. stderr: %s', res.returncode, res.stderr[:500])
+        except Exception as e:
+            logging.warning('aria2c invocation failed: %s. Falling back to requests.', e)
 
-    if response.status_code == 200:
-        file_size = int(response.headers.get('Content-Length', 0))
-        progress = tqdm(response.iter_content(1024), f'Downloading {url}',
-                        total=file_size, unit='B', unit_scale=True, unit_divisor=1024)
-        with open(destination, 'wb') as file:
-            for data in progress.iterable:
-                file.write(data)
-                progress.update(len(data))
-    else:
-        raise RuntimeError(f"Failed to download file. Status code: {response.status_code}")
+    # Fallback to requests-based downloader (connection-pooled session)
+    global _HTTP_SESSION
+    try:
+        _HTTP_SESSION
+    except NameError:
+        _HTTP_SESSION = requests.Session()
+        # Configure a Retry strategy: a few retries on idempotent errors/backoffs
+        retries = Retry(total=5,
+                        backoff_factor=1,
+                        status_forcelist=(500, 502, 503, 504),
+                        allowed_methods=frozenset(['GET', 'HEAD']))
+        adapter = HTTPAdapter(max_retries=retries, pool_connections=20, pool_maxsize=100)
+        _HTTP_SESSION.mount('http://', adapter)
+        _HTTP_SESSION.mount('https://', adapter)
+
+    # Use a larger chunk size for faster writes (reduce Python overhead)
+    chunk_size = 64 * 1024  # 64 KiB
+
+    # Increase connect and read timeout to be tolerant of slow servers / networks.
+    with _HTTP_SESSION.get(url, stream=True, verify=VERIFY_SSL, timeout=(10, 600)) as response:
+        if response.status_code == 200:
+            file_size = int(response.headers.get('Content-Length', 0))
+            # Use tqdm for progress reporting
+            progress = tqdm(total=file_size, desc=f'Downloading {os.path.basename(url)}', unit='B', unit_scale=True, unit_divisor=1024)
+            os.makedirs(os.path.dirname(destination) or '.', exist_ok=True)
+            with open(destination, 'wb') as file:
+                for chunk in response.iter_content(chunk_size=chunk_size):
+                    if not chunk:
+                        continue
+                    file.write(chunk)
+                    progress.update(len(chunk))
+            progress.close()
+        else:
+            raise RuntimeError(f"Failed to download file. Status code: {response.status_code}")
 
 
 def fetch_emulator_image_list(repository_url, repository_name="emulator-images"):
@@ -269,12 +406,12 @@ def fetch_emulator_image_list(repository_url, repository_name="emulator-images")
         params = {'repository': repository_name}
         if continuation_token:
             params['continuationToken'] = continuation_token
-            print(f"Fetching page with token: {continuation_token}")
+            logging.debug('Fetching page with token: %s', continuation_token)
         response = requests.get(repository_url, params=params, timeout=10)
 
         if response.status_code != 200:
-            print(f"Failed to fetch data: {response.status_code}")
-            print(response.text)
+            logging.error('Failed to fetch data: %s', response.status_code)
+            logging.debug(response.text)
             break
 
         data = response.json()

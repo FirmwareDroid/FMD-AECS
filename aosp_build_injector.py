@@ -11,6 +11,7 @@ import uuid
 import logging
 import shutil
 import subprocess
+import signal
 import glob
 from pathlib import Path
 import concurrent.futures
@@ -19,6 +20,7 @@ from tqdm import tqdm
 from jinja2 import Environment, FileSystemLoader
 from getpass import getpass
 import time
+from urllib.parse import urlparse
 from aosp_apex_injector import repackage_apex_file
 from aosp_post_build_injector import start_post_build_injector
 from common import extract_zip, load_configs
@@ -57,26 +59,74 @@ def _acv_instrument_worker(params):
     apk_path, firmware_folder, acv_executable, safe_cwd = params
     filename = os.path.basename(apk_path)
     current_cwd = os.path.abspath(os.getcwd())
+    start = None
+    proc = None
     try:
-        # create out folder under firmware_folder using parent dir name
+        # create a unique out folder under firmware_folder using parent dir name
+        # If the folder already exists, append a suffix ("_1", "_2", ...) until a non-existing folder is found.
         base_dir = Path(apk_path).parent.name
         out_folder = os.path.join(firmware_folder, base_dir)
+        if os.path.exists(out_folder):
+            idx = 1
+            while True:
+                candidate_name = f"{base_dir}_{idx}"
+                candidate_path = os.path.join(firmware_folder, candidate_name)
+                if not os.path.exists(candidate_path):
+                    out_folder = candidate_path
+                    break
+                idx += 1
+        # create the (unique) out folder
         os.makedirs(out_folder, exist_ok=True)
         os.chdir(safe_cwd)
         cmd = [acv_executable, "instrument", "-f", apk_path, "--wd", out_folder]
         start = time.time()
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=700)
-        elapsed = round(time.time() - start, 2)
-        if proc.returncode != 0:
-            out = proc.stdout.decode(errors='ignore') if proc.stdout else ""
-            return (filename, elapsed, "failed", out)
-        return (filename, elapsed, "success", "")
+        # start process in a new session / process group so we can kill the whole group on timeout
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+        try:
+            out, _ = proc.communicate(timeout=700)
+            elapsed = round(time.time() - start, 2)
+            if proc.returncode != 0:
+                out_decoded = out.decode(errors='ignore') if out else ""
+                return (filename, elapsed, "failed", out_decoded, os.path.basename(out_folder))
+            return (filename, elapsed, "success", "", os.path.basename(out_folder))
+        except subprocess.TimeoutExpired:
+            # Attempt to terminate the whole process group first, then force kill if necessary
+            elapsed = round(time.time() - start, 2)
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except Exception:
+                pass
+            # give processes a short grace period to exit and collect output
+            try:
+                out, _ = proc.communicate(timeout=5)
+            except Exception:
+                out = None
+            # ensure everything is dead
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except Exception:
+                pass
+            out_decoded = out.decode(errors='ignore') if out else ""
+            return (filename, elapsed, "failed", f"TimeoutExpired: {out_decoded}", os.path.basename(out_folder))
     except Exception as e:
-        elapsed = round((time.time() - start) if 'start' in locals() else 0.0, 2)
-        return (filename, elapsed, "failed", str(e))
+        elapsed = round((time.time() - start) if start else 0.0, 2)
+        # try to capture any remaining output
+        out = None
+        try:
+            if proc:
+                out, _ = proc.communicate(timeout=1)
+        except Exception:
+            pass
+        out_decoded = out.decode(errors='ignore') if out else ""
+        return (filename, elapsed, "failed", f"{str(e)} {out_decoded}", os.path.basename(out_folder) if 'out_folder' in locals() else "")
+    finally:
+        try:
+            os.chdir(current_cwd)
+        except Exception:
+            pass
 
 
-def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
+def add_acvtool_instrumentation_multiprocessing(firmware_id, version=None, lunch_target=None, tag=None, delete_instrumented_apks=False, max_workers=None):
     """Parallel version of add_acvtool_instrumentation using multiple processes.
 
     Processes APKs in parallel using a process pool. Writes a timing JSON (same layout as
@@ -96,23 +146,46 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
         return result_dict
 
     apk_path_list = glob.glob(os.path.join(EXTRACTED_PACKAGES_PATH, "**", "*.apk"), recursive=True)
+    # Allow pre-injector configuration to specify keywords which, when present in an APK filename,
+    # cause the APK to be skipped for ACVTool instrumentation.
+    skip_keywords = []
+    try:
+        skip_keywords = PRE_INJECTOR_CONFIG.get("ACVTOOL_SKIP_APK_KEYWORDS", []) or []
+        # normalize to lowercase for case-insensitive matching
+        skip_keywords = [k.lower() for k in skip_keywords if isinstance(k, str) and k.strip()]
+    except Exception:
+        skip_keywords = []
+
+    if skip_keywords:
+        initial_count = len(apk_path_list)
+        skipped_list = []
+        filtered = []
+        for p in apk_path_list:
+            name = os.path.basename(p).lower()
+            if any(kw in name for kw in skip_keywords):
+                skipped_list.append(p)
+            else:
+                filtered.append(p)
+        apk_path_list = filtered
+        logging.info(f"ACVTool instrumentation: skipped {len(skipped_list)} APK(s) matching skip keywords ({skip_keywords}).")
+        if skipped_list:
+            logging.debug(f"Skipped APKs: {skipped_list}")
+
     logging.info(f"Found {len(apk_path_list)} APK files for ACVTool instrumentation (parallel mode).")
 
     per_file_times = {}
+    acv_error_entries = []
     start_time = time.time()
 
     base_path_acv = str(os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation"))
     firmware_folder = str(os.path.join(base_path_acv, firmware_id))
-    # remove previous results and recreate folder
     shutil.rmtree(firmware_folder, ignore_errors=True)
     os.makedirs(firmware_folder, exist_ok=True)
     logging.info(f"Deleted and recreated ACVTool instrumentation folder: {firmware_folder}")
 
     firmware_folder_abs = os.path.abspath(firmware_folder)
-    # prepare worker args
     worker_args = [(apk_path, firmware_folder, acv_executable, firmware_folder_abs) for apk_path in apk_path_list]
 
-    # decide number of workers
     if max_workers is None:
         try:
             max_workers = os.cpu_count() * 3 or 4
@@ -125,17 +198,81 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(_acv_instrument_worker, args): args[0] for args in worker_args}
         for fut in concurrent.futures.as_completed(futures):
+            # `futures` maps each Future -> original apk path (or sometimes just a filename).
+            # Ensure we work with the original absolute path. If only a filename was stored,
+            # try to resolve it from the apk_path_list gathered earlier.
             apk = futures[fut]
             try:
-                filename, elapsed, status, error = fut.result()
+                # if apk is not an absolute path or doesn't exist on disk, attempt to find
+                # the original full path by matching the basename against the discovered list
+                if not apk or (not os.path.isabs(apk) or not os.path.exists(apk)):
+                    basename = os.path.basename(str(apk))
+                    matches = [p for p in apk_path_list if os.path.basename(p) == basename]
+                    if matches:
+                        apk = matches[0]
+                    else:
+                        apk = futures[fut]
+                # _acv_instrument_worker returns (filename, elapsed, status, error, out_folder_basename)
+                filename, elapsed, status, error, out_dirname = fut.result()
                 per_file_times[filename] = {"duration_seconds": elapsed, "status": status}
                 if status == "success":
                     result_dict["success"].append(filename)
                     logging.info(f"ACVTool instrumentation succeeded for {filename} in {elapsed}s (parallel)")
+                    # If instrumentation succeeded, replace the original APK with the instrumented one
+                    try:
+                        # original apk path is in `apk` (from futures mapping)
+                        # Use the actual output folder basename returned by the worker. Fall back to the
+                        # original parent folder name if, for some reason, the worker didn't provide it.
+                        base_dir = out_dirname or os.path.basename(os.path.dirname(apk))
+                        out_folder = os.path.join(firmware_folder_abs, base_dir)
+                        instr_name = f"instr_{filename}"
+                        instr_path = os.path.join(out_folder, instr_name)
+                        logging.info(f"Attempt to replace original APK %s with instrumented APK %s", apk, instr_path)
+                        try:
+                            if not os.path.exists(instr_path):
+                                # Fallback: search for any .apk file in the ACV output folder
+                                try:
+                                    apk_files = [f for f in os.listdir(out_folder) if f.lower().endswith('.apk')]
+                                except Exception:
+                                    apk_files = []
+                                if len(apk_files) == 1:
+                                    found = os.path.join(out_folder, apk_files[0])
+                                    logging.info('Found single APK in ACV output folder %s; using %s as instrumented APK', out_folder, found)
+                                    instr_path = found
+                                elif len(apk_files) > 1:
+                                    logging.error('Multiple APKs found in ACV output folder %s; cannot deterministically pick instrumented APK. Files: %s', out_folder, apk_files)
+                                    instr_path = None
+                                else:
+                                    instr_path = None
+
+                            if instr_path and os.path.exists(instr_path):
+                                try:
+                                    # Copy the discovered instrumented APK over the original APK path (preserving original name)
+                                    shutil.copy2(instr_path, apk)
+                                    logging.info('Replaced original APK %s with instrumented APK %s', apk, instr_path)
+                                    # Attempt to remove the instrumented file in the ACV output (best-effort)
+                                    try:
+                                        os.remove(instr_path)
+                                    except Exception:
+                                        logging.warning('Could not remove instrumented APK %s after replacing original', instr_path)
+                                except Exception:
+                                    logging.exception('Failed to replace original APK %s with instrumented APK %s', apk, instr_path)
+                            else:
+                                logging.error('Instrumented APK not found at expected location: %s', os.path.join(out_folder, instr_name))
+                        except Exception:
+                            logging.exception('Unexpected error while attempting to replace original APK %s with instrumented APK in %s', apk, out_folder)
+                    except Exception:
+                        logging.exception('Unexpected error while attempting to replace original APK for %s', filename)
                 else:
                     result_dict["failed"].append(filename)
-                    per_file_times[filename]["error"] = error
-                    logging.error(f"ACVTool instrumentation failed for {filename} in {elapsed}s (parallel): {error}")
+                    # Record error separately (do not include error strings inside the results_acv.json)
+                    acv_error_entries.append({
+                        "filename": filename,
+                        "duration_seconds": elapsed,
+                        "error": error,
+                    })
+                    logging.error(f"ACVTool instrumentation failed for {filename} ({apk}) in {elapsed}s (parallel)")
+                    logging.debug(f"ACVTool error: {error}")
             except Exception as e:
                 # Shouldn't happen often; record generic failure
                 fname = os.path.basename(futures[fut])
@@ -159,19 +296,125 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
     # write timing JSON to firmware folder
     try:
         logging.info(f"Writing ACVTool instrumentation result: {summary}")
+        # Summary should not contain raw error messages; errors are written to a separate acv_error.log
         write_json_output(summary, PATH_BUILD_ACV_LOG)
     except Exception as err:
         logging.error(f"Failed to write timing JSON: {err}")
 
+    # Write ACVTool errors (if any) to a separate NDJSON error log to avoid polluting results_acv.json
+    if acv_error_entries:
+        try:
+            for entry in acv_error_entries:
+                # append each error as a JSON line
+                from json_writer import write_json_nd_output
+                write_json_nd_output(entry, PATH_BUILD_ACV_ERROR_LOG)
+            logging.info('Wrote ACVTool errors to %s (entries=%d)', PATH_BUILD_ACV_ERROR_LOG, len(acv_error_entries))
+        except Exception as err:
+            logging.exception('Failed to write ACVTool error log: %s', err)
+
     logging.info(f"ACVTool instrumentation parallel result: {result_dict}")
     # Create a single zip archive for the firmware's ACVTool output to save space and remove intermediate files.
     try:
-        # sanitize firmware_id for filename
-        safe_firmware_id = re.sub(r"\W+", "_", firmware_id)
-        archive_base = os.path.join(base_path_acv, f"acvtool-{safe_firmware_id}")
-        # shutil.make_archive will append the .zip extension
+        # Build archive filename to match the emulator image artefact filename, prefixed with 'acvtool_'
+        # Determine tag part similar to process_firmware_ids
+        try:
+            if tag:
+                # sanitize tag first to avoid using backslashes inside the f-string expression
+                sanitized_tag = re.sub(r'\W+', '_', tag)
+                tag_part = f"_{sanitized_tag}"
+            else:
+                tag_part = ""
+        except Exception:
+            tag_part = ""
+        # If version or lunch_target are not provided, fall back to safe defaults
+        ver = version or ''
+        lt = lunch_target or ''
+        emulator_filename = f"{firmware_id}_v{ver}_{lt}{tag_part}.zip".replace('-', '_')
+        acv_filename = f"acvtool_{emulator_filename}"
+        archive_base = os.path.join(base_path_acv, acv_filename.replace('.zip', ''))
+        # If requested, remove instrumented .apk files from the ACV output folder so they are not included in the archive
+        if delete_instrumented_apks:
+            removed_count = 0
+            for root, dirs, files in os.walk(firmware_folder):
+                for fname in files:
+                    if fname.lower().endswith('.apk'):
+                        fpath = os.path.join(root, fname)
+                        try:
+                            os.remove(fpath)
+                            removed_count += 1
+                            fpath = os.path.join(root, os.path.splitext(fname.replace("instr_", ""))[0] + ".txt")
+                            with open(fpath, "w", encoding="utf-8") as f:
+                                # empty file (creates/truncates)
+                                pass
+                        except Exception:
+                            logging.exception('Failed to remove instrumented apk: %s', fpath)
+            logging.info('Removed %d instrumented APK(s) from ACV output folder before archiving', removed_count)
+        # Remove any directories named 'apktool' from the firmware_folder to avoid including build artifacts
+        try:
+            apktool_removed = 0
+            for root, dirs, files in os.walk(firmware_folder):
+                # iterate over a copy since we may modify dirs in-place
+                for d in list(dirs):
+                    if d.lower() == 'apktool':
+                        full_dpath = os.path.join(root, d)
+                        try:
+                            shutil.rmtree(full_dpath)
+                            apktool_removed += 1
+                            # prevent os.walk from descending into this directory
+                            dirs.remove(d)
+                        except Exception:
+                            logging.exception('Failed to remove apktool directory: %s', full_dpath)
+            if apktool_removed:
+                logging.info('Removed %d apktool directory(ies) from ACV output folder before archiving', apktool_removed)
+        except Exception:
+            logging.exception('Error while scanning for apktool directories in %s', firmware_folder)
         logging.info(f"Creating ACVTool archive {archive_base}.zip from folder: {firmware_folder}")
         archive_path = shutil.make_archive(archive_base, 'zip', root_dir=firmware_folder)
+
+        # Attempt to upload the created archive to the FMD Nexus repository raw_files
+        try:
+            # Use repository base provided via globals (set at startup) or environment variables
+            repo_base = globals().get('DOCKER_REPO_URL_GLOBAL')
+            repo_user = globals().get('DOCKER_REPO_USERNAME_GLOBAL')
+            repo_pass = globals().get('DOCKER_REPO_PASSWORD_GLOBAL')
+
+            if not repo_pass or not repo_user:
+                logging.error("Repository credentials not fully provided (user: %s, pass: %s). Skipping upload of ACVTool archive.", repo_user, '***' if repo_pass else None)
+                raise RuntimeError("Repository credentials not fully provided")
+
+            if repo_base:
+                # Normalize the provided repo_base by stripping any path segments and keeping scheme+domain:port
+                try:
+                    tmp = repo_base
+                    if '://' not in tmp:
+                        tmp = 'https://' + tmp
+                    parsed = urlparse(tmp)
+                    scheme = parsed.scheme or 'https'
+                    netloc = parsed.netloc
+                    if not netloc:
+                        # Fallback: use the original string without trailing slash
+                        domain_base = repo_base.rstrip('/')
+                    else:
+                        domain_base = f"{scheme}://{netloc}"
+                    # Reconstruct repository path to point to repository/raw_files under the domain:port
+                    raw_repo = domain_base.rstrip('/') + '/repository/raw_files/'
+                except Exception:
+                    raw_repo = repo_base.rstrip('/') + '/raw_files/'
+                archive_filename = os.path.basename(archive_path)
+                logging.info(f'Uploading ACVTool archive {archive_filename} to raw_files repository {raw_repo}')
+                try:
+                    is_uploaded, download_url = upload_build_artefact(raw_repo, repo_user, repo_pass, archive_path, archive_filename)
+                    if is_uploaded:
+                        logging.info(f'ACVTool archive uploaded successfully: {download_url}')
+                    else:
+                        logging.error('Failed to upload ACVTool archive to raw_files repository')
+                except Exception as e:
+                    logging.exception(f'Error while uploading ACVTool archive to raw_files: {e}')
+            else:
+                logging.debug('No repository base provided; skipping upload of ACVTool archive')
+        except Exception:
+            logging.exception('Unexpected error during ACVTool archive upload step')
+
         # If archive created successfully, remove the intermediate firmware_folder to save disk space
         if archive_path and os.path.exists(archive_path):
             try:
@@ -184,8 +427,22 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id, max_workers=None):
         logging.error(f"Failed to create ACVTool archive for firmware {firmware_id}: {e}")
     return result_dict
 
+def fix_missing_file(aosp_path, aosp_version):
+    """
+    Creates the displayconfig file to fix an aosp error on Android 14
+    """
+    if aosp_version in ["14"]:
+        # out / target / product / emulator64_arm64 / vendor / etc / displayconfig
+        display_config_path = os.path.join(aosp_path, 'out/target/product/emulator64_arm64/vendor/etc/')
+        os.makedirs(display_config_path, exist_ok=True)
+        file_path = os.path.join(display_config_path, "displayconfig")
+        try:
+            with open(file_path) as f:
+                f.seek(0)
+        except Exception:
+            logging.warning(f"Could not create displayconfig: {file_path}")
 
-def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering, cookies):
+def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering, cookies, tag=None):
     """
     Wrapper method to start the firmware injection and build process.
 
@@ -223,8 +480,13 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     try:
         move_txt_files(EXTRACTED_PACKAGES_PATH, BUILD_OUT_PATH)
         if PRE_INJECTOR_CONFIG["ENABLE_ACVTOOL_INSTRUMENTATION"]:
-            #add_acvtool_instrumentation(firmware_id)
-            acv_result_dict = add_acvtool_instrumentation_multiprocessing(firmware_id)
+            acv_result_dict = add_acvtool_instrumentation_multiprocessing(
+                firmware_id,
+                version=aosp_version,
+                lunch_target=lunch_target,
+                tag=tag,
+                delete_instrumented_apks=ACVTOOL_DELETE_INSTRUMENTED_APKS
+            )
 
         if PRE_INJECTOR_CONFIG["ENABLE_INJECTION"]:
             included_package_statistics = move_packages_to_aosp(aosp_path, EXTRACTED_PACKAGES_PATH, lunch_target, aosp_version)
@@ -272,6 +534,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
         try:
+            fix_missing_file(aosp_path, aosp_version)
             main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
             build_start_time = time.time()
             execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
@@ -765,7 +1028,11 @@ def is_package_skipped(dir_name, package_path):
     :returns: bool - True if the package should be skipped, False otherwise.
     """
     dir_name_cleaned = clean_package_name(dir_name)
-    if dir_name_cleaned in SKIPPED_MODULE_NAMES or any(keyword in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["BLACKLISTED_KEYWORDS"]):
+    if dir_name_cleaned in SKIPPED_MODULE_NAMES or any(
+            (match := keyword) in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["BLACKLISTED_KEYWORDS"]):
+        keyword_match = match if "match" in locals() else "SKIPPED_MODULE_NAME"
+        logging.info(
+            f"Skipping package due to blacklisted keyword: {dir_name_cleaned} - matching keyword: {keyword_match}")
         return True
     elif check_file_extension(package_path, [".apk"]):
         if not "_FMD_APEX" in dir_name:
@@ -1107,7 +1374,7 @@ def clear_environment(aosp_path, aosp_packages_apps_path, aosp_version):
         replace_build_image_file(aosp_path)
 
 
-def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder):
+def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder, auth_username=None, auth_password=None):
     """
     Main wrapper routine to download and extract firmware build files for aosp.
     Args:
@@ -1126,7 +1393,9 @@ def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder)
             zip_file_path = download_firmware_build_files(fmd_url,
                                                           firmware_id,
                                                           cookies,
-                                                          extract_destination_folder)
+                                                          extract_destination_folder,
+                                                          auth_username=auth_username,
+                                                          auth_password=auth_password)
             tmp_path = os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME)
             os.makedirs(tmp_path, exist_ok=True)
             extract_zip(zip_file_path, tmp_path)
@@ -1134,8 +1403,8 @@ def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder)
             is_successful = True
         except Exception as err:
             logging.error(f"Error fetching firmware build files: {err}")
-            exit(-1)
     logging.debug(f"Completed firmware build file download to {extract_destination_folder}")
+    return is_successful
 
 
 def parse_arguments():
@@ -1278,7 +1547,7 @@ def setup_firmware_logger(firmware_id):
 
 
 
-def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
+def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, fmd_password):
     aosp_packages_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
     aosp_version = args.version
     if args.arch == SUPPORTED_ARCHITECTURES[0]:
@@ -1305,9 +1574,14 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
     except FileNotFoundError:
         pass
     for firmware_id in tqdm(firmware_id_list):
+        logging.info(f"Number of firmware ids left to process: {len(firmware_id_list) - firmware_id_list.index(firmware_id)}")
         try:
             logging.info(f"Start fetching build files for firmware-id: {firmware_id}")
-            fetch_build_files(firmware_id, cookies, args.fmd_url, BUILD_OUT_PATH)
+            is_download_success = fetch_build_files(firmware_id, cookies, args.fmd_url, BUILD_OUT_PATH,
+                                                   auth_username=args.fmd_username, auth_password=fmd_password)
+            if not is_download_success:
+                failed_firmware_ids.append(firmware_id)
+                continue
             logging.debug(f"Start emulator image build process for firmware-id: {firmware_id}")
 
             file_handler = setup_firmware_logger(firmware_id)
@@ -1320,7 +1594,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                                                     lunch_target=lunch_target,
                                                     aosp_version=args.version,
                                                     skip_filtering=args.skip_filtering,
-                                                    cookies=cookies)
+                                                    cookies=cookies,
+                                                    tag=getattr(args, 'tag', None))
                 end_time = time.time()
                 duration = end_time - start_time
 
@@ -1368,6 +1643,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password):
                     succeed_firmware_ids.append(firmware_id)
                     download_url_list.append(download_url)
                     write_text_output(filename, PATH_BUILD_FILE_ARTEFACT_LOG)
+                    logging.info(f"Number of Success builds so far: {len(succeed_firmware_ids)}. Number of failed builds so far: {len(failed_firmware_ids)}.")
                 else:
                     raise RuntimeError(f"Upload process for firmware-id: {firmware_id} failed.")
             else:
@@ -1435,9 +1711,13 @@ def main():
     logging.info(f"Pre-injector config: {PRE_INJECTOR_CONFIG_PATH}, Post-injector config: {POST_INJECTOR_CONFIG_PATH}")
     set_skipped_module_names()
     fmd_password, docker_repo_password = get_passwords(args)
+    # Expose docker/nexus repo credentials as globals so helper functions can upload artefacts
+    globals()['DOCKER_REPO_URL_GLOBAL'] = args.docker_repo_url
+    globals()['DOCKER_REPO_USERNAME_GLOBAL'] = args.docker_repo_username
+    globals()['DOCKER_REPO_PASSWORD_GLOBAL'] = docker_repo_password
     csrf_cookie = get_csrf_token(args.fmd_url)
     firmware_id_list, cookies = fetch_firmware_ids(args, fmd_password, csrf_cookie)
-    process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password)
+    process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, fmd_password)
     logging.info("===============================================================")
 
 

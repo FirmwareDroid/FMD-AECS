@@ -15,6 +15,7 @@ import subprocess
 import sys
 import time
 import logging
+import shutil
 
 
 def run_cmd(cmd):
@@ -109,6 +110,103 @@ def tail_contains(path, needle):
         return False
 
 
+def _check_device_responsive(timeout=5):
+    """Return True if an adb-connected device/emulator responds to basic dumpsys/getprop checks.
+
+    Picks the first device reported by `adb devices` in state 'device' and runs a short
+    `dumpsys activity activities` and `getprop sys.boot_completed` to determine responsiveness.
+    Returns True if any check returns quickly with non-empty output.
+    """
+    logger = logging.getLogger("emulator_launcher")
+    try:
+        adb = shutil.which('adb') or 'adb'
+        logger.debug(f"_check_device_responsive: using adb binary '{adb}' with timeout={timeout}s")
+
+        # list devices
+        p = subprocess.run([adb, 'devices'], capture_output=True, text=True, timeout=timeout)
+        out = (p.stdout or '')
+        logger.debug(f"adb devices output:\n{out}")
+        lines = [l.strip() for l in out.splitlines() if l.strip()]
+        serial = None
+        for l in lines:
+            if l.startswith('List of devices'):
+                continue
+            parts = l.split()
+            if len(parts) >= 2 and parts[1] == 'device':
+                serial = parts[0]
+                break
+        if not serial:
+            logger.debug('_check_device_responsive: no device in adb devices list')
+            return False
+        logger.debug(f"_check_device_responsive: selected device serial={serial}")
+
+        # Try a quick dumpsys activity (short timeout) and log a snippet for debugging
+        try:
+            start = time.time()
+            r = subprocess.run([adb, '-s', serial, 'shell', 'dumpsys', 'activity', 'activities'], capture_output=True, text=True, timeout=timeout)
+            duration = time.time() - start
+            snippet = (r.stdout or r.stderr or '')[:2000]
+            logger.debug(f"dumpsys activity returned (rc={r.returncode}) in {duration:.2f}s; snippet_len={len(snippet)}")
+            if r.returncode == 0 and snippet.strip():
+                # Heuristic: presence of 'ResumedActivity' or 'mResumedActivity' or 'Running activities' indicates activity
+                if 'ResumedActivity' in snippet or 'mResumedActivity' in snippet or 'Running activities' in snippet or 'ACTIVITY' in snippet:
+                    logger.debug('_check_device_responsive: dumpsys activity indicates responsive')
+                    return True
+                # otherwise treat non-empty dumpsys as positive signal
+                logger.debug('_check_device_responsive: dumpsys activity non-empty => responsive')
+                return True
+        except Exception as e:
+            logger.debug(f"dumpsys activity check failed: {e}")
+
+        # Check if system_server is running (strong indicator the Android userspace is alive)
+        try:
+            start = time.time()
+            r_pid = subprocess.run([adb, '-s', serial, 'shell', 'pidof', 'system_server'], capture_output=True, text=True, timeout=timeout)
+            duration = time.time() - start
+            pidout = (r_pid.stdout or r_pid.stderr or '').strip()
+            logger.debug(f"pidof system_server returned (rc={r_pid.returncode}) in {duration:.2f}s; out='{pidout}'")
+            if r_pid.returncode == 0 and pidout:
+                logger.debug('_check_device_responsive: system_server pid present => responsive')
+                return True
+        except Exception as e:
+            logger.debug(f"pidof system_server check failed: {e}")
+
+        # Fall back to checking boot completed property
+        try:
+            start = time.time()
+            r2 = subprocess.run([adb, '-s', serial, 'shell', 'getprop', 'sys.boot_completed'], capture_output=True, text=True, timeout=timeout)
+            duration = time.time() - start
+            v = (r2.stdout or r2.stderr or '').strip()
+            logger.debug(f"getprop sys.boot_completed returned (rc={r2.returncode}) in {duration:.2f}s; val='{v}'")
+            if r2.returncode == 0 and v == '1':
+                logger.debug('_check_device_responsive: boot_completed == 1 => responsive')
+                return True
+            if r2.returncode == 0 and v:
+                logger.debug('_check_device_responsive: getprop returned non-empty => responsive')
+                return True
+        except Exception as e:
+            logger.debug(f"getprop check failed: {e}")
+
+        # As a last resort, try dumpsys window displays to see if system responds
+        try:
+            start = time.time()
+            r3 = subprocess.run([adb, '-s', serial, 'shell', 'dumpsys', 'window', 'displays'], capture_output=True, text=True, timeout=timeout)
+            duration = time.time() - start
+            snippet = (r3.stdout or r3.stderr or '')[:1000]
+            logger.debug(f"dumpsys window displays (rc={r3.returncode}) in {duration:.2f}s; snippet_len={len(snippet)}")
+            if r3.returncode == 0 and snippet.strip():
+                logger.debug('_check_device_responsive: dumpsys window displays non-empty => responsive')
+                return True
+        except Exception as e:
+            logger.debug(f"dumpsys window displays check failed: {e}")
+
+    except Exception as e:
+        logger.warning(f"_check_device_responsive overall failure: {e}")
+        return False
+    logger.warning('_check_device_responsive: no positive signals from adb checks; treating device as unresponsive')
+    return False
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--script", required=True, help="Path to emulator_start.sh wrapper")
@@ -116,6 +214,7 @@ def main():
     p.add_argument("--avd", default=None, help="AVD name to help find qemu process (optional)")
     p.add_argument("--cooldown", type=int, default=int(os.environ.get("RESTART_COOLDOWN", "30")))
     p.add_argument("--max-restarts", type=int, default=int(os.environ.get("MAX_RESTARTS", "20")))
+    p.add_argument("--unresponsive-minutes", type=int, default=int(os.environ.get('UNRESPONSIVE_MINUTES', '5')), help="Minutes of adb unresponsiveness before treating emulator as hung")
     args = p.parse_args()
 
     launcher_log = args.log
@@ -123,6 +222,8 @@ def main():
     avd_name = args.avd or ""
     cooldown = args.cooldown
     max_restarts = args.max_restarts
+    unresponsive_minutes = args.unresponsive_minutes or 0
+    unresponsive_threshold = int(unresponsive_minutes) * 60
 
     restart_count = 0
     # Track PIDs that we've seen as zombies/defunct so we don't treat them as
@@ -199,6 +300,10 @@ def main():
         if qemu_pid:
             logger.info(f"Found qemu subprocess pid {qemu_pid}; monitoring until it exits")
             # monitor qemu; also watch log for fatal KVM error or zombie (defunct) state
+            # Initialize adb responsiveness tracking
+            last_responsive_time = time.time()
+            last_responsive_check = 0
+            responsive_check_interval = 60.0  # seconds between responsiveness checks
             while True:
                 # If the pid no longer exists, treat as exited
                 if not pid_is_running(qemu_pid):
@@ -237,6 +342,34 @@ def main():
                     except Exception:
                         pass
                     break
+                # Periodically check device responsiveness via adb to detect a hung emulator
+                try:
+                    now = time.time()
+                    if unresponsive_threshold > 0 and (now - last_responsive_check) >= responsive_check_interval:
+                        last_responsive_check = now
+                        try:
+                            responsive = _check_device_responsive(timeout=10)
+                        except Exception as e:
+                            logger.warning(f"Device responsiveness check failed: {e}")
+                            responsive = False
+                        if responsive:
+                            logger.debug("Device responsive via adb; updating last_responsive_time")
+                            last_responsive_time = now
+                        else:
+                            inactive = now - last_responsive_time if last_responsive_time else now
+                            if inactive >= unresponsive_threshold:
+                                logger.warning(f"Device unresponsive for {inactive:.0f}s (threshold {unresponsive_threshold}s). Treating emulator as hung and restarting")
+                                try:
+                                    os.kill(qemu_pid, signal.SIGTERM)
+                                except Exception:
+                                    pass
+                                try:
+                                    proc.terminate()
+                                except Exception:
+                                    pass
+                                break
+                except Exception:
+                    logger.debug('device responsiveness check failed', exc_info=True)
                 time.sleep(1)
             logger.info(f"qemu subprocess {qemu_pid} has exited or was terminated")
             # give wrapper a moment and capture its exit code if it exits

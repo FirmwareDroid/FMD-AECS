@@ -18,6 +18,7 @@
   "ALLOW_APEX_INJECTION_MERGE": true,
   "ALLOW_DIRECT_INJECTION_LIB_OVERWRITE": false,
   "DISABLE_BINARY_INJECTION": true,
+  "DISABLE_SHARED_LIBRARY_INJECTION": false,
   "SKIPPED_APP_KEYWORDLIST": [
     "ServiceWifiResources",
     "PixelLiveWallpaper",
@@ -50,6 +51,7 @@
   "DISALLOW_APEX_FILE_OVERWRITE": [],
   "ALLOW_MIXED_APEX_KEYWORD_LIST": [],
   "DISABLE_APEX_BINARY_INJECTION": false,
+  "NEVERALLOW_FILE_INJECT": [],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
     "libhbmsvmanager_jni.so",
@@ -62,7 +64,7 @@
     "libz.so",
     "libhbmsvmanager_jni.so"
   ],
-    "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
+  "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
     "system_ext/framework",
     "system_ext/etc/permissions",
