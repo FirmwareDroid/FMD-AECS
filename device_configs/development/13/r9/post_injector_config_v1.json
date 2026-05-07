@@ -76,7 +76,8 @@
     "system/etc/permissions/",
     "system/etc/security/cacerts_google/",
     "libandroid",
-    "_jni.so"
+    "_jni.so",
+    "system/bin/bootstrap/"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",

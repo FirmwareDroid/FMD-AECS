@@ -44,27 +44,14 @@ export async function probeRemoteServer(adbInstance, tryPaths, logger = null) {
         }
         for (const p of tryPaths) {
             try {
-                const out = await adbInstance.subprocess.exec(['ls', '-l', p]);
+                const cmd = ['sh', '-c', `find ${JSON.stringify(p)} -maxdepth 0 -type f -print 2>/dev/null`];
+                const out = await adbInstance.subprocess.exec(cmd);
                 const outStr = Array.isArray(out) ? out.join('\n') : String(out);
-                if (/No such file|No such file or directory/i.test(outStr)) continue;
-                const lines = outStr.split(/\r?\n/).filter(Boolean);
-                if (!lines.length) return { exists: null, size: null, path: p };
-                const first = lines[0];
-                // Match standard POSIX `ls -l` output format:
-                //   <permissions> <links> <user> <group> <size> <date> <time> <name>
-                // Example: -rw-rw-rw- 1 shell shell 98765 2024-01-01 10:00 server.jar
-                // The fifth whitespace-delimited field (capture group 1) is the file size.
-                const m = first.match(/^\S+\s+\d+\s+\S+\s+\S+\s+(\d+)/);
-                if (m && m[1]) return { exists: true, size: Number(m[1]), path: p };
-                // Fallback: find the first numeric-only token (handles compact BusyBox ls output)
-                const tokens = first.split(/\s+/);
-                for (const t of tokens) {
-                    if (/^\d+$/.test(t)) return { exists: true, size: Number(t), path: p };
+                if (outStr && outStr.trim()) {
+                    return { exists: true, size: null, path: p };
                 }
-                log.info('probeRemoteServer: could not parse ls -l output for size');
-                return { exists: true, size: null, path: p };
             } catch (e) {
-                log.debug(`probeRemoteServer: ls -l ${p} failed: ${e?.message || e}`);
+                log.debug(`probeRemoteServer: find ${p} failed: ${e?.message || e}`);
             }
         }
         return { exists: false, size: null, path: null };
