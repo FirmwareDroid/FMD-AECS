@@ -86,7 +86,13 @@
     "system/etc/permissions/",
     "system/etc/security/cacerts_google/",
     "libandroid",
-    "_jni.so"
+    "_jni.so",
+    "system/bin/bootstrap/",
+    "android.hardware.camera",
+    "android.framework",
+    "libservices.so",
+    "libservices.core-gnss.so",
+    "camera_platform"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [],

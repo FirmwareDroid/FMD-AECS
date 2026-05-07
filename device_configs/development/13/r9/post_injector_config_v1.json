@@ -77,7 +77,12 @@
     "system/etc/security/cacerts_google/",
     "libandroid",
     "_jni.so",
-    "system/bin/bootstrap/"
+    "system/bin/bootstrap/",
+    "android.hardware.camera",
+    "android.framework",
+    "libservices.so",
+    "libservices.core-gnss.so",
+    "camera_platform"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
