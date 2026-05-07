@@ -318,33 +318,102 @@ export async function discoverAdbServers({
         return [];
     }
 
-    // Build a deduplicated list of candidate IPs across all subnets.
-    const ipSet = new Set();
+    // Build a per-subnet candidate list so we can do two-phase probing: a
+    // light sample scan and, if a host is found in a subnet, a full scan of
+    // the remaining hosts in that subnet. This helps find additional devices
+    // in the same network when at least one device is observed.
+    const perSubnet = [];
     for (const { address, netmask } of subnets) {
         const hosts = enumerateSubnetHosts(address, netmask);
         log.debug(`ADB discovery: subnet ${address}/${netmask} → ${hosts.length} candidate(s)`);
-        for (const h of hosts) ipSet.add(h);
+        if (hosts.length === 0) continue;
+        perSubnet.push({ address, netmask, hosts });
     }
 
-    const candidates = [...ipSet];
-    if (candidates.length === 0) {
+    if (perSubnet.length === 0) {
         log.debug('ADB discovery: no candidate hosts to probe');
         return [];
     }
 
-    log.info(
-        `ADB discovery: probing ${candidates.length} host(s) on port ${validPort}` +
-        ` (timeout=${validTimeout}ms, concurrency=${validConcurrency})`
-    );
+    log.info(`ADB discovery: probing ${perSubnet.length} subnet(s) on port ${validPort} (timeout=${validTimeout}ms, concurrency=${validConcurrency})`);
 
     const reachable = [];
-    await pooledMap(candidates, validConcurrency, async (host) => {
+    const probed = new Set();
+
+    // Phase 1: sample a small number of hosts per subnet to detect presence.
+    const SAMPLE_PER_SUBNET = 6;
+    const sampleHosts = [];
+    for (const s of perSubnet) {
+        const { hosts } = s;
+        if (hosts.length <= SAMPLE_PER_SUBNET) {
+            for (const h of hosts) sampleHosts.push({ host: h, subnet: s });
+        } else {
+            // pick SAMPLE_PER_SUBNET evenly distributed hosts across the subnet
+            for (let i = 0; i < SAMPLE_PER_SUBNET; i++) {
+                const idx = Math.floor((i * hosts.length) / SAMPLE_PER_SUBNET);
+                sampleHosts.push({ host: hosts[idx], subnet: s });
+            }
+        }
+    }
+
+    // Probe sampled hosts
+    await pooledMap(sampleHosts, validConcurrency, async (entry) => {
+        const host = entry.host;
+        if (probed.has(host)) return;
         const open = await probePort(host, validPort, validTimeout, createConnection);
+        probed.add(host);
         if (open) {
-            log.info(`ADB discovery: found ADB server at ${host}:${validPort}`);
+            log.info(`ADB discovery: found ADB server at ${host}:${validPort} (sample)`);
             reachable.push(`${host}:${validPort}`);
+            // mark this subnet for a full scan by setting a flag on the subnet object
+            entry.subnet._found = true;
         }
     });
+
+    // Phase 2: for any subnet where we found at least one host, probe the
+    // remaining hosts in that subnet (excluding already-probed samples).
+    const toProbeFull = [];
+    for (const s of perSubnet) {
+        if (!s._found) continue;
+        for (const h of s.hosts) {
+            if (probed.has(h)) continue;
+            toProbeFull.push({ host: h, subnet: s });
+        }
+    }
+
+    if (toProbeFull.length > 0) {
+        log.info(`ADB discovery: performing full scan of ${toProbeFull.length} host(s) in subnets with detected servers`);
+        await pooledMap(toProbeFull, validConcurrency, async (entry) => {
+            const host = entry.host;
+            if (probed.has(host)) return;
+            const open = await probePort(host, validPort, validTimeout, createConnection);
+            probed.add(host);
+            if (open) {
+                log.info(`ADB discovery: found ADB server at ${host}:${validPort}`);
+                reachable.push(`${host}:${validPort}`);
+            }
+        });
+    }
+
+    // If no reachable hosts were found at all in the sample+targeted full-scan,
+    // fall back to scanning all candidates (this avoids missing servers when our
+    // sampling strategy missed the only host in a subnet).
+    if (reachable.length === 0) {
+        log.info('ADB discovery: no servers found in sampling phase — falling back to full scan of all candidate hosts');
+        const allHosts = [];
+        for (const s of perSubnet) for (const h of s.hosts) if (!probed.has(h)) allHosts.push(h);
+        if (allHosts.length > 0) {
+            await pooledMap(allHosts, validConcurrency, async (host) => {
+                if (probed.has(host)) return;
+                const open = await probePort(host, validPort, validTimeout, createConnection);
+                probed.add(host);
+                if (open) {
+                    log.info(`ADB discovery: found ADB server at ${host}:${validPort}`);
+                    reachable.push(`${host}:${validPort}`);
+                }
+            });
+        }
+    }
 
     reachable.sort();
     log.info(`ADB discovery: scan complete — found ${reachable.length} ADB server(s)`);
