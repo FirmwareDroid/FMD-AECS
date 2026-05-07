@@ -86,7 +86,10 @@
     "/system/xbin/",
     "/etc/sysconfig/",
     "/etc/miui-spn-conf.xml",
-    "/etc/init/miuibooster.rc"
+    "/etc/init/miuibooster.rc",
+    "/lib64/android.media",
+    "/lib64/vendor.",
+    "/lib/"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
