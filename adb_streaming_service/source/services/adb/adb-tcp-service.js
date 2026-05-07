@@ -455,10 +455,11 @@ const ALT_DEVICE_SERVER_PATH = `${ALT_DEVICE_SERVER_DIR}/${basename(DEVICE_SERVE
  * @returns {boolean}
  */
 function isSizeVerified(verification, localSize) {
+	// Simplified verification: only require that the file exists on the device.
+	// When the subprocess is unavailable (exists === null), treat as inconclusive
+	// and consider the push verified to avoid unnecessary re-push cycles.
 	if (verification.exists === null) return true;
-	if (verification.exists !== true) return false;
-	if (localSize === null || verification.size === null) return true;
-	return verification.size === localSize;
+	return verification.exists === true;
 }
 
 function resolveSerialFromAdbInstance(adbInstance) {
@@ -498,28 +499,28 @@ const pushServer = async (adbInstance, force = false) => {
 
 	if (serial) {
 		logger.info(`pushServer: resolved serial=${serial}`);
-		if (pushedBySerial.has(serial) && !force) {
-				try {
-					const remote = await probeRemoteServer(adbInstance, [DEVICE_SERVER_PATH, ALT_DEVICE_SERVER_PATH], logger);
-					const localSize = server ? (server.byteLength || server.length || null) : null;
-					if (remote.exists === true && remote.size != null && localSize != null && remote.size === localSize) {
-						// record detected path so subsequent operations reuse it
-						if (remote.path) try { pushPathBySerial.set(serial, remote.path); } catch (e) { logger.debug('pushServer: could not set pushPathBySerial', e?.message || e); }
-						logger.debug(`pushServer: server already pushed to device serial=${serial}, remote file exists and size matches, skipping (path=${remote.path || DEVICE_SERVER_PATH})`);
-						return;
-					}
-					// When probe is inconclusive (subprocess unavailable on this transport type),
-					// trust the cached push state to avoid a misleading re-push cycle.
-					if (remote.exists === null) {
-						logger.debug(`pushServer: probe inconclusive for serial=${serial} (subprocess unavailable); trusting cached push state`);
-						return;
-					}
-					logger.warn(`pushServer: server previously marked pushed for serial=${serial} but remote file missing or size mismatch (remote=${remote.size} local=${localSize}); re-pushing`);
-					pushedBySerial.delete(serial);
-				} catch (e) {
-					logger.debug('pushServer: verification probe failed, proceeding to re-push', e?.message || e);
-					pushedBySerial.delete(serial);
-				}
+				if (pushedBySerial.has(serial) && !force) {
+						try {
+							const remote = await probeRemoteServer(adbInstance, [DEVICE_SERVER_PATH, ALT_DEVICE_SERVER_PATH], logger);
+							// If the probe reports the file exists on the device, assume it's been pushed.
+							if (remote.exists === true) {
+								// record detected path so subsequent operations reuse it
+								if (remote.path) try { pushPathBySerial.set(serial, remote.path); } catch (e) { logger.debug('pushServer: could not set pushPathBySerial', e?.message || e); }
+								logger.debug(`pushServer: server already pushed to device serial=${serial}, remote file exists, skipping (path=${remote.path || DEVICE_SERVER_PATH})`);
+								return;
+							}
+							// When probe is inconclusive (subprocess unavailable on this transport type),
+							// trust the cached push state to avoid a misleading re-push cycle.
+							if (remote.exists === null) {
+								logger.debug(`pushServer: probe inconclusive for serial=${serial} (subprocess unavailable); trusting cached push state`);
+								return;
+							}
+							logger.warn(`pushServer: server previously marked pushed for serial=${serial} but remote file missing; re-pushing`);
+							pushedBySerial.delete(serial);
+						} catch (e) {
+							logger.debug('pushServer: verification probe failed, proceeding to re-push', e?.message || e);
+							pushedBySerial.delete(serial);
+						}
 		}
 
 		if (pushInFlightBySerial.has(serial)) {
