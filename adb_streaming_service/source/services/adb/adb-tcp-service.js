@@ -1018,6 +1018,8 @@ class AdbTcpService {
 		} else if (init.audioEncoder) {
 			logger.warn(`Requested/selected audioEncoder '${init.audioEncoder}' is not supported on device; letting scrcpy choose default`);
 			delete init.audioEncoder;
+		} else {
+			logger.info('No compatible audioEncoder found; letting scrcpy choose default');
 		}
 
 		// Create options after we possibly adjusted encoders
