@@ -979,7 +979,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
             target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
             inj_partition = (file_path, target_path, module_type)
         else:
-            logging.info(f"Skipped direct+indirect injection: Target file was not injected: {file_path}")
+            logging.error(f"Skipped direct+indirect injection: Target file was not injected: {file_path} | is_injected: {is_injected}")
     if target_path:
         try:
             md5sum = hashlib.md5(target_path).hexdigest()

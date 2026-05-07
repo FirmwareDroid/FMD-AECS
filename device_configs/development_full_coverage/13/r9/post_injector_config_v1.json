@@ -440,7 +440,6 @@
   ],
   "SKIPPED_APEX_KEYWORD_LIST": [
     "adb",
-    "vndk"
   ],
   "SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST": [
     "telephony-common.jar"
