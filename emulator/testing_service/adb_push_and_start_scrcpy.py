@@ -126,7 +126,7 @@ def push_jar(serial: str, local_path: str, remote_path: str) -> bool:
         logger.info("Remote jar already present and size matches on %s: %s", serial, remote_path)
         # Ensure the remote jar is executable so it can be launched via app_process
         try:
-            cp_chmod = run_adb(["-s", serial, "shell", "chmod", "755", remote_path], timeout=8)
+            cp_chmod = run_adb(["-s", serial, "shell", "chmod", "+x", remote_path], timeout=8)
             if cp_chmod.returncode == 0:
                 logger.info("Set executable permissions on %s for device %s", remote_path, serial)
             else:
@@ -151,7 +151,7 @@ def push_jar(serial: str, local_path: str, remote_path: str) -> bool:
         logger.info("Push verified for device %s", serial)
         # Ensure the remote jar is executable so it can be launched via app_process
         try:
-            cp_chmod = run_adb(["-s", serial, "shell", "chmod", "755", remote_path], timeout=8)
+            cp_chmod = run_adb(["-s", serial, "shell", "chmod", "+x", remote_path], timeout=8)
             if cp_chmod.returncode == 0:
                 logger.info("Set executable permissions on %s for device %s", remote_path, serial)
             else:
