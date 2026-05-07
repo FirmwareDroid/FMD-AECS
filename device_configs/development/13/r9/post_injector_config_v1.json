@@ -82,7 +82,8 @@
     "android.framework",
     "libservices.so",
     "libservices.core-gnss.so",
-    "camera_platform"
+    "camera_platform",
+    "system/xbin/"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",

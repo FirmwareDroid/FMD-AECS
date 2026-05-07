@@ -422,6 +422,11 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
                 if ".so" in obj:
                     skipped_libs_list.append(file_name)
 
+    logging.info(f"============================== ERRORS ==============================")
+    for error in error_list:
+        logging.info(f"{error}")
+    logging.info(f"============================================================")
+
     logging.info(f"Execution time: {execution_time_minutes} minutes")
     number_of_files = count_number_of_extracted_files(source_folder_path)
     logging.info(f"Number of File in ALL_FILES: {number_of_files}")
