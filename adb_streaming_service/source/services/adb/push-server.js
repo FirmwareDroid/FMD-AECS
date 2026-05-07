@@ -123,7 +123,7 @@ export async function pushServerWithCLI(serial, serverBuffer, targetPath, {
     const tempPath = join(getTmpdir(), `scrcpy-server-${uuid()}.jar`);
     try {
         const byteLen = serverBuffer.byteLength ?? serverBuffer.length ?? 0;
-        log.debug(`pushServerWithCLI: writing server binary (${byteLen} bytes) to temp file ${tempPath}`);
+        log.error(`pushServerWithCLI: writing server binary (${byteLen} bytes) to temp file ${tempPath}`);
         await writeTempFile(tempPath, serverBuffer);
 
         const args = serial
@@ -145,7 +145,7 @@ export async function pushServerWithCLI(serial, serverBuffer, targetPath, {
             child.stderr?.on('data', (data) => {
                 const msg = data.toString();
                 stderrLines.push(msg);
-                log.debug(`pushServerWithCLI stderr: ${msg.trim()}`);
+                log.error(`pushServerWithCLI stderr: ${msg.trim()}`);
             });
             child.on('error', (err) => reject(err));
             child.on('exit', (code) => {
@@ -162,7 +162,7 @@ export async function pushServerWithCLI(serial, serverBuffer, targetPath, {
         try {
             await removeTempFile(tempPath);
         } catch (e) {
-            log.debug(`pushServerWithCLI: failed to clean up temp file ${tempPath}: ${e?.message || e}`);
+            log.error(`pushServerWithCLI: failed to clean up temp file ${tempPath}: ${e?.message || e}`);
         }
     }
 }
