@@ -516,6 +516,22 @@ async function runAdbCliLogcat(adbInstance, lines = 200) {
 	return { stdout: String(res.stdout || ''), stderr: String(res.stderr || '') };
 }
 
+// Run chmod +x on the device path using adb CLI. Returns stdout/stderr.
+async function runAdbCliChmod(adbInstance, path, mode = '755') {
+	const execFile = promisify(nodeExecFile);
+	let serial = null;
+	try {
+		if (adbInstance) {
+			if (adbInstance.transport && adbInstance.transport.serial) serial = adbInstance.transport.serial;
+			if (!serial && adbInstance._transport && adbInstance._transport.serial) serial = adbInstance._transport.serial;
+			if (!serial && typeof adbInstance.serial === 'string') serial = adbInstance.serial;
+		}
+	} catch (e) {}
+	const args = serial ? ['-s', serial, 'shell', 'chmod', String(mode), path] : ['shell', 'chmod', String(mode), path];
+	const res = await execFile('adb', args).catch((e) => ({ stdout: '', stderr: String(e && e.message ? e.message : e) }));
+	return { stdout: String(res.stdout || ''), stderr: String(res.stderr || '') };
+}
+
 // Determine which server path to use for a given adb instance. This prefers a
 // recorded path (per-serial or per-instance) and falls back to the default
 // DEVICE_SERVER_PATH.
@@ -602,6 +618,12 @@ const pushServer = async (adbInstance, force = false) => {
 						// record which path we used for this serial so future operations reuse it
 						pushPathBySerial.set(serial, pushedPath);
 						pushedBySerial.add(serial);
+						try {
+							const chmodRes = await runAdbCliChmod(adbInstance, pushedPath, '755');
+							logger.debug(`pushServer: set executable bit on ${pushedPath} (stdout='${String(chmodRes.stdout).trim()}', stderr='${String(chmodRes.stderr).trim()}')`);
+						} catch (e) {
+							logger.warn(`pushServer: chmod failed for ${pushedPath} on serial=${serial}: ${e?.message || e}`);
+						}
 						logger.debug(`pushServer: marked serial=${serial} as pushed at path=${pushedPath}`);
 						logger.debug('scrcpy server pushed and verified successfully');
 						break;
@@ -622,6 +644,12 @@ const pushServer = async (adbInstance, force = false) => {
 								pushedPath = targetPath;
 								pushPathBySerial.set(serial, pushedPath);
 								pushedBySerial.add(serial);
+								try {
+									const chmodRes = await runAdbCliChmod(adbInstance, pushedPath, '755');
+									logger.debug(`pushServer: set executable bit on ${pushedPath} (stdout='${String(chmodRes.stdout).trim()}', stderr='${String(chmodRes.stderr).trim()}')`);
+								} catch (e) {
+									logger.warn(`pushServer: chmod failed for ${pushedPath} on serial=${serial}: ${e?.message || e}`);
+								}
 								logger.info(`pushServer: CLI fallback succeeded at ${pushedPath} for serial=${serial}`);
 								break;
 							}
@@ -672,6 +700,12 @@ const pushServer = async (adbInstance, force = false) => {
 						}
 						// record for this instance
 						try { pushPathByInstance.set(adbInstance, pushedPath); } catch (e) { logger.debug('pushServer: could not set pushPathByInstance', e?.message || e); }
+						try {
+							const chmodRes = await runAdbCliChmod(adbInstance, pushedPath, '755');
+							logger.debug(`pushServer: set executable bit on ${pushedPath} (stdout='${String(chmodRes.stdout).trim()}', stderr='${String(chmodRes.stderr).trim()}')`);
+						} catch (e) {
+							logger.warn(`pushServer: chmod failed for ${pushedPath} (instance fallback): ${e?.message || e}`);
+						}
 						logger.debug(`scrcpy server pushed and verified successfully (fallback) to ${pushedPath}`);
 						break;
 					} catch (err) {
