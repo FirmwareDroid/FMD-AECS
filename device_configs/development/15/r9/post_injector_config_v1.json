@@ -101,7 +101,8 @@
     "/system/xbin/",
     "/etc/sysconfig/",
     "/etc/miui-spn-conf.xml",
-    "/etc/init/miuibooster.rc"
+    "/etc/init/miuibooster.rc",
+    "/lib64/android.hardware.graphics"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [],
