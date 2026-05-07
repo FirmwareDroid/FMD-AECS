@@ -83,7 +83,10 @@
     "libservices.so",
     "libservices.core-gnss.so",
     "camera_platform",
-    "system/xbin/"
+    "/system/xbin/",
+    "/etc/sysconfig/",
+    "/etc/miui-spn-conf.xml",
+    "/etc/init/miuibooster.rc"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
