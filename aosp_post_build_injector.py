@@ -431,12 +431,13 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     logging.info(f"Number of files processed: {len(error_list) + len(inj_obj_list) + len(inj_partition_list)}")
 
     logging.info(f"\n\nInjected Apps/APEX/Libraries Summary:")
-    logging.info(f"Post-Injection Apps injected: {app_list}")
-    logging.info(f"Post-Injection APEX injected: {apex_list}")
-    logging.info(f"Post-Injection Libraries injected: {libs_list}")
+    logging.info(f"Post-Injection Apps injected: {app_list}\n\n")
+    logging.info(f"Post-Injection APEX injected: {apex_list}\n\n")
+    logging.info(f"Post-Injection Libraries injected: {libs_list}\n\n")
     logging.info(f"\nSkipped Apps/APEX/Libraries Summary:")
-    logging.info(f"Post-Injection Apps skipped: {skipped_app_list}")
-    logging.info(f"Post-Injection APEX skipped: {skipped_apex_list}")
+    logging.info(f"Post-Injection Libraries skipped: {skipped_libs_list}\n\n")
+    logging.info(f"Post-Injection Apps skipped: {skipped_app_list}\n\n")
+    logging.info(f"Post-Injection APEX skipped: {skipped_apex_list}\n\n")
 
     grouped_errors, error_sample_list = group_errors_by_prefix(error_list)
 
