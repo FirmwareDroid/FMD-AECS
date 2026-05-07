@@ -262,6 +262,7 @@
     "sepolicy",
     "geotz",
     "virtualization",
+    "virt",
     "power",
     "thermal",
     "usb",
