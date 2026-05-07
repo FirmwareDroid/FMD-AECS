@@ -33,6 +33,17 @@
     ".idc",
     ".fsv_meta"
   ],
+  "ALLOW_MISC_INJECT_ALWAYS": [],
+  "ALLOW_MISC_INJECT_ALWAYS_KEYWORD_LIST": [
+    "/vendor/app/",
+    "/vendor/priv-app/",
+    "/system/app/",
+    "/system/priv-app/",
+    "/system_ext/app/",
+    "/system_ext/priv-app/",
+    "/product/app/",
+    "/product/priv-app/"
+  ],
   "USE_ISOLATED_NAMESPACE": false,
   "ISOLATED_NAMESPACE_LIST": [],
   "APEX_BINARY_ISOLATED_NAMESPACE_LIST": [],

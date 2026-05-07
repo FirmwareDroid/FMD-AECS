@@ -207,12 +207,21 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
     ):
         if POST_INJECTOR_CONFIG.get("DISABLE_MISC_INJECTION"):
             logging.info(f"Skipping {source_file_path}: DISABLE_MISC_INJECTION is enabled")
-        kw = _find_matching_keyword(file_name, POST_INJECTOR_CONFIG.get("SKIPPED_MISC_KEYWORD_LIST", []))
-        if kw:
-            logging.info(f"Skipping {source_file_path}: matched SKIPPED_MISC_KEYWORD_LIST keyword: {kw}")
-        if file_extension in POST_INJECTOR_CONFIG.get("SKIPPED_MISC_EXTENSION_LIST", []):
-            logging.info(f"Skipping {source_file_path}: extension '{file_extension}' in SKIPPED_MISC_EXTENSION_LIST")
-        module_type = "SKIPPED"
+
+        if file_name in POST_INJECTOR_CONFIG["ALLOW_MISC_INJECT_ALWAYS"]:
+            logging.info(f"File {source_file_path}|{tmp_module_type} is allowed to be injected regardless of its type. ALLOW_MISC_INJECT_ALWAYS")
+            module_type = tmp_module_type
+        elif any(keyword in source_file_path for keyword in POST_INJECTOR_CONFIG["ALLOW_MISC_INJECT_ALWAYS_KEYWORD_LIST"]):
+            kw = _find_matching_keyword(file_name, POST_INJECTOR_CONFIG.get("ALLOW_MISC_INJECT_ALWAYS_KEYWORD_LIST", []))
+            logging.info(f"ALLOW_MISC_INJECT_ALWAYS_KEYWORD_LIST matching keyword : {kw}")
+            module_type = tmp_module_type
+        else:
+            kw = _find_matching_keyword(file_name, POST_INJECTOR_CONFIG.get("SKIPPED_MISC_KEYWORD_LIST", []))
+            if kw:
+                logging.info(f"Skipping {source_file_path}: matched SKIPPED_MISC_KEYWORD_LIST keyword: {kw}")
+            if file_extension in POST_INJECTOR_CONFIG.get("SKIPPED_MISC_EXTENSION_LIST", []):
+                logging.info(f"Skipping {source_file_path}: extension '{file_extension}' in SKIPPED_MISC_EXTENSION_LIST")
+            module_type = "SKIPPED"
 
     if file_extension in [".apk"] and (file_name in POST_INJECTOR_CONFIG["ALLOW_APP_INJECT_ALWAYS"] or any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST"])):
         logging.info(
