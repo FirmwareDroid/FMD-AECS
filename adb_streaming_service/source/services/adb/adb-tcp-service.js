@@ -1092,51 +1092,82 @@ class AdbTcpService {
 			// from ever starting. Return the client directly so the caller can set up streams at its own pace.
 			return { client, options };
 		} catch (err) {
-			// If this was the first attempt and audio was requested, retry without audio (some devices/servers fail on audio)
-			if (_attempt === 0 && init.audio === true) {
-				logger.warn('scrcpy start failed on initial attempt with audio enabled; retrying once with audio disabled');
-				try {
-					const initNoAudio = { ...init, audio: false };
-					// Remove audioEncoder if present
-					delete initNoAudio.audioEncoder;
-					const optionsNoAudio = new AdbScrcpyOptions2_1(initNoAudio, { version: VERSION });
-					logger.info('Retrying scrcpy start with options (audio disabled)');
-					const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
-					const client2 = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsNoAudio);
-					// perform the same validation checks as above (inspect, read output, stream checks)
-					let initialOutputLines2 = [];
-					try {
-						if (client2 && client2.output && typeof client2.output.getReader === 'function') {
-							const reader2 = client2.output.getReader();
+						// If this was the first attempt and audio was requested, try some fallbacks
+						// before giving up. Some emulators/devices do not support the default
+						// audio capture source (playback/output). First try switching the
+						// audioSource to 'mic' (device microphone). If that fails, fall back to
+						// disabling audio entirely as before.
+						if (_attempt === 0 && init.audio === true) {
+							logger.warn('scrcpy start failed on initial attempt with audio enabled; attempting audio fallbacks');
+							// 1) Try switching audioSource to 'mic' (if not already set)
 							try {
-								for (let i = 0; i < 40; i++) {
-									const p2 = reader2.read();
-									const r2 = await Promise.race([p2, new Promise((_, rej) => setTimeout(() => rej(new Error('output-read-timeout')), 300))]);
-									if (r2 && r2.done) break;
-									if (r2 && r2.value) initialOutputLines2.push(String(r2.value));
+								const initMic = { ...init };
+								if (!initMic.audioSource || initMic.audioSource === 'output' || initMic.audioSource === 'playback') {
+									initMic.audioSource = 'mic';
 								}
-							} finally {
-								try { reader2.releaseLock(); } catch (e) {}
+								// Some devices choke on explicit audioEncoder names; try without it first
+								if (initMic.audioEncoder) delete initMic.audioEncoder;
+								const optionsMic = new AdbScrcpyOptions2_1(initMic, { version: VERSION });
+								logger.info('Retrying scrcpy start with audioSource=mic');
+								const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
+								const clientMic = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsMic);
+								// basic validation similar to above
+								const hasCloseMic = clientMic && typeof clientMic.close === 'function';
+								const hasOutputMic = clientMic && clientMic.output;
+								if (clientMic && hasCloseMic && hasOutputMic) {
+									logger.info('Retry with audioSource=mic succeeded');
+									return { client: clientMic, options: optionsMic };
+								} else {
+									logger.debug('Retry with audioSource=mic returned insufficient client; closing and falling through');
+									try { if (clientMic && typeof clientMic.close === 'function') await clientMic.close(); } catch (e) { logger.debug('clientMic.close failed', e?.message || e); }
+								}
+							} catch (micErr) {
+								logger.debug('Retry with audioSource=mic failed:', micErr?.message || micErr);
+							}
+							// 2) Final fallback: disable audio entirely (existing behaviour)
+							try {
+								logger.warn('Falling back to retry without audio');
+								const initNoAudio = { ...init, audio: false };
+								// Remove audioEncoder if present
+								delete initNoAudio.audioEncoder;
+								const optionsNoAudio = new AdbScrcpyOptions2_1(initNoAudio, { version: VERSION });
+								logger.info('Retrying scrcpy start with options (audio disabled)');
+								const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
+								const client2 = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsNoAudio);
+								// perform the same validation checks as above (inspect, read output, stream checks)
+								let initialOutputLines2 = [];
+								try {
+									if (client2 && client2.output && typeof client2.output.getReader === 'function') {
+										const reader2 = client2.output.getReader();
+										try {
+											for (let i = 0; i < 40; i++) {
+												const p2 = reader2.read();
+												const r2 = await Promise.race([p2, new Promise((_, rej) => setTimeout(() => rej(new Error('output-read-timeout')), 300))]);
+												if (r2 && r2.done) break;
+												if (r2 && r2.value) initialOutputLines2.push(String(r2.value));
+											}
+										} finally {
+											try { reader2.releaseLock(); } catch (e) {}
+										}
+									}
+								} catch (e2) { logger.debug('Reading initial client2.output failed:', e2?.message || e2); }
+
+								// basic validation
+								const hasClose2 = client2 && typeof client2.close === 'function';
+								const hasOutput2 = client2 && client2.output;
+								if (!client2 || !hasClose2 || !hasOutput2) {
+									logger.error('Retry without audio still returned insufficient client');
+									try { if (client2 && typeof client2.close === 'function') await client2.close(); } catch (e3) { logger.debug('client2.close failed', e3?.message || e3); }
+									// fall through to original error handling below
+								} else {
+									// Stream readiness is handled by setupVideoStream/setupAudioStream; return client directly.
+									logger.info('Retry without audio succeeded');
+									return { client: client2, options: optionsNoAudio };
+								}
+							} catch (retryErr) {
+								logger.error('scrcpy retry (no-audio) failed:', retryErr?.message || retryErr);
 							}
 						}
-					} catch (e2) { logger.debug('Reading initial client2.output failed:', e2?.message || e2); }
-
-					// basic validation
-					const hasClose2 = client2 && typeof client2.close === 'function';
-					const hasOutput2 = client2 && client2.output;
-					if (!client2 || !hasClose2 || !hasOutput2) {
-						logger.error('Retry without audio still returned insufficient client');
-						try { if (client2 && typeof client2.close === 'function') await client2.close(); } catch (e3) { logger.debug('client2.close failed', e3?.message || e3); }
-						// fall through to original error handling below
-					} else {
-						// Stream readiness is handled by setupVideoStream/setupAudioStream; return client directly.
-						logger.info('Retry without audio succeeded');
-						return { client: client2, options: optionsNoAudio };
-					}
-				} catch (retryErr) {
-					logger.error('scrcpy retry (no-audio) failed:', retryErr?.message || retryErr);
-				}
-			}
 
 			// original error handling: collect diagnostics and rethrow a detailed error
 			const details = { message: err && err.message ? err.message : String(err), name: err && err.name ? err.name : 'Error', stack: err && err.stack ? err.stack : null, server_length: server ? (server.byteLength || server.length || null) : null, logcat: null, device_ls: null };
