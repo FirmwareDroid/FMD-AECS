@@ -50,7 +50,12 @@
     "libgui.so",
     "libgui_vendor.so",
     "libz.so",
-    "libhbmsvmanager_jni.so"
+    "libhbmsvmanager_jni.so",
+    "libbase.so",
+    "libpermission.so",
+    "libandroidfw.so",
+    "libresid.so",
+    "libart.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "Overlay",
@@ -92,7 +97,11 @@
     "android.framework",
     "libservices.so",
     "libservices.core-gnss.so",
-    "camera_platform"
+    "camera_platform",
+    "/system/xbin/",
+    "/etc/sysconfig/",
+    "/etc/miui-spn-conf.xml",
+    "/etc/init/miuibooster.rc"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [],
