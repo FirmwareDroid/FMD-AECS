@@ -85,19 +85,19 @@ describe('probeRemoteServer — subprocess unavailable', () => {
 });
 
 describe('probeRemoteServer — binary found', () => {
-    test('parses standard ls -l output and returns exists=true with size', async () => {
-        const lsOutput = '-rw-rw-rw- 1 shell shell 98765 2024-01-01 10:00 /data/local/tmp/server.jar';
-        const adb = makeAdb(async () => lsOutput);
+    test('returns exists=true with path when file is found (size is always null with find)', async () => {
+        // The new implementation uses `find` which outputs the path on success
+        // and empty string when not found; size is not parsed from find output.
+        const adb = makeAdb(async () => '/data/local/tmp/server.jar');
         const result = await probeRemoteServer(adb, ['/data/local/tmp/server.jar']);
         assert.equal(result.exists, true);
-        assert.equal(result.size, 98765);
+        assert.equal(result.size, null);
         assert.equal(result.path, '/data/local/tmp/server.jar');
     });
 
     test('returns the first matching path when multiple paths are given', async () => {
-        const lsOutput = '-rw-rw-rw- 1 shell shell 12345 2024-01-01 10:00 /data/local/tmp/server.jar';
-        // exec always succeeds regardless of path
-        const adb = makeAdb(async () => lsOutput);
+        // exec always returns a non-empty string (simulating file found)
+        const adb = makeAdb(async () => '/data/local/tmp/server.jar');
         const result = await probeRemoteServer(adb, [
             '/data/local/tmp/server.jar',
             '/sdcard/Download/server.jar',
@@ -105,12 +105,14 @@ describe('probeRemoteServer — binary found', () => {
         assert.equal(result.path, '/data/local/tmp/server.jar');
     });
 
-    test('falls back to second path when first reports "No such file"', async () => {
+    test('falls back to second path when first returns empty output (file not found)', async () => {
+        // With `find`, an empty output means the file does not exist at that path.
+        // The path check must look inside the shell command string (args[2]).
         const execFn = async (args) => {
-            if (args.includes('/data/local/tmp/server.jar')) {
-                return 'ls: /data/local/tmp/server.jar: No such file or directory';
+            if (args[2] && args[2].includes('/data/local/tmp/server.jar')) {
+                return ''; // find prints nothing when file absent
             }
-            return '-rw-rw-rw- 1 shell shell 42000 2024-01-01 10:00 /sdcard/Download/server.jar';
+            return '/sdcard/Download/server.jar'; // find prints path when file exists
         };
         const adb = makeAdb(execFn);
         const result = await probeRemoteServer(adb, [
@@ -118,16 +120,17 @@ describe('probeRemoteServer — binary found', () => {
             '/sdcard/Download/server.jar',
         ]);
         assert.equal(result.exists, true);
-        assert.equal(result.size, 42000);
+        assert.equal(result.size, null);
         assert.equal(result.path, '/sdcard/Download/server.jar');
     });
 
     test('falls back to second path when exec throws for the first path', async () => {
+        // The path check must look inside the shell command string (args[2]).
         const execFn = async (args) => {
-            if (args.includes('/data/local/tmp/server.jar')) {
+            if (args[2] && args[2].includes('/data/local/tmp/server.jar')) {
                 throw new Error('permission denied');
             }
-            return '-rw-rw-rw- 1 shell shell 55000 2024-01-01 10:00 /sdcard/Download/server.jar';
+            return '/sdcard/Download/server.jar';
         };
         const adb = makeAdb(execFn);
         const result = await probeRemoteServer(adb, [
@@ -138,32 +141,34 @@ describe('probeRemoteServer — binary found', () => {
         assert.equal(result.path, '/sdcard/Download/server.jar');
     });
 
-    test('returns { exists: true, size: null } when ls output cannot be parsed for size', async () => {
-        // No numeric size token in this (contrived) output
-        const adb = makeAdb(async () => 'some-file-info-without-size /path/to/file');
+    test('returns { exists: true, size: null } when exec returns any non-empty output', async () => {
+        // Any non-empty string from find means the file was found
+        const adb = makeAdb(async () => 'some-non-empty-output');
         const result = await probeRemoteServer(adb, ['/data/local/tmp/server.jar']);
         assert.equal(result.exists, true);
         assert.equal(result.size, null);
     });
 
-    test('returns { exists: null, size: null } when ls returns no lines', async () => {
+    test('returns { exists: false } when exec returns empty output for all paths', async () => {
+        // find returns empty string when the file does not exist
         const adb = makeAdb(async () => '');
         const result = await probeRemoteServer(adb, ['/data/local/tmp/server.jar']);
-        assert.deepEqual(result, { exists: null, size: null, path: '/data/local/tmp/server.jar' });
+        assert.deepEqual(result, { exists: false, size: null, path: null });
     });
 
-    test('falls back to numeric token when standard regex does not match', async () => {
-        // Compact ls output seen on some BusyBox builds
+    test('returns { exists: true, size: null } for any non-empty exec output (no size parsing)', async () => {
+        // The find-based implementation never parses sizes — size is always null
         const adb = makeAdb(async () => '-rw-r--r-- shell 77300 server.jar');
         const result = await probeRemoteServer(adb, ['/data/local/tmp/server.jar']);
         assert.equal(result.exists, true);
-        assert.equal(result.size, 77300);
+        assert.equal(result.size, null);
     });
 });
 
 describe('probeRemoteServer — binary not found', () => {
-    test('returns { exists: false } when all paths report "No such file"', async () => {
-        const adb = makeAdb(async () => 'ls: /some/path: No such file or directory');
+    test('returns { exists: false } when all paths return empty output', async () => {
+        // With `find`, empty output means the file was not found at that path.
+        const adb = makeAdb(async () => '');
         const result = await probeRemoteServer(adb, [
             '/data/local/tmp/server.jar',
             '/sdcard/Download/server.jar',
@@ -188,7 +193,7 @@ describe('probeRemoteServer — binary not found', () => {
 });
 
 describe('probeRemoteServer — logger integration', () => {
-    test('logs parse failure when ls output has no numeric token', async () => {
+    test('logs a debug message when exec throws for a path', async () => {
         const logMessages = [];
         const log = {
             info:  (...a) => logMessages.push(['info',  a.join(' ')]),
@@ -196,12 +201,12 @@ describe('probeRemoteServer — logger integration', () => {
             error: (...a) => logMessages.push(['error', a.join(' ')]),
             warn:  (...a) => logMessages.push(['warn',  a.join(' ')]),
         };
-        const adb = makeAdb(async () => 'some-file-info-without-size /path/to/file');
+        const adb = makeAdb(async () => { throw new Error('device offline'); });
         await probeRemoteServer(adb, ['/data/local/tmp/server.jar'], log);
-        const infoMsgs = logMessages.filter(([level]) => level === 'info').map(([, msg]) => msg);
+        const debugMsgs = logMessages.filter(([level]) => level === 'debug').map(([, msg]) => msg);
         assert.ok(
-            infoMsgs.some((m) => m.includes('could not parse')),
-            'expected a log message about unparseable output'
+            debugMsgs.some((m) => m.includes('probeRemoteServer')),
+            'expected a debug log message from probeRemoteServer'
         );
     });
 });
@@ -412,43 +417,35 @@ describe('pushServerWithCLI — failure handling', () => {
 // ─── Interaction: probe after push ───────────────────────────────────────────
 
 describe('probeRemoteServer — confirms binary existence after a push', () => {
-    test('reports the binary as present when ls -l confirms correct size', async () => {
-        const FIXTURE_SIZE = 102400;
-        // Simulate the device having the binary at the correct path after push
-        const adb = makeAdb(async (args) => {
-            const path = args[args.length - 1];
-            return `-rw-rw-rw- 1 shell shell ${FIXTURE_SIZE} 2024-01-01 10:00 ${path}`;
-        });
+    test('reports the binary as present when find confirms file exists (size is null)', async () => {
+        // The find-based implementation does not parse file sizes;
+        // any non-empty output from find means the file exists.
+        const adb = makeAdb(async () => '/data/local/tmp/server.jar');
 
         const result = await probeRemoteServer(adb, ['/data/local/tmp/server.jar']);
 
         assert.equal(result.exists, true,  'binary should exist on device');
-        assert.equal(result.size, FIXTURE_SIZE, 'reported size should match fixture size');
+        assert.equal(result.size, null, 'size is always null with find-based probing');
         assert.equal(result.path, '/data/local/tmp/server.jar', 'path should be the primary path');
     });
 
-    test('detects a size mismatch that would indicate an incomplete push', async () => {
-        const FIXTURE_SIZE    = 102400;
-        const MISMATCHED_SIZE =  51200;  // half the expected size — simulates an incomplete transfer
-        const adb = makeAdb(async (args) => {
-            const path = args[args.length - 1];
-            return `-rw-rw-rw- 1 shell shell ${MISMATCHED_SIZE} 2024-01-01 10:00 ${path}`;
-        });
+    test('detects absence when find returns empty output (simulates incomplete/missing push)', async () => {
+        // Empty output from find → file not found at that path
+        const adb = makeAdb(async () => '');
 
         const result = await probeRemoteServer(adb, ['/data/local/tmp/server.jar']);
 
-        assert.equal(result.exists, true);
-        assert.notEqual(result.size, FIXTURE_SIZE,
-            'probe should return the actual (mismatched) size so the caller can detect the mismatch');
+        assert.equal(result.exists, false);
     });
 
     test('reports binary at alt path when primary is absent', async () => {
+        // With `find`, the path is embedded in the shell command string (args[2]).
+        // Empty output → not found; non-empty → found.
         const execFn = async (args) => {
-            const path = args[args.length - 1];
-            if (path === '/data/local/tmp/server.jar') {
-                return 'ls: /data/local/tmp/server.jar: No such file or directory';
+            if (args[2] && args[2].includes('/data/local/tmp/server.jar')) {
+                return ''; // find: file absent at primary path
             }
-            return `-rw-rw-rw- 1 shell shell 8192 2024-01-01 10:00 ${path}`;
+            return '/sdcard/Download/server.jar'; // find: file present at alt path
         };
         const adb = makeAdb(execFn);
 
@@ -458,6 +455,6 @@ describe('probeRemoteServer — confirms binary existence after a push', () => {
         ]);
         assert.equal(result.exists, true);
         assert.equal(result.path, '/sdcard/Download/server.jar');
-        assert.equal(result.size, 8192);
+        assert.equal(result.size, null);
     });
 });
