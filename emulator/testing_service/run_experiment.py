@@ -526,6 +526,73 @@ def run_adb_shell(args_list, description=None, check=True, timeout=30):
         raise
 
 
+def _is_valid_component(candidate: str) -> bool:
+    """Return True if the provided string looks like a valid Android component name.
+
+    Accept forms like 'com.example/.MainActivity' or 'com.example/com.example.MainActivity'.
+    Reject short/diagnostic strings like 'No' or strings that don't contain a '/'.
+    """
+    if not candidate or not isinstance(candidate, str):
+        return False
+    s = candidate.strip()
+    if '/' not in s:
+        return False
+    ls = s.lower()
+    if ls == 'no' or ls.startswith('no ') or 'no activity' in ls:
+        return False
+    if ls.startswith('component=') or ls.startswith('package:'):
+        return False
+    return True
+
+
+def package_has_activity(package: str):
+    """Return (has_activity: bool, resolved_component: Optional[str]).
+
+    Uses `adb shell cmd package resolve-activity --components <package>` and
+    falls back to `--brief` when needed. Returns (False, resolved_output) when
+    no activity is found or resolution fails to return a valid component.
+    """
+    try:
+        res = run_adb_shell(['cmd', 'package', 'resolve-activity', '--components', package], description=f'probe activities for {package}', check=False)
+    except Exception as e:
+        # If the call itself fails, propagate the exception so callers can decide
+        # to retry or treat as inconclusive. For our use we will let the caller
+        # handle exceptions and default to allowing the pipeline to run.
+        raise
+    out = (res.stdout or '')
+    for line in out.splitlines():
+        if 'component=' in line:
+            part = line.split('component=', 1)[1].strip()
+            if not part:
+                continue
+            token = part.split()[0].strip()
+            if _is_valid_component(token):
+                return True, token
+    # fallback: brief resolve
+    try:
+        res2 = run_adb_shell(['cmd', 'package', 'resolve-activity', '--brief', package], description=f'brief probe activities for {package}', check=False)
+    except Exception:
+        return False, None
+    out2 = (res2.stdout or '').strip()
+    if out2:
+        first = out2.splitlines()[0].strip()
+        candidate = first.split()[0].strip()
+        if _is_valid_component(candidate):
+            return True, candidate
+    # Additional heuristic: inspect dumpsys package output for mentions of
+    # "Activity" (case-insensitive). Some packages may expose activity
+    # information in dumpsys even when resolve-activity did not return a
+    # sanitized component token.
+    try:
+        ds = run_adb_shell(['dumpsys', 'package', package], description=f'dumpsys package for {package}', check=False)
+    except Exception:
+        return False, None
+    dumpsys_out = (ds.stdout or '') + '\n' + (ds.stderr or '')
+    if dumpsys_out and re.search(r'(?i)Activity', dumpsys_out):
+        return True, 'dumpsys_contains_Activity'
+    return False, None
+
+
 def wait_for_boot_completed(max_wait_seconds=300, sleep_seconds=30):
     """
     Poll 'adb shell getprop init.svc.bootanim' and wait while it is 'running'.
@@ -658,6 +725,29 @@ def execute_app_with_coverage(package, mode, skip_install=False):
         run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
     elif mode == 'pipeline':
         # Run tools sequentially: Fastbot -> Kea2 -> Ape -> Monkey -> basic
+        # Before running the pipeline, verify the package has at least one
+        # activity that can be launched. If not, skip the pipeline and report
+        # that the app has no activity.
+        logging.info('Checking whether package has any launchable activity: %s', package)
+        try:
+            has_activity, resolved = package_has_activity(package)
+        except Exception as e:
+            logging.debug('Failed to check package activities for %s: %s', package, e)
+            has_activity = True
+            resolved = None
+
+        if not has_activity:
+            logging.warning('Package %s has no launchable activities; skipping pipeline mode for this package', package)
+            # Record a small marker file in OUT_DIR so results include this information
+            try:
+                marker = os.path.join(OUT_DIR, 'no_activity_packages.json')
+                existing = _read_json_if_exists(marker) or {}
+                existing[package] = {'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z', 'resolved': resolved}
+                _write_json(marker, existing)
+            except Exception:
+                logging.debug('Failed to write no-activity marker for %s', package, exc_info=True)
+            return
+
         logging.info('Running pipeline: Fastbot -> Kea2 -> Ape -> Monkey -> basic for %s', package)
         run_script_capture(RUN_FASTBOT, args=["-p", package], description=f"Run Fastbot2.0 model-based testing for {package}")
         run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
