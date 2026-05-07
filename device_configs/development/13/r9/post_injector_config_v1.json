@@ -89,7 +89,10 @@
     "/etc/init/miuibooster.rc",
     "/lib64/android.media",
     "/lib64/vendor.",
-    "/lib/"
+    "/lib/",
+    "android.hardware.camera",
+    "cameraserver",
+    "cameraserver.rc"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
