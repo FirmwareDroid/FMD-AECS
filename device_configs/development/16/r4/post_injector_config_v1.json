@@ -306,6 +306,7 @@
     "sepolicy": "packages/modules/SEPolicy/apex",
     "geotz": "packages/modules/GeoTZ/apex/com.android.geotz",
     "virtualization": "packages/modules/Virtualization/apex",
+    "virt:": "packages/modules/Virtualization/apex",
     "power": "hardware/interfaces/power/aidl/default/apex",
     "thermal": "hardware/interfaces/thermal/2.0/default/apex",
     "usb": "hardware/interfaces/usb/1.0/default/apex",

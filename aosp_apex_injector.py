@@ -782,8 +782,7 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
         apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
         apex_keyword = get_matching_apex_key(filename_input, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"])
         if not apex_keyword:
-            logging.error(
-                f"APEX: No matching keyword found in APEX_DEFAULT_PATHS_DICT for {filename_input}. EXIT PROGRAM!")
+            logging.error(f"APEX: No matching keyword found in APEX_DEFAULT_PATHS_DICT for {filename_input}. EXIT PROGRAM!")
             traceback.print_stack()
             exit(-1)
         logging.info(f"APEX Keyword: {apex_keyword} found for apex: {filename_input}")
