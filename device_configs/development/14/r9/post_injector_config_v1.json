@@ -33,6 +33,9 @@
     "android.hardware.strongbox_keystore.xml",
     "android.hardware.hardware_keystore.xml"
   ],
+  "NEVERALLOW_FILE_INJECT_KEYWORD_LIST": [
+    "_apex"
+  ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
     "libhbmsvmanager_jni.so",

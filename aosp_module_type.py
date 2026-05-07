@@ -237,6 +237,10 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
     if file_name in POST_INJECTOR_CONFIG["NEVERALLOW_FILE_INJECT"]:
         logging.info(f"File {source_file_path} is in NEVERALLOW_FILE_INJECT list, marking it as SKIPPED regardless of other settings.")
         module_type = "SKIPPED"
+    elif any(keyword in source_file_path for keyword in POST_INJECTOR_CONFIG["NEVERALLOW_FILE_INJECT_KEYWORD_LIST"]):
+        logging.info(f"File {source_file_path} contains a keyword from NEVERALLOW_FILE_INJECT list, marking it as SKIPPED regardless of other settings.")
+        module_type = "SKIPPED"
+
 
     if "_apex" in source_file_path:
         module_type = "SKIPPED"
