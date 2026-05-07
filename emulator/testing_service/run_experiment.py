@@ -38,6 +38,53 @@ COLLECT_DEVICE_INFO = os.path.join(BASE_DIR, 'collect_device_info.py')
 
 OUT_DIR = os.path.join(BASE_DIR, 'out')
 
+# Global timeout control (set by main)
+GLOBAL_START_TIME = None
+GLOBAL_MAX_SECONDS = None
+
+
+class GlobalTimeoutReached(Exception):
+    """Raised when the global runtime limit has been exceeded.
+
+    Attributes:
+        attempt: current attempt index (optional)
+        attempts: total attempts configured (optional)
+    """
+    def __init__(self, message="Global timeout reached", attempt=None, attempts=None):
+        super().__init__(message)
+        self.attempt = attempt
+        self.attempts = attempts
+
+def init_global_timeout(start_time_val, max_seconds_val):
+    global GLOBAL_START_TIME, GLOBAL_MAX_SECONDS
+    GLOBAL_START_TIME = start_time_val
+    GLOBAL_MAX_SECONDS = max_seconds_val
+
+def remaining_seconds():
+    """Return remaining seconds until global timeout, or None if no timeout set."""
+    if GLOBAL_START_TIME is None or GLOBAL_MAX_SECONDS is None:
+        return None
+    rem = GLOBAL_MAX_SECONDS - (time.time() - GLOBAL_START_TIME)
+    return max(0.0, rem)
+
+def get_effective_timeout(requested_timeout):
+    """Given a requested timeout (seconds or None), return an effective timeout
+    that does not exceed remaining global time. Returns None when no timeout.
+    If remaining_seconds() is 0, returns 0.0 which will cause immediate Timeout.
+    """
+    rem = remaining_seconds()
+    if rem is None:
+        return requested_timeout
+    # If no time left, indicate zero
+    if rem <= 0:
+        return 0.0
+    if requested_timeout is None:
+        return rem
+    try:
+        return min(float(requested_timeout), rem)
+    except Exception:
+        return rem
+
 # If a tools venv was created by install_tools.py, prefer using it for launching
 # app-testing scripts and ensure its bin/ directory is on PATH so commands installed
 # into the venv are discoverable when run via shell.
@@ -127,6 +174,8 @@ def parse_args():
                         help='Override key=value passed to device info collector (can be repeated)')
     parser.add_argument('--device-info-set-defaults', action='store_true',
                         help='Set OCTOPUS* default values on the device before collection', default=False)
+    parser.add_argument('--max-duration-hours', type=float, default=24.0,
+                        help='Maximum total runtime for this script in hours (default: 24)')
     return parser.parse_args()
 
 def run_script(script_path, args=None, description=None):
@@ -135,7 +184,21 @@ def run_script(script_path, args=None, description=None):
     if args:
         cmd.extend(args)
     logging.info(f"Running: {description or script_path}")
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # Apply global timeout if configured
+    eff_timeout = get_effective_timeout(None)
+    if eff_timeout == 0.0:
+        logging.error('Global timeout reached before running script %s', script_path)
+        raise GlobalTimeoutReached('Global timeout reached before running script', attempt=None, attempts=None)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=eff_timeout)
+    except subprocess.TimeoutExpired as e:
+        logging.error('Script %s timed out after %.1f seconds', script_path, get_effective_timeout(None) or 0.0)
+        # mimic non-zero return code and print stderr
+        if e.stdout:
+            logging.info(e.stdout)
+        if e.stderr:
+            logging.error(e.stderr)
+        raise GlobalTimeoutReached(f'Script timed out: {script_path}', attempt=None, attempts=None)
     out = (result.stdout or '').strip()
     err = (result.stderr or '').strip()
     if out:
@@ -149,7 +212,7 @@ def run_script(script_path, args=None, description=None):
             logging.error(err)
     if result.returncode != 0:
         logging.error(f"Failed: {description or script_path} (exit code {result.returncode})")
-        sys.exit(result.returncode)
+        raise RuntimeError(f"Script failed: {description or script_path} (exit code {result.returncode})")
 
 def run_script_capture(script_path, args=None, description=None):
     """Run a python script and capture detailed result without exiting the process.
@@ -163,10 +226,34 @@ def run_script_capture(script_path, args=None, description=None):
     start = datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z'
     t0 = datetime.datetime.now(datetime.timezone.utc)
     logging.info(f"Running (capture): {description or script_path}")
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    t1 = datetime.datetime.now(datetime.timezone.utc)
-    end = t1.isoformat() + 'Z'
-    duration = (t1 - t0).total_seconds()
+    # Compute effective timeout for this subprocess based on global remaining time
+    eff_timeout = get_effective_timeout(None)
+    if eff_timeout == 0.0:
+        raise GlobalTimeoutReached('Global timeout reached before starting subprocess')
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=eff_timeout)
+        t1 = datetime.datetime.now(datetime.timezone.utc)
+        end = t1.isoformat() + 'Z'
+        duration = (t1 - t0).total_seconds()
+    except subprocess.TimeoutExpired as e:
+        t1 = datetime.datetime.now(datetime.timezone.utc)
+        end = t1.isoformat() + 'Z'
+        duration = (t1 - t0).total_seconds()
+        # Build a result object indicating timeout
+        res = {
+            'script': script_path,
+            'args': args or [],
+            'description': description or script_path,
+            'returncode': -2,
+            'stdout': e.stdout or '',
+            'stderr': (e.stderr or '') + f"\n[timeout after {duration:.1f}s]",
+            'start_time': start,
+            'end_time': end,
+            'duration_seconds': duration,
+        }
+        logging.error('Command timed out after %.1f seconds: %s', duration, script_path)
+        # Escalate to global timeout exception so main can handle writing summary
+        raise GlobalTimeoutReached(f'Subprocess timed out: {script_path}')
     res = {
         'script': script_path,
         'args': args or [],
@@ -224,13 +311,22 @@ def run_script_capture(script_path, args=None, description=None):
 
 def run_command(cmd, description=None):
     logging.info(f"Running: {description or cmd}")
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    # Apply global timeout if configured
+    eff_timeout = get_effective_timeout(None)
+    if eff_timeout == 0.0:
+        logging.error('Global timeout reached before running command %s', cmd)
+        raise GlobalTimeoutReached('Global timeout reached before running command')
+    try:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=eff_timeout)
+    except subprocess.TimeoutExpired:
+        logging.error('Command timed out: %s', cmd)
+        raise GlobalTimeoutReached(f'Command timed out: {cmd}')
     logging.info(result.stdout)
     if result.stderr:
         logging.error(result.stderr)
     if result.returncode != 0:
         logging.error(f"Failed: {description or cmd} (exit code {result.returncode})")
-        sys.exit(result.returncode)
+        raise RuntimeError(f"Command failed: {description or cmd} (exit code {result.returncode})")
 
 def start_appium_server():
     logging.info("Starting Appium server...")
@@ -408,20 +504,25 @@ def run_adb_shell(args_list, description=None, check=True, timeout=30):
     """
     adb_cmd = _adb_base_cmd() + ['shell'] + list(args_list)
     logging.info('Running adb shell: %s', ' '.join(adb_cmd))
+    # Respect global remaining time: shorten the requested timeout if necessary
+    eff_timeout = get_effective_timeout(timeout)
+    if eff_timeout == 0.0:
+        logging.error('Global timeout reached before running adb shell: %s', args_list)
+        raise GlobalTimeoutReached('Global timeout reached before running adb shell', attempt=None, attempts=None)
     try:
-        res = subprocess.run(adb_cmd, capture_output=True, text=True, timeout=timeout)
+        res = subprocess.run(adb_cmd, capture_output=True, text=True, timeout=eff_timeout)
         if res.stdout:
             logging.info(res.stdout)
         if res.stderr:
             logging.warning(res.stderr)
         if check and res.returncode != 0:
             logging.error('Failed: %s (exit code %s)', description or 'adb shell', res.returncode)
-            sys.exit(res.returncode)
+            raise RuntimeError(f"adb shell failed: {description or 'adb shell'} (exit code {res.returncode})")
         return res
     except Exception as e:
         logging.exception('Exception while running adb shell %s: %s', args_list, e)
         if check:
-            sys.exit(2)
+            raise
         raise
 
 
@@ -1443,24 +1544,50 @@ def main():
     results_dir = os.path.join(BASE_DIR, 'out')
     os.makedirs(results_dir, exist_ok=True)
 
+    # Enforce a global maximum runtime for this process. When the duration is
+    # exceeded we attempt graceful shutdown (stop background services) and write
+    # the experiment summary with the results collected so far.
+    start_time = time.time()
+    max_duration_hours = float(getattr(args, 'max_duration_hours', 24.0))
+    max_seconds = max(0.0, max_duration_hours * 3600.0)
+    # Initialize module-global timeout helpers used by subprocess wrappers
+    init_global_timeout(start_time, max_seconds)
+
+    def _check_timeout_and_exit(current_attempt=None, total_attempts=None):
+        if max_seconds <= 0:
+            return
+        elapsed = time.time() - start_time
+        if elapsed >= max_seconds:
+            # Signal the global timeout to the outer loop so it can perform
+            # orderly shutdown and write results. Do not exit here.
+            logging.warning('Maximum runtime of %.2f hours exceeded (elapsed %.2f hours). Signalling timeout.', max_duration_hours, elapsed / 3600.0)
+            raise GlobalTimeoutReached('Maximum runtime exceeded', attempt=current_attempt, attempts=total_attempts)
+
+
     attempts = max(1, int(getattr(args, 'retries', 30)))
     retry_delay = int(getattr(args, 'retry_delay', 15))
 
     # Single unified retry loop: perform the entire preflight and experiment in one attempt
     for attempt in range(1, attempts + 1):
         logging.info('Full-run attempt %d/%d starting...', attempt, attempts)
+        # Check timeout before starting each attempt
+        _check_timeout_and_exit(current_attempt=attempt, total_attempts=attempts)
         try:
             # 1) Ensure adb available
             ensure_adb_available(results_dir)
+            _check_timeout_and_exit(current_attempt=attempt, total_attempts=attempts)
 
             # 2) Start background helpers (tcpdump, crash watcher)
             start_background_services()
+            _check_timeout_and_exit(current_attempt=attempt, total_attempts=attempts)
 
             # 3) Preflight checks: boot, launcher, connectivity
             do_preflight(results_dir)
+            _check_timeout_and_exit(current_attempt=attempt, total_attempts=attempts)
 
             # 4) Setup devices and run experiment
             setup_and_run_experiment(args)
+            _check_timeout_and_exit(current_attempt=attempt, total_attempts=attempts)
 
             # Success: cleanup, write summary and exit
             stop_background_services()
@@ -1470,6 +1597,26 @@ def main():
             except Exception:
                 logging.exception('Failed to write experiment summary on success')
             return
+
+        except GlobalTimeoutReached as e:
+            logging.error('Global timeout reached: %s', e)
+            # Attempt graceful shutdown and write partial results
+            try:
+                stop_background_services()
+            except Exception:
+                logging.exception('Error while stopping background services after timeout')
+            try:
+                write_experiment_summary(results_dir, overall_success=False, attempt=e.attempt or attempt, attempts=e.attempts or attempts)
+            except Exception:
+                logging.exception('Failed to write experiment summary after timeout')
+            # write an explicit timeout marker
+            try:
+                timeout_file = os.path.join(results_dir, 'experiment_timed_out.json')
+                _write_json(timeout_file, {'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z', 'attempt': e.attempt, 'attempts': e.attempts})
+            except Exception:
+                logging.exception('Failed to write timeout marker')
+            # Exit with non-zero to indicate timeout
+            sys.exit(2)
 
         except KeyboardInterrupt:
             logging.info('Interrupted by user; stopping background services and aborting')
