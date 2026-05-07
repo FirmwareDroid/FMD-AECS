@@ -986,9 +986,12 @@ class AdbTcpService {
 			init.videoEncoder = chosenVideoEncoder;
 			logger.info(`Final selected videoEncoder='${chosenVideoEncoder}'`);
 		} else {
-			// ensure we don't pass unsupported compound name
-			if (init.videoEncoder && String(init.videoEncoder).includes('@')) delete init.videoEncoder;
-			logger.info('No compatible videoEncoder found; letting scrcpy choose default');
+			if (init.videoEncoder) {
+				logger.warn(`Requested/selected videoEncoder '${init.videoEncoder}' is not supported on device; letting scrcpy choose default`);
+				delete init.videoEncoder;
+			} else {
+				logger.info('No compatible videoEncoder found; letting scrcpy choose default');
+			}
 		}
 
 		// finalize audio encoder similarly
@@ -1013,8 +1016,10 @@ class AdbTcpService {
 		if (chosenAudioEncoder) {
 			init.audioEncoder = chosenAudioEncoder;
 			logger.info(`Final selected audioEncoder='${chosenAudioEncoder}'`);
-		} else if (init.audioEncoder && String(init.audioEncoder).includes('@')) {
+		} else if (init.audioEncoder) {
+			logger.warn(`Requested/selected audioEncoder '${init.audioEncoder}' is not supported on device; letting scrcpy choose default`);
 			delete init.audioEncoder;
+		} else {
 			logger.info('No compatible audioEncoder found; letting scrcpy choose default');
 		}
 
@@ -1350,4 +1355,3 @@ export function evictPushedSerial(serial) {
 		logger.debug(`evictPushedSerial: cleared push cache and back-off state for serial=${serial}`);
 	}
 }
-
