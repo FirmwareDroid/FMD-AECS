@@ -105,7 +105,7 @@ function safeStringify(value) {
 		return JSON.stringify(value);
 	} catch (e) {
 		try {
-			return inspect(value, { depth: 1, maxArrayLength: 20, breakLength: 120 });
+			return inspect(value, { depth: 1, maxArrayLength: 100, breakLength: 120 });
 		} catch {
 			return `<unserializable:${typeof value}>`;
 		}
@@ -114,7 +114,7 @@ function safeStringify(value) {
 
 function describeAdbInstance(adbInstance) {
 	const serial = resolveSerialFromAdbInstance(adbInstance);
-	return serial ? `{ serial: "${serial}" }` : '{ serial: "<unknown>" }';
+	return safeStringify({ serial: serial || '<unknown>' });
 }
 
 // Read statically configured ADB server entries from the environment.
@@ -774,10 +774,12 @@ class AdbTcpService {
                 if (Array.isArray(ds)) {
                     for (const d of ds) {
 						if (!d) continue;
-						d._serverKey = p.key;
-						d._serverHost = p.host;
-						d._serverPort = p.port;
-						all.push(d);
+						all.push({
+							...d,
+							_serverKey: p.key,
+							_serverHost: p.host,
+							_serverPort: p.port,
+						});
                     }
                 }
             } catch (e) {
@@ -980,8 +982,12 @@ class AdbTcpService {
 		} catch (e) {
 			logger.debug('Could not obtain device encoders before scrcpy.start:', e?.message || e);
 		}
-		const videoDeviceEncoders = deviceEncoders.filter(e => e && e.type === 'video');
-		const audioDeviceEncoders = deviceEncoders.filter(e => e && e.type === 'audio');
+		const { videoDeviceEncoders, audioDeviceEncoders } = deviceEncoders.reduce((acc, encoder) => {
+			if (!encoder) return acc;
+			if (encoder.type === 'video') acc.videoDeviceEncoders.push(encoder);
+			if (encoder.type === 'audio') acc.audioDeviceEncoders.push(encoder);
+			return acc;
+		}, { videoDeviceEncoders: [], audioDeviceEncoders: [] });
 
 		// Respect explicit raw audio/video requests: if the client specifically
 		// asked for raw audio (audioCodec==='raw' or audioEncoder==='raw'), avoid
@@ -1121,7 +1127,14 @@ class AdbTcpService {
 		await pushServer(deviceAdb);
 		const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
 		try {
-			logger.info(`Starting scrcpy client with options: ${safeStringify(options)} and deviceAdb: ${describeAdbInstance(deviceAdb)} and serverPath: ${serverPathForDevice}`);
+			logger.info(
+				{
+					options: safeStringify(options),
+					deviceAdb: describeAdbInstance(deviceAdb),
+					serverPath: serverPathForDevice,
+				},
+				'Starting scrcpy client',
+			);
 			const client = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, options);
 
 			// richer logging / validation: class instances often stringify to {} — inspect prototype/methods and hidden properties
