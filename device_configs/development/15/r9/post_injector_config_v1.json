@@ -455,7 +455,6 @@
   "DISALLOW_APEX_FILE_INJECTION_EXTENSIONS": [],
   "ALLOWED_APEX_FILE_INJECTION_EXTENSIONS": [],
   "COPY_TO_SPECIFIC_PATH": {
-    "boot-framework.art": "./system/framework/"
   },
   "INDIRECT_INJECTION_FILE_MAPPING": {
     "framework.jar": "obj/JAVA_LIBRARIES/framework-minus-apex_intermediates/javalib.jar",

@@ -1005,9 +1005,12 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         if not os.path.exists(dst_path):
             #copy_fast(file_path, dst_path)
             test_data = "/data/system/fonts/Roboto-Regular.ttf"
-            with open(dst_path, "w") as f:
-                f.write(test_data)
-            logging.info(f"COPY_TO_SPECIFIC_PATH: {file_path} to {dst_path}")
+            try:
+                with open(dst_path, "w") as f:
+                    f.write(test_data)
+                logging.info(f"COPY_TO_SPECIFIC_PATH: {file_path} to {dst_path}")
+            except Exception as e:
+                logging.error(f"Error copying file for COPY_TO_SPECIFIC_PATH: {file_path} to {dst_path} | {e}")
         else:
             logging.info(f"SKIPPED COPY_TO_SPECIFIC_PATH: {file_path}|{dst_path} already exists")
 
