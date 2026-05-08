@@ -22,7 +22,10 @@
   "DISABLE_SHARED_LIBRARY_INJECTION": false,
   "SKIPPED_APP_KEYWORDLIST": [
   ],
-  "SKIPPED_MISC_KEYWORD_LIST": [],
+  "SKIPPED_MISC_KEYWORD_LIST": [
+    "/vendor/bin/",
+    "/system/bin/"
+  ],
   "SKIPPED_MISC_EXTENSION_LIST": [
     ".kl",
     ".vdex",

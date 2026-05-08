@@ -96,7 +96,9 @@
   "SKIPPED_APP_LIST": [],
   "SKIPPED_MISC_KEYWORD_LIST": [
     "keystore",
-    "strongbox"
+    "strongbox",
+    "/vendor/bin/",
+    "/system/bin/"
   ],
   "SKIPPED_MISC_EXTENSION_LIST": [
     ".kl",
