@@ -22,8 +22,17 @@ import os from 'node:os';
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const DEFAULT_ADB_PORT = 5037;
-const DEFAULT_TIMEOUT_MS = 5000;
-const DEFAULT_MAX_CONCURRENT = 50;
+// Per-host TCP connection timeout (ms). Shorter time reduces total scan time but
+// needs to be high enough to tolerate transient packet loss on busy networks.
+const DEFAULT_TIMEOUT_MS = 500;
+// Maximum number of parallel TCP probes. Increase to scan faster on beefy hosts.
+const DEFAULT_MAX_CONCURRENT = 200;
+// Handshake defaults: attempt a minimal ADB "CNXN" handshake after TCP connect
+// to reduce false-positives from non-ADB services listening on the same port.
+const DEFAULT_HANDSHAKE_ENABLED = true;
+const DEFAULT_HANDSHAKE_ATTEMPTS = 2;
+const DEFAULT_HANDSHAKE_TIMEOUT_MS = 1000;
+const DEFAULT_HANDSHAKE_BACKOFF_MS = 200;
 // Smallest prefix we will enumerate (/24 = 254 hosts). Wider subnets are
 // clamped to this value so a single Docker /16 does not cause 65 k probes.
 const MIN_PREFIX_LENGTH = 24;
@@ -225,6 +234,148 @@ export function probePort(host, port, timeoutMs, createConnection = net.createCo
             socket.once('error', () => { clearTimeout(timer); if (attempt >= attempts) onDone(false); else setTimeout(tryOnce, backoffMs); });
             socket.once('timeout', () => { clearTimeout(timer); if (attempt >= attempts) onDone(false); else setTimeout(tryOnce, backoffMs); });
             socket.setTimeout(timeoutMs);
+        };
+
+        tryOnce();
+    });
+}
+
+// ─── Minimal ADB handshake probe ────────────────────────────────────────────
+
+/**
+ * Compute CRC32 for a Buffer. Lightweight implementation (table-based).
+ *
+ * @param {Buffer} buf
+ * @returns {number} unsigned 32-bit CRC
+ */
+function crc32(buf) {
+    // generated on first call
+    if (!crc32.table) {
+        const table = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+            let t = i;
+            for (let j = 0; j < 8; j++) {
+                if (t & 1) t = 0xedb88320 ^ (t >>> 1);
+                else t = t >>> 1;
+            }
+            table[i] = t >>> 0;
+        }
+        crc32.table = table;
+    }
+    let crc = 0xffffffff;
+    const table = crc32.table;
+    for (let i = 0; i < buf.length; i++) {
+        crc = (crc >>> 8) ^ table[(crc ^ buf[i]) & 0xff];
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+}
+
+/**
+ * Perform a minimal ADB CNXN handshake to confirm an ADB server is speaking
+ * the ADB protocol on the other end of an open TCP socket. Returns true when
+ * a syntactically valid ADB response header is received.
+ *
+ * This function is intentionally conservative: it only validates the response
+ * header magic/structure and does not implement the full protocol state machine.
+ *
+ * @param {string} host
+ * @param {number} port
+ * @param {number} timeoutMs - per-attempt timeout for the whole handshake
+ * @param {Function} createConnection - injectable net.createConnection
+ * @param {number} attempts - number of handshake attempts
+ * @param {number} backoffMs - delay between attempts
+ * @returns {Promise<boolean>}
+ */
+export function probeAdbHandshake(host, port, timeoutMs, createConnection = net.createConnection, attempts = 1, backoffMs = 100) {
+    return new Promise((resolve) => {
+        let attempt = 0;
+        let settled = false;
+
+        const tryOnce = () => {
+            if (settled) return;
+            attempt += 1;
+
+            let socket;
+            try {
+                socket = createConnection({ host, port, allowHalfOpen: false });
+            } catch (err) {
+                if (attempt >= attempts) return resolve(false);
+                return setTimeout(tryOnce, backoffMs);
+            }
+
+            const onDone = (result) => {
+                if (settled) return;
+                settled = true;
+                try { socket.destroy(); } catch (_) {}
+                resolve(result);
+            };
+
+            const timer = setTimeout(() => onDone(false), timeoutMs);
+
+            socket.once('connect', () => {
+                // build a minimal CNXN packet with no payload
+                const dataBuf = Buffer.alloc(0);
+                const cmdBuf = Buffer.from('CNXN', 'ascii');
+                const cmd = cmdBuf.readUInt32LE(0) >>> 0;
+                const arg0 = 0x01000000; // host version 0x01000000 (ADB protocol version 1)
+                const arg1 = 4096; // max data payload
+                const length = dataBuf.length >>> 0;
+                const checksum = length ? crc32(dataBuf) : 0;
+                const magic = (cmd ^ 0xffffffff) >>> 0;
+
+                const header = Buffer.alloc(24);
+                header.writeUInt32LE(cmd, 0);
+                header.writeUInt32LE(arg0, 4);
+                header.writeUInt32LE(arg1, 8);
+                header.writeUInt32LE(length, 12);
+                header.writeUInt32LE(checksum, 16);
+                header.writeUInt32LE(magic, 20);
+
+                // send header (no payload) and wait for server response header
+                socket.write(header);
+
+                let acc = Buffer.alloc(0);
+                const onData = (chunk) => {
+                    acc = Buffer.concat([acc, chunk]);
+                    if (acc.length >= 24) {
+                        clearTimeout(timer);
+                        socket.removeListener('data', onData);
+                        // parse header
+                        try {
+                            const rcmd = acc.readUInt32LE(0) >>> 0;
+                            const rarg0 = acc.readUInt32LE(4) >>> 0;
+                            const rarg1 = acc.readUInt32LE(8) >>> 0;
+                            const rlen = acc.readUInt32LE(12) >>> 0;
+                            const rck = acc.readUInt32LE(16) >>> 0;
+                            const rmagic = acc.readUInt32LE(20) >>> 0;
+                            const expectedMagic = (rcmd ^ 0xffffffff) >>> 0;
+                            // validate magic and reasonable payload length
+                            if (rmagic === expectedMagic && rlen < 16 * 1024) {
+                                onDone(true);
+                                return;
+                            }
+                        } catch (e) {
+                            // fall through to failure
+                        }
+                        onDone(false);
+                    }
+                };
+
+                socket.on('data', onData);
+                socket.once('error', () => { clearTimeout(timer); socket.removeListener('data', onData); if (attempt >= attempts) onDone(false); else setTimeout(tryOnce, backoffMs); });
+                socket.once('timeout', () => { clearTimeout(timer); socket.removeListener('data', onData); if (attempt >= attempts) onDone(false); else setTimeout(tryOnce, backoffMs); });
+                socket.setTimeout(timeoutMs);
+            });
+
+            socket.once('error', () => {
+                clearTimeout(timer);
+                if (attempt >= attempts) onDone(false); else setTimeout(tryOnce, backoffMs);
+            });
+
+            socket.once('timeout', () => {
+                clearTimeout(timer);
+                if (attempt >= attempts) onDone(false); else setTimeout(tryOnce, backoffMs);
+            });
         };
 
         tryOnce();
