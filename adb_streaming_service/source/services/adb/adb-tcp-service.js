@@ -1096,7 +1096,7 @@ class AdbTcpService {
 		// Create options after we possibly adjusted encoders
 		const options = new AdbScrcpyOptions2_1(init, { version: VERSION });
 
-		logger.debug(`Using encoders: video='${init.videoEncoder || ''}' audio='${init.audioEncoder || ''}' availableVideoEncoders=${JSON.stringify(availableEncoderNames)}`);
+		logger.info(`Using encoders: video='${init.videoEncoder || ''}' audio='${init.audioEncoder || ''}' availableVideoEncoders=${JSON.stringify(availableEncoderNames)}`);
 
 		// ensure server binary is present on the device
 		await pushServer(deviceAdb);
@@ -1122,7 +1122,7 @@ class AdbTcpService {
 					}
 				}
 			} catch (e) {
-				logger.debug(`Reading initial client.output failed: ${e?.message || e}`);
+				logger.info(`Reading initial client.output failed: ${e?.message || e}`);
 			}
 
 			// richer logging / validation: class instances often stringify to {} — inspect prototype/methods and hidden properties
@@ -1141,7 +1141,7 @@ class AdbTcpService {
 			const hasOutput = client && client.output;
 			const controlRequested = options && options.value && options.value.control === true;
 			const hasController = !!(client && client.controller);
-			logger.debug(`scrcpy client validation: hasClose=${hasClose} hasOutput=${!!hasOutput} controlRequested=${controlRequested} hasController=${hasController}`);
+			logger.info(`scrcpy client validation: hasClose=${hasClose} hasOutput=${!!hasOutput} controlRequested=${controlRequested} hasController=${hasController}`);
 
 			// If control was requested, ensure controller exists
 			if (!client || !hasClose || !hasOutput || (controlRequested && !hasController)) {
@@ -1159,7 +1159,7 @@ class AdbTcpService {
 							details.device_ls = ls.stdout || ls.stderr || null;
 						} catch (e) { details.device_ls = null; }
 					} catch (e) {
-						logger.debug('Diagnostics collection failed', e?.message || e);
+						logger.info('Diagnostics collection failed', e?.message || e);
 					}
 				const err = new Error('AdbScrcpyClient.start returned unexpected/insufficient client object');
 				err.details = details;
