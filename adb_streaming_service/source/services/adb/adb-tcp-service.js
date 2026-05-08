@@ -576,29 +576,29 @@ const pushServer = async (adbInstance, force = false) => {
 							if (remote.exists === true) {
 								// record detected path so subsequent operations reuse it
 								if (remote.path) try { pushPathBySerial.set(serial, remote.path); } catch (e) { logger.debug('pushServer: could not set pushPathBySerial', e?.message || e); }
-								logger.debug(`pushServer: server already pushed to device serial=${serial}, remote file exists, skipping (path=${remote.path || DEVICE_SERVER_PATH})`);
+								logger.info(`pushServer: server already pushed to device serial=${serial}, remote file exists, skipping (path=${remote.path || DEVICE_SERVER_PATH})`);
 								return;
 							}
 							// When probe is inconclusive (subprocess unavailable on this transport type),
 							// trust the cached push state to avoid a misleading re-push cycle.
 							if (remote.exists === null) {
-								logger.debug(`pushServer: probe inconclusive for serial=${serial} (subprocess unavailable); trusting cached push state`);
+								logger.info(`pushServer: probe inconclusive for serial=${serial} (subprocess unavailable); trusting cached push state`);
 								return;
 							}
 							logger.warn(`pushServer: server previously marked pushed for serial=${serial} but remote file missing; re-pushing`);
 							pushedBySerial.delete(serial);
 						} catch (e) {
-							logger.debug('pushServer: verification probe failed, proceeding to re-push', e?.message || e);
+							logger.info('pushServer: verification probe failed, proceeding to re-push', e?.message || e);
 							pushedBySerial.delete(serial);
 						}
 		}
 
 		if (pushInFlightBySerial.has(serial)) {
 			if (!force) {
-				logger.debug(`pushServer: push already in-flight for serial=${serial}, awaiting existing promise`);
+				logger.info(`pushServer: push already in-flight for serial=${serial}, awaiting existing promise`);
 				return await pushInFlightBySerial.get(serial);
 			} else {
-				logger.debug(`pushServer: forced push requested for serial=${serial}, waiting for any in-flight push to finish before forcing`);
+				logger.info(`pushServer: forced push requested for serial=${serial}, waiting for any in-flight push to finish before forcing`);
 				try { await pushInFlightBySerial.get(serial); } catch (e) { /* ignore */ }
 				pushedBySerial.delete(serial);
 			}
@@ -606,7 +606,7 @@ const pushServer = async (adbInstance, force = false) => {
 
 		const promise = (async () => {
 			try {
-				logger.debug(`Pushing scrcpy server to device serial=${serial} path: ${DEVICE_SERVER_PATH} (force=${!!force})`);
+				logger.info(`Pushing scrcpy server to device serial=${serial} path: ${DEVICE_SERVER_PATH} (force=${!!force})`);
 				// Attempt primary push to DEVICE_SERVER_PATH, fall back to ALT_DEVICE_SERVER_PATH if that fails.
 				const attemptPaths = [DEVICE_SERVER_PATH, ALT_DEVICE_SERVER_PATH];
 				// local size is intentionally not used — verification is existence-only

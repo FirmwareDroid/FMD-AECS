@@ -57,7 +57,6 @@ export function createDeviceMonitor({ logger, getPools, Adb, pushServer }) {
                 const transport = await pool.client.createTransport({ serial });
                 const adb = new Adb(transport);
                 await pushServer(adb);
-                logger.info(`Device monitor: pushed scrcpy server to serial=${serial} pool=${pool.key}`);
             } catch (e) {
                 logger.error(`Device monitor: push failed for serial=${serial} pool=${pool.key}: ${e?.message || e}`);
             }
