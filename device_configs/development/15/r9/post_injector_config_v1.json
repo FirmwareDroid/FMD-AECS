@@ -72,7 +72,8 @@
     "libpermission.so",
     "libandroidfw.so",
     "libresid.so",
-    "libart.so"
+    "libart.so",
+    "ld-android.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "Overlay",
@@ -119,7 +120,11 @@
     "/etc/sysconfig/",
     "/etc/miui-spn-conf.xml",
     "/etc/init/miuibooster.rc",
-    "/lib64/android.hardware.graphics"
+    "/lib64/android.hardware.graphics",
+    "/lib64/bootstrap/",
+    "libmedia",
+    "vendor/lib64/mediacas/",
+    "mediacas"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [],
