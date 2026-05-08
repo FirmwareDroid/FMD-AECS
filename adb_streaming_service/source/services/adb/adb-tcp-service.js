@@ -25,6 +25,7 @@ import { logger } from "../logger.js";
 import { global } from "../../state/global.js";
 import { resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
+import { inspect } from "node:util";
 import { withTimeout } from "../../utils/timeout.js";
 import { createDeviceMonitor } from "./adb-device-monitor.js";
 import { discoverAdbServers } from "./adb-discovery.js";
@@ -98,6 +99,23 @@ const server = await loadServerBinary();
 
 // helper sleep
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function safeStringify(value) {
+	try {
+		return JSON.stringify(value);
+	} catch (e) {
+		try {
+			return inspect(value, { depth: 1, maxArrayLength: 20, breakLength: 120 });
+		} catch {
+			return `<unserializable:${typeof value}>`;
+		}
+	}
+}
+
+function describeAdbInstance(adbInstance) {
+	const serial = resolveSerialFromAdbInstance(adbInstance);
+	return serial ? `{ serial: "${serial}" }` : '{ serial: "<unknown>" }';
+}
 
 // Read statically configured ADB server entries from the environment.
 // ADB_SERVER_LIST (or its alias ADB_SERVERS) is optional: when not set, auto-
@@ -545,7 +563,7 @@ function getServerPathForAdbInstance(adbInstance) {
 }
 
 const pushServer = async (adbInstance, force = false) => {
-	logger.info(`Pushing scrcpy server to device if not already present with Instance: ${JSON.stringify(adbInstance)}`);
+	logger.info(`Pushing scrcpy server to device if not already present with Instance: ${describeAdbInstance(adbInstance)}`);
 	const serial = resolveSerialFromAdbInstance(adbInstance);
 	logger.info(`Got serial from adb instance: ${serial}`);
 
@@ -754,15 +772,13 @@ class AdbTcpService {
             try {
                 const ds = await p.client.getDevices();
                 if (Array.isArray(ds)) {
-                    //for (const d of ds) {
-					// Every pool can only have one device running on the system.
-					const d = ds[0];
-					if (!d) continue;
-					d._serverKey = p.key;
-					d._serverHost = p.host;
-					d._serverPort = p.port;
-					all.push(d);
-                    //}
+                    for (const d of ds) {
+						if (!d) continue;
+						d._serverKey = p.key;
+						d._serverHost = p.host;
+						d._serverPort = p.port;
+						all.push(d);
+                    }
                 }
             } catch (e) {
                 logger.debug(`getDevices: pool ${p.key} failed: ${e?.message || e}`);
@@ -803,7 +819,7 @@ class AdbTcpService {
 			poolInfo = { pool: defaultPool, serial };
 		}
 		const { pool } = poolInfo;
-		logger.info(`Connecting to device serial=${poolInfo.serial} via ADB server pool=${pool.key} with poolInfo=${JSON.stringify(poolInfo)}`);
+		logger.info(`Connecting to device serial=${poolInfo.serial} via ADB server pool=${pool.key} with poolInfo=${safeStringify(poolInfo)}`);
 		// create transport on the selected pool's client
 		const transport = await pool.client.createTransport({ serial: poolInfo.serial });
 		const adb = new Adb(transport);
@@ -822,7 +838,7 @@ class AdbTcpService {
 		let result = [];
 		let trial = 0;
 		// push server once before trials
-		logger.info(`Getting device displays for deviceAdb: ${JSON.stringify(deviceAdb)}`)
+		logger.info(`Getting device displays for deviceAdb: ${describeAdbInstance(deviceAdb)}`)
 
 		// Check per-device back-off to avoid hammering a consistently failing device.
 		const serial = resolveSerialFromAdbInstance(deviceAdb);
@@ -836,14 +852,14 @@ class AdbTcpService {
 		// optional: try to verify file exists on device (best-effort)
 		const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
 		logger.info(`Verifying scrcpy server file existence on device before getDeviceDisplays (path=${serverPathForDevice})`);
-		try { const check = await runAdbCliLs(deviceAdb, serverPathForDevice); logger.debug(`device ls output: ${JSON.stringify(check)}`); } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
+		try { const check = await runAdbCliLs(deviceAdb, serverPathForDevice); logger.debug(`device ls output: ${safeStringify(check)}`); } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
 		while (!result?.length && trial < this.numOfTrials) {
 			try {
 				logger.debug(`Attempt ${trial + 1} to get displays`);
 				const minimalInitForList = { cleanup: true, tunnelForward: true };
 				const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
 				const displays = await AdbScrcpyClient.getDisplays(deviceAdb, serverPathForDevice, new AdbScrcpyOptionsLatest(minimalInitForList, { version: VERSION }));
-				logger.debug(`getDisplays returned: ${JSON.stringify(displays)}`);
+				logger.debug(`getDisplays returned: ${safeStringify(displays)}`);
 				result = displays || [];
 				if (!result.length) {
 					logger.warn(`getDisplays returned empty on attempt ${trial + 1}; attempting to re-push scrcpy server and retry.`);
@@ -886,14 +902,14 @@ class AdbTcpService {
 
 		try { await pushServer(deviceAdb); } catch (err) { logger.error({ err }, 'Initial pushServer failed in getDeviceEncoders'); }
 		const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
-		try { const check = await runAdbCliLs(deviceAdb, serverPathForDevice); logger.debug(`device ls output: ${JSON.stringify(check)}`); } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
+		try { const check = await runAdbCliLs(deviceAdb, serverPathForDevice); logger.debug(`device ls output: ${safeStringify(check)}`); } catch (e) { logger.debug('Device file existence check failed or not supported:', e?.message || e); }
 		while (!result?.length && trial < this.numOfTrials) {
 			try {
 				logger.debug(`Attempt ${trial + 1} to get encoders`);
 				const minimalInitForList = { cleanup: true, tunnelForward: true };
 				const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
 				const encoders = await AdbScrcpyClient.getEncoders(deviceAdb, serverPathForDevice, new AdbScrcpyOptionsLatest(minimalInitForList, { version: VERSION }));
-				logger.debug(`getEncoders returned: ${JSON.stringify(encoders)}`);
+				logger.debug(`getEncoders returned: ${safeStringify(encoders)}`);
 				result = encoders || [];
 				if (!result.length) {
 					logger.warn(`getEncoders returned empty on attempt ${trial + 1}; attempting to re-push scrcpy server and retry.`);
@@ -957,15 +973,15 @@ class AdbTcpService {
 		// ensure server binary is present on the device
 		await pushServer(deviceAdb);
 
-		// Try to query device encoders to select a compatible encoder (prefer device-supported names)
+		// Try to query device encoders once and reuse the result to reduce startup latency.
 		let deviceEncoders = [];
 		try {
 			deviceEncoders = await this.getDeviceEncoders(deviceAdb) || [];
-			// normalize to only video encoders for video selection
-			deviceEncoders = deviceEncoders.filter(e => e && e.type === 'video');
 		} catch (e) {
 			logger.debug('Could not obtain device encoders before scrcpy.start:', e?.message || e);
 		}
+		const videoDeviceEncoders = deviceEncoders.filter(e => e && e.type === 'video');
+		const audioDeviceEncoders = deviceEncoders.filter(e => e && e.type === 'audio');
 
 		// Respect explicit raw audio/video requests: if the client specifically
 		// asked for raw audio (audioCodec==='raw' or audioEncoder==='raw'), avoid
@@ -978,12 +994,12 @@ class AdbTcpService {
 			// ensure we do not set audioEncoder when raw is requested
 			if (init.audioEncoder) delete init.audioEncoder;
 		}
-		const availableEncoderNames = deviceEncoders.map(e => e && e.name).filter(Boolean);
+		const availableEncoderNames = videoDeviceEncoders.map(e => e && e.name).filter(Boolean);
 
 		// Helper to pick encoder for the given codec. Prefer c2.* if present, else any matching codec.
 		const pickEncoderForCodec = (codec) => {
-			if (!deviceEncoders || !deviceEncoders.length) return null;
-			let candidates = deviceEncoders.filter(e => String(e.codec || '').toLowerCase() === String(codec || '').toLowerCase());
+			if (!videoDeviceEncoders || !videoDeviceEncoders.length) return null;
+			let candidates = videoDeviceEncoders.filter(e => String(e.codec || '').toLowerCase() === String(codec || '').toLowerCase());
 			if (!candidates.length) return null;
 			// prefer c2.* names (common on modern Android)
 			const preferred = candidates.find(c => /(^|\.|\-)c2\.|c2\./i.test(c.name)) || candidates[0];
@@ -1032,11 +1048,7 @@ class AdbTcpService {
 		if (!wantsRawAudio && audioEncoder) {
 			const aEncStr = String(audioEncoder);
 			try {
-				// query audio encoders list
-				let audioEncList = [];
-				try { audioEncList = (await this.getDeviceEncoders(deviceAdb)) || []; } catch (e) { /* ignore */ }
-				audioEncList = audioEncList.filter(e => e && e.type === 'audio');
-				const audioNames = audioEncList.map(e => e.name).filter(Boolean);
+				const audioNames = audioDeviceEncoders.map(e => e.name).filter(Boolean);
 				if (aEncStr.includes('@')) {
 					const rhs = aEncStr.split('@').pop();
 					if (audioNames.includes(rhs)) { init.audioEncoder = rhs; logger.info(`Mapped requested audioEncoder '${audioEncoder}' -> '${rhs}'`); }
@@ -1083,15 +1095,9 @@ class AdbTcpService {
 			const a = String(init.audioEncoder);
 			if (a.includes('@')) {
 				const rhs = a.split('@').pop();
-				// reuse audio list fetched earlier
-				// audioEncList may not exist here, fetch quickly
-				try {
-					let audioEncList = (await this.getDeviceEncoders(deviceAdb)) || [];
-					audioEncList = audioEncList.filter(e => e && e.type === 'audio');
-					const audioNames = audioEncList.map(e => e.name).filter(Boolean);
-					if (audioNames.includes(rhs)) chosenAudioEncoder = rhs;
-					else if (audioNames.includes(a)) chosenAudioEncoder = a;
-				} catch (e) { logger.debug('audio encoder finalization failed:', e?.message || e); }
+				const audioNames = audioDeviceEncoders.map(e => e.name).filter(Boolean);
+				if (audioNames.includes(rhs)) chosenAudioEncoder = rhs;
+				else if (audioNames.includes(a)) chosenAudioEncoder = a;
 			} else {
 				chosenAudioEncoder = init.audioEncoder;
 			}
@@ -1109,44 +1115,21 @@ class AdbTcpService {
 		// Create options after we possibly adjusted encoders
 		const options = new AdbScrcpyOptions2_1(init, { version: VERSION });
 
-		logger.info(`Using encoders: video='${init.videoEncoder || ''}' audio='${init.audioEncoder || ''}' availableVideoEncoders=${JSON.stringify(availableEncoderNames)}`);
+		logger.info(`Using encoders: video='${init.videoEncoder || ''}' audio='${init.audioEncoder || ''}' availableVideoEncoders=${safeStringify(availableEncoderNames)}`);
 
 		// ensure server binary is present on the device
 		await pushServer(deviceAdb);
 		const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
 		try {
-			logger.info(`Starting scrcpy client with options: ${JSON.stringify(options)} \n and deviceAdb: ${JSON.stringify(deviceAdb)} \n and server path: ${serverPathForDevice}`);
+			logger.info(`Starting scrcpy client with options: ${safeStringify(options)} and deviceAdb: ${describeAdbInstance(deviceAdb)} and serverPath: ${serverPathForDevice}`);
 			const client = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, options);
-			// read some initial output lines from client.output to help debugging
-			let initialOutputLines = [];
-			try {
-				if (client && client.output && typeof client.output.getReader === 'function') {
-					const reader = client.output.getReader();
-					try {
-						// read up to 40 lines, with a short timeout for each
-						for (let i = 0; i < 40; i++) {
-							const p = reader.read();
-							const r = await Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('output-read-timeout')), 300))]);
-							if (r && r.done) { break; }
-							if (r && r.value) initialOutputLines.push(String(r.value));
-						}
-					} finally {
-						try { reader.releaseLock(); } catch (e) {}
-					}
-				}
-			} catch (e) {
-				logger.info(`Reading initial client.output failed: ${e?.message || e}`);
-			}
 
 			// richer logging / validation: class instances often stringify to {} — inspect prototype/methods and hidden properties
-			import('node:util').then((util) => {
-				try {
-					const proto = client && Object.getPrototypeOf(client) ? Object.getOwnPropertyNames(Object.getPrototypeOf(client)) : [];
-					logger.info(`Got scrcpy client: type=${typeof client} protoKeys=${JSON.stringify(proto.slice(0,50))}`);
-					logger.debug(`Inspect client (showHidden, depth=2): ${util.inspect(client, { showHidden: true, depth: 2 })}`);
-					if (initialOutputLines.length) logger.debug(`Initial client.output lines:\n${initialOutputLines.join('\n')}`);
-				} catch (e) { logger.debug('Error inspecting scrcpy client', e?.message || e); }
-			});
+			try {
+				const proto = client && Object.getPrototypeOf(client) ? Object.getOwnPropertyNames(Object.getPrototypeOf(client)) : [];
+				logger.info(`Got scrcpy client: type=${typeof client} protoKeys=${safeStringify(proto.slice(0,50))}`);
+				logger.debug(`Inspect client (showHidden, depth=2): ${inspect(client, { showHidden: true, depth: 2 })}`);
+			} catch (e) { logger.debug('Error inspecting scrcpy client', e?.message || e); }
 
 			// Validate client has at least one expected API (best-effort check)
 			const protoNames = client && Object.getPrototypeOf(client) ? Object.getOwnPropertyNames(Object.getPrototypeOf(client)) : [];
@@ -1159,7 +1142,7 @@ class AdbTcpService {
 			// If control was requested, ensure controller exists
 			if (!client || !hasClose || !hasOutput || (controlRequested && !hasController)) {
 				// collect diagnostics and throw detailed error to be visible to caller
-				const details = { clientTruthy: !!client, protoKeys: protoNames.slice(0,50), hasClose, hasOutput: !!hasOutput, controlRequested, hasController, server_length: server ? (server.byteLength || server.length || null) : null, initialOutputLines };
+				const details = { clientTruthy: !!client, protoKeys: protoNames.slice(0,50), hasClose, hasOutput: !!hasOutput, controlRequested, hasController, server_length: server ? (server.byteLength || server.length || null) : null };
 					try {
 						// Use CLI helpers instead of deviceAdb.subprocess.exec which is unreliable
 						try {
@@ -1227,24 +1210,6 @@ class AdbTcpService {
 								logger.info('Retrying scrcpy start with options (audio disabled)');
 								const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
 								const client2 = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsNoAudio);
-								// perform the same validation checks as above (inspect, read output, stream checks)
-								let initialOutputLines2 = [];
-								try {
-									if (client2 && client2.output && typeof client2.output.getReader === 'function') {
-										const reader2 = client2.output.getReader();
-										try {
-											for (let i = 0; i < 40; i++) {
-												const p2 = reader2.read();
-												const r2 = await Promise.race([p2, new Promise((_, rej) => setTimeout(() => rej(new Error('output-read-timeout')), 300))]);
-												if (r2 && r2.done) break;
-												if (r2 && r2.value) initialOutputLines2.push(String(r2.value));
-											}
-										} finally {
-											try { reader2.releaseLock(); } catch (e) {}
-										}
-									}
-								} catch (e2) { logger.debug('Reading initial client2.output failed:', e2?.message || e2); }
-
 								// basic validation
 								const hasClose2 = client2 && typeof client2.close === 'function';
 								const hasOutput2 = client2 && client2.output;
@@ -1312,7 +1277,7 @@ class AdbTcpService {
 	}
 
 	async getDeviceAdb(deviceParam) {
-		logger.info(`getDeviceAdb called with: ${JSON.stringify(deviceParam)}`);
+		logger.info(`getDeviceAdb called with: ${safeStringify(deviceParam)}`);
 		// deviceParam can be either a string (serial) or an object { host, port, serial, key, uniqueName }
 		let serial = null;
 		let uniqueName = null;
