@@ -70,7 +70,9 @@
     "libz.so",
     "libhbmsvmanager_jni.so",
     "cameraserver",
-    "libcamera2ndk.so"
+    "libcamera2ndk.so",
+    "libcameraservice.so",
+    "libcamera_metadata.so"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
@@ -110,7 +112,9 @@
     "/lib/",
     "android.hardware.camera",
     "cameraserver",
-    "cameraserver.rc"
+    "cameraserver.rc",
+    "lib64/bootstrap/",
+    "libcamera"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
