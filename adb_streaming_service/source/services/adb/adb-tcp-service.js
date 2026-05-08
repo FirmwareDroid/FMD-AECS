@@ -1245,17 +1245,22 @@ class AdbTcpService {
 									return { client: client2, options: optionsNoAudio };
 								}
 							} catch (retryErr) {
-								logger.error('scrcpy retry (no-audio) failed:', retryErr?.message || retryErr);
+								logger.error('scrcpy retry (no-audio) failed:', retryErr && (retryErr.stack || retryErr));
 							}
 						}
 
 			// original error handling: collect diagnostics and rethrow a detailed error
-			const details = { message: err && err.message ? err.message : String(err), name: err && err.name ? err.name : 'Error', stack: err && err.stack ? err.stack : null, server_length: server ? (server.byteLength || server.length || null) : null, logcat: null, device_ls: null };
+			const details = { message: err && err.message ? err.message : String(err), name: err && err.name ? err.name : 'Error', stack: err && err.stack ? err.stack : null, server_length: server ? (server.byteLength || server.length || null) : null, logcat: null, logcat_full: null, logcat_filtered: null, device_ls: null, adb_ps: null, dumpsys_audio: null, err_object: null };
 			try {
 				try {
-					const lc = await runAdbCliLogcat(deviceAdb, 200);
-					details.logcat = lc.stdout || lc.stderr || null;
-				} catch (e) { details.logcat = null; }
+					const lc = await runAdbCliLogcat(deviceAdb, 1000);
+					details.logcat_full = lc.stdout || lc.stderr || null;
+					details.logcat = details.logcat_full ? details.logcat_full.split('\n').slice(-200).join('\n') : null;
+					if (details.logcat_full) {
+						const lines = details.logcat_full.split('\n').filter((l) => /scrcpy|AudioRecord|AudioFlinger|E\/|FATAL|Exception|ERROR|Failed/i.test(l));
+						details.logcat_filtered = lines.slice(-200).join('\n');
+					}
+				} catch (e) { details.logcat = null; details.logcat_full = null; details.logcat_filtered = null; }
 			} catch (e) { logger.debug('Failed to collect logcat during scrcpy start error:', e?.message || e); }
 			// Try to inspect server file on device
 			try {
@@ -1265,6 +1270,30 @@ class AdbTcpService {
 					details.device_ls = ls.stdout || ls.stderr || null;
 				} catch (e) { details.device_ls = null; }
 			} catch (e) { logger.debug('Failed to run ls on device for server file:', e?.message || e); }
+
+			// Collect process list and dumpsys audio for further diagnostics
+			try {
+				const execFile = promisify(nodeExecFile);
+				let serial = null;
+				try {
+					serial = resolveSerialFromAdbInstance(deviceAdb);
+				} catch (e) {}
+				try {
+					const psArgs = serial ? ['-s', serial, 'shell', 'ps', '-A'] : ['shell', 'ps', '-A'];
+					const psRes = await execFile('adb', psArgs).catch((e) => ({ stdout: '', stderr: String(e && e.message ? e.message : e) }));
+					details.adb_ps = String(psRes.stdout || psRes.stderr || '');
+				} catch (e) { details.adb_ps = null; }
+				try {
+					const dsArgs = serial ? ['-s', serial, 'shell', 'dumpsys', 'media.audio_flinger'] : ['shell', 'dumpsys', 'media.audio_flinger'];
+					const dsRes = await execFile('adb', dsArgs).catch((e) => ({ stdout: '', stderr: String(e && e.message ? e.message : e) }));
+					details.dumpsys_audio = String(dsRes.stdout || dsRes.stderr || '');
+				} catch (e) { details.dumpsys_audio = null; }
+			} catch (e) { logger.debug('Failed to collect adb ps/dumpsys diagnostics:', e?.message || e); }
+
+			// Include original error object/details when available
+			try { details.err_object = err && err.details ? err.details : err; } catch (e) { details.err_object = null; }
+
+			logger.error('scrcpy start failed; diagnostics:', { message: details.message, name: details.name, stack: details.stack, device_ls: details.device_ls, logcat_filtered: details.logcat_filtered ? details.logcat_filtered.split('\n').slice(-50).join('\n') : null });
 			const e2 = new Error(`scrcpy start failed: ${details.message}`); e2.details = details; throw e2;
 		}
 	}
