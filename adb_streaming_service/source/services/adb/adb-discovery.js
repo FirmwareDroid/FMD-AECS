@@ -23,7 +23,7 @@ import os from 'node:os';
 
 const DEFAULT_ADB_PORT = 5037;
 const DEFAULT_TIMEOUT_MS = 5000;
-const DEFAULT_MAX_CONCURRENT = 50;
+const DEFAULT_MAX_CONCURRENT = 200;
 // Smallest prefix we will enumerate (/24 = 254 hosts). Wider subnets are
 // clamped to this value so a single Docker /16 does not cause 65 k probes.
 const MIN_PREFIX_LENGTH = 24;
