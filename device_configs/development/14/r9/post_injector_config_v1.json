@@ -34,7 +34,9 @@
     "android.hardware.hardware_keystore.xml"
   ],
   "NEVERALLOW_FILE_INJECT_KEYWORD_LIST": [
-    "_apex"
+    "_apex",
+    "/vendor/bin/",
+    "/system/bin/hw"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
