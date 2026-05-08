@@ -866,6 +866,7 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
 
     if not (file_name in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS"]
             or any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST"])):
+
         if POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"] and file_ext == ".so":
             if os.path.exists(target_file_injection_path):
                 logging.info(f"Skipped indirect injection for shared library file: {file_path} as "
@@ -873,12 +874,13 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
                 return None, inj_partition, False
             else:
                 logging.info(f"Allow indirect injection for shared library file: {file_path}")
+        else:
+            logging.info(f"Indirect injection for shared library file: {file_path}")
 
 
     delete_intermediate_cached_files(target_file_injection_path, aosp_version, aosp_path)
 
-    logging.info(f"File exists in target path: {target_file_injection_path} "
-                 f"- skipping direct injection. Continue with indirect injection.")
+    logging.info(f"File exists in target path: {target_file_injection_path}. Continue with indirect injection of {file_path}.")
     inj_obj = None
     original_file_path = None
     # Indirect Injection
@@ -942,6 +944,7 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
         except Exception:
             logging.debug('Could not write indirect_injection timing to log')
 
+    logging.info(f"Indirect injection result for file: {file_path} | injected: {is_injected} | target_file: {target_file_injection_path}")
     return inj_obj, inj_partition, is_injected
 
 
@@ -961,25 +964,39 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                 and not any(keyword in os.path.basename(target_file_injection_path)
                             for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"])):
             # Direct Injection
-            target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
+            target_path, is_injected = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
             inj_partition = (file_path, target_path, module_type)
+            if is_injected:
+                logging.info(f"Direct injection complete for: {file_path}")
+            else:
+                logging.info(f"Direct injection did not inject for: {file_path}")
         else:
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version)
     elif not os.path.exists(target_file_injection_path):
         # Direct Injection
-        target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
+        target_path, is_injected = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
         inj_partition = (file_path, target_path, module_type)
+        if is_injected:
+            logging.info(f"Direct injection complete for: {file_path}")
+        else:
+            logging.warning(f"Direct injection did not inject file, not fallback to indirect injection: {file_path}")
     else:
         inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                     partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version)
+        if is_injected:
+            logging.info(f"Indirect injection complete for file: {file_path}")
+
         if not is_injected and is_injected is not None:
             logging.info(f"Fallback to Direct injection: {file_path}")
             # Fallback to Direct Injection
-            target_path = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
+            target_path, is_injected = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
             inj_partition = (file_path, target_path, module_type)
-        else:
-            logging.error(f"Skipped direct+indirect injection: Target file was not injected: {file_path} | is_injected: {is_injected}")
+            if is_injected:
+                logging.info(f"Direct injection complete for file: {file_path}")
+            else:
+                logging.warning(f"Direct+Indirect injection complete for file but file not injected: {file_path}")
+
     if target_path:
         try:
             md5sum = hashlib.md5(target_path).hexdigest()
@@ -1579,7 +1596,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
         except Exception:
             logging.debug('Could not write inject_file_into_partition timing to log')
 
-    return target_file_injection_path
+    return target_file_injection_path, is_injected
 
 
 def handle_special_matching(source_file_injection_path):

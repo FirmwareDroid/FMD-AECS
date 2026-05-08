@@ -82,7 +82,7 @@ def _do_copy(src_path: str,
                 args = [cp, "--reflink=auto", src_path, tmpname]
                 try:
                     subprocess.run(args, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    logging.info(f"Copied {src_path} to {dst_path}")
+                    logging.info(f"Copied file with cp command: {src_path} to {dst_path}")
                     copied = True
                 except Exception:
                     copied = False
