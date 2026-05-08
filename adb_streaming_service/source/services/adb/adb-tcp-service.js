@@ -961,10 +961,22 @@ class AdbTcpService {
 		let deviceEncoders = [];
 		try {
 			deviceEncoders = await this.getDeviceEncoders(deviceAdb) || [];
-			// normalize to only video encoders
+			// normalize to only video encoders for video selection
 			deviceEncoders = deviceEncoders.filter(e => e && e.type === 'video');
 		} catch (e) {
 			logger.debug('Could not obtain device encoders before scrcpy.start:', e?.message || e);
+		}
+
+		// Respect explicit raw audio/video requests: if the client specifically
+		// asked for raw audio (audioCodec==='raw' or audioEncoder==='raw'), avoid
+		// querying or selecting device audio encoders and enforce raw in init.
+		const wantsRawAudio = (typeof audioCodec === 'string' && String(audioCodec).toLowerCase() === 'raw') ||
+			(typeof audioEncoder === 'string' && String(audioEncoder).toLowerCase() === 'raw');
+		if (wantsRawAudio) {
+			logger.info('Client requested raw audio; skipping device audio-encoder selection and forcing audioCodec=raw');
+			init.audioCodec = 'raw';
+			// ensure we do not set audioEncoder when raw is requested
+			if (init.audioEncoder) delete init.audioEncoder;
 		}
 		const availableEncoderNames = deviceEncoders.map(e => e && e.name).filter(Boolean);
 
@@ -1016,7 +1028,8 @@ class AdbTcpService {
 		}
 
 		// audioEncoder: if provided and contains '@', use RHS if device supports it, else try to pick by codec
-		if (audioEncoder) {
+		// If raw audio was requested explicitly, skip audio encoder selection entirely.
+		if (!wantsRawAudio && audioEncoder) {
 			const aEncStr = String(audioEncoder);
 			try {
 				// query audio encoders list
