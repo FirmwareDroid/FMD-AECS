@@ -334,7 +334,8 @@
     "configinfrastructure",
     "devicelock",
     "rebootescrow",
-    "cas"
+    "cas",
+    "media"
   ],
   "APEX_DEFAULT_PATHS_DICT": {
     "sdkext": "packages/modules/SdkExtensions",
