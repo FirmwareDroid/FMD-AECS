@@ -69,7 +69,8 @@
     "libgui_vendor.so",
     "libz.so",
     "libhbmsvmanager_jni.so",
-    "cameraserver"
+    "cameraserver",
+    "libcamera2ndk.so"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",

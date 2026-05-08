@@ -1560,16 +1560,20 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
                 logging.error(f"Error copying file link: {source_file_path} -> {target_file_injection_path} | {e}")
         else:
             # Fîle should not already exist, but if it does, we overwrite it, but it is not recommended.
-            try:
-                if os.path.isfile(source_file_path):
-                    inj_md5 = get_md5_from_file(source_file_path)
-                    org_md5 = get_md5_from_file(target_file_injection_path)
-                    shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
-                    logging.error(f"File overwrite: {source_file_path}:{inj_md5} into {target_file_injection_path}:{org_md5}. This overwrite is likely to be reverted by the AOSP build system.")
-                    if not set_executable_permission(target_file_injection_path):
-                        raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
-            except Exception as e:
-                logging.error(f"Error copying file: {source_file_path} -> {target_file_injection_path} | {e}")
+            is_injected = False
+            logging.error(f"File overwrite: {source_file_path} into {target_file_injection_path}. "
+                          f"This overwrite is likely to be reverted by the AOSP build system. Thus, nothing is injected. "
+                          f"Adjust your injection policy to handle this case.")
+            # try:
+            #     if os.path.isfile(source_file_path):
+            #         inj_md5 = get_md5_from_file(source_file_path)
+            #         org_md5 = get_md5_from_file(target_file_injection_path)
+            #         shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
+            #         logging.error(f"File overwrite: {source_file_path}:{inj_md5} into {target_file_injection_path}:{org_md5}. This overwrite is likely to be reverted by the AOSP build system.")
+            #         if not set_executable_permission(target_file_injection_path):
+            #             raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
+            # except Exception as e:
+            #     logging.error(f"Error copying file: {source_file_path} -> {target_file_injection_path} | {e}")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         if not os.path.exists(source_file_path):
