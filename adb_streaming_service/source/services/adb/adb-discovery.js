@@ -23,7 +23,7 @@ import os from 'node:os';
 
 const DEFAULT_ADB_PORT = 5037;
 const DEFAULT_TIMEOUT_MS = 5000;
-const DEFAULT_MAX_CONCURRENT = 200;
+const DEFAULT_MAX_CONCURRENT = 50;
 // Smallest prefix we will enumerate (/24 = 254 hosts). Wider subnets are
 // clamped to this value so a single Docker /16 does not cause 65 k probes.
 const MIN_PREFIX_LENGTH = 24;
@@ -193,29 +193,41 @@ export function getLocalSubnets(getInterfaces = os.networkInterfaces) {
  * @param {Function} [createConnection] - Injectable; defaults to net.createConnection.
  * @returns {Promise<boolean>}
  */
-export function probePort(host, port, timeoutMs, createConnection = net.createConnection) {
+export function probePort(host, port, timeoutMs, createConnection = net.createConnection, attempts = 1, backoffMs = 100) {
+    // Attempts: number of TCP connect attempts to try before giving up.
+    // backoffMs: delay between attempts when a connect fails.
     return new Promise((resolve) => {
+        let attempt = 0;
         let settled = false;
-        const settle = (result) => {
+
+        const tryOnce = () => {
             if (settled) return;
-            settled = true;
-            try { socket.destroy(); } catch (_) { /* ignore */ }
-            resolve(result);
+            attempt += 1;
+
+            let socket;
+            try {
+                socket = createConnection({ host, port, allowHalfOpen: false });
+            } catch {
+                if (attempt >= attempts) return resolve(false);
+                setTimeout(tryOnce, backoffMs);
+                return;
+            }
+
+            const onDone = (result) => {
+                if (settled) return;
+                settled = true;
+                try { socket.destroy(); } catch (_) { /* ignore */ }
+                resolve(result);
+            };
+
+            const timer = setTimeout(() => onDone(false), timeoutMs);
+            socket.once('connect', () => { clearTimeout(timer); onDone(true); });
+            socket.once('error', () => { clearTimeout(timer); if (attempt >= attempts) onDone(false); else setTimeout(tryOnce, backoffMs); });
+            socket.once('timeout', () => { clearTimeout(timer); if (attempt >= attempts) onDone(false); else setTimeout(tryOnce, backoffMs); });
+            socket.setTimeout(timeoutMs);
         };
 
-        let socket;
-        try {
-            socket = createConnection({ host, port, allowHalfOpen: false });
-        } catch {
-            resolve(false);
-            return;
-        }
-
-        const timer = setTimeout(() => settle(false), timeoutMs);
-        socket.once('connect', () => { clearTimeout(timer); settle(true); });
-        socket.once('error', () => { clearTimeout(timer); settle(false); });
-        socket.once('timeout', () => settle(false));
-        socket.setTimeout(timeoutMs);
+        tryOnce();
     });
 }
 
@@ -341,7 +353,7 @@ export async function discoverAdbServers({
     const probed = new Set();
 
     // Phase 1: sample a small number of hosts per subnet to detect presence.
-    const SAMPLE_PER_SUBNET = 6;
+    const SAMPLE_PER_SUBNET = 50;
     const sampleHosts = [];
     for (const s of perSubnet) {
         const { hosts } = s;
@@ -370,8 +382,52 @@ export async function discoverAdbServers({
         }
     });
 
-    // Phase 2: for any subnet where we found at least one host, probe the
-    // remaining hosts in that subnet (excluding already-probed samples).
+    // Phase 2: for any subnet where we found at least one host, first probe a
+    // small neighbor window around each found host (servers tend to cluster),
+    // then if needed fall back to a full subnet scan.
+    const NEIGHBOR_WINDOW = 8; // ±8 addresses around found host
+    const neighborTargets = [];
+    for (const s of perSubnet) {
+        if (!s._found) continue;
+        // collect found hosts in this subnet (could be multiple)
+        const foundHosts = s.hosts.filter((h) => reachable.find(r => r.startsWith(h + ':')));
+        // if reachable didn't record by exact match, also check probed markers
+        // but we'll generate neighbors around any host in s.hosts that was probed and succeeded
+        for (const found of foundHosts) {
+            try {
+                const baseInt = ipv4ToInt(found);
+                // generate neighbors
+                for (let delta = -NEIGHBOR_WINDOW; delta <= NEIGHBOR_WINDOW; delta++) {
+                    if (delta === 0) continue;
+                    const addrInt = (baseInt + delta) >>> 0;
+                    const addr = intToIpv4(addrInt);
+                    // ensure addr belongs to this subnet's host list
+                    if (s.hosts.includes(addr) && !probed.has(addr)) {
+                        neighborTargets.push({ host: addr, subnet: s });
+                    }
+                }
+            } catch (e) {
+                // skip invalid conversion
+            }
+        }
+    }
+
+    if (neighborTargets.length > 0) {
+        log.info(`ADB discovery: probing ${neighborTargets.length} neighbor host(s) around discovered servers`);
+        await pooledMap(neighborTargets, validConcurrency, async (entry) => {
+            const host = entry.host;
+            if (probed.has(host)) return;
+            const open = await probePort(host, validPort, validTimeout, createConnection, 2, 200);
+            probed.add(host);
+            if (open) {
+                log.info(`ADB discovery: found ADB server at ${host}:${validPort} (neighbor)`);
+                reachable.push(`${host}:${validPort}`);
+                entry.subnet._found = true;
+            }
+        });
+    }
+
+    // After probing neighbors, prepare a full-scan list for subnets with any found hosts
     const toProbeFull = [];
     for (const s of perSubnet) {
         if (!s._found) continue;
@@ -386,7 +442,7 @@ export async function discoverAdbServers({
         await pooledMap(toProbeFull, validConcurrency, async (entry) => {
             const host = entry.host;
             if (probed.has(host)) return;
-            const open = await probePort(host, validPort, validTimeout, createConnection);
+            const open = await probePort(host, validPort, validTimeout, createConnection, 2, 200);
             probed.add(host);
             if (open) {
                 log.info(`ADB discovery: found ADB server at ${host}:${validPort}`);
