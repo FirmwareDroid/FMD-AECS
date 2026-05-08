@@ -385,7 +385,7 @@
     "extservices": "com.android.extservices",
     "ipsec": "com.android.ipsec",
     "swcodec": "com.android.media.swcodec",
-    "neuralnetworks": "com.android.hardware.neuralnetworks",
+    "neuralnetworks": ["com.android.hardware.neuralnetworks","com.android.neuralnetworks"],
     "permission": "com.android.permission",
     "runtime": "com.android.runtime",
     "sdkext": "com.android.sdkext",

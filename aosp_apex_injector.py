@@ -682,7 +682,7 @@ def get_apex_build_intermediate_folder(target_out_path, aosp_version):
 
 
 
-def get_match_existing_emulator_folders(filename_no_vendor):
+def get_match_existing_emulator_folders(filename_no_vendor, apex_emulator_folder_root):
     if "tzdata" in filename_no_vendor:
         filename_no_vendor = re.sub(r'tzdata\d+', 'tzdata', filename_no_vendor)
 
@@ -690,6 +690,11 @@ def get_match_existing_emulator_folders(filename_no_vendor):
         if key in filename_no_vendor:
             if key == "media" and ("mediaprovider" in filename_no_vendor or "swcodec" in filename_no_vendor):
                 continue
+            if isinstance(POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key], list):
+                for folder_name in POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key]:
+                    if os.path.exists(os.path.join(apex_emulator_folder_root, folder_name)):
+                        logging.info(f"Found APEX default path for {filename_no_vendor}: {folder_name}")
+                        return folder_name
             logging.info(f"Found APEX default path for {filename_no_vendor}: {POST_INJECTOR_CONFIG['APEX_DEFAULT_EMULATOR_PATHS_DICT'][key]}")
             return POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key]
     return None
@@ -702,7 +707,7 @@ def find_emulator_apex_folder(target_out_path, file_path, aosp_version):
 
     apex_emulator_folder_root = get_apex_build_intermediate_folder(target_out_path, aosp_version)
     logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
-    apex_emulator_folder_name = get_match_existing_emulator_folders(filename_no_vendor)
+    apex_emulator_folder_name = get_match_existing_emulator_folders(filename_no_vendor, apex_emulator_folder_root)
     apex_module_folder = os.path.join(apex_emulator_folder_root, apex_emulator_folder_name)
     logging.info(f"Test if APEX module folder exists: {apex_module_folder}")
     if os.path.exists(apex_module_folder):
