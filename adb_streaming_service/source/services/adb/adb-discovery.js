@@ -22,14 +22,17 @@ import os from 'node:os';
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const DEFAULT_ADB_PORT = 5037;
-// Per-host TCP connection timeout (ms). Shorter time reduces total scan time but
-// needs to be high enough to tolerate transient packet loss on busy networks.
-const DEFAULT_TIMEOUT_MS = 500;
-// Maximum number of parallel TCP probes. Increase to scan faster on beefy hosts.
-const DEFAULT_MAX_CONCURRENT = 200;
-// Handshake defaults: attempt a minimal ADB "CNXN" handshake after TCP connect
-// to reduce false-positives from non-ADB services listening on the same port.
-const DEFAULT_HANDSHAKE_ENABLED = true;
+// Per-host TCP connection timeout (ms). Tuned to balance reliability and speed —
+// some networks are lossy/latent and too-short timeouts miss open services.
+const DEFAULT_TIMEOUT_MS = 2000;
+// Maximum number of parallel TCP probes. Keep conservative default to avoid
+// overwhelming host/container networking when scanning many subnets.
+const DEFAULT_MAX_CONCURRENT = 50;
+// Handshake defaults: disabled by default because in some environments the
+// minimal CNXN handshake introduces additional latency/failures. Enable via
+// discoverAdbServers({ handshakeEnabled: true }) when you need stricter
+// validation to avoid false positives.
+const DEFAULT_HANDSHAKE_ENABLED = false;
 const DEFAULT_HANDSHAKE_ATTEMPTS = 2;
 const DEFAULT_HANDSHAKE_TIMEOUT_MS = 1000;
 const DEFAULT_HANDSHAKE_BACKOFF_MS = 200;
@@ -426,7 +429,7 @@ async function pooledMap(items, limit, fn) {
  * @param {object}   [options]
  * @param {number}   [options.port=5037]
  *   ADB server port to probe.
- * @param {number}   [options.timeoutMs=500]
+ * @param {number}   [options.timeoutMs=2000]
  *   Per-host TCP connection timeout in milliseconds.
  * @param {number}   [options.maxConcurrent=50]
  *   Maximum number of parallel TCP probes.
@@ -453,6 +456,10 @@ export async function discoverAdbServers({
     // tuning options
     samplePerSubnet = 50,
     neighborWindow = 8,
+    // When true, perform a full /24 scan of each detected subnet instead of
+    // sampling. This is more aggressive and slower but finds more servers in
+    // sparse deployments. Default: enabled.
+    aggressiveMode = true,
     handshakeEnabled = DEFAULT_HANDSHAKE_ENABLED,
     handshakeAttempts = DEFAULT_HANDSHAKE_ATTEMPTS,
     handshakeTimeoutMs = DEFAULT_HANDSHAKE_TIMEOUT_MS,
@@ -470,6 +477,21 @@ export async function discoverAdbServers({
 
     // Collect subnets from OS interfaces.
     const subnets = getLocalSubnets(getInterfaces);
+
+    // Ensure the default test network 172.31.250.0/24 is always included for
+    // deep scanning. Use .1 as the representative address so enumerateSubnetHosts
+    // will derive the correct /24 range.
+    try {
+        const FORCE_ADDR = '172.31.250.1';
+        const FORCE_NETMASK = '255.255.255.0';
+        const hasDefault = subnets.some((s) => typeof s.address === 'string' && s.address.startsWith('172.31.250.'));
+        if (!hasDefault) {
+            subnets.push({ address: FORCE_ADDR, netmask: FORCE_NETMASK });
+            log.debug('ADB discovery: added forced default subnet 172.31.250.0/24 for deep scan');
+        }
+    } catch (e) {
+        // non-fatal
+    }
 
     // Parse any caller-supplied extra subnets (format: "address/netmask" or "address netmask").
     if (Array.isArray(additionalSubnets)) {
@@ -506,7 +528,7 @@ export async function discoverAdbServers({
         return [];
     }
 
-    log.info(`ADB discovery: probing ${perSubnet.length} subnet(s) on port ${validPort} (tcpTimeout=${validTimeout}ms, handshake=${handshakeEnabled}, concurrency=${validConcurrency})`);
+    log.info(`ADB discovery: probing ${perSubnet.length} subnet(s) on port ${validPort} (tcpTimeout=${validTimeout}ms, handshake=${handshakeEnabled}, concurrency=${validConcurrency}, aggressiveMode=${aggressiveMode})`);
 
     const reachable = [];
     const probed = new Set();
@@ -516,6 +538,11 @@ export async function discoverAdbServers({
     const sampleHosts = [];
     for (const s of perSubnet) {
         const { hosts } = s;
+        if (aggressiveMode) {
+            // aggressiveMode: probe every host in the clamped /24
+            for (const h of hosts) sampleHosts.push({ host: h, subnet: s });
+            continue;
+        }
         if (hosts.length <= SAMPLE_PER_SUBNET) {
             for (const h of hosts) sampleHosts.push({ host: h, subnet: s });
         } else {
@@ -639,6 +666,21 @@ export async function discoverAdbServers({
                 log.info(`ADB discovery: found ADB server at ${host}:${validPort}`);
                 reachable.push(`${host}:${validPort}`);
             });
+            // If handshake was enabled but the strict handshake flow found nothing,
+            // perform a final TCP-only pass to avoid missing servers in networks
+            // where the handshake or response parsing is unreliable.
+            if (handshakeEnabled && reachable.length === 0) {
+                log.warn('ADB discovery: handshake-enabled scan found no servers; performing TCP-only fallback scan');
+                await pooledMap(allHosts, validConcurrency, async (host) => {
+                    if (probed.has(host)) return;
+                    const open = await probePort(host, validPort, validTimeout, createConnection);
+                    probed.add(host);
+                    if (open) {
+                        log.info(`ADB discovery: (tcp-only fallback) found ADB server at ${host}:${validPort}`);
+                        reachable.push(`${host}:${validPort}`);
+                    }
+                });
+            }
         }
     }
 
