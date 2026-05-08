@@ -425,6 +425,8 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
     logging.info(f"============================== ERRORS ==============================")
     for error in error_list:
         logging.info(f"{error}")
+        if "_apex" in error or "_capex" in error:
+            error_list.remove(error)
     logging.info(f"============================================================")
 
     logging.info(f"Execution time: {execution_time_minutes} minutes")

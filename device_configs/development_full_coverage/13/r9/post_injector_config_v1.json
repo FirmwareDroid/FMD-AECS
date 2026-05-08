@@ -22,6 +22,7 @@
   "NEVERALLOW_FILE_INJECT": [],
   "NEVERALLOW_FILE_INJECT_KEYWORD_LIST": [
     "_apex",
+    "_capex",
     "android.graphics"
   ],
   "DISABLE_SHARED_LIBRARY_INJECTION": false,
@@ -46,7 +47,8 @@
     "/system_ext/app/",
     "/system_ext/priv-app/",
     "/product/app/",
-    "/product/priv-app/"
+    "/product/priv-app/",
+    "/system/etc/icu/"
   ],
   "USE_ISOLATED_NAMESPACE": false,
   "ISOLATED_NAMESPACE_LIST": [],
@@ -358,7 +360,8 @@
     "android.mediaprovider.apex",
     "android.conscrypt.apex",
     "android.cellbroadcast.apex",
-    "android.ipsec.apex"
+    "android.ipsec.apex",
+    "com.android.vndk.current.apex"
   ],
   "SKIPPED_FILE_EXTENSION_LIST_GENERAL": [
     ".rc",
