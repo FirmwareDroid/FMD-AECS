@@ -830,7 +830,7 @@ class AdbTcpService {
 		const displayName = `${pool.host}`;
 		const deviceModel = { serial: poolInfo.serial, name: uniqueName, displayName, transport, adb, displays: [], encoders: [], _serverKey: pool.key, _serverHost: pool.host, _serverPort: pool.port };
 		try { await pushServer(adb); } catch (err) {
-			logger.error(`Initial pushServer failed in connectToDevice: ${err}`);
+			try { logger.error({ err }, 'Initial pushServer failed in connectToDevice'); } catch (e) { logger.error(`Initial pushServer failed in connectToDevice: ${err}`); }
 			throw err;
 		}
 		return deviceModel
@@ -1187,7 +1187,8 @@ class AdbTcpService {
 						// audioSource to 'mic' (device microphone). If that fails, fall back to
 						// disabling audio entirely as before.
 						if (_attempt === 0 && init.audio === true) {
-							logger.warn('scrcpy start failed on initial attempt with audio enabled; attempting audio fallbacks');
+							// Log the original error details so diagnostics include the root cause
+							try { logger.warn({ err: err && (err.stack || err.message || String(err)) }, 'scrcpy start failed on initial attempt with audio enabled; attempting audio fallbacks'); } catch (e) { logger.warn('scrcpy start failed on initial attempt with audio enabled; attempting audio fallbacks'); }
 							// 1) Try letting the server pick the default audio source (unset explicit audioSource)
 							try {
 								const initDefaultAudio = { ...init };
@@ -1208,7 +1209,8 @@ class AdbTcpService {
 									try { if (clientDefault && typeof clientDefault.close === 'function') await clientDefault.close(); } catch (e) { logger.debug('clientDefault.close failed', e?.message || e); }
 								}
 							} catch (defErr) {
-								logger.debug('Retry with default audio source failed:', defErr?.message || defErr);
+								// Include full error object/stack to make logs actionable
+								try { logger.debug({ err: defErr && (defErr.stack || defErr.message || String(defErr)) }, 'Retry with default audio source failed'); } catch (e) { logger.debug('Retry with default audio source failed:', defErr?.message || defErr); }
 							}
 
 							// 2) Try raw audio mode (force audioCodec='raw' and remove audioEncoder)
@@ -1230,7 +1232,7 @@ class AdbTcpService {
 									try { if (clientRaw && typeof clientRaw.close === 'function') await clientRaw.close(); } catch (e) { logger.debug('clientRaw.close failed', e?.message || e); }
 								}
 							} catch (rawErr) {
-								logger.debug('Retry with raw audio failed:', rawErr?.message || rawErr);
+								try { logger.debug({ err: rawErr && (rawErr.stack || rawErr.message || String(rawErr)) }, 'Retry with raw audio failed'); } catch (e) { logger.debug('Retry with raw audio failed:', rawErr?.message || rawErr); }
 							}
 
 							// 3) Final fallback: disable audio entirely (existing behaviour)
@@ -1256,7 +1258,7 @@ class AdbTcpService {
 									return { client: client2, options: optionsNoAudio };
 								}
 							} catch (retryErr) {
-								logger.error('scrcpy retry (no-audio) failed:', retryErr && (retryErr.stack || retryErr));
+								try { logger.error({ err: retryErr && (retryErr.stack || retryErr.message || String(retryErr)) }, 'scrcpy retry (no-audio) failed'); } catch (e) { logger.error('scrcpy retry (no-audio) failed:', retryErr && (retryErr.stack || retryErr)); }
 							}
 						}
 
