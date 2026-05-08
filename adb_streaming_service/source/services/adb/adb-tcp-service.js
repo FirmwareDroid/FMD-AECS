@@ -1192,32 +1192,52 @@ class AdbTcpService {
 						// disabling audio entirely as before.
 						if (_attempt === 0 && init.audio === true) {
 							logger.warn('scrcpy start failed on initial attempt with audio enabled; attempting audio fallbacks');
-							// 1) Try switching audioSource to 'mic' (if not already set)
+							// 1) Try letting the server pick the default audio source (unset explicit audioSource)
 							try {
-								const initMic = { ...init };
-								if (!initMic.audioSource || initMic.audioSource === 'output' || initMic.audioSource === 'playback') {
-									initMic.audioSource = 'mic';
-								}
+								const initDefaultAudio = { ...init };
+								if (typeof initDefaultAudio.audioSource !== 'undefined') delete initDefaultAudio.audioSource;
 								// Some devices choke on explicit audioEncoder names; try without it first
-								if (initMic.audioEncoder) delete initMic.audioEncoder;
-								const optionsMic = new AdbScrcpyOptions2_1(initMic, { version: VERSION });
-								logger.info('Retrying scrcpy start with audioSource=mic');
+								if (initDefaultAudio.audioEncoder) delete initDefaultAudio.audioEncoder;
+								const optionsDefault = new AdbScrcpyOptions2_1(initDefaultAudio, { version: VERSION });
+								logger.info('Retrying scrcpy start with default audio source (unset audioSource)');
 								const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
-								const clientMic = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsMic);
-								// basic validation similar to above
-								const hasCloseMic = clientMic && typeof clientMic.close === 'function';
-								const hasOutputMic = clientMic && clientMic.output;
-								if (clientMic && hasCloseMic && hasOutputMic) {
-									logger.info('Retry with audioSource=mic succeeded');
-									return { client: clientMic, options: optionsMic };
+								const clientDefault = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsDefault);
+								const hasCloseDefault = clientDefault && typeof clientDefault.close === 'function';
+								const hasOutputDefault = clientDefault && clientDefault.output;
+								if (clientDefault && hasCloseDefault && hasOutputDefault) {
+									logger.info('Retry with default audio source succeeded');
+									return { client: clientDefault, options: optionsDefault };
 								} else {
-									logger.debug('Retry with audioSource=mic returned insufficient client; closing and falling through');
-									try { if (clientMic && typeof clientMic.close === 'function') await clientMic.close(); } catch (e) { logger.debug('clientMic.close failed', e?.message || e); }
+									logger.debug('Retry with default audio source returned insufficient client; closing and falling through');
+									try { if (clientDefault && typeof clientDefault.close === 'function') await clientDefault.close(); } catch (e) { logger.debug('clientDefault.close failed', e?.message || e); }
 								}
-							} catch (micErr) {
-								logger.debug('Retry with audioSource=mic failed:', micErr?.message || micErr);
+							} catch (defErr) {
+								logger.debug('Retry with default audio source failed:', defErr?.message || defErr);
 							}
-							// 2) Final fallback: disable audio entirely (existing behaviour)
+
+							// 2) Try raw audio mode (force audioCodec='raw' and remove audioEncoder)
+							try {
+								const initRaw = { ...init };
+								initRaw.audioCodec = 'raw';
+								if (initRaw.audioEncoder) delete initRaw.audioEncoder;
+								const optionsRaw = new AdbScrcpyOptions2_1(initRaw, { version: VERSION });
+								logger.info('Retrying scrcpy start with raw audio (audioCodec=raw)');
+								const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
+								const clientRaw = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsRaw);
+								const hasCloseRaw = clientRaw && typeof clientRaw.close === 'function';
+								const hasOutputRaw = clientRaw && clientRaw.output;
+								if (clientRaw && hasCloseRaw && hasOutputRaw) {
+									logger.info('Retry with raw audio succeeded');
+									return { client: clientRaw, options: optionsRaw };
+								} else {
+									logger.debug('Retry with raw audio returned insufficient client; closing and falling through');
+									try { if (clientRaw && typeof clientRaw.close === 'function') await clientRaw.close(); } catch (e) { logger.debug('clientRaw.close failed', e?.message || e); }
+								}
+							} catch (rawErr) {
+								logger.debug('Retry with raw audio failed:', rawErr?.message || rawErr);
+							}
+
+							// 3) Final fallback: disable audio entirely (existing behaviour)
 							try {
 								logger.warn('Falling back to retry without audio');
 								const initNoAudio = { ...init, audio: false };

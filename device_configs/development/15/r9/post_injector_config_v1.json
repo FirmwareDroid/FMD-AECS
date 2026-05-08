@@ -124,7 +124,8 @@
     "/lib64/bootstrap/",
     "libmedia",
     "vendor/lib64/mediacas/",
-    "mediacas"
+    "mediacas",
+    "libresourcemanagerservice.so"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [],
