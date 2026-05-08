@@ -63,6 +63,12 @@ if (userProvidedLocalServerPath) {
 logger.info(`ADB_SERVER_VERSION=${VERSION}`);
 
 global.metainfo.version = VERSION;
+
+// Control whether the service should automatically push the scrcpy server to devices.
+// Default: false (do not push). Set SCRCPY_AUTO_PUSH=true (or 1) in the environment
+// to enable automatic pushing. Individual calls can override by passing force=true
+// to pushServer(..., force).
+const SCRCPY_AUTO_PUSH = process.env.SCRCPY_AUTO_PUSH === 'true' || process.env.SCRCPY_AUTO_PUSH === '1';
 // Read server bytes: prefer user-provided local file, otherwise use bundled BIN
 // Replace the previous immediate-read (and process.exit) with a loader that polls every 30s
 async function loadServerBinary() {
@@ -566,6 +572,14 @@ const pushServer = async (adbInstance, force = false) => {
 	logger.info(`Pushing scrcpy server to device if not already present with Instance: ${describeAdbInstance(adbInstance)}`);
 	const serial = resolveSerialFromAdbInstance(adbInstance);
 	logger.info(`Got serial from adb instance: ${serial}`);
+
+	// If auto-push is disabled by environment and this is not a forced push,
+	// skip the push entirely. This makes the default behaviour "do not push"
+	// so environments that pre-install the scrcpy-server won't be disturbed.
+	if (!SCRCPY_AUTO_PUSH && !force) {
+		logger.info('Auto-push of scrcpy server is disabled (SCRCPY_AUTO_PUSH not set). Skipping pushServer.');
+		return;
+	}
 
 	if (serial) {
 		logger.info(`pushServer: resolved serial=${serial}`);
