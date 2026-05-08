@@ -420,7 +420,8 @@ async function pooledMap(items, limit, fn) {
  * `"host:port"` strings ready for use in `ADB_SERVER_LIST`.
  *
  * All options have safe defaults and the function is fully non-destructive —
- * it only attempts TCP SYN probes, never sends ADB protocol bytes.
+ * by default it performs only TCP probes. Optionally a minimal ADB CNXN
+ * handshake can be enabled to confirm the remote endpoint is a real ADB server.
  *
  * @param {object}   [options]
  * @param {number}   [options.port=5037]
@@ -449,6 +450,13 @@ export async function discoverAdbServers({
     logger = null,
     getInterfaces = os.networkInterfaces,
     createConnection = net.createConnection,
+    // tuning options
+    samplePerSubnet = 50,
+    neighborWindow = 8,
+    handshakeEnabled = DEFAULT_HANDSHAKE_ENABLED,
+    handshakeAttempts = DEFAULT_HANDSHAKE_ATTEMPTS,
+    handshakeTimeoutMs = DEFAULT_HANDSHAKE_TIMEOUT_MS,
+    handshakeBackoffMs = DEFAULT_HANDSHAKE_BACKOFF_MS,
 } = {}) {
     const log = logger ?? { info: () => {}, debug: () => {}, error: () => {} };
 
@@ -498,13 +506,13 @@ export async function discoverAdbServers({
         return [];
     }
 
-    log.info(`ADB discovery: probing ${perSubnet.length} subnet(s) on port ${validPort} (timeout=${validTimeout}ms, concurrency=${validConcurrency})`);
+    log.info(`ADB discovery: probing ${perSubnet.length} subnet(s) on port ${validPort} (tcpTimeout=${validTimeout}ms, handshake=${handshakeEnabled}, concurrency=${validConcurrency})`);
 
     const reachable = [];
     const probed = new Set();
 
     // Phase 1: sample a small number of hosts per subnet to detect presence.
-    const SAMPLE_PER_SUBNET = 50;
+    const SAMPLE_PER_SUBNET = Math.max(1, Math.min(512, Number(samplePerSubnet) || 50));
     const sampleHosts = [];
     for (const s of perSubnet) {
         const { hosts } = s;
@@ -525,18 +533,21 @@ export async function discoverAdbServers({
         if (probed.has(host)) return;
         const open = await probePort(host, validPort, validTimeout, createConnection);
         probed.add(host);
-        if (open) {
-            log.info(`ADB discovery: found ADB server at ${host}:${validPort} (sample)`);
-            reachable.push(`${host}:${validPort}`);
-            // mark this subnet for a full scan by setting a flag on the subnet object
-            entry.subnet._found = true;
+        if (!open) return;
+        if (handshakeEnabled) {
+            const ok = await probeAdbHandshake(host, validPort, handshakeTimeoutMs, createConnection, handshakeAttempts, handshakeBackoffMs);
+            if (!ok) return;
         }
+        log.info(`ADB discovery: found ADB server at ${host}:${validPort} (sample)`);
+        reachable.push(`${host}:${validPort}`);
+        // mark this subnet for a full scan by setting a flag on the subnet object
+        entry.subnet._found = true;
     });
 
     // Phase 2: for any subnet where we found at least one host, first probe a
     // small neighbor window around each found host (servers tend to cluster),
     // then if needed fall back to a full subnet scan.
-    const NEIGHBOR_WINDOW = 8; // ±8 addresses around found host
+    const NEIGHBOR_WINDOW = Math.max(1, Math.min(256, Number(neighborWindow) || 8)); // ±N addresses around found host
     const neighborTargets = [];
     for (const s of perSubnet) {
         if (!s._found) continue;
@@ -570,11 +581,14 @@ export async function discoverAdbServers({
             if (probed.has(host)) return;
             const open = await probePort(host, validPort, validTimeout, createConnection, 2, 200);
             probed.add(host);
-            if (open) {
-                log.info(`ADB discovery: found ADB server at ${host}:${validPort} (neighbor)`);
-                reachable.push(`${host}:${validPort}`);
-                entry.subnet._found = true;
+            if (!open) return;
+            if (handshakeEnabled) {
+                const ok = await probeAdbHandshake(host, validPort, handshakeTimeoutMs, createConnection, handshakeAttempts, handshakeBackoffMs);
+                if (!ok) return;
             }
+            log.info(`ADB discovery: found ADB server at ${host}:${validPort} (neighbor)`);
+            reachable.push(`${host}:${validPort}`);
+            entry.subnet._found = true;
         });
     }
 
@@ -595,10 +609,13 @@ export async function discoverAdbServers({
             if (probed.has(host)) return;
             const open = await probePort(host, validPort, validTimeout, createConnection, 2, 200);
             probed.add(host);
-            if (open) {
-                log.info(`ADB discovery: found ADB server at ${host}:${validPort}`);
-                reachable.push(`${host}:${validPort}`);
+            if (!open) return;
+            if (handshakeEnabled) {
+                const ok = await probeAdbHandshake(host, validPort, handshakeTimeoutMs, createConnection, handshakeAttempts, handshakeBackoffMs);
+                if (!ok) return;
             }
+            log.info(`ADB discovery: found ADB server at ${host}:${validPort}`);
+            reachable.push(`${host}:${validPort}`);
         });
     }
 
@@ -614,10 +631,13 @@ export async function discoverAdbServers({
                 if (probed.has(host)) return;
                 const open = await probePort(host, validPort, validTimeout, createConnection);
                 probed.add(host);
-                if (open) {
-                    log.info(`ADB discovery: found ADB server at ${host}:${validPort}`);
-                    reachable.push(`${host}:${validPort}`);
+                if (!open) return;
+                if (handshakeEnabled) {
+                    const ok = await probeAdbHandshake(host, validPort, handshakeTimeoutMs, createConnection, handshakeAttempts, handshakeBackoffMs);
+                    if (!ok) return;
                 }
+                log.info(`ADB discovery: found ADB server at ${host}:${validPort}`);
+                reachable.push(`${host}:${validPort}`);
             });
         }
     }
