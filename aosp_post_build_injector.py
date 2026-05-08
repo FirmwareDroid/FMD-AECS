@@ -1004,7 +1004,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         dst_path = os.path.join(target_partition_path, POST_INJECTOR_CONFIG["COPY_TO_SPECIFIC_PATH"][file_name])
         if not os.path.exists(dst_path):
             #copy_fast(file_path, dst_path)
-            test_data = "/data/system/fonts/Roboto-Regular.ttf"
+            test_data = "/system/fonts/Roboto-Regular.ttf"
             try:
                 with open(dst_path, "w") as f:
                     f.write(test_data)
