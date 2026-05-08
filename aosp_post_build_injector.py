@@ -958,7 +958,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     file_name = os.path.basename(file_path)
     file_extension = os.path.splitext(file_name)[1]
 
-    target_file_injection_path = get_target_injection_path(file_path, partition_name, target_out_path)
+    target_file_injection_path, target_partition_path = get_target_injection_path(file_path, partition_name, target_out_path)
     logging.debug(f"Target file injection path: {target_file_injection_path} ")
     if file_extension == ".apex" or file_extension == ".capex":
         logging.debug(f"APEX Injection Strategy Selection for file: {file_path}")
@@ -998,6 +998,16 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                 logging.info(f"Direct injection complete for file: {file_path}")
             else:
                 logging.warning(f"Direct+Indirect injection complete for file but file not injected: {file_path}")
+
+
+    if file_name in POST_INJECTOR_CONFIG["COPY_TO_SPECIFIC_PATH"]:
+        dst_path = os.path.join(target_partition_path, POST_INJECTOR_CONFIG["COPY_TO_SPECIFIC_PATH"][file_name])
+        if not os.path.exists(dst_path):
+            copy_fast(file_path, dst_path)
+            logging.info(f"COPY_TO_SPECIFIC_PATH: {file_path} to {dst_path}")
+        else:
+            logging.info(f"SKIPPED COPY_TO_SPECIFIC_PATH: {file_path}|{dst_path} already exists")
+
 
     if target_path:
         try:
@@ -1501,7 +1511,7 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
 
     target_file_injection_path = os.path.join(target_dir_injection_path, os.path.basename(source_file_path))
     target_file_injection_path = os.path.normpath(target_file_injection_path)
-    return target_file_injection_path
+    return target_file_injection_path, target_partition_path
 
 
 # Direct Injection
