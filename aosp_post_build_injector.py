@@ -166,7 +166,7 @@ def count_number_of_extracted_files(source_folder_path):
     :param source_folder_path: str - Path to the source folder.
     :return: dict - Number of files in the source folder per partition.
     """
-    partition_names = ["system", "vendor", "product", "system_ext", "system_other"]
+    partition_names = ["system", "vendor", "product", "system_ext", "system_other", "userdata"]
     file_count_per_partition = defaultdict(int)
     for partition_name in partition_names:
         partition_path = os.path.join(source_folder_path, partition_name)

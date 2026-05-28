@@ -5,8 +5,9 @@ ADB device and attempts to start it as a background process.
 
 Behavior:
  - Polls `adb devices` repeatedly.
- - For each device in "device" state, verifies whether the remote file exists and
-   matches local size; if not, pushes the local JAR to the remote path.
+ - For each device in "device" state, verifies whether the remote file exists; if not,
+   pushes the local JAR to the remote path. We intentionally only check existence
+   (not file size) to avoid overwriting preinstalled or externally-managed binaries.
  - Attempts to start the server on the device using `app_process64` or
    `app_process` with CLASSPATH set to the pushed JAR. Uses a best-effort `nohup`
    style command to background the server so it survives the shell session.
@@ -75,8 +76,11 @@ def list_devices() -> List[str]:
 
 
 def remote_file_info(serial: str, remote_path: str):
-    """Return (exists: bool/None, size: int/None, path: str/None).
+    """Return (exists: bool/None, size: None, path: str/None).
     exists=None indicates probe was inconclusive (e.g. subprocess not supported).
+
+    Note: size is intentionally not provided — callers should only rely on
+    the existence boolean.
     """
     try:
         cp = run_adb(["-s", serial, "shell", "ls", "-l", remote_path])
@@ -90,16 +94,8 @@ def remote_file_info(serial: str, remote_path: str):
         out = cp.stdout.strip()
         if not out:
             return None, None, None
-        # parse first token containing size - best-effort
-        first_line = out.splitlines()[0]
-        # typical `ls -l` format: -rwxr-xr-x 1 u0_a123 u0_a123 12345 2022-01-01 ... filename
-        tokens = first_line.split()
-        # find numeric token that looks like size
-        size = None
-        for tok in tokens:
-            if tok.isdigit():
-                size = int(tok)
-        return True, size, remote_path
+        # We only care about existence. If ls -l produced output, assume file exists.
+        return True, None, remote_path
     except AdbError as e:
         logger.debug("remote_file_info adb error for %s: %s", serial, e)
         return None, None, None
@@ -110,7 +106,6 @@ def push_jar(serial: str, local_path: str, remote_path: str) -> bool:
     if not os.path.exists(local_path):
         logger.error("Local server JAR not found: %s", local_path)
         return False
-    local_size = os.path.getsize(local_path)
     exists, size, _ = remote_file_info(serial, remote_path)
     # If the server process is already running on the device, avoid overwriting
     # the binary. This prevents replacing a running server even if sizes differ.
@@ -122,8 +117,8 @@ def push_jar(serial: str, local_path: str, remote_path: str) -> bool:
         # If server detection fails for this device, fall back to normal behavior
         logger.debug("is_server_running check failed for %s; will continue with push verification", serial)
 
-    if exists is True and size is not None and local_size == size:
-        logger.info("Remote jar already present and size matches on %s: %s", serial, remote_path)
+    if exists:
+        logger.info("Remote jar already present on %s: %s (existence-only check)", serial, remote_path)
         # Ensure the remote jar is executable so it can be launched via app_process
         try:
             cp_chmod = run_adb(["-s", serial, "shell", "chmod", "+x", remote_path], timeout=8)
@@ -134,10 +129,6 @@ def push_jar(serial: str, local_path: str, remote_path: str) -> bool:
                                remote_path, serial, cp_chmod.returncode, (cp_chmod.stderr or '').strip())
         except AdbError as e:
             logger.warning("chmod via adb failed for %s on device %s: %s", remote_path, serial, e)
-        return True
-    # If a remote file exists but size differs, and the server is running, do not overwrite
-    if exists is True and size is not None and local_size != size:
-        logger.info("Remote jar size differs on %s (%s != %s) but server appears to be running; skipping overwrite", serial, size, local_size)
         return True
 
     logger.info("Pushing %s -> %s (device=%s)", local_path, remote_path, serial)
@@ -145,10 +136,10 @@ def push_jar(serial: str, local_path: str, remote_path: str) -> bool:
     if cp.returncode != 0:
         logger.error("adb push failed for %s: rc=%s stderr=%s", serial, cp.returncode, cp.stderr.strip())
         return False
-    # verify size after push
+    # verify existence after push
     exists2, size2, _ = remote_file_info(serial, remote_path)
-    if exists2 and size2 == local_size:
-        logger.info("Push verified for device %s", serial)
+    if exists2:
+        logger.info("Push verified (existence) for device %s", serial)
         # Ensure the remote jar is executable so it can be launched via app_process
         try:
             cp_chmod = run_adb(["-s", serial, "shell", "chmod", "+x", remote_path], timeout=8)
@@ -160,7 +151,7 @@ def push_jar(serial: str, local_path: str, remote_path: str) -> bool:
         except AdbError as e:
             logger.warning("chmod via adb failed for %s on device %s: %s", remote_path, serial, e)
         return True
-    logger.warning("Push completed but verification failed for device %s (expected %s got %s)", serial, local_size, size2)
+    logger.warning("Push completed but verification failed for device %s (remote file not found)", serial)
     return False
 
 
@@ -245,8 +236,7 @@ def start_server(serial: str, remote_path: str, use_app_process64: bool = True) 
 
 def ensure_server_on_device(serial: str, local_jar: str, remote_path: str):
     """Ensure the jar is pushed to the device. This function will NOT attempt
-    to start the server; it only ensures the file exists (and matches size)
-    on the remote device.
+    to start the server; it only ensures the file exists on the remote device.
     """
     try:
         ok_push = push_jar(serial, local_jar, remote_path)
