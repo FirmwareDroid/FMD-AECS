@@ -480,7 +480,7 @@
     "wifi",
     "tethering",
     "i18n",
-    "vndk",
+    "vndk.current",
     "ipsec",
     "scheduling",
     "statsd",

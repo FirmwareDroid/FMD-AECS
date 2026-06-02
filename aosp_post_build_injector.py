@@ -589,7 +589,6 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                             else:
                                 error_message = None
                         except Exception as e:
-
                             error_message = f"Exception occurred: {e}:{traceback.format_exc()}\n{traceback.print_stack()}"
                             is_repack_success = False
                 elif module_type == "EXECUTABLES" and is_elf_binary(file_path):
