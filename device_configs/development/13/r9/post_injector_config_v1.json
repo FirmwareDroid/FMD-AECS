@@ -404,7 +404,7 @@
   ],
   "SKIPPED_FILE_ENDING_LIST": [
   ],
-  "CHECK_VNDK_VERSION_MISMATCH": true,
+  "CHECK_VNDK_VERSION_MISMATCH": false,
   "OVERWRITE_APP_PROCESS_32": false,
   "DEFAULT_EMULATOR_BINARIES": [
     "blockdev", "cksum", "disable-verity", "fgrep", "head", "input", "keystore2", "logwrapper", "mkfs.ext3", "nohup",
@@ -463,8 +463,7 @@
     "_capex"
   ],
   "SKIPPED_APEX_KEYWORD_LIST": [
-    "adb",
-    "vndk"
+    "adb"
   ],
   "SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST": [
     "telephony-common.jar"
