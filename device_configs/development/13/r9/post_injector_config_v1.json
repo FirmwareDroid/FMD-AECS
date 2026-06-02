@@ -382,7 +382,8 @@
     "android.mediaprovider.apex",
     "android.conscrypt.apex",
     "android.cellbroadcast.apex",
-    "android.ipsec.apex"
+    "android.ipsec.apex",
+    "com.android.vndk"
   ],
   "SKIPPED_FILE_EXTENSION_LIST_GENERAL": [
     ".rc",

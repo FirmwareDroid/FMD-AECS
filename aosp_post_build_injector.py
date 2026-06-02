@@ -529,7 +529,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
         return f"File already processed: {file_path}", None, None
 
     try:
-        with (lock):
+        with ((((lock)))):
             if os.path.exists(processed_marker):
                 return f"File already processed: {file_path}", None, None
             module_type, tmp_module_type = get_module_type(file_path,
@@ -561,7 +561,14 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                             new_name = filename.replace("bluetooth", "btservices")
                             file_path = rename_file(file_path, new_name)
 
-                    if POST_INJECTOR_CONFIG["ALLOW_APEX_INJECTION_MERGE"] and any(keyword in filename for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"]) and "ALL_FILES/system/" in file_path:
+                    allow_merge = True
+                    if "vndk" in filename and not "current" in filename:
+                        allow_merge = False
+
+                    if POST_INJECTOR_CONFIG["ALLOW_APEX_INJECTION_MERGE"] \
+                        and any(keyword in filename for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"]) \
+                        and "ALL_FILES/system/" in file_path \
+                        and allow_merge:
                         logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
                         try:
                             is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aosp_version)
