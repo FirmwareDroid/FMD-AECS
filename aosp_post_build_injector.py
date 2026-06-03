@@ -360,6 +360,13 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
                                                                       firmware_id,
                                                                       cookies,
                                                                       aosp_version)
+    # Verify Direct Injection targets exist on filesystem and log errors for missing targets
+    try:
+        direct_inject_errors = verify_direct_injection_targets(inj_partition_list)
+        if direct_inject_errors:
+            error_list.extend(direct_inject_errors)
+    except Exception as e:
+        logging.error(f"Error while verifying Direct Injection targets: {e}")
     end_time = time.time()
 
     # free caches
@@ -1209,6 +1216,38 @@ def get_all_files(directory):
     return all_files
 
 
+def verify_direct_injection_targets(inj_partition_list):
+    """
+    Verify that all Direct Injection target paths exist on the filesystem.
+
+    :param inj_partition_list: list of tuples (source_path, target_path, module_type)
+    :return: list of error message strings for missing targets
+    """
+    errors = []
+    if not inj_partition_list:
+        return errors
+
+    for obj in inj_partition_list:
+        try:
+            # Expect tuples like: (source, target, module_type[, ...])
+            if not isinstance(obj, tuple) or len(obj) < 2:
+                logging.debug(f"Skipping malformed Direct Inject entry (not a tuple or too short): {obj}")
+                continue
+            source_path = obj[0]
+            target_path = obj[1]
+            module_type = obj[2] if len(obj) > 2 else None
+
+            if not target_path or not os.path.exists(target_path):
+                msg = f"Direct Injection target missing: {target_path} for source {source_path} | module_type: {module_type}"
+                logging.error(msg)
+                errors.append(msg)
+        except Exception as e:
+            logging.error(f"Error while verifying Direct Inject entry {obj}: {e}")
+            errors.append(f"Error while verifying Direct Inject entry {obj}: {e}")
+
+    return errors
+
+
 def search_original_file_in_obj(partition_name,
                                 module_type,
                                 file_path,
@@ -1569,6 +1608,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
         if os.path.islink(target_file_injection_path):
             try:
                 shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
+                is_injected = True
                 logging.info(f"File link overwrite: {source_file_path} into {target_file_injection_path}")
             except Exception as e:
                 logging.error(f"Error copying file link: {source_file_path} -> {target_file_injection_path} | {e}")
@@ -1600,12 +1640,15 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
             try:
                 if os.path.isfile(source_file_path) and not os.path.islink(source_file_path):
                     shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
+                    is_injected = True
                 elif os.path.islink(source_file_path):
                     command = f'sudo cp -a {source_file_path} {target_file_injection_path} '
                     result = subprocess.run(command, shell=True, capture_output=True, text=True)
                     if result.returncode != 0:
                         logging.error(
                             f"Inject File Error copying symlink: {source_file_path} with {target_file_injection_path} | {result.stderr}")
+                    else:
+                        is_injected = True
             except Exception as e:
                 logging.error(f"Inject File Error copying file: {source_file_path} -> {target_file_injection_path} | {e}")
 
