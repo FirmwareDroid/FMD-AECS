@@ -58,7 +58,12 @@
     "_apex",
     "selinux/",
     "boringssl_self_test",
-    "/etc/vintf"
+    "/etc/vintf",
+    "/etc/passwd",
+    "/etc/group",
+    "/etc/build.prop",
+    "/etc/selinux",
+    "/etc/seccomp_policy"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
