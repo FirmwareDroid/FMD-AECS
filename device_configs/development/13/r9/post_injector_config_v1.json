@@ -119,16 +119,15 @@
     "libcamera",
     "/lib64/camera/",
     "/camera/",
-    "/system_ext/etc/init/",
-    "/vendor/etc/init/",
-    "/product/etc/init/",
-    "/sytem_other/etc/init/",
-    "/odm/etc/init/",
     "/vendor/bin",
     "/system_ext/bin",
     "/prodcut/bin",
     "/system_other/bin",
-    "/odm/bin"
+    "/odm/bin",
+    "/vendor/etc/",
+    "/system_ext/etc/",
+    "/product/etc/",
+    "/odm/etc/"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
