@@ -55,7 +55,9 @@
   "NEVERALLOW_FILE_INJECT": [
   ],
   "NEVERALLOW_FILE_INJECT_KEYWORD_LIST": [
-    "_apex"
+    "_apex",
+    "selinux/",
+    "boringssl_self_test"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
@@ -116,7 +118,17 @@
     "lib64/bootstrap/",
     "libcamera",
     "/lib64/camera/",
-    "/camera/"
+    "/camera/",
+    "/system_ext/etc/init/",
+    "/vendor/etc/init/",
+    "/product/etc/init/",
+    "/sytem_other/etc/init/",
+    "/odm/etc/init/",
+    "/vendor/bin",
+    "/system_ext/bin",
+    "/prodcut/bin",
+    "/system_other/bin",
+    "/odm/bin"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
