@@ -58,7 +58,6 @@
     "_apex",
     "selinux/",
     "boringssl_self_test",
-    "/etc/vintf",
     "/etc/passwd",
     "/etc/group",
     "/etc/build.prop",
