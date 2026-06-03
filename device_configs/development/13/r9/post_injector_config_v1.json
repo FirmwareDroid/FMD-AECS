@@ -115,7 +115,8 @@
     "cameraserver.rc",
     "lib64/bootstrap/",
     "libcamera",
-    "/lib64/camera/"
+    "/lib64/camera/",
+    "/camera/"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
