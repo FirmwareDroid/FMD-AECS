@@ -57,7 +57,8 @@
   "NEVERALLOW_FILE_INJECT_KEYWORD_LIST": [
     "_apex",
     "selinux/",
-    "boringssl_self_test"
+    "boringssl_self_test",
+    "/etc/vintf"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
