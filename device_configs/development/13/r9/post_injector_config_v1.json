@@ -61,6 +61,8 @@
     "hardware.security",
     "keymint",
     "keystore",
+    "keymaster",
+    "/etc/vintf",
     "/etc/passwd",
     "/etc/group",
     "/etc/build.prop",
@@ -82,7 +84,8 @@
     "cameraserver",
     "libcamera2ndk.so",
     "libcameraservice.so",
-    "libcamera_metadata.so"
+    "libcamera_metadata.so",
+    "bootclasspath.bp"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
