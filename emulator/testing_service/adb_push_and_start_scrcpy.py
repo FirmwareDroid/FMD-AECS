@@ -305,8 +305,8 @@ def ensure_server_on_device(serial: str, local_jar: str, remote_path: str):
         return False
 
 
-def main_loop(local_jar: str, remote_path: str, interval: float, once: bool = False):
-    logger.info("Starting adb-scrcpy watcher: local=%s remote=%s interval=%.1fs", local_jar, remote_path, interval)
+def main_loop(local_jar: str, remote_path: str, interval: float, once: bool = False, start_server_flag: bool = False):
+    logger.info("Starting adb-scrcpy watcher: local=%s remote=%s interval=%.1fs start_server=%s", local_jar, remote_path, interval, start_server_flag)
     if not shutil.which("adb"):
         logger.error("adb not found in PATH. Please install adb or add it to PATH.")
         sys.exit(2)
@@ -321,7 +321,14 @@ def main_loop(local_jar: str, remote_path: str, interval: float, once: bool = Fa
                     # Only ensure the JAR is present on the device; do not start the server
                     os.chmod(remote_path, 0o755)
                     ensure_adbd_root(s, timeout=30)
-                    ensure_server_on_device(s, local_jar, remote_path)
+                    ok = ensure_server_on_device(s, local_jar, remote_path)
+                    if ok and start_server_flag:
+                        try:
+                            started = start_server(s, remote_path, use_app_process64=True)
+                            if not started:
+                                logger.warning("Requested start_server but failed to start on %s", s)
+                        except Exception:
+                            logger.exception("start_server raised unexpected error for %s", s)
                 except Exception:
                     logger.exception("Device processing failed for %s", s)
             if once:
@@ -338,6 +345,7 @@ def parse_args():
     p.add_argument("--remote-path", default=DEFAULT_REMOTE_PATH, help="Remote destination path for the jar on device (default: %(default)s)")
     p.add_argument("--interval", type=float, default=DEFAULT_POLL_INTERVAL, help="Polling interval in seconds")
     p.add_argument("--once", action="store_true", help="Run one check cycle then exit (useful for scripting)")
+    p.add_argument("--start-server", action="store_true", help="Attempt to start the scrcpy server after pushing the jar (default: disabled)")
     return p.parse_args()
 
 
@@ -351,7 +359,7 @@ if __name__ == '__main__':
         repo_root = os.path.dirname(script_dir)
         local_jar = os.path.normpath(os.path.join(repo_root, local_jar))
     try:
-        main_loop(local_jar, args.remote_path, args.interval, once=args.once)
+        main_loop(local_jar, args.remote_path, args.interval, once=args.once, start_server_flag=args.start_server)
     except KeyboardInterrupt:
         logger.info("Interrupted by user; exiting")
         sys.exit(0)
