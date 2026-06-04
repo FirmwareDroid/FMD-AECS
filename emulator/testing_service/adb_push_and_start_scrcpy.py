@@ -43,6 +43,30 @@ class AdbError(RuntimeError):
     pass
 
 
+def ensure_adbd_root(serial: str, timeout: float = 8.0) -> bool:
+    """
+    Attempt to run `adb -s <serial> root` to restart adbd as root.
+
+    Returns True if the command appears to have succeeded (returncode == 0) or
+    if the command returned an output that indicates success. Returns False when
+    the attempt failed. This is non-fatal — many production devices will refuse.
+    """
+    try:
+        cp = run_adb(["-s", serial, "root"], timeout=timeout)
+        # Successful restart typically gives rc==0 and may print "restarting adbd as root"
+        if cp.returncode == 0:
+            out = (cp.stdout or "") + (cp.stderr or "")
+            logger.info("adb root succeeded (device=%s): %s", serial, out.strip())
+            # adbd typically restarts; give it a short moment to come back
+            time.sleep(5.0)
+            return True
+        else:
+            logger.debug("adb root returned rc=%s for device %s: %s", cp.returncode, serial, (cp.stderr or '').strip())
+            return False
+    except AdbError as e:
+        logger.debug("adb root failed for device %s: %s", serial, e)
+        return False
+
 def run_adb(args: List[str], timeout: Optional[float] = 15.0) -> subprocess.CompletedProcess:
     cmd = [ADB_BINARY] + args
     try:
@@ -264,6 +288,8 @@ def main_loop(local_jar: str, remote_path: str, interval: float, once: bool = Fa
             for s in serials:
                 try:
                     # Only ensure the JAR is present on the device; do not start the server
+                    os.chmod(remote_path, 0o755)
+                    ensure_adbd_root(s, timeout=30)
                     ensure_server_on_device(s, local_jar, remote_path)
                 except Exception:
                     logger.exception("Device processing failed for %s", s)
