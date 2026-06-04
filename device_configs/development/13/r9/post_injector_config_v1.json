@@ -640,7 +640,7 @@
   },
   "INDIRECT_INJECTION_FILE_MAPPING": {
     "framework.jar": {
-      "original_path": "obj/ETC/framework_intermediates/framework.jar",
+      "original_path": "obj/JAVA_LIBRARIES/framework-minus-apex_intermediates/framework.jar",
       "injection_path": "system/framework/framework.jar"
     },
     "com.google.android.tzdata3.apex": {
