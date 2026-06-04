@@ -903,8 +903,9 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
         if not check_file_compatibility(file_path, target_file_injection_path, module_type):
             logging.debug(f"Incompatible file for indirect injection: {file_path} | {file_name} | {module_type} | {target_file_injection_path}")
         else:
-            original_file_path = POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"][file_name]
-            original_file_path = os.path.join(target_out_path, original_file_path)
+            file_map_entry = POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"][file_name]
+            if file_map_entry["injection_path"] in file_path:
+                original_file_path = os.path.join(target_out_path, file_map_entry["original_path"])
     else:
         original_file_path = search_original_file_in_obj(partition_name,
                                                          module_type,
