@@ -35,6 +35,8 @@ logger = logging.getLogger("adb-scrcpy-watcher")
 
 DEFAULT_REMOTE_PATH = "/data/local/tmp/scrcpy-server.jar"
 DEFAULT_POLL_INTERVAL = 120.0
+SCRCPY_SERVER_VERSION = "3.3.3"
+SCRCPY_SERVER_OPTIONS = "tunnel_forward=true video=true audio=true control=true"
 
 ADB_BINARY = shutil.which("adb") or "adb"
 
@@ -227,34 +229,63 @@ def start_server(serial: str, remote_path: str, use_app_process64: bool = True) 
 
     # Build candidate start commands. We attempt to use CLASSPATH and app_process
     # to run the server. The arguments for the Server class vary across versions;
-    # we pass a minimal argument list (server version placeholder and 0).
-    server_version = "1.0"  # placeholder value; server will still run in many versions
+    # we pass a minimal argument list based on SCRCPY_SERVER_OPTIONS.
     candidates = []
     if use_app_process64:
-        candidates.append(f"CLASSPATH={remote_path} app_process64 / com.genymobile.scrcpy.Server {server_version} 0")
-    candidates.append(f"CLASSPATH={remote_path} app_process / com.genymobile.scrcpy.Server {server_version} 0")
+        candidates.append(f"CLASSPATH={remote_path} app_process64 / com.genymobile.scrcpy.Server {SCRCPY_SERVER_VERSION} {SCRCPY_SERVER_OPTIONS}")
+    candidates.append(f"CLASSPATH={remote_path} app_process / com.genymobile.scrcpy.Server {SCRCPY_SERVER_VERSION} {SCRCPY_SERVER_OPTIONS}")
 
-    # Wrap with nohup-style backgrounding. Use sh -c to allow redirection.
-    for cmd in candidates:
-        sh_cmd = f"sh -c 'nohup {cmd} >/dev/null 2>&1 &'"
-        logger.info("Attempting to start scrcpy server on %s with: %s", serial, cmd)
-        try:
-            cp = run_adb(["-s", serial, "shell", sh_cmd], timeout=8)
-            # We consider the start invoked successfully if adb returned 0. Then
-            # verify if process is visible shortly after.
-            if cp.returncode == 0:
-                # small sleep to allow process to start
-                time.sleep(0.8)
-                if is_server_running(serial):
-                    logger.info("scrcpy server appears to be running on %s", serial)
-                    return True
+    # Retry loop to handle transient "Aborted" failures from app_process on some devices.
+    MAX_START_ATTEMPTS = 10
+    base_delay = 0.8
+    aborted_detected = False
+
+    for attempt in range(1, MAX_START_ATTEMPTS + 1):
+        logger.info("start_server: attempt %d/%d for device %s", attempt, MAX_START_ATTEMPTS, serial)
+        for cmd in candidates:
+            sh_cmd = f"sh -c 'nohup {cmd} >/dev/null 2>&1 &'"
+            logger.info("Attempting to start scrcpy server on %s with: %s", serial, cmd)
+            try:
+                cp = run_adb(["-s", serial, "shell", sh_cmd], timeout=8)
+                out = ((cp.stdout or "") + (cp.stderr or "")).strip()
+                # Detect 'Aborted' output which some devices print when app_process
+                # fails early (transient). If detected, mark and consider retrying.
+                if out and ("Aborted" in out or "aborted" in out):
+                    aborted_detected = True
+                    logger.warning("start_server: detected 'Aborted' output on device %s (attempt=%d): %s", serial, attempt, out.splitlines()[-1])
+                    # If there are remaining attempts, wait and retry
+                    if attempt < MAX_START_ATTEMPTS:
+                        sleep_time = base_delay * (2 ** (attempt - 1))
+                        logger.info("start_server: will retry after %.2fs", sleep_time)
+                        time.sleep(sleep_time)
+                        break  # break candidate loop and retry overall
+                    else:
+                        logger.debug("start_server: no more retries left after aborted detection")
+                        continue
+
+                if cp.returncode == 0:
+                    # small sleep to allow process to start and appear in ps
+                    time.sleep(0.8)
+                    if is_server_running(serial):
+                        logger.info("scrcpy server appears to be running on %s", serial)
+                        return True
+                    else:
+                        logger.debug("start_server: start command returned OK but server not found in ps for %s", serial)
+                        # Try next candidate in this attempt
+                        continue
                 else:
-                    logger.debug("start_server: start command returned OK but server not found in ps for %s", serial)
-            else:
-                logger.warning("adb shell start command returned rc=%s stderr=%s", cp.returncode, cp.stderr.strip())
-        except AdbError as e:
-            logger.debug("start_server adb error for %s: %s", serial, e)
-    logger.error("Failed to start scrcpy server on %s using known start commands", serial)
+                    logger.warning("adb shell start command returned rc=%s stderr=%s stdout=%s", cp.returncode, (cp.stderr or '').strip(), (cp.stdout or '').strip())
+                    # If returncode non-zero but output contains 'Aborted', we'll handle via aborted_detected above
+                    continue
+            except AdbError as e:
+                logger.debug("start_server adb error for %s: %s", serial, e)
+                continue
+        else:
+            # Completed candidate loop without break; if aborted was detected and we
+            # have more attempts remaining, the outer loop will continue and retry.
+            pass
+
+    logger.error("Failed to start scrcpy server on %s using known start commands (aborted_detected=%s)", serial, aborted_detected)
     return False
 
 

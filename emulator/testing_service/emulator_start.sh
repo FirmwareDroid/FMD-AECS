@@ -53,6 +53,7 @@ start_adb_nodaemon() {
     pkill -f "/android/sdk/platform-tools/adb" >/dev/null 2>&1 || true
     sleep 0.5
   fi
+  /android/sdk/platform-tools/adb kill-server || true
   /android/sdk/platform-tools/adb -a -P 5037 nodaemon server &
   PIDS+=("$!")
 }
