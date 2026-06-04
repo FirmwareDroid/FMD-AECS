@@ -661,11 +661,11 @@
     },
     "bootclasspath.pb": {
       "original_path": "obj/ETC/platform-bootclasspath_intermediates/platform-bootclasspath",
-      "injection_path": "system/etc/bootclasspath.pb"
+      "injection_path": "system/etc/classpaths/bootclasspath.pb"
     },
     "systemserverclasspath.pb": {
       "original_path": "obj/ETC/platform-systemserverclasspath_intermediates/platform-systemserverclasspath",
-      "injection_path": "system/etc/systemserverclasspath.pb"
+      "injection_path": "system/etc/classpaths/systemserverclasspath.pb"
     }
   },
   "DIRECT_INJECTION_TARGET_PATH_OVERWRITE": {

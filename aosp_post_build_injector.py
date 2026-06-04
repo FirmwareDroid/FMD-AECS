@@ -900,10 +900,12 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
     original_file_path = None
     # Indirect Injection
     if file_name in POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"].keys():
+        logging.info(f"Indirect injection for file with manual mapping: {file_path}")
         if not check_file_compatibility(file_path, target_file_injection_path, module_type):
             logging.debug(f"Incompatible file for indirect injection: {file_path} | {file_name} | {module_type} | {target_file_injection_path}")
         else:
             file_map_entry = POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"][file_name]
+            logging.info(f"Found mapping entry for file: {file_path} | {file_name} | {module_type} | {target_file_injection_path} | mapping: {file_map_entry}")
             if file_map_entry["injection_path"] in file_path:
                 original_file_path = os.path.join(target_out_path, file_map_entry["original_path"])
     else:
