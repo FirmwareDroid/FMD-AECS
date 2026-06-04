@@ -138,7 +138,8 @@
     "/vendor/etc/",
     "/system_ext/etc/",
     "/product/etc/",
-    "/odm/etc/"
+    "/odm/etc/",
+    "/system/etc/classpaths/"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
