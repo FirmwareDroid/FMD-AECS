@@ -62,7 +62,9 @@
     "keymint",
     "keystore",
     "keymaster",
-    "/etc/vintf",
+    "/system/etc/vintf",
+    "/vendor/etc/vintf",
+    "/product/etc/vintf",
     "/etc/passwd",
     "/etc/group",
     "/etc/build.prop",
@@ -140,7 +142,9 @@
     "/system_ext/etc/",
     "/product/etc/",
     "/odm/etc/",
-    "/system/etc/classpaths/"
+    "/system/etc/classpaths/",
+    "/vendor/firmware/",
+    "/vendor/lib64/camera.device@"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
