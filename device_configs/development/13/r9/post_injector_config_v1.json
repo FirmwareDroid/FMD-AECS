@@ -85,7 +85,8 @@
     "libcamera2ndk.so",
     "libcameraservice.so",
     "libcamera_metadata.so",
-    "bootclasspath.bp"
+    "bootclasspath.bp",
+    "cust.prop"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
     "system/framework",
@@ -640,7 +641,7 @@
   },
   "INDIRECT_INJECTION_FILE_MAPPING": {
     "framework.jar": {
-      "original_path": "obj/JAVA_LIBRARIES/framework-minus-apex_intermediates/framework.jar",
+      "original_path": "obj/JAVA_LIBRARIES/framework-minus-apex_intermediates/javalib.jar",
       "injection_path": "system/framework/framework.jar"
     },
     "com.google.android.tzdata3.apex": {
