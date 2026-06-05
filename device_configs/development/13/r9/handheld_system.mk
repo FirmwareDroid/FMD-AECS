@@ -42,10 +42,10 @@ $(call inherit-product-if-exists, frameworks/webview/chromium/chromium.mk)
     #PacProcessor \
     #PrintRecommendationService \
     #PrintSpooler \
+    # CameraExtensionsProxy \
 
 PRODUCT_PACKAGES += \
-    cameraserver \
-    CameraExtensionsProxy \
+	cameraserver \
     CertInstaller \
     clatd \
     FusedLocation \

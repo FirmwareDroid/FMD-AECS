@@ -19,6 +19,7 @@
 # SettingsProvider \
 # CtsShimPrebuilt \
 # CtsShimPrivPrebuilt \
+# libcamera2ndk \
 
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \
@@ -145,7 +146,6 @@ PRODUCT_PACKAGES += \
     libbinder_ndk \
     libbinder_rpc_unstable \
     libc.bootstrap \
-    libcamera2ndk \
     libcutils \
     libdl.bootstrap \
     libdl_android.bootstrap \
