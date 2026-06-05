@@ -144,7 +144,8 @@
     "/odm/etc/",
     "/system/etc/classpaths/",
     "/vendor/firmware/",
-    "/vendor/lib64/camera.device@"
+    "/vendor/lib64/camera.device@",
+    "/system/usr/keylayout/"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
