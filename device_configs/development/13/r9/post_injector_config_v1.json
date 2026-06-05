@@ -69,7 +69,9 @@
     "/etc/group",
     "/etc/build.prop",
     "/etc/selinux",
-    "/etc/seccomp_policy"
+    "/etc/seccomp_policy",
+    "/vendor/bin/vndservicemanager",
+    "/etc/init/vndservicemanager.rc"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
