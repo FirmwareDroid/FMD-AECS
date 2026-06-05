@@ -1545,6 +1545,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
                         if "vndk.current" in apex_filename:
                             os.remove(manifest_dst)
                             logging.info(f"vndk.current. Removed original APEX manifest file: {manifest_dst}.")
+                            is_apex_manifest_file_found = False
                         else:
                             is_apex_manifest_file_found = True
                             logging.info(f"APEX manifest file found: {manifest_dst}")
