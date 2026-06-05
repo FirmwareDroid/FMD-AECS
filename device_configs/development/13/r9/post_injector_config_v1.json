@@ -163,7 +163,14 @@
     "/system/etc/compatconfig",
     "/system/etc/appmanager.conf",
     "/system/etc/boot-image.bprof",
-    "/system/etc/boot-image.prof"
+    "/system/etc/boot-image.prof",
+    "/system/bin/bootstrap",
+    "/system/bin/hw",
+    "/vendor/bin/hw",
+    "/system_ext/bin/hw",
+    "/system_other/bin/hw",
+    "/odm/bin/hw",
+    "/product/bin/hw"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
