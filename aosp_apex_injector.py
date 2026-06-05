@@ -1526,30 +1526,33 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
     logging.debug(f"Copying APEX manifest file.")
     manifest_dst = os.path.join(output_dir_path, "apex_manifest.pb")
     is_apex_manifest_file_found = False
-    if not "vndk.current" in apex_filename:
-        try:
-            for root, dirs, files in os.walk(apex_extract_dir_path):
-                for file in files:
-                    logging.info(f"Scanning for APEX manifest file: {file}")
-                    if file == "apex_manifest.pb":
-                        file_path = str(os.path.join(root, file))
-                        if os.path.exists(file_path):
-                            logging.info(f"Found APEX manifest file: {file_path} to delete")
-                            shutil.move(file_path, manifest_dst)
+    try:
+        for root, dirs, files in os.walk(apex_extract_dir_path):
+            for file in files:
+                logging.info(f"Scanning for APEX manifest file: {file}")
+                if file == "apex_manifest.pb":
+                    file_path = str(os.path.join(root, file))
+                    if os.path.exists(file_path):
+                        logging.info(f"Found APEX manifest file: {file_path} to delete")
+                        shutil.move(file_path, manifest_dst)
+                    else:
+                        logging.error(f"No APEX manifest found in {apex_extract_dir_path} | {file_path}")
+                        exit(1)
+                    #manifest_json_file_path = get_apex_manifest_from_aosp(aosp_path, apex_file_name)
+                    #convert_apex_manifest_json_to_pb(manifest_json_file_path, manifest_dst)
+                    logging.info(f"Copied APEX manifest file: {file_path} to {manifest_dst}.")
+                    if os.path.exists(manifest_dst):
+                        if "vndk.current" in apex_filename:
+                            os.remove(manifest_dst)
+                            logging.info(f"vndk.current. Removed original APEX manifest file: {manifest_dst}.")
                         else:
-                            logging.error(f"No APEX manifest found in {apex_extract_dir_path} | {file_path}")
-                            exit(1)
-                        #manifest_json_file_path = get_apex_manifest_from_aosp(aosp_path, apex_file_name)
-                        #convert_apex_manifest_json_to_pb(manifest_json_file_path, manifest_dst)
-                        logging.info(f"Copied APEX manifest file: {file_path} to {manifest_dst}.")
-                        if os.path.exists(manifest_dst):
                             is_apex_manifest_file_found = True
                             logging.info(f"APEX manifest file found: {manifest_dst}")
-                        break
-        except Exception as ex:
-            logging.error(f"Failed to move APEX manifest file: {ex}")
-            traceback.print_exc()
-            traceback.print_stack()
+                    break
+    except Exception as ex:
+        logging.error(f"Failed to move APEX manifest file: {ex}")
+        traceback.print_exc()
+        traceback.print_stack()
 
     if not is_apex_manifest_file_found:
         if "vnd.current" in apex_filename:
