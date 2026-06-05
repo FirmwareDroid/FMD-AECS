@@ -1557,6 +1557,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
 
     if not is_apex_manifest_file_found:
         if "vndk.current" in apex_filename:
+            logging.info("Using template for manifest file for vndk.current")
             manifest_json_str = f"""{{
             "name": "com.android.vndk.current",
             "version": 1
