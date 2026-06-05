@@ -65,13 +65,22 @@
     "/system/etc/vintf",
     "/vendor/etc/vintf",
     "/product/etc/vintf",
+    "/system_ext/etc/vintf",
+    "/odm/etc/vintf",
     "/etc/passwd",
     "/etc/group",
     "/etc/build.prop",
     "/etc/selinux",
     "/etc/seccomp_policy",
     "/vendor/bin/vndservicemanager",
-    "/etc/init/vndservicemanager.rc"
+    "/etc/init/vndservicemanager.rc",
+    "/system/etc/vintf/manifest/android.frameworks.stats@1.0-service.xml",
+    "/system/etc/vintf/manifest/android.hidl.allocator@1.0-service.xml",
+    "/system/etc/vintf/manifest/android.system.keystore2-service.xml",
+    "/system/etc/vintf/manifest/android.system.suspend@1.0-service.xml",
+    "/system/etc/vintf/manifest/manifest_android.frameworks.cameraservice.service@2.2.xml",
+    "/system/etc/vintf/manifest/manifest_media_c2_software.xml",
+    "/system/etc/vintf/manifest/secure_element-service.xml"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
@@ -147,7 +156,15 @@
     "/system/etc/classpaths/",
     "/vendor/firmware/",
     "/vendor/lib64/camera.device@",
-    "/system/usr/keylayout/"
+    "/system/usr/keylayout/",
+    "/system/etc/linker.config.pb",
+    "/system/etc/preloaded-classes",
+    "/system/etc/sysconfig",
+    "/system/etc/dirty-image-objects",
+    "/system/etc/compatconfig",
+    "/system/etc/appmanager.conf",
+    "/system/etc/boot-image.bprof",
+    "/system/etc/boot-image.prof"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
