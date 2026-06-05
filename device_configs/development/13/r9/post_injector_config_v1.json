@@ -62,7 +62,6 @@
     "keymint",
     "keystore",
     "keymaster",
-    "/system/etc/vintf",
     "/vendor/etc/vintf",
     "/product/etc/vintf",
     "/system_ext/etc/vintf",

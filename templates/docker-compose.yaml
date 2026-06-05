@@ -109,9 +109,13 @@ services:
 
 networks:
   frontend:
+    name: project_frontend
     driver: bridge
+    attachable: true
   android:
+    name: project_android
     driver: bridge
+    attachable: true
     #driver_opts:
       # ensure the bridge performs IP masquerading (NAT) so containers can reach the Internet
     #  com.docker.network.bridge.enable_ip_masquerade: "true"
