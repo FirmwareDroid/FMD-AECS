@@ -970,7 +970,9 @@ def add_toolbox_packages_to_aosp(aosp_path):
     analysis, or additional functionalities that enhance the AOSP build.
     """
     inject_ca_certificate(aosp_path)
-    toolbox_list = ["curl"]  # Adding tools from AOSP
+    toolbox_list = []
+    aosp_packages = POST_INJECTOR_CONFIG.get("TOOLBOX_AOSP_PACKAGES", []) # Adding tools from AOSP
+    toolbox_list.extend(aosp_packages)
     toolbox_list.extend(inject_toolbox_packages_to_aosp(aosp_path))
     add_toolbox_packages_to_meta_file(toolbox_list)
     return toolbox_list
