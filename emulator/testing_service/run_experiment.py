@@ -37,7 +37,8 @@ RUN_DROIDRUN = os.path.join(BASE_DIR, 'app_testing_tools', 'droidrun_agent_cli.p
 COLLECT_DEVICE_INFO = os.path.join(BASE_DIR, 'collect_device_info.py')
 
 OUT_DIR = os.path.join(BASE_DIR, 'out')
-
+PID_FILE_PATH = os.path.join(OUT_DIR, 'tcpdump_device.pid')
+REMOTE_PCAP_PATH = "/data/local/tmp/tcpdump.pcap"
 # Global timeout control (set by main)
 GLOBAL_START_TIME = None
 GLOBAL_MAX_SECONDS = None
@@ -853,171 +854,184 @@ def run_connectivity_test(results_dir):
     # Return True if the connectivity test reported success (exit code 0)
     return (res.get('returncode', 1) == 0)
 
+def _get_first_adb_device() -> str:
+    """Helper to consistently find the first available ADB device serial."""
+    if not shutil.which('adb'):
+        logging.error('adb binary not found in PATH')
+        return ""
+    try:
+        out = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=10)
+        lines = [line.strip() for line in (out.stdout or '').splitlines() if line.strip()]
+        for line in lines:
+            if line.startswith('List of devices'):
+                continue
+            parts = line.split()
+            if len(parts) >= 2 and parts[1] == 'device':
+                return parts[0]
+    except Exception:
+        logging.exception('Failed to execute adb devices')
+    return ""
 
-def start_tcpdump():
-    """Configure device to forward packets to NFLOG and start tcpdump on the device.
 
-    - Attempts to run `adb root` (may fail on production devices but OK to try).
-    - Installs iptables mangle rule to send OUTPUT to NFLOG group 1.
-    - Starts tcpdump on the device writing to /storage/emulated/0/Download/tcpdump.pcap
-      and records the remote pid to OUT_DIR/tcpdump_device.pid.
+def _ensure_adb_root(serial: str) -> bool:
+    """Best-effort attempt to toggle adb root. Returns true if successful."""
+    try:
+        res = subprocess.run(['adb', '-s', serial, 'root'], capture_output=True, text=True, timeout=10)
+        if res.returncode == 0 and "cannot run as root" not in (res.stdout or ""):
+            logging.info('adb root: SUCCESS on device %s', serial)
+            return True
+        logging.debug('adb root: Not available/Production build on device %s', serial)
+    except Exception:
+        logging.exception('Exception during adb root attempt')
+    return False
 
-    This function logs warnings/errors but does not abort the experiment on failure.
-    Returns True if tcpdump was started successfully, False otherwise.
-    """
+def start_tcpdump() -> bool:
+    """Configures device NFLOG rules and starts background tcpdump securely."""
     logging.info('Setting up tcpdump')
 
-    # quick checks
-    if not shutil.which('adb'):
-        logging.error('adb binary not found in PATH; cannot configure tcpdump on device')
+    # 1. Device Discovery
+    serial = _get_first_adb_device()
+    if not serial:
+        logging.error('No responsive adb device found to start tcpdump.')
+        return False
+    logging.info('Selected target adb device: %s', serial)
+
+    # 2. Privileges & Firewall Setup
+    _ensure_adb_root(serial)
+
+    ipt_cmd = 'iptables -t mangle -C OUTPUT -j NFLOG --nflog-group 1 2>/dev/null || iptables -t mangle -I OUTPUT 1 -j NFLOG --nflog-group 1'
+    try:
+        subprocess.run(['adb', '-s', serial, 'shell', ipt_cmd], capture_output=True, text=True, timeout=10)
+        logging.info('Verified/Installed iptables NFLOG rule')
+    except Exception:
+        logging.exception('Failed to apply iptables NFLOG rule')
+
+    # 3. Clean up any residual tracking artifacts
+    if os.path.exists(PID_FILE_PATH):
+        try:
+            os.remove(PID_FILE_PATH)
+        except Exception:
+            pass
+
+    # 4. Fire up tcpdump in the background safely
+    remote_workdir = '/data/local/tmp'
+    # We remove the old pcap first to guarantee our validation loop checks fresh data
+    start_cmd = (
+        f"rm -f {REMOTE_PCAP_PATH} && mkdir -p {remote_workdir} && cd {remote_workdir} && "
+        f"nohup tcpdump -i nflog:1 -w {REMOTE_PCAP_PATH} > nohup.out 2>&1 & echo $!"
+    )
+
+    try:
+        res = subprocess.run(['adb', '-s', serial, 'shell', start_cmd], capture_output=True, text=True, timeout=15)
+        if res.returncode != 0:
+            logging.error('ADB rejected background pipeline command: %s', (res.stderr or res.stdout).strip())
+            return False
+
+        output = (res.stdout or '').strip()
+        pid = output.splitlines()[-1].strip() if output else ""
+
+        if not pid or not pid.isdigit():
+            logging.warning('Could not extract a valid PID from command output: "%s"', output)
+            return False
+
+        # Persist tracking metrics (serial + pid)
+        os.makedirs(OUT_DIR, exist_ok=True)
+        with open(PID_FILE_PATH, 'w', encoding='utf-8') as f:
+            f.write(f"{serial}\n{pid}\n")
+        logging.info('Background tcpdump initialized (Device: %s, PID: %s)', serial, pid)
+
+    except Exception:
+        logging.exception('Failed during tcpdump generation sequence')
         return False
 
-    remote_pcap = '/data/tcpdump_log/tcpdump.pcap'
-    pid_file = os.path.join(OUT_DIR, 'tcpdump_device.pid')
-
-    # Retry loop: sometimes devices take a moment to be ready or tcpdump fails to start
-    max_start_attempts = 30
-    per_attempt_wait_seconds = 30.0
-    check_sleep = 30
-    check_attempts = max(1, int(per_attempt_wait_seconds / check_sleep))
-
-    for attempt in range(1, max_start_attempts + 1):
-        logging.info('tcpdump start attempt %d/%d', attempt, max_start_attempts)
-
-        # If multiple devices are connected, pick the first one from `adb devices`.
+    # 5. Fast-polling File Generation Check (Max 5 seconds wait instead of 15 minutes!)
+    for check in range(10):
+        time.sleep(0.5)
         try:
-            out = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=10)
-            lines = [l.strip() for l in (out.stdout or '').splitlines() if l.strip()]
-            serial = None
-            for l in lines:
-                if l.startswith('List of devices'):
-                    continue
-                parts = l.split()
-                if len(parts) >= 2 and parts[1] == 'device':
-                    serial = parts[0]
-                    break
-            if not serial:
-                logging.error('No adb device found to start tcpdump (attempt %d/%d)', attempt, max_start_attempts)
-                # If not the last attempt, wait and retry device selection
-                if attempt < max_start_attempts:
-                    time.sleep(2.0)
-                    continue
-                return False
-            logging.info('Selected first adb device: %s', serial)
+            ls_res = subprocess.run(['adb', '-s', serial, 'shell', f'ls -l {REMOTE_PCAP_PATH}'], capture_output=True,
+                                    text=True, timeout=5)
+            if ls_res.returncode == 0 and (ls_res.stdout or '').strip():
+                logging.info('Confirmed: Remote pcap generation verified active.')
+                return True
         except Exception:
-            logging.exception('Failed to run adb devices to select device')
-            if attempt < max_start_attempts:
-                time.sleep(2.0)
-                continue
-            return False
+            pass
 
-        # try to become root (best-effort) on selected device
+    logging.error('tcpdump failed to spawn file descriptor at %s within timeout.', REMOTE_PCAP_PATH)
+    return False
+
+
+def stop_tcpdump() -> bool:
+    """Stops tcpdump via PID / Process name signatures and pulls the output safely."""
+    logging.info('Stopping tcpdump execution layout')
+
+    # 1. Parse existing execution markers
+    if not os.path.exists(PID_FILE_PATH):
+        logging.warning('No execution file tracking structure (%s) located. Attempting blind fallback.', PID_FILE_PATH)
+        serial = _get_first_adb_device()
+        pid = None
+    else:
         try:
-            adb_root_cmd = ['adb', '-s', serial, 'root']
-            res = subprocess.run(adb_root_cmd, capture_output=True, text=True, timeout=10)
+            with open(PID_FILE_PATH, 'r', encoding='utf-8') as f:
+                lines = [line.strip() for line in f if line.strip()]
+                serial = lines[0] if len(lines) > 0 else _get_first_adb_device()
+                pid = lines[1] if len(lines) > 1 else None
+        except Exception:
+            logging.exception('Failed parsing data from active pid tracking structure')
+            serial = _get_first_adb_device()
+            pid = None
+
+    if not serial:
+        logging.error('Cannot execute termination request: No valid target devices found.')
+        return False
+
+    _ensure_adb_root(serial)
+
+    # 2. Terminate Process (Ordered Fallbacks: pkill -> pid-kill -> su-pkill)
+    termination_commands = [
+        ['adb', '-s', serial, 'shell', 'pkill -2 tcpdump'],
+    ]
+    if pid:
+        termination_commands.append(['adb', '-s', serial, 'shell', f'kill -2 {pid}'])
+    termination_commands.append(['adb', '-s', serial, 'shell', 'su', '-c', 'pkill -2 tcpdump'])
+
+    killed = False
+    for cmd in termination_commands:
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
             if res.returncode == 0:
-                logging.info('adb root: OK')
-            else:
-                logging.warning('adb root returned non-zero: %s. Continuing (may still work if device already has privileges).', res.stderr.strip() or res.stdout.strip())
-        except Exception as e:
-            logging.warning('adb root failed: %s', e)
-
-        # Add iptables rule to send OUTPUT to NFLOG group 1 (best-effort)
-        ipt_cmd = 'iptables -t mangle -I OUTPUT 1 -j NFLOG --nflog-group 1'
-        try:
-            adb_ipt_cmd = ['adb', '-s', serial, 'shell', ipt_cmd]
-            res = subprocess.run(adb_ipt_cmd, capture_output=True, text=True, timeout=10)
-            if res.returncode != 0:
-                logging.warning('Failed to add iptables NFLOG rule: %s', (res.stderr or res.stdout).strip())
-            else:
-                logging.info(f'Installed iptables NFLOG rule: {adb_ipt_cmd}')
+                logging.info('Sent kill signal safely utilizing command: %s', " ".join(cmd))
+                killed = True
+                break
         except Exception:
-            logging.exception('Exception while installing iptables NFLOG rule')
+            continue
 
-        # Ensure a writable working directory on the device for nohup output and run tcpdump there.
-        # Some Android shells have read-only root and nohup will try to write /nohup.out which fails.
-        # Create /data/tcpdump_log, cd into it, redirect stdout/stderr to a local nohup.out and
-        # echo the background PID so the host can capture it.
-        remote_workdir = '/data/tcpdump_log'
-        start_cmd = (
-            f"mkdir -p {remote_workdir} && cd {remote_workdir} && "
-            f"nohup tcpdump -i nflog:1 -w {remote_pcap} > {remote_workdir}/nohup.out 2>&1 & echo $!"
-        )
-        try:
-            adb_start_cmd = ['adb', '-s', serial, 'shell', start_cmd]
-            res = subprocess.run(adb_start_cmd, capture_output=True, text=True, timeout=15)
-            if res.returncode == 0:
-                out = (res.stdout or '').strip()
-                # stdout may contain extra messages; take last line as pid
-                pid = None
-                if out:
-                    pid = out.splitlines()[-1].strip()
+    if not killed:
+        logging.warning("Signal requests completed, verifying if process terminated automatically...")
 
-                # Write pid file if we can determine pid (best-effort)
-                if pid and pid.isdigit():
-                    try:
-                        os.makedirs(OUT_DIR, exist_ok=True)
-                        with open(pid_file, 'w', encoding='utf-8') as f:
-                            f.write(pid + '\n')
-                        logging.info('Started tcpdump on device (pid=%s), pid written to %s', pid, pid_file)
-                    except Exception:
-                        logging.exception(f'Failed to write tcpdump pid file: {adb_start_cmd}')
-                else:
-                    logging.warning('Could not determine tcpdump pid from adb output: %s - Start command: %s', out or '(empty)', adb_start_cmd)
+    # Allow buffer space for memory pipes to flush on filesystem
+    time.sleep(1.5)
 
-                # Verify that the remote pcap file exists. tcpdump should create the file
-                # shortly after starting; poll for a short period to allow for delays.
-                pcap_exists = False
-                for attempt_check in range(1, check_attempts + 1):
-                    try:
-                        # Use ls to check existence; ls returns 0 when file present
-                        adb_ls = ['adb', '-s', serial, 'shell', 'ls', '-l', remote_pcap]
-                        ls_res = subprocess.run(adb_ls, capture_output=True, text=True, timeout=5)
-                        if ls_res.returncode == 0 and (ls_res.stdout or '').strip():
-                            pcap_exists = True
-                            logging.info('Remote pcap file exists: %s (check %d/%d)', remote_pcap, attempt_check, check_attempts)
-                            break
-                        else:
-                            logging.debug('Remote pcap not yet present (check %d/%d): %s', attempt_check, check_attempts, (ls_res.stderr or ls_res.stdout).strip())
-                    except Exception:
-                        logging.debug('Exception while checking remote pcap existence (attempt %d)', attempt_check)
-                    time.sleep(check_sleep)
+    # 3. Secure File Retrieval
+    local_pcaps_dir = os.path.join(OUT_DIR, "pcaps")
+    os.makedirs(local_pcaps_dir, exist_ok=True)
+    local_pcap_file = os.path.join(local_pcaps_dir, f'tcpdump_on_system.pcap')
 
-                if pcap_exists:
-                    return True
-                else:
-                    logging.error('tcpdump did not create remote pcap %s within %.1f seconds (attempt %d/%d)', remote_pcap, check_attempts * check_sleep, attempt, max_start_attempts)
-                    # Try to clean up any running tcpdump before retrying (best-effort)
-                    try:
-                        adb_pkill = ['adb', '-s', serial, 'shell', 'pkill -2 tcpdump']
-                        subprocess.run(adb_pkill, capture_output=True, text=True, timeout=10)
-                    except Exception:
-                        logging.debug('pkill attempt during cleanup failed')
+    try:
+        # Match REMOTE_PCAP_PATH explicitly to solve your path mismatch bug
+        res = subprocess.run(['adb', '-s', serial, 'pull', REMOTE_PCAP_PATH, local_pcap_file], capture_output=True,
+                             text=True, timeout=60)
+        if res.returncode == 0 and os.path.exists(local_pcap_file) and os.path.getsize(local_pcap_file) > 0:
+            logging.info('Successfully pulled populated tcpdump pcap target to: %s', local_pcap_file)
 
-                    # Remove pid file if present
-                    try:
-                        if os.path.exists(pid_file):
-                            os.remove(pid_file)
-                    except Exception:
-                        logging.debug('Failed to remove pid file during cleanup')
-
-                    # If not last attempt, wait a bit and retry
-                    if attempt < max_start_attempts:
-                        time.sleep(2.0)
-                        continue
-                    return False
-            else:
-                logging.error('Failed to start tcpdump on device: %s', (res.stderr or res.stdout).strip())
-                if attempt < max_start_attempts:
-                    time.sleep(2.0)
-                    continue
-                return False
-        except Exception:
-            logging.exception('Exception while starting tcpdump on device')
-            if attempt < max_start_attempts:
-                time.sleep(2.0)
-                continue
-            return False
+            # Clean up tracking file and device storage files upon complete validation success
+            if os.path.exists(PID_FILE_PATH): os.remove(PID_FILE_PATH)
+            subprocess.run(['adb', '-s', serial, 'shell', f'rm -f {REMOTE_PCAP_PATH}'], capture_output=True, timeout=5)
+            return True
+        else:
+            logging.error('Failed pulling file or zero-byte file caught. adb logs: %s',
+                          (res.stderr or res.stdout).strip())
+    except Exception:
+        logging.exception('Fatal unexpected termination occurred pulling runtime assets.')
 
     return False
 
