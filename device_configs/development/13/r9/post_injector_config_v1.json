@@ -28,8 +28,6 @@
   ],
   "SKIPPED_MISC_EXTENSION_LIST": [
     ".kl",
-    ".vdex",
-    ".odex",
     ".idc",
     ".fsv_meta"
   ],
