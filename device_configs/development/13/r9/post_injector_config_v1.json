@@ -79,7 +79,8 @@
     ".vdex",
     ".odex",
     ".art",
-    ".oat"
+    ".oat",
+    "/etc/vintf"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
