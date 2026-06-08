@@ -1058,8 +1058,11 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
 
 
 def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_list, partition_name, target_out_path, aosp_path, lunch_target, aosp_version):
+    """
+    Injects apex intermediate files (libs, binaries, etc.) that are found within the apex image.
+    """
     for apex_sub_file_path in apex_merge_file_path_list:
-        module_type, tmp_module_type = get_module_type(apex_sub_file_path, post_injector_config=POST_INJECTOR_CONFIG)
+        module_type = "MISC"
         sub_file_name = os.path.basename(apex_sub_file_path)
         apex_filename_no_ext = str(os.path.splitext(file_name)[0])
         original_file_path = search_original_file_in_obj(partition_name,
