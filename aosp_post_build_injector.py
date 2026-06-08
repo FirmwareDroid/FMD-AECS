@@ -1073,14 +1073,26 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
                                                          target_out_path,
                                                          replace_intermediate=f".{apex_filename_no_ext}_intermediates",
                                                          must_contain=apex_filename_no_ext)
-        logging.info(f"Found original file path for apex intermediate file: {original_file_path}")
-        is_injected = inject_file_into_obj(file_path,
-                                           original_file_path,
-                                           module_type,
-                                           aosp_path,
-                                           partition_name,
-                                           lunch_target,
-                                           aosp_version)
+        if original_file_path is None:
+            apex_sub_file_path_vendor_replaced = remove_vendor_name_from_path(apex_sub_file_path)
+            file_name_vendor_replaced = os.path.basename(apex_sub_file_path_vendor_replaced)
+            original_file_path = search_original_file_in_obj(partition_name,
+                                                             module_type,
+                                                             apex_sub_file_path_vendor_replaced,
+                                                             file_name_vendor_replaced,
+                                                             target_out_path)
+
+        if original_file_path:
+            logging.info(f"Found original file path for apex intermediate file: {original_file_path}")
+            is_injected = inject_file_into_obj(file_path,
+                                               original_file_path,
+                                               module_type,
+                                               aosp_path,
+                                               partition_name,
+                                               lunch_target,
+                                               aosp_version)
+        else:
+            is_injected = False
         if is_injected:
             logging.info(f"Injected apex intermediate file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
         else:
