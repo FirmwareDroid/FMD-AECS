@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import traceback
 import zipfile
+from pathlib import Path
 from asyncore import write
 from jinja2 import Environment, FileSystemLoader
 from ConfigManager import ConfigManager
@@ -937,7 +938,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                lunch_target)
                     logging.info(f"Completed APEX merge successfully: {apex_out_file}")
 
-                    apex_merge_file_path_list = [str(file) for file in merged_apex_extract_dir_path.rglob('*') if file.is_file()]
+                    apex_merge_file_path_list = [str(file) for file in Path(merged_apex_extract_dir_path).rglob('*') if file.is_file()]
 
                     if POST_INJECTOR_CONFIG["REPLACE_AVB_KEYS"]:
                         logging.info(f"Overwriting AVB keys for APEX: {apex_out_file}")

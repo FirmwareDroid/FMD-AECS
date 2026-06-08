@@ -1084,7 +1084,7 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
         if is_injected:
             logging.info(f"Injected apex intermediate file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
         else:
-            logging.error(f"APEX INtermediate: Indirect injection failed for file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
+            logging.error(f"APEX Intermediate: Indirect injection failed for file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
 
 
 def cleanup_files(directory):
