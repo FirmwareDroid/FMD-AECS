@@ -38,7 +38,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aos
         apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path, aosp_version)
         if apex_emulator_folder and os.path.exists(apex_emulator_folder):
             logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
-            is_merge_success, log_message = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path, aosp_version)
+            is_merge_success, log_message, apex_merge_file_path_list = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path, aosp_version)
             if os.path.exists(apex_out_file):
                 try:
                     replace_org_apex_file(file_path, apex_out_file)
@@ -58,7 +58,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aos
         log_message = f"Unexpected error while handling APEX modules: {e}"
         logging.error(log_message)
 
-    return is_merge_success, log_message
+    return is_merge_success, log_message, apex_merge_file_path_list
 
 def backup_original_apex_file(file_path):
     org_apex_file = f"{file_path}.original_apex"
