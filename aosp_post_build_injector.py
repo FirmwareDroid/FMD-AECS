@@ -1065,6 +1065,7 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
         module_type = "MISC"
         sub_file_name = os.path.basename(apex_sub_file_path)
         apex_filename_no_ext = str(os.path.splitext(file_name)[0])
+        logging.info(f"Injecting apex intermediate file: {apex_sub_file_path}")
         original_file_path = search_original_file_in_obj(partition_name,
                                                          module_type,
                                                          apex_sub_file_path,
@@ -1072,6 +1073,7 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
                                                          target_out_path,
                                                          replace_intermediate=f".{apex_filename_no_ext}_intermediates",
                                                          must_contain=apex_filename_no_ext)
+        logging.info(f"Found original file path for apex intermediate file: {original_file_path}")
         is_injected = inject_file_into_obj(file_path,
                                            original_file_path,
                                            module_type,
@@ -1079,6 +1081,7 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
                                            partition_name,
                                            lunch_target,
                                            aosp_version)
+        logging.info(f"Injected apex intermediate file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
         if is_injected:
             logging.info(f"APEX Intermediate: Indirect injection complete for file: {file_path}")
         else:
