@@ -528,6 +528,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
     inj_obj = None
     inj_partition = None
     error_message = None
+    apex_merge_file_path_list = None
     lock_path = f"{file_path}.fmd-aecs-lock"
     processed_marker = f"{file_path}.fmd-aecs-processed"
     lock = FileLock(lock_path)
@@ -578,7 +579,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                         and allow_merge:
                         logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
                         try:
-                            is_merge_success, log_message = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aosp_version)
+                            is_merge_success, log_message, apex_merge_file_path_list = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aosp_version)
                         except Exception as e:
                             is_merge_success = False
                             log_message = f"Exception occurred: {e}:{traceback.format_exc()}\n{traceback.print_stack()}"
@@ -615,7 +616,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                             error_message = None
 
                 if not error_message:
-                    inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path, aosp_path, lunch_target, aosp_version)
+                    inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path, aosp_path, lunch_target, aosp_version, apex_merge_file_path_list)
                 else:
                     logging.info(f"File not further processed: {file_path} | {error_message}")
     except Exception as e:
@@ -871,7 +872,16 @@ def build_intermediate_md5_map(aosp_path):
             logging.debug('Could not write build_intermediate_md5_map timing to log')
     return MappingProxyType(immutable_map)
 
-def indirect_injection(target_file_injection_path, file_name, target_out_path, partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version):
+def indirect_injection(target_file_injection_path,
+                       file_name,
+                       target_out_path,
+                       partition_name,
+                       module_type,
+                       file_path,
+                       inj_partition,
+                       aosp_path,
+                       lunch_target,
+                       aosp_version):
     start_time = time.time()
 
     file_ext = os.path.splitext(file_name)[1]
@@ -966,7 +976,7 @@ def indirect_injection(target_file_injection_path, file_name, target_out_path, p
     return inj_obj, inj_partition, is_injected
 
 
-def search_and_inject(partition_name, module_type, file_path, target_out_path, aosp_path, lunch_target, aosp_version):
+def search_and_inject(partition_name, module_type, file_path, target_out_path, aosp_path, lunch_target, aosp_version, apex_merge_file_path_list=None):
     inj_partition = None
     inj_obj = None
     target_path = None
@@ -991,6 +1001,10 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         else:
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version)
+            if is_injected:
+                inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_list, partition_name, target_out_path, aosp_path, lunch_target, aosp_version)
+
+
     elif not os.path.exists(target_file_injection_path):
         # Direct Injection
         target_path, is_injected = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
@@ -1041,6 +1055,31 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
             pass
 
     return inj_obj, inj_partition
+
+
+def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_list, partition_name, target_out_path, aosp_path, lunch_target, aosp_version):
+    for apex_sub_file_path in apex_merge_file_path_list:
+        module_type, tmp_module_type = get_module_type(apex_sub_file_path, post_injector_config=POST_INJECTOR_CONFIG)
+        sub_file_name = os.path.basename(apex_sub_file_path)
+        apex_filename_no_ext = str(os.path.splitext(file_name)[0])
+        original_file_path = search_original_file_in_obj(partition_name,
+                                                         module_type,
+                                                         apex_sub_file_path,
+                                                         sub_file_name,
+                                                         target_out_path,
+                                                         replace_intermediate=f".{apex_filename_no_ext}_intermediates",
+                                                         must_contain=apex_filename_no_ext)
+        is_injected = inject_file_into_obj(file_path,
+                                           original_file_path,
+                                           module_type,
+                                           aosp_path,
+                                           partition_name,
+                                           lunch_target,
+                                           aosp_version)
+        if is_injected:
+            logging.info(f"APEX Intermediate: Indirect injection complete for file: {file_path}")
+        else:
+            logging.error(f"APEX INtermediate: Indirect injection failed for file: {file_path}")
 
 
 def cleanup_files(directory):
@@ -1257,7 +1296,8 @@ def search_original_file_in_obj(partition_name,
                                 file_name,
                                 target_out_path,
                                 replace_intermediate="_intermediates",
-                                exact_match_files=True):
+                                exact_match_files=True,
+                                must_contain=""):
     """
     Searches for the original file in the AOSP source code.
 
@@ -1419,6 +1459,8 @@ def search_original_file_in_obj(partition_name,
             }, PATH_MAPPING_EXECUTION_TIME_LOG)
         except Exception:
             logging.debug('Could not write search_original_file_in_obj timing to log')
+
+    result_file_path_list = [path for path in result_file_path_list if must_contain in path]
 
     if len(result_file_path_list) > 0:
         logging.info("File Matcher: Found file for %s in %s with partition %s and results: %s", file_name, search_folder_path, partition_name, result_file_path_list)
@@ -1742,37 +1784,37 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
     start_time = time.time()
     is_injected = False
     try:
-        if "/apex/" in original_file_path:
-            #TODO Remove this check
-            if module_type == "JAVA_LIBRARIES":
-                new_file_path = "/system/framework/" + file_name
-                logging.info(f"Injecting file from apex: {source_file_path} into {new_file_path}")
-            elif module_type == "BINARY":
-                new_file_path = "/bin/" + file_name
-                logging.info(f"Injecting binary from apex: {source_file_path} into {new_file_path}")
-            else:
-                new_file_path = "/etc/" + file_name
-                logging.info(f"Injecting /etc/ file from apex: {source_file_path} into {new_file_path}")
-            copy_fast(source_file_path, new_file_path)
-            is_injected = True
-        elif filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
-            logging.info(f"Indirect Injection via APEX symlink file: {filename} with path {source_file_path} into {original_file_path}")
-            is_injected = inject_apex_symlink_file(filename, source_file_path, original_file_path, aosp_path, partition_name, lunch_target, aosp_version)
-        else:
-            copy_fast(source_file_path, original_file_path)
-            is_injected = True
-            set_executable_permission(original_file_path)
-            for file_path in matching_intermediate_file_list:
-                try:
-                    # Skip file, if path contains specific keyword
-                    if any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST"]):
-                        logging.info(f"Skipping {file_path} because it was a keyword in SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST that matched the file_path")
-                        continue
-                    schedule_copy(source_file_path, file_path)
-                    logging.debug(f"Scheduled indirect injection of .intermediate file: {file_path} with {source_file_path}")
-                except Exception as e:
-                    logging.error(f"Error scheduling copy for intermediate file: {file_path} with {source_file_path} | {e}")
-            #os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
+        # if "/apex/" in original_file_path:
+        #     #TODO Remove this check
+        #     if module_type == "JAVA_LIBRARIES":
+        #         new_file_path = "/system/framework/" + file_name
+        #         logging.info(f"Injecting file from apex: {source_file_path} into {new_file_path}")
+        #     elif module_type == "BINARY":
+        #         new_file_path = "/bin/" + file_name
+        #         logging.info(f"Injecting binary from apex: {source_file_path} into {new_file_path}")
+        #     else:
+        #         new_file_path = "/etc/" + file_name
+        #         logging.info(f"Injecting /etc/ file from apex: {source_file_path} into {new_file_path}")
+        #     copy_fast(source_file_path, new_file_path)
+        #     is_injected = True
+        # elif filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
+        #     logging.info(f"Indirect Injection via APEX symlink file: {filename} with path {source_file_path} into {original_file_path}")
+        #     is_injected = inject_apex_symlink_file(filename, source_file_path, original_file_path, aosp_path, partition_name, lunch_target, aosp_version)
+        #else:
+        copy_fast(source_file_path, original_file_path)
+        is_injected = True
+        set_executable_permission(original_file_path)
+        for file_path in matching_intermediate_file_list:
+            try:
+                # Skip file, if path contains specific keyword
+                if any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST"]):
+                    logging.info(f"Skipping {file_path} because it was a keyword in SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST that matched the file_path")
+                    continue
+                schedule_copy(source_file_path, file_path)
+                logging.debug(f"Scheduled indirect injection of .intermediate file: {file_path} with {source_file_path}")
+            except Exception as e:
+                logging.error(f"Error scheduling copy for intermediate file: {file_path} with {source_file_path} | {e}")
+                #os.chmod(original_file_path, os.stat(original_file_path).st_mode | stat.S_IEXEC)
     except Exception as e:
         logging.error(f"Error injecting file: {source_file_path} into {original_file_path} | {e}")
         traceback.print_exc()

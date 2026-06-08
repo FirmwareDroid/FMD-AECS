@@ -155,12 +155,13 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
         module_type = "SKIPPED"
 
     if module_type in ["SHARED_LIBRARIES", "ETC", "APPS"]:
-        for package_name in pre_injector_package_list:
-            stripped_package_name = package_name.replace("FMD_APEX", "").replace("fmd", "").strip()
-            if file_name == stripped_package_name or file_name_no_ext == stripped_package_name:
-                logging.info(f"Skipping {source_file_path} as it was already injected via pre-injector.")
-                module_type = "SKIPPED"
-                break
+        if pre_injector_package_list:
+            for package_name in pre_injector_package_list:
+                stripped_package_name = package_name.replace("FMD_APEX", "").replace("fmd", "").strip()
+                if file_name == stripped_package_name or file_name_no_ext == stripped_package_name:
+                    logging.info(f"Skipping {source_file_path} as it was already injected via pre-injector.")
+                    module_type = "SKIPPED"
+                    break
 
     if module_type in ["SHARED_LIBRARIES"] and file_extension in [".so"]:
         if POST_INJECTOR_CONFIG["DISABLE_SHARED_LIBRARY_INJECTION"]:

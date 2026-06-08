@@ -866,6 +866,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     If ALLOW_MIXED_APEX_FILES then two apex files are merged together.
     Writes the merged apex to the apex_out_file
     """
+    apex_merge_file_path_list = []
     filename_input = str(os.path.basename(input_apex))
     if POST_INJECTOR_CONFIG["CHECK_VNDK_VERSION_MISMATCH"]:
         if not allow_vndk_merge(input_apex, filename_input):
@@ -935,6 +936,9 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                cert_apex_apk_path,
                                                                lunch_target)
                     logging.info(f"Completed APEX merge successfully: {apex_out_file}")
+
+                    apex_merge_file_path_list = [str(file) for file in merged_apex_extract_dir_path.rglob('*') if file.is_file()]
+
                     if POST_INJECTOR_CONFIG["REPLACE_AVB_KEYS"]:
                         logging.info(f"Overwriting AVB keys for APEX: {apex_out_file}")
                         is_success, log_message = inject_apex_avb_public_key(input_apex,
@@ -946,7 +950,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         else:
             log_message = f"APEX manifest file not found. {input_apex} | apex_manifest_path: {apex_manifest_path}"
     logging.info(f"APEX merge_apex_files success: {is_success} | {log_message} | out: {apex_out_file}")
-    return is_success, log_message
+    return is_success, log_message, apex_merge_file_path_list
 
 
 def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path):
