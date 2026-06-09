@@ -1140,7 +1140,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         else:
                             logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
                             copy_file_to_intermediate_emulator_folder(str(apex_emulator_folder), file_path, merged_apex_extract_dir_path)
-                            if file_ext in [".so"]:
+                            if file_ext in [".so"] and not "/lib/" in file_path:
                                 copy_file_to_intermediate_symbols_folder(aosp_path, apex_emulator_folder, file_path, merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
                             files_coped_list.append(dst_file_path)
                     else:
