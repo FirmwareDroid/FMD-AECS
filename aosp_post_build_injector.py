@@ -187,7 +187,8 @@ def build_intermediate_file_index(aosp_path, target_out_path):
             str(os.path.join(aosp_path, "out/soong/.intermediates/")),
             str(os.path.join(aosp_path, "out/target/product/emulator64_arm64/apex/")),
             str(os.path.join(aosp_path, "out/target/product/emu64a/apex/")),
-            str(os.path.join(aosp_path, "out/target/product/emu64a/obj/"))
+            str(os.path.join(aosp_path, "out/target/product/emu64a/obj/")),
+            str(os.path.join(aosp_path, "out/target/product/emulator64_arm64/obj/")),
         ]
         combined_md5_map = defaultdict(list)
 
