@@ -1163,15 +1163,18 @@ def get_relative_injection_path(file_path: PathType, apex_vendor_extract_dir_pat
     return relative_path
 
 
-def get_resolved_apex_folder_name(apex_emulator_folder: PathType) -> str:
-    """Extracts the parent folder name and applies VNDK versioning adjustments if applicable."""
-    folder_name = Path(apex_emulator_folder).name
+def get_resolved_apex_folder_path(apex_emulator_folder: PathType) -> Path:
+    """Returns the full path of the apex emulator folder with applied VNDK versioning adjustments."""
+    folder_path = Path(apex_emulator_folder)
+    folder_name = folder_path.name
+    parent_folder_path = folder_path.parent
 
     if "vndk" in folder_name:
         vndk_version = POST_INJECTOR_CONFIG["EMULATOR_VNDK_VERSION"]
         folder_name = folder_name.replace("current", f"v{vndk_version}")
 
-    return folder_name
+    # Use pathlib's slash operator instead of os.path.join
+    return parent_folder_path / folder_name
 
 
 def _safe_copy_with_logging(file_path: PathType, target_root_folder: PathType, relative_path: str) -> None:
