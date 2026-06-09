@@ -1153,6 +1153,17 @@ def get_relative_injection_path(file_path: PathType, merged_apex_extract_dir_pat
     return os.path.relpath(file_path, start=merged_apex_extract_dir_path)
 
 
+def get_resolved_apex_folder_name(apex_emulator_folder: PathType) -> str:
+    """Extracts the parent folder name and applies VNDK versioning adjustments if applicable."""
+    folder_name = Path(apex_emulator_folder).parent.name
+
+    if "vndk" in folder_name:
+        vndk_version = POST_INJECTOR_CONFIG["EMULATOR_VNDK_VERSION"]
+        folder_name = folder_name.replace("current", f"v{vndk_version}")
+
+    return folder_name
+
+
 def _safe_copy_with_logging(file_path: PathType, target_root_folder: PathType, relative_path: str) -> None:
     """Internal helper to handle the structural copy, directory creation, and logging."""
     dst_file_path = os.path.join(target_root_folder, relative_path)
@@ -1172,11 +1183,15 @@ def copy_file_to_intermediate_emulator_folder(
 ) -> None:
     """Safely copies a file to the emulator directory keeping relative structure.
 
-    Preserves executable permissions.
+    Applies VNDK folder versioning name adjustments if necessary. Preserves executable permissions.
     """
     try:
+        resolved_folder_name = get_resolved_apex_folder_name(apex_emulator_folder)
+        emulator_root_base = Path(apex_emulator_folder).parent.parent
+        target_emulator_root = os.path.join(emulator_root_base, resolved_folder_name)
+
         relative_path = get_relative_injection_path(file_path, merged_apex_extract_dir_path)
-        _safe_copy_with_logging(file_path, apex_emulator_folder, relative_path)
+        _safe_copy_with_logging(file_path, target_emulator_root, relative_path)
     except Exception as e:
         logging.error(f"Error copying file into emulator directory: |{file_path}|{merged_apex_extract_dir_path}|{e}")
 
@@ -1194,8 +1209,8 @@ def copy_file_to_intermediate_symbols_folder(
         "out/target/product/emulator64_arm64/obj/PACKAGING/elf_symbol_mapping_intermediates/apex/"
     ]
 
-    # Grab only the parent folder name (e.g. "com.android.runtime")
-    apex_emulator_folder_name = Path(apex_emulator_folder).parent.name
+    # Dynamically resolve the folder name using the shared logic helper
+    apex_emulator_folder_name = get_resolved_apex_folder_name(apex_emulator_folder)
     relative_path = get_relative_injection_path(file_path, merged_apex_extract_dir_path)
 
     for intermediate_folder in intermediate_folder_list:
@@ -1204,7 +1219,6 @@ def copy_file_to_intermediate_symbols_folder(
         if not os.path.isdir(target_folder_path):
             logging.error(f"{target_folder_path} does not exist or is not a directory")
             continue
-
         try:
             _safe_copy_with_logging(file_path, target_folder_path, relative_path)
         except Exception as e:
