@@ -696,11 +696,7 @@ def delete_intermediate_cached_files(target_file_injection_path, file_path):
         logging.info(f"Removed file before indirect injection: {target_file_injection_path}")
     except Exception as e:
         logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
-    try:
-        shutil.copy2(file_path, target_file_injection_path)
-        logging.info(f"Overwrite file before indirect injection: src:{file_path} to dst: {target_file_injection_path}")
-    except Exception as e:
-        logging.warning(e)
+
 
 
 def find_intermediate_file(aosp_path, md5_original_file):

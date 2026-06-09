@@ -1139,7 +1139,8 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                                 f"{file_path} with {dst_file_path} | stderr: {result.stderr} | stdout: {result.stdout}")
                         else:
                             logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
-                            copy_file_to_intermediate_emulator_folder(str(apex_emulator_folder), file_path, merged_apex_extract_dir_path)
+                            copy_file_to_intermediate_emulator_folder(str(apex_emulator_folder), file_path, apex_vendor_extract_dir_path)
+
                             if file_ext in [".so"]:
                                 copy_file_to_intermediate_symbols_folder(aosp_path, apex_emulator_folder, file_path, merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
                             files_coped_list.append(dst_file_path)
@@ -1178,32 +1179,30 @@ def _safe_copy_with_logging(file_path: PathType, target_root_folder: PathType, r
     tag = "apex_intermediata_matching"
     dst_file_path = os.path.join(target_root_folder, relative_path)
     dst_dir_path = os.path.dirname(dst_file_path)
-
     os.makedirs(dst_dir_path, exist_ok=True)
-
-    logging.info(f"{tag}: APEX Intermediate: Created directory: {dst_dir_path} | Rel: {relative_path}")
-    shutil.copy2(file_path, dst_file_path)
-    logging.info(f"{tag}: APEX Intermediate: Copied file to: {dst_file_path}")
+    try:
+        logging.info(f"{tag}: APEX Intermediate: Created directory: {dst_dir_path} | Rel: {relative_path}")
+        shutil.copy2(file_path, dst_file_path)
+        logging.info(f"{tag}: APEX Intermediate: Copied file to: {dst_file_path}")
+    except Exception as e:
+        logging.error(f"Error copying file into emulator directory: src: {file_path}|dst: {dst_file_path}| Error: {e}")
 
 
 def copy_file_to_intermediate_emulator_folder(
         apex_emulator_folder: PathType,
         file_path: PathType,
-        merged_apex_extract_dir_path: PathType
+        apex_vendor_extract_dir_path: PathType
 ) -> None:
     """Safely copies a file to the emulator directory keeping relative structure.
 
     Applies VNDK folder versioning name adjustments if necessary. Preserves executable permissions.
     """
-    try:
-        resolved_folder_name = get_resolved_apex_folder_name(apex_emulator_folder)
-        emulator_root_base = Path(apex_emulator_folder).parent.parent
-        target_emulator_root = os.path.join(emulator_root_base, resolved_folder_name)
+    apex_emulator_folder = get_resolved_apex_folder_name(apex_emulator_folder)
+    if not os.path.exists(apex_emulator_folder):
+        logging.error(f"APEX Emulator folder not found in copy_file_to_intermediate_emulator_folder: {apex_emulator_folder}")
 
-        relative_path = get_relative_injection_path(file_path, merged_apex_extract_dir_path)
-        _safe_copy_with_logging(file_path, target_emulator_root, relative_path)
-    except Exception as e:
-        logging.error(f"Error copying file into emulator directory: |{file_path}|{merged_apex_extract_dir_path}|{e}")
+    relative_path = get_relative_injection_path(file_path, apex_vendor_extract_dir_path)
+    _safe_copy_with_logging(file_path, apex_emulator_folder, relative_path)
 
 
 def copy_file_to_intermediate_symbols_folder(
