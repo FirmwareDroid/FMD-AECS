@@ -1164,7 +1164,7 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
                 else:
                     logging.info(
                         f"{tag}: Inject file path for apex intermediate file: {apex_sub_file_path}|{original_file_path}|{file_name}")
-                    is_injected = inject_file_into_obj(file_path,
+                    is_injected = inject_file_into_obj(apex_sub_file_path,
                                                        original_file_path,
                                                        module_type,
                                                        aosp_path,
