@@ -187,6 +187,7 @@ def build_intermediate_file_index(aosp_path, target_out_path):
             str(os.path.join(aosp_path, "out/soong/.intermediates/")),
             str(os.path.join(aosp_path, "out/target/product/emulator64_arm64/apex/")),
             str(os.path.join(aosp_path, "out/target/product/emu64a/apex/")),
+            str(os.path.join(aosp_path, "out/target/product/emu64a/obj/"))
         ]
         combined_md5_map = defaultdict(list)
 
@@ -1154,11 +1155,11 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
                 logging.info(
                     f"{tag}: Injected apex intermediate file Indirect: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
             else:
-                logging.error(
-                    f"{tag}: APEX Intermediate: Indirect injection failed for file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
+                logging.warning(f"{tag}: APEX Intermediate: Indirect injection failed for file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
 
         except Exception as e:
             logging.error(f"{tag}: Error processing file: {file_path}|{e}")
+            traceback.print_exc()
 
 
 def cleanup_files(directory):
