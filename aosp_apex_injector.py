@@ -12,6 +12,7 @@ from pathlib import Path
 from asyncore import write
 from jinja2 import Environment, FileSystemLoader
 from ConfigManager import ConfigManager
+from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
     sign_apex_container_apksigner, sign_apex_container_signapk
 from common import extract_vendor_name, remove_vendor_name_from_filename, check_shared_object_architecture, \
@@ -1043,8 +1044,8 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
     files_coped_list = []
     current_username = os.getlogin()
     for root, dirs, files in os.walk(apex_vendor_extract_dir_path):
-        for file in files:
-            file_path = str(os.path.join(root, file))
+        for file_name in files:
+            file_path = str(os.path.join(root, file_name))
             if file_path.endswith(".apk"):
                 continue
             if os.path.islink(file_path):
@@ -1094,13 +1095,13 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 if "apex_manifest.pb" in dst_file_path or "apex_manifest.pb" in file_path:
                     continue
 
-                file_ext = os.path.splitext(file)[1]
+                file_ext = os.path.splitext(file_name)[1]
 
                 if file_ext in ["", None] and POST_INJECTOR_CONFIG["DISABLE_APEX_BINARY_INJECTION"]:
                     logging.error(f"SKIPPED APEX Binary Injection: DISABLE_APEX_BINARY_INJECTION is set to True: {file_path}")
                     continue
 
-                if file in POST_INJECTOR_CONFIG["DISALLOW_APEX_FILE_OVERWRITE"]:
+                if file_name in POST_INJECTOR_CONFIG["DISALLOW_APEX_FILE_OVERWRITE"]:
                     logging.error(f"SKIPPED APEX File: File in DISALLOW_APEX_FILE_OVERWRITE: {file_path}")
                     continue
 
@@ -1113,6 +1114,11 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     logging.error(f"SKIPPED APEX File: File in DISALLOW_APEX_FILE_EXTENSIONS: {file_path}")
                     continue
 
+                if file_ext in [".so"]:
+                    module_type = get_module_type(file_path, post_injector_config=POST_INJECTOR_CONFIG)
+                    if module_type in ["SKIPPED"]:
+                        logging.error(f"SKIPPED APEX File (Keyword Match): {file_path}")
+                        continue
 
                 try:
                     logging.info(f"APEX Vendor: {merged_apex_extract_dir_path} | dst: {dst_file_path}")
@@ -1135,7 +1141,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                             logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
                             copy_file_to_intermediate_emulator_folder(str(apex_emulator_folder), file_path, merged_apex_extract_dir_path)
                             if file_ext in [".so"]:
-                                copy_file_to_intermediate_symbols_folder(aosp_path, apex_emulator_folder, file_path, merged_apex_extract_dir_path)
+                                copy_file_to_intermediate_symbols_folder(aosp_path, apex_emulator_folder, file_path, merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
                             files_coped_list.append(dst_file_path)
                     else:
                         logging.error(f"Incorrect copy path for APEX file: src: {file_path} dst: {dst_file_path}")
@@ -1148,14 +1154,17 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
         logging.info(f"APEX: Files copied into container: {files_coped_list};\n")
 
 
-def get_relative_injection_path(file_path: PathType, merged_apex_extract_dir_path: PathType) -> str:
+def get_relative_injection_path(file_path: PathType, apex_vendor_extract_dir_path: PathType) -> str:
     """Calculates the relative path from the merged APEX extraction directory."""
-    return os.path.relpath(file_path, start=merged_apex_extract_dir_path)
+    relative_path = file_path.replace(str(apex_vendor_extract_dir_path), "")
+    if relative_path.endswith("/"):
+        relative_path = relative_path[:-1]
+    return relative_path
 
 
 def get_resolved_apex_folder_name(apex_emulator_folder: PathType) -> str:
     """Extracts the parent folder name and applies VNDK versioning adjustments if applicable."""
-    folder_name = Path(apex_emulator_folder).parent.name
+    folder_name = Path(apex_emulator_folder).name
 
     if "vndk" in folder_name:
         vndk_version = POST_INJECTOR_CONFIG["EMULATOR_VNDK_VERSION"]
@@ -1200,7 +1209,8 @@ def copy_file_to_intermediate_symbols_folder(
         aosp_path: PathType,
         apex_emulator_folder: PathType,
         file_path: PathType,
-        merged_apex_extract_dir_path: PathType
+        merged_apex_extract_dir_path: PathType,
+        apex_vendor_extract_dir_path: PathType
 ) -> None:
     """Copies the file into specified target symbols directories within the AOSP tree."""
 
@@ -1211,7 +1221,7 @@ def copy_file_to_intermediate_symbols_folder(
 
     # Dynamically resolve the folder name using the shared logic helper
     apex_emulator_folder_name = get_resolved_apex_folder_name(apex_emulator_folder)
-    relative_path = get_relative_injection_path(file_path, merged_apex_extract_dir_path)
+    relative_path = get_relative_injection_path(file_path, apex_vendor_extract_dir_path)
 
     for intermediate_folder in intermediate_folder_list:
         target_folder_path = os.path.join(aosp_path, intermediate_folder, apex_emulator_folder_name)

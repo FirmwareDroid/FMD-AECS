@@ -364,7 +364,8 @@
     "audio",
     "keymaster",
     "keystore",
-    "strongbox"
+    "strongbox",
+    "libclang_rt.ubsan_standalone-aarch64-android.so"
   ],
   "ENABLE_ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST": true,
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_NOT_IN_LIST": [

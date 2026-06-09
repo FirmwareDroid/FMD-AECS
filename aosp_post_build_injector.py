@@ -177,12 +177,8 @@ def count_number_of_extracted_files(source_folder_path):
 
 
 def build_intermediate_file_index(aosp_path, target_out_path):
-    # Build the intermediate md5 map once before starting worker tasks. This map is immutable.
     global INTERMEDIATE_MD5_MAP
     try:
-        from collections import defaultdict
-        from types import MappingProxyType
-
         intermediate_path_list = [
             str(os.path.join(aosp_path, "out/soong/.intermediates/")),
             str(os.path.join(aosp_path, "out/target/product/emulator64_arm64/apex/")),
@@ -190,19 +186,26 @@ def build_intermediate_file_index(aosp_path, target_out_path):
             str(os.path.join(aosp_path, "out/target/product/emu64a/obj/")),
             str(os.path.join(aosp_path, "out/target/product/emulator64_arm64/obj/")),
         ]
+
+        # Define the absolute subfolders we want to actively skip
+        exclude_list = [
+            str(os.path.join(aosp_path, "out/soong/.intermediates/prebuilts"))
+        ]
+
         combined_md5_map = defaultdict(list)
 
         for intermediates_path in intermediate_path_list:
-            partial_map = build_intermediate_md5_map(aosp_path, intermediates_path)
+            # Pass the exclusion list straight into the builder loop
+            partial_map = build_intermediate_md5_map(aosp_path, intermediates_path, exclude_dirs=exclude_list)
             for md5_key, paths_tuple in partial_map.items():
                 combined_md5_map[md5_key].extend(paths_tuple)
+
         INTERMEDIATE_MD5_MAP = MappingProxyType({
             k: tuple(v) for k, v in combined_md5_map.items()
         })
         logging.info(f"Initialized INTERMEDIATE_MD5_MAP with {len(INTERMEDIATE_MD5_MAP)} entries")
     except Exception as e:
         logging.warning(f"Failed to build INTERMEDIATE_MD5_MAP: {e}")
-
 
     # Build a file basename -> paths index for the target obj path to avoid repeated os.walk
     target_obj_path = None
@@ -220,6 +223,7 @@ def build_intermediate_file_index(aosp_path, target_out_path):
                 logging.info(f"Built file index for {target_obj_path} with {sum(len(v) for v in idx.values())} entries")
     except Exception as e:
         logging.warning(f"Failed to build file index for target objects: {e}")
+
     return target_obj_path
 
 
@@ -792,34 +796,49 @@ def find_intermediate_file(aosp_path, md5_original_file):
     return matching_intermediate_file_list
 
 
-def build_intermediate_md5_map(aosp_path, intermediates_path):
+def build_intermediate_md5_map(aosp_path, intermediates_path, exclude_dirs=None):
     """
-    Build a mapping of md5 -> tuple(paths) for all files under out/soong/.intermediates/.
-    The returned mapping is a read-only MappingProxyType where values are tuples to ensure immutability.
+    Build a mapping of md5 -> tuple(paths) for all files under intermediates_path.
+
+    :param exclude_dirs: A list of absolute or relative directory paths to skip entirely.
     """
+    if exclude_dirs is None:
+        exclude_dirs = []
+
+    # Standardize exclusion paths to absolute paths for foolproof comparison
+    abs_exclude_dirs = [os.path.abspath(d) for d in exclude_dirs]
+
     md5_map = defaultdict(list)
     start_time = time.time()
     total_bytes_hashed = 0
     files_hashed = 0
     method = "parallel"
+
     if not os.path.exists(intermediates_path):
         logging.warning(f"Intermediates path does not exist (build map): {intermediates_path}")
         return MappingProxyType({})
 
     logging.info(f"Building intermediate md5 map from: {intermediates_path}")
-    # Try to parallelize hashing to utilize multiple cores and overlap I/O
-    # Determine worker count conservatively
+
     try:
         cpu = os.cpu_count() or 1
         workers = min(32, max(2, cpu * 2))
     except Exception:
         workers = 4
 
-    # We will submit hashing tasks while scanning to avoid building a huge list first
     futures = {}
     try:
         with Executor(max_workers=workers) as ex:
             for root, dirs, files in os.walk(intermediates_path):
+                # --- EXCLUSION LOGIC FOR PARALLEL WALK ---
+                # Modify 'dirs' in-place to prevent os.walk from entering excluded subfolders
+                for d in list(dirs):
+                    full_dir_path = os.path.abspath(os.path.join(root, d))
+                    if any(full_dir_path.startswith(ex_dir) for ex_dir in abs_exclude_dirs):
+                        dirs.remove(d)
+                        logging.debug(f"Skipping excluded folder: {full_dir_path}")
+                # -----------------------------------------
+
                 for fname in files:
                     file_path = os.path.join(root, fname)
                     try:
@@ -836,7 +855,6 @@ def build_intermediate_md5_map(aosp_path, intermediates_path):
                         continue
                     md5_key = md5sum.strip().lower()
                     md5_map[md5_key].append(src_path)
-                    # update counters
                     try:
                         sz = os.path.getsize(src_path)
                         total_bytes_hashed += sz
@@ -846,10 +864,16 @@ def build_intermediate_md5_map(aosp_path, intermediates_path):
                 except Exception as e:
                     logging.warning(f"Error while hashing intermediate file {src_path}: {e}")
     except Exception:
-        # Fallback to serial processing if parallel execution fails for any reason
         logging.warning("Parallel hashing failed, falling back to serial md5 computation")
         method = "serial"
         for root, dirs, files in os.walk(intermediates_path):
+            # --- EXCLUSION LOGIC FOR SERIAL WALK ---
+            for d in list(dirs):
+                full_dir_path = os.path.abspath(os.path.join(root, d))
+                if any(full_dir_path.startswith(ex_dir) for ex_dir in abs_exclude_dirs):
+                    dirs.remove(d)
+            # ---------------------------------------
+
             for fname in files:
                 try:
                     file_path = os.path.join(root, fname)
@@ -868,9 +892,7 @@ def build_intermediate_md5_map(aosp_path, intermediates_path):
                     logging.warning(f"Error while hashing intermediate file {fname} in {root}: {e}")
                     continue
 
-    # Convert lists to tuples for immutability and wrap mapping in MappingProxyType
     immutable_map = {k: tuple(v) for k, v in md5_map.items()}
-    # record timing and throughput metrics for building the md5 map
     if ENABLE_INJECTION_PERFORMANCE_LOG:
         try:
             duration = time.time() - start_time
