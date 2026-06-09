@@ -37,7 +37,7 @@ def copy_fast(src_path, dst_path,
     dstdir = os.path.dirname(dst_path) or "."
     fd_tmp, tmpname = tempfile.mkstemp(prefix=".tmp.copy.", dir=dstdir)
     os.close(fd_tmp)
-
+    copied = False
     try:
         # Attempt copy_file_range (Linux & supported Python)
         try:
@@ -128,3 +128,6 @@ def copy_fast(src_path, dst_path,
         except Exception:
             pass
         raise
+    finally:
+        if not copied:
+            logging.error(f"Copy failed for {src_path} -> {dst_path} with all methods")

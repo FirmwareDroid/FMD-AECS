@@ -1158,8 +1158,8 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
 def get_relative_injection_path(file_path: PathType, apex_vendor_extract_dir_path: PathType) -> str:
     """Calculates the relative path from the merged APEX extraction directory."""
     relative_path = file_path.replace(str(apex_vendor_extract_dir_path), "")
-    if relative_path.endswith("/"):
-        relative_path = relative_path[:-1]
+    if relative_path.startswith("/"):
+        relative_path = relative_path[1:]
     return relative_path
 
 
