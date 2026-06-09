@@ -1175,14 +1175,15 @@ def get_resolved_apex_folder_name(apex_emulator_folder: PathType) -> str:
 
 def _safe_copy_with_logging(file_path: PathType, target_root_folder: PathType, relative_path: str) -> None:
     """Internal helper to handle the structural copy, directory creation, and logging."""
+    tag = "apex_intermediata_matching"
     dst_file_path = os.path.join(target_root_folder, relative_path)
     dst_dir_path = os.path.dirname(dst_file_path)
 
     os.makedirs(dst_dir_path, exist_ok=True)
 
-    logging.info(f"APEX Intermediate: Created directory: {dst_dir_path} | Rel: {relative_path}")
+    logging.info(f"{tag}: APEX Intermediate: Created directory: {dst_dir_path} | Rel: {relative_path}")
     shutil.copy2(file_path, dst_file_path)
-    logging.info(f"APEX Intermediate: Copied file to: {dst_file_path}")
+    logging.info(f"{tag}: APEX Intermediate: Copied file to: {dst_file_path}")
 
 
 def copy_file_to_intermediate_emulator_folder(
