@@ -29,6 +29,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aos
     """
     global POST_INJECTOR_CONFIG
     POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
+    apex_merge_file_path_list = []
     if not POST_INJECTOR_CONFIG:
         raise Exception("No POST_INJECTOR_CONFIG found")
     logging.info(f"Handling APEX merge modules: {file_path} | {aosp_path} | {lunch_target} | {target_out_path}")

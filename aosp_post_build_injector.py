@@ -991,7 +991,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         if (not os.path.exists(target_file_injection_path)
                 and not any(keyword in os.path.basename(target_file_injection_path)
                             for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"])):
-            # Direct Injection
+            # Direct Injection - Repacked APEX Files
             target_path, is_injected = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
             inj_partition = (file_path, target_path, module_type)
             if is_injected:
@@ -999,6 +999,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
             else:
                 logging.info(f"Direct injection did not inject for: {file_path}")
         else:
+            # Indirect Injection for Merged APEX Files
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version)
             if is_injected and apex_merge_file_path_list and len(apex_merge_file_path_list) > 0:
@@ -1121,6 +1122,8 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
                 logging.error(f"{tag}: APEX Intermediate: Indirect injection failed for file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
         except Exception as e:
             logging.error(f"{tag}: Error processing file: {file_path}|{e}")
+
+
 
 
 def cleanup_files(directory):
@@ -1659,14 +1662,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
     start_time = time.time()
     filename = os.path.basename(target_file_injection_path)
     if POST_INJECTOR_CONFIG["OVERWRITE_APP_PROCESS_32"]:
-        # TODO : Remove this workaround in the future -> This does not work for all cases.
         source_file_path = handle_special_matching(source_file_path)
-
-    # TODO : Remove this workaround in the future -> This does not work for all cases.
-    #if aosp_version and int(aosp_version) == 12 and POST_INJECTOR_CONFIG["ALLOW_DIRECT_INJECTION_LIB_OVERWRITE"]:
-    #    if "/lib/" in target_file_injection_path:
-    #       target_file_injection_path = target_file_injection_path.replace("/lib/", "/lib64/hw/")
-    #        logging.info(f"AOSP 12 lib adjustment for file: {filename} into {target_file_injection_path}")
 
     if filename in POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"]:
         target_file_injection_path = os.path.join(aosp_path,
@@ -1704,16 +1700,6 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
             logging.error(f"File overwrite: {source_file_path} into {target_file_injection_path}. "
                           f"This overwrite is likely to be reverted by the AOSP build system. Thus, nothing is injected. "
                           f"Adjust your injection policy to handle this case.")
-            # try:
-            #     if os.path.isfile(source_file_path):
-            #         inj_md5 = get_md5_from_file(source_file_path)
-            #         org_md5 = get_md5_from_file(target_file_injection_path)
-            #         shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
-            #         logging.error(f"File overwrite: {source_file_path}:{inj_md5} into {target_file_injection_path}:{org_md5}. This overwrite is likely to be reverted by the AOSP build system.")
-            #         if not set_executable_permission(target_file_injection_path):
-            #             raise PermissionError(f"Permission denied for overwrite {target_file_injection_path}")
-            # except Exception as e:
-            #     logging.error(f"Error copying file: {source_file_path} -> {target_file_injection_path} | {e}")
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         if not os.path.exists(source_file_path):
