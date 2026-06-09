@@ -1122,13 +1122,11 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
                     f"{tag}: Found original file path for apex intermediate file: {apex_sub_file_path}|{original_file_path}|{file_name}")
 
                 if isinstance(original_file_path, list):
-                    # We track if at least one candidate successfully injects
                     any_candidate_succeeded = False
                     for file_path_candidate in original_file_path:
                         logging.info(
                             f"Found candidate file path for apex intermediate file: {apex_sub_file_path}|{file_path_candidate}|{file_name}")
 
-                        # FIX: Changed 'original_file_path' (the list) to 'file_path_candidate' (the string path)
                         success = inject_file_into_obj(file_path,
                                                        file_path_candidate,
                                                        module_type,
