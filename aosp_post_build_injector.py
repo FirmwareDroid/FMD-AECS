@@ -696,7 +696,18 @@ def delete_intermediate_cached_files(target_file_injection_path, file_path):
         logging.info(f"Removed file before indirect injection: {target_file_injection_path}")
     except Exception as e:
         logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
-
+    try:
+        target_dir = str(os.path.dirname(target_file_injection_path))
+        target_filename = os.path.basename(target_file_injection_path)
+        exact_destination_path = os.path.join(target_dir, target_filename)
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+            shutil.copy2(file_path, exact_destination_path)
+            logging.info(f"Successfully injected file preserving original name: src:{file_path} -> dst:{exact_destination_path}")
+        except Exception as e:
+            logging.error(f"Critical error during delete_intermediate_cached_files copy phase: {e}")
+    except Exception as e:
+        logging.warning(e)
 
 
 def find_intermediate_file(aosp_path, md5_original_file):
