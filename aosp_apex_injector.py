@@ -1160,6 +1160,7 @@ def copy_file_to_intermediate_emulator_folder(
         dst_file_path: str = os.path.join(apex_emulator_folder, relative_path)
         dst_dir_path: str = os.path.dirname(dst_file_path)
         os.makedirs(dst_dir_path, exist_ok=True)
+        logging.info(f"APEX Intermediate: Created directory for emulator: {dst_dir_path}|{relative_path}|{dst_file_path}|{dst_dir_path}")
         logging.info(f"APEX Intermediate: Copied file into emulator directory: {dst_file_path}")
         shutil.copy2(file_path, dst_file_path)
     except Exception as e:
