@@ -20,6 +20,11 @@ from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_BUILD_OUT_SDK_ARM64_x
 from parse_lddtree_to_json import run_lddtree
 from shell_command import execute_shell_command
 from config_post_injector import *
+import os
+from typing import Union
+
+# Using Union[str, os.PathLike] allows both regular strings and Path objects
+PathType = Union[str, os.PathLike]
 
 POST_INJECTOR_CONFIG = {}
 
@@ -897,13 +902,13 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         apk_name_list = []
         if POST_INJECTOR_CONFIG["INJECT_APEX_VENDOR_FILES"]:
             logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
-            inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
+            inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
         else:
             logging.info("Injecting APEX vendor files is disabled.")
 
         if POST_INJECTOR_CONFIG["INJECT_APEX_VENDOR_APPS"]:
             logging.info(f"Injecting APEX vendor app: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
-            apk_name_list = inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
+            apk_name_list = inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
         else:
             logging.info("Injecting APEX vendor apps is disabled.")
 
@@ -955,7 +960,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     return is_success, log_message, apex_merge_file_path_list
 
 
-def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path):
+def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder):
     files_coped_list = []
     for root, dirs, files in os.walk(apex_vendor_extract_dir_path):
         for file in files:
@@ -994,6 +999,9 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                 if os.path.exists(dst_file_path):
                     md5sum = get_md5_from_file(dst_file_path)
                     logging.info(f"Copied APK {file}:{md5sum} into APEX: {file_path} with {dst_file_path}")
+                    copy_file_to_intermediate_emulator_folder(str(apex_emulator_folder),
+                                                              str(file_path),
+                                                              merged_apex_extract_dir_path)
                     files_coped_list.append(file)
                 else:
                     logging.error(f"APK file does not exist after coping in APEX")
@@ -1031,7 +1039,7 @@ def copy_symlink_recreate(src, dst_dir):
     return dst
 
 
-def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path):
+def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder):
     files_coped_list = []
     current_username = os.getlogin()
     for root, dirs, files in os.walk(apex_vendor_extract_dir_path):
@@ -1125,6 +1133,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                                 f"{file_path} with {dst_file_path} | stderr: {result.stderr} | stdout: {result.stdout}")
                         else:
                             logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
+                            copy_file_to_intermediate_emulator_folder(str(apex_emulator_folder), file_path, merged_apex_extract_dir_path)
                             files_coped_list.append(dst_file_path)
                     else:
                         logging.error(f"Incorrect copy path for APEX file: src: {file_path} dst: {dst_file_path}")
@@ -1134,8 +1143,24 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     logging.error(f"APEX: Permission denied: {e.filename} | {e}")
                 except Exception as e:
                     logging.error(f"APEX: Error copying file: {file_path} | {dst_file_path} | {e}")
-
         logging.info(f"APEX: Files copied into container: {files_coped_list};\n")
+
+
+def copy_file_to_intermediate_emulator_folder(
+        apex_emulator_folder: PathType,
+        file_path: PathType,
+        merged_apex_extract_dir_path: PathType
+) -> None:
+    """Safely copies a file to the emulator directory keeping relative structure.
+
+    Preserves executable permissions.
+    """
+    relative_path: str = os.path.relpath(file_path, start=merged_apex_extract_dir_path)
+    dst_file_path: str = os.path.join(apex_emulator_folder, relative_path)
+    dst_dir_path: str = os.path.dirname(dst_file_path)
+    os.makedirs(dst_dir_path, exist_ok=True)
+    shutil.copy2(file_path, dst_file_path)
+
 
 def change_file_permission(file_path, permission):
     try:

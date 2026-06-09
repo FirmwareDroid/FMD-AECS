@@ -180,7 +180,23 @@ def build_intermediate_file_index(aosp_path, target_out_path):
     # Build the intermediate md5 map once before starting worker tasks. This map is immutable.
     global INTERMEDIATE_MD5_MAP
     try:
-        INTERMEDIATE_MD5_MAP = build_intermediate_md5_map(aosp_path)
+        from collections import defaultdict
+        from types import MappingProxyType
+
+        intermediate_path_list = [
+            str(os.path.join(aosp_path, "out/soong/.intermediates/")),
+            str(os.path.join(aosp_path, "out/target/product/emulator64_arm64/apex/")),
+            str(os.path.join(aosp_path, "out/target/product/emu64a/apex/")),
+        ]
+        combined_md5_map = defaultdict(list)
+
+        for intermediates_path in intermediate_path_list:
+            partial_map = build_intermediate_md5_map(aosp_path, intermediates_path)
+            for md5_key, paths_tuple in partial_map.items():
+                combined_md5_map[md5_key].extend(paths_tuple)
+        INTERMEDIATE_MD5_MAP = MappingProxyType({
+            k: tuple(v) for k, v in combined_md5_map.items()
+        })
         logging.info(f"Initialized INTERMEDIATE_MD5_MAP with {len(INTERMEDIATE_MD5_MAP)} entries")
     except Exception as e:
         logging.warning(f"Failed to build INTERMEDIATE_MD5_MAP: {e}")
@@ -668,12 +684,17 @@ def replace_capex_with_apex(file_path):
         file_path = extracted_apex_file_path
     return file_path
 
-def delete_intermediate_cached_files(target_file_injection_path, aosp_version, aosp_path):
+def delete_intermediate_cached_files(target_file_injection_path, file_path):
     try:
         os.remove(target_file_injection_path)
         logging.info(f"Removed file before indirect injection: {target_file_injection_path}")
     except Exception as e:
         logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
+    try:
+        shutil.copy2(file_path, target_file_injection_path)
+        logging.info(f"Overwrite file before indirect injection: src:{file_path} to dst: {target_file_injection_path}")
+    except Exception as e:
+        logging.warning(e)
 
 
 def find_intermediate_file(aosp_path, md5_original_file):
@@ -769,19 +790,18 @@ def find_intermediate_file(aosp_path, md5_original_file):
     return matching_intermediate_file_list
 
 
-def build_intermediate_md5_map(aosp_path):
+def build_intermediate_md5_map(aosp_path, intermediates_path):
     """
     Build a mapping of md5 -> tuple(paths) for all files under out/soong/.intermediates/.
     The returned mapping is a read-only MappingProxyType where values are tuples to ensure immutability.
     """
-    intermediates_path = str(os.path.join(aosp_path, "out/soong/.intermediates/"))
     md5_map = defaultdict(list)
     start_time = time.time()
     total_bytes_hashed = 0
     files_hashed = 0
     method = "parallel"
     if not os.path.exists(intermediates_path):
-        logging.debug(f"Intermediates path does not exist (build map): {intermediates_path}")
+        logging.warning(f"Intermediates path does not exist (build map): {intermediates_path}")
         return MappingProxyType({})
 
     logging.info(f"Building intermediate md5 map from: {intermediates_path}")
@@ -872,6 +892,8 @@ def build_intermediate_md5_map(aosp_path):
             logging.debug('Could not write build_intermediate_md5_map timing to log')
     return MappingProxyType(immutable_map)
 
+
+
 def indirect_injection(target_file_injection_path,
                        file_name,
                        target_out_path,
@@ -891,19 +913,19 @@ def indirect_injection(target_file_injection_path,
 
     if not (file_name in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS"]
             or any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST"])):
-
-        if POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"] and file_ext == ".so":
-            if os.path.exists(target_file_injection_path):
-                logging.info(f"Skipped indirect injection for shared library file: {file_path} as "
-                             f"ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS is set.")
-                return None, inj_partition, False
+        if file_ext == ".so":
+            if POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"]:
+                if os.path.exists(target_file_injection_path):
+                    logging.info(f"Skipped indirect injection for shared library file: {file_path} as "
+                                 f"ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS is set.")
+                    return None, inj_partition, False
+                else:
+                    logging.info(f"Allow indirect injection for shared library file: {file_path}")
             else:
-                logging.info(f"Allow indirect injection for shared library file: {file_path}")
-        else:
-            logging.info(f"Indirect injection for shared library file: {file_path}")
+                logging.info(f"Indirect injection for shared library file: {file_path}")
 
 
-    delete_intermediate_cached_files(target_file_injection_path, aosp_version, aosp_path)
+    delete_intermediate_cached_files(target_file_injection_path, file_path)
 
     logging.info(f"File exists in target path: {target_file_injection_path}. Continue with indirect injection of {file_path}.")
     inj_obj = None
@@ -1115,15 +1137,12 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
                                                        aosp_version)
             else:
                 is_injected = False
-
             if is_injected:
-                logging.info(f"{tag}: Injected apex intermediate file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
+                logging.info(f"{tag}: Injected apex intermediate file Indirect: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
             else:
                 logging.error(f"{tag}: APEX Intermediate: Indirect injection failed for file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
         except Exception as e:
             logging.error(f"{tag}: Error processing file: {file_path}|{e}")
-
-
 
 
 def cleanup_files(directory):

@@ -50,7 +50,7 @@ def _do_copy(src_path: str,
                         n = os.copy_file_range(src_fd, None, dst_fd, None, bufsize)
                         if n == 0:
                             break
-                logging.info(f"Copied {src_path} to {dst_path}")
+                logging.info(f"Fast Copy copy_file_range: Copied {src_path} to {dst_path}")
                 copied = True
         except Exception:
             copied = False
@@ -70,7 +70,7 @@ def _do_copy(src_path: str,
                             break
                         offset += sent
                         remaining -= sent
-                logging.info(f"Copied {src_path} to {dst_path}")
+                logging.info(f"Fast Copy sendfile: Copied {src_path} to {dst_path}")
                 copied = True
             except Exception:
                 copied = False
@@ -103,7 +103,7 @@ def _do_copy(src_path: str,
 
         # Atomic replace
         os.replace(tmpname, dst_path)
-        logger.debug("Copied %s -> %s", src_path, dst_path)
+        logger.debug("Fast Copy Atomic Replace: Copied %s -> %s", src_path, dst_path)
     except Exception:
         try:
             os.remove(tmpname)
