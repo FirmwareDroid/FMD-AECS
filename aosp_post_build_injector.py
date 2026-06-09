@@ -1111,6 +1111,9 @@ def inject_apex_intermediate_files(apex_file_name, file_path, apex_merge_file_pa
     """
     tag = "apex_intermediata_matching"
     for apex_sub_file_path in apex_merge_file_path_list:
+        if "/lib/" in apex_sub_file_path:
+            logging.info(f"{tag}: Skipping apex intermediate file indirect injection because of /lib/ (32-bit) in path: {apex_sub_file_path}")
+            continue
         is_injected = False
         md5 = get_md5_from_file(apex_sub_file_path)
         logging.info(f"{tag}: Injecting apex intermediate file: {apex_sub_file_path}:{md5}|{apex_file_name}")
