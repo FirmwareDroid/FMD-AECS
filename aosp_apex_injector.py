@@ -1155,11 +1155,15 @@ def copy_file_to_intermediate_emulator_folder(
 
     Preserves executable permissions.
     """
-    relative_path: str = os.path.relpath(file_path, start=merged_apex_extract_dir_path)
-    dst_file_path: str = os.path.join(apex_emulator_folder, relative_path)
-    dst_dir_path: str = os.path.dirname(dst_file_path)
-    os.makedirs(dst_dir_path, exist_ok=True)
-    shutil.copy2(file_path, dst_file_path)
+    try:
+        relative_path: str = os.path.relpath(file_path, start=merged_apex_extract_dir_path)
+        dst_file_path: str = os.path.join(apex_emulator_folder, relative_path)
+        dst_dir_path: str = os.path.dirname(dst_file_path)
+        os.makedirs(dst_dir_path, exist_ok=True)
+        logging.info(f"APEX Intermediate: Copied file into emulator directory: {dst_file_path}")
+        shutil.copy2(file_path, dst_file_path)
+    except Exception as e:
+        logging.error(f"Error copying file into emulator directory: |{str(file_path)}|{str(merged_apex_extract_dir_path)}|{e}")
 
 
 def change_file_permission(file_path, permission):
