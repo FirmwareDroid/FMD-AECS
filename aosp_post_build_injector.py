@@ -1062,41 +1062,56 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
     Injects apex intermediate files (libs, binaries, etc.) that are found within the apex image.
     """
     for apex_sub_file_path in apex_merge_file_path_list:
-        module_type = "MISC"
-        sub_file_name = os.path.basename(apex_sub_file_path)
-        apex_filename_no_ext = str(os.path.splitext(file_name)[0])
-        logging.info(f"Injecting apex intermediate file: {apex_sub_file_path}")
-        original_file_path = search_original_file_in_obj(partition_name,
-                                                         module_type,
-                                                         apex_sub_file_path,
-                                                         sub_file_name,
-                                                         target_out_path,
-                                                         replace_intermediate=f".{apex_filename_no_ext}_intermediates",
-                                                         must_contain=apex_filename_no_ext)
-        if original_file_path is None:
-            apex_sub_file_path_vendor_replaced = remove_vendor_name_from_path(apex_sub_file_path)
-            file_name_vendor_replaced = os.path.basename(apex_sub_file_path_vendor_replaced)
+        try:
+            module_type = "MISC"
+            sub_file_name = os.path.basename(apex_sub_file_path)
+            apex_filename_no_ext = str(os.path.splitext(file_name)[0])
+            logging.info(f"Injecting apex intermediate file: {apex_sub_file_path}")
             original_file_path = search_original_file_in_obj(partition_name,
                                                              module_type,
-                                                             apex_sub_file_path_vendor_replaced,
-                                                             file_name_vendor_replaced,
-                                                             target_out_path)
+                                                             apex_sub_file_path,
+                                                             sub_file_name,
+                                                             target_out_path,
+                                                             replace_intermediate=f".{apex_filename_no_ext}_intermediates",
+                                                             must_contain=apex_filename_no_ext)
+            if original_file_path is None:
+                apex_sub_file_path_vendor_replaced = remove_vendor_name_from_path(apex_sub_file_path)
+                file_name_vendor_replaced = os.path.basename(apex_sub_file_path_vendor_replaced)
+                original_file_path = search_original_file_in_obj(partition_name,
+                                                                 module_type,
+                                                                 apex_sub_file_path_vendor_replaced,
+                                                                 file_name_vendor_replaced,
+                                                                 target_out_path)
 
-        if original_file_path:
-            logging.info(f"Found original file path for apex intermediate file: {original_file_path}")
-            is_injected = inject_file_into_obj(file_path,
-                                               original_file_path,
-                                               module_type,
-                                               aosp_path,
-                                               partition_name,
-                                               lunch_target,
-                                               aosp_version)
-        else:
-            is_injected = False
-        if is_injected:
-            logging.info(f"Injected apex intermediate file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
-        else:
-            logging.error(f"APEX Intermediate: Indirect injection failed for file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
+            if original_file_path:
+                logging.info(f"Found original file path for apex intermediate file: {original_file_path}")
+                if isinstance(original_file_path, list):
+                    for file_path_candidate in original_file_path:
+                        logging.info(f"Found candidate file path for apex intermediate file: {file_path_candidate}")
+                        is_injected = inject_file_into_obj(file_path,
+                                                           original_file_path,
+                                                           module_type,
+                                                           aosp_path,
+                                                           partition_name,
+                                                           lunch_target,
+                                                           aosp_version)
+                else:
+                    logging.info(f"Inject file path for apex intermediate file: {original_file_path}")
+                    is_injected = inject_file_into_obj(file_path,
+                                                       original_file_path,
+                                                       module_type,
+                                                       aosp_path,
+                                                       partition_name,
+                                                       lunch_target,
+                                                       aosp_version)
+            else:
+                is_injected = False
+            if is_injected:
+                logging.info(f"Injected apex intermediate file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
+            else:
+                logging.error(f"APEX Intermediate: Indirect injection failed for file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
+        except Exception as e:
+            logging.error(f"Error processing file: {file_path}|{e}")
 
 
 def cleanup_files(directory):
