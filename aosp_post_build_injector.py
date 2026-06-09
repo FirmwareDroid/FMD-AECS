@@ -1104,7 +1104,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
     return inj_obj, inj_partition
 
 
-def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_list, partition_name, target_out_path,
+def inject_apex_intermediate_files(apex_file_name, file_path, apex_merge_file_path_list, partition_name, target_out_path,
                                    aosp_path, lunch_target, aosp_version):
     """
     Injects apex intermediate files (libs, binaries, etc.) that are found within the apex image.
@@ -1113,11 +1113,11 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
     for apex_sub_file_path in apex_merge_file_path_list:
         is_injected = False
         md5 = get_md5_from_file(apex_sub_file_path)
-        logging.info(f"{tag}: Injecting apex intermediate file: {apex_sub_file_path}:{md5}|{file_name}")
+        logging.info(f"{tag}: Injecting apex intermediate file: {apex_sub_file_path}:{md5}|{apex_file_name}")
         try:
             module_type = "MISC"
             sub_file_name = os.path.basename(apex_sub_file_path)
-            apex_filename_no_ext = str(os.path.splitext(file_name)[0])
+            apex_filename_no_ext = str(os.path.splitext(apex_file_name)[0])
             logging.info(f"{tag}: Injecting apex intermediate file: {apex_sub_file_path}")
 
             original_file_path = search_original_file_in_obj(partition_name,
@@ -1130,7 +1130,7 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
 
             if original_file_path is None:
                 logging.info(
-                    f"{tag}: Did not find original file path for apex intermediate file: {apex_sub_file_path}|{original_file_path}|{file_name}. Searching without vendor sub-strings.")
+                    f"{tag}: Did not find original file path for apex intermediate file: {apex_sub_file_path}|{original_file_path}|{apex_file_name}. Searching without vendor sub-strings.")
                 apex_sub_file_path_vendor_replaced = remove_vendor_name_from_path(apex_sub_file_path)
                 file_name_vendor_replaced = os.path.basename(apex_sub_file_path_vendor_replaced)
                 original_file_path = search_original_file_in_obj(partition_name,
@@ -1143,15 +1143,15 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
 
             if original_file_path:
                 logging.info(
-                    f"{tag}: Found original file path for apex intermediate file: {apex_sub_file_path}|{original_file_path}|{file_name}")
+                    f"{tag}: Found original file path for apex intermediate file: {apex_sub_file_path}|{original_file_path}|{apex_file_name}")
 
                 if isinstance(original_file_path, list):
                     any_candidate_succeeded = False
                     for file_path_candidate in original_file_path:
                         logging.info(
-                            f"Found candidate file path for apex intermediate file: {apex_sub_file_path}|{file_path_candidate}|{file_name}")
+                            f"Found candidate file path for apex intermediate file: {apex_sub_file_path}|{file_path_candidate}|{apex_file_name}")
 
-                        success = inject_file_into_obj(file_path,
+                        success = inject_file_into_obj(apex_sub_file_path,
                                                        file_path_candidate,
                                                        module_type,
                                                        aosp_path,
@@ -1163,7 +1163,7 @@ def inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_li
                     is_injected = any_candidate_succeeded
                 else:
                     logging.info(
-                        f"{tag}: Inject file path for apex intermediate file: {apex_sub_file_path}|{original_file_path}|{file_name}")
+                        f"{tag}: Inject file path for apex intermediate file: {apex_sub_file_path}|{original_file_path}|{apex_file_name}")
                     is_injected = inject_file_into_obj(apex_sub_file_path,
                                                        original_file_path,
                                                        module_type,
