@@ -720,7 +720,7 @@ def delete_intermediate_cached_files(target_file_injection_path, file_path):
         target_no_vendor_path = remove_vendor_name_from_path(target_file_injection_path)
         logging.info(f"Removed file before indirect injection (no vendor substring trial): {target_no_vendor_path}")
         if os.path.exists(target_no_vendor_path):
-            overwrite_existing_file(target_file_injection_path, file_path)
+            overwrite_existing_file(target_no_vendor_path, file_path)
         else:
             logging.info(f"No existing intermediate file found to remove: {target_file_injection_path}")
 
