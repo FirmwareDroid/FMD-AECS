@@ -29,7 +29,7 @@ LAUNCHER_TEST = os.path.join(BASE_DIR, 'launcher_test.py')
 CONNECTIVITY_TEST = os.path.join(BASE_DIR, 'connectivity_test.py')
 
 # App testing tool wrappers (app_testing_tools/)
-START_APPS_BASIC = os.path.join(BASE_DIR, 'app_testing_tools', 'run_apps_start_stop.py')
+RUN_MONKEY = os.path.join(BASE_DIR, 'app_testing_tools', 'run_monkey.py')
 RUN_APE = os.path.join(BASE_DIR, 'app_testing_tools', 'run_ape.py')
 RUN_FASTBOT = os.path.join(BASE_DIR, 'app_testing_tools', 'run_fastbot.py')
 RUN_KEA2 = os.path.join(BASE_DIR, 'app_testing_tools', 'run_kea2.py')
@@ -711,13 +711,27 @@ def wait_for_adb_available(max_wait_seconds=600, sleep_seconds=5):
         logging.info('No adb device yet (try %d/%d). Sleeping %s seconds...', tries, max_tries, sleep_seconds)
         time.sleep(sleep_seconds)
 
+def execute_apps_with_coverage(app_package_names, mode):
+    for package in app_package_names:
+        run_script_capture(ACVTOOL, args=["activate", package],
+                           description="Run ACVTool to activate coverage measurement.")
 
-def execute_app_with_coverage(package, mode, skip_install=False):
+    for package in app_package_names:
+        logging.info(f"Starting {package}")
+        exec_app_testers(package, mode)
+
+    for package in app_package_names:
+        acv_out_dir = os.path.join(OUT_DIR, 'acv_snaps', f"{package}")
+        os.makedirs(acv_out_dir, exist_ok=True)
+        run_script_capture(ACVTOOL, args=["snap", package, "--wd", acv_out_dir],
+                           description="Run ACVTool to get coverage measurement")
+
+def exec_app_testers(package, mode, skip_install=False):
     logging.info(f"Executing app test with package: {package}, mode: {mode}")
     if mode == 'droidrun':
         run_script_capture(RUN_DROIDRUN, args=["run"], description="Run Droidrun agent to test apps.")
     elif mode == 'monkey':
-        run_script_capture(START_APPS_BASIC, args=["-m", "5000", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package])
+        run_script_capture(RUN_MONKEY, args=["-m", "5000", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package])
     elif mode == 'ape':
         run_script_capture(RUN_APE, args=["-p", package], description=f"Run Ape search-based testing for {package}")
     elif mode == 'fastbot':
@@ -725,40 +739,13 @@ def execute_app_with_coverage(package, mode, skip_install=False):
     elif mode == 'kea2':
         run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
     elif mode == 'pipeline':
-        # Run tools sequentially: Fastbot -> Kea2 -> Ape -> Monkey -> basic
-        # Before running the pipeline, verify the package has at least one
-        # activity that can be launched. If not, skip the pipeline and report
-        # that the app has no activity.
-        logging.info('Checking whether package has any launchable activity: %s', package)
-        try:
-            has_activity, resolved = package_has_activity(package)
-        except Exception as e:
-            logging.debug('Failed to check package activities for %s: %s', package, e)
-            has_activity = True
-            resolved = None
-
-        if not has_activity:
-            logging.warning('Package %s has no launchable activities; skipping pipeline mode for this package', package)
-            # Record a small marker file in OUT_DIR so results include this information
-            try:
-                marker = os.path.join(OUT_DIR, 'no_activity_packages.json')
-                existing = _read_json_if_exists(marker) or {}
-                existing[package] = {'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z', 'resolved': resolved}
-                _write_json(marker, existing)
-            except Exception:
-                logging.debug('Failed to write no-activity marker for %s', package, exc_info=True)
-            return
-
-        logging.info('Running pipeline: Fastbot -> Kea2 -> Ape -> Monkey -> basic for %s', package)
+        logging.info('Running pipeline: Fastbot -> Kea2 -> Ape -> Monkey for %s', package)
         run_script_capture(RUN_FASTBOT, args=["-p", package], description=f"Run Fastbot2.0 model-based testing for {package}")
         run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
         run_script_capture(RUN_APE, args=["-p", package], description=f"Run Ape search-based testing for {package}")
-        # Monkey: use a small number of events to try to exercise the launcher
-        run_script_capture(START_APPS_BASIC, args=["-m", "5000", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package], description=f"Run Monkey for {package}")
-        # Basic start/stop
-        run_script_capture(START_APPS_BASIC, args=["-p", package], description=f"Run basic start/stop test for {package}")
+        run_script_capture(RUN_MONKEY, args=["-p", package], description=f"Run basic start/stop test for {package}")
     else:
-        run_script_capture(START_APPS_BASIC, args=["-p", package], description=f"Run basic start/stop test for {package}")
+        run_script_capture(RUN_MONKEY, args=["-p", package], description=f"Run basic start/stop test for {package}")
 
     # run_script_capture(ACVTOOL, args=["cover-pickles", package, "--wd", OUT_DIR],
     #                   description="Run ACVTool to deserialize coverage measurement")
@@ -771,13 +758,13 @@ def start_experiment(mode='single', test_only_one=False, skip_install=False):
     install_output_path = os.path.join(OUT_DIR, 'install_results.json')
     if test_only_one:
         app_package_names = get_testing_apps()
-        first_pkg = app_package_names[0]
+        first_pkg = [app_package_names[0]]
         logging.info('Test-only-one enabled; testing only first package: %s', first_pkg)
         if not skip_install:
-            run_script_capture(INSTALL_APPS, args=["--package", first_pkg, "--output", install_output_path], description=f"Install app {first_pkg} on devices.")
+            run_script_capture(INSTALL_APPS, args=["--package", first_pkg[0], "--output", install_output_path], description=f"Install app {first_pkg} on devices.")
         else:
             logging.info('Skipping installation of %s due to --skip-install', first_pkg)
-        execute_app_with_coverage(first_pkg, mode, skip_install=skip_install)
+        execute_apps_with_coverage(first_pkg, mode)
     else:
         if not skip_install:
             run_script_capture(INSTALL_APPS, args=["-a", "--output", install_output_path], description=f"Install all apps on devices.")
@@ -790,17 +777,7 @@ def start_experiment(mode='single', test_only_one=False, skip_install=False):
             logging.info('No packages found to test')
             return
         app_package_names.remove("android")
-        for package in app_package_names:
-            run_script_capture(ACVTOOL, args=["activate", package], description="Run ACVTool to activate coverage measurement.")
-
-        for package in app_package_names:
-            logging.info(f"Starting {package}")
-            execute_app_with_coverage(package, mode)
-
-        for package in app_package_names:
-            acv_out_dir = os.path.join(OUT_DIR, 'acv_snaps', f"{package}")
-            os.makedirs(acv_out_dir, exist_ok=True)
-            run_script_capture(ACVTOOL, args=["snap", package, "--wd", acv_out_dir], description="Run ACVTool to get coverage measurement")
+        execute_apps_with_coverage(app_package_names, mode)
 
     logging.info('Starting logcat collector')
     run_script_capture(LOGCAT_COLLECTOR, args=["--full-dump"], description="Collect all logcat logs")

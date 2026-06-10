@@ -195,7 +195,7 @@ def run_kea2(package, running_minutes=60, serial=None, output_dir=None, apk_path
         if ret != 0:
             failures.append({'package': package, 'reason': 'kea2_failed', 'detail': f'return_code={ret}'})
         try:
-            append_run('kea2', summary, failures, out_dir=os.path.join(KEA2_WORKDIR, 'output'))
+            append_run('kea2', summary, failures, out_dir=os.path.join(BASE_DIR, 'out'))
         except Exception:
             logger.exception('Failed to write kea2 summary')
 
