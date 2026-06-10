@@ -690,24 +690,40 @@ def replace_capex_with_apex(file_path):
         file_path = extracted_apex_file_path
     return file_path
 
-def delete_intermediate_cached_files(target_file_injection_path, file_path):
+
+def overwrite_existing_file(target_file_injection_path, file_path):
     try:
         os.remove(target_file_injection_path)
         logging.info(f"Removed file before indirect injection: {target_file_injection_path}")
+        try:
+            target_dir = str(os.path.dirname(target_file_injection_path))
+            target_filename = str(os.path.basename(target_file_injection_path))
+            exact_destination_path = os.path.join(target_dir, target_filename)
+            try:
+                os.makedirs(target_dir, exist_ok=True)
+                shutil.copy2(file_path, exact_destination_path)
+                logging.info(
+                    f"Successfully injected file preserving original name: src:{file_path} -> dst:{exact_destination_path}")
+            except Exception as e:
+                logging.error(f"Critical error during delete_intermediate_cached_files copy phase: {e}")
+        except Exception as e:
+            logging.warning(e)
     except Exception as e:
         logging.warning(f"Could not remove file before indirect injection: {target_file_injection_path} | {e}")
-    try:
-        target_dir = str(os.path.dirname(target_file_injection_path))
-        target_filename = os.path.basename(target_file_injection_path)
-        exact_destination_path = os.path.join(target_dir, target_filename)
-        try:
-            os.makedirs(target_dir, exist_ok=True)
-            shutil.copy2(file_path, exact_destination_path)
-            logging.info(f"Successfully injected file preserving original name: src:{file_path} -> dst:{exact_destination_path}")
-        except Exception as e:
-            logging.error(f"Critical error during delete_intermediate_cached_files copy phase: {e}")
-    except Exception as e:
-        logging.warning(e)
+
+
+
+def delete_intermediate_cached_files(target_file_injection_path, file_path):
+    if os.path.exists(target_file_injection_path):
+        overwrite_existing_file(target_file_injection_path, file_path)
+    else:
+        target_no_vendor_path = remove_vendor_name_from_path(target_file_injection_path)
+        logging.info(f"Removed file before indirect injection (no vendor substring trial): {target_no_vendor_path}")
+        if os.path.exists(target_no_vendor_path):
+            overwrite_existing_file(target_file_injection_path, file_path)
+        else:
+            logging.info(f"No existing intermediate file found to remove: {target_file_injection_path}")
+
 
 
 def find_intermediate_file(aosp_path, md5_original_file):
