@@ -43,19 +43,17 @@ err() { printf '%s %s
 
 start_adb_nodaemon() {
   # ensure no conflicting adb server is running, then start nodaemon adb
-  if command -v pgrep >/dev/null 2>&1; then
-    if pgrep -x adb >/dev/null 2>&1; then
-      log "Stopping existing adb processes to avoid smartsocket conflicts..."
-      pkill -x adb || true
-      sleep 0.5
-    fi
+  ADB_BIN="/android/sdk/platform-tools/adb"
+
+  $ADB_BIN kill-server && $ADB_BIN -a -P 5037 nodaemon server &
+  ADB_PID=$!
+  sleep 1
+  if kill -0 $ADB_PID 2>/dev/null && ss -tlnp | grep -q ":5037 "; then
+      echo "[SUCCESS] ADB nodaemon server is running perfectly (PID: $ADB_PID)"
   else
-    pkill -f "/android/sdk/platform-tools/adb" >/dev/null 2>&1 || true
-    sleep 0.5
+      echo "[FAILURE] ADB server failed to start or was hijacked."
+      exit 1
   fi
-  /android/sdk/platform-tools/adb kill-server || true
-  /android/sdk/platform-tools/adb -a -P 5037 nodaemon server &
-  PIDS+=("$!")
 }
 
 prepare_avd() {
