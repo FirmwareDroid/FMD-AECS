@@ -535,10 +535,7 @@ def inject(aosp_path,
 def get_folders(folder_path, folder_filters):
     logging.info(f"Directory path: {folder_path}, folder filters: {folder_filters}")
 
-    # 1. Normalize the base folder path to strip trailing slashes
     base_path = os.path.normpath(folder_path)
-
-    # 2. Flatten the filters safely
     flat_filters = []
     if folder_filters:
         for item in folder_filters:
@@ -546,28 +543,22 @@ def get_folders(folder_path, folder_filters):
                 flat_filters.extend(item)
             else:
                 flat_filters.append(item)
+    allowed_prefixes = [
+        os.path.join(base_path, f_name) for f_name in flat_filters
+    ]
 
-    file_paths = []
     file_paths_set = set()
-
-    # 3. Use standard loops temporarily so we can log and debug what's happening
     for root, _, file_name_list in scandir_walk(base_path):
-        # Normalize the current root path
         norm_root = os.path.normpath(root)
-
-        # If we are exactly at the root directory, skip (there are no subfolders here yet)
-        if norm_root == base_path:
-            continue
-
-        # Get the relative path segments
-        rel_path = os.path.relpath(norm_root, base_path)
-        top_level_folder = rel_path.split(os.sep)[0]
-
-        # DEBUG LOG: See what the code is reading vs your filter
-        # Un-comment the line below if it still fails to inspect the exact values
-        # logging.debug(f"Checking top_level_folder: '{top_level_folder}' against filters: {flat_filters}")
-
-        if not flat_filters or top_level_folder in flat_filters:
+        is_allowed = False
+        if not flat_filters:
+            is_allowed = True
+        else:
+            for prefix in allowed_prefixes:
+                if norm_root == prefix or norm_root.startswith(prefix + os.sep):
+                    is_allowed = True
+                    break
+        if is_allowed:
             for file_name in file_name_list:
                 full_path = os.path.join(root, file_name.strip())
                 file_paths_set.add(full_path)
