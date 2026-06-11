@@ -539,11 +539,13 @@ def get_folders(folder_path, folder_filters):
         full_path = os.path.join(folder_path, entry)
         if os.path.isdir(full_path):
             folders.append(full_path)
+    logging.info(f"Folders: {folders}")
 
     result_list = []
-    for folder_filter in folder_filters:
-        if folder_filter in folders:
-            result_list.append(folder_filter)
+    for enty in folders:
+        dir_name = os.path.dirname(enty)
+        if dir_name in folder_filters:
+            result_list.append(enty)
 
     logging.info(f"Folders to process: {result_list}")
     return result_list
