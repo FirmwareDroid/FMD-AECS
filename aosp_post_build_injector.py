@@ -532,17 +532,28 @@ def inject(aosp_path,
         write_json_output(stats, SKIPPED_ERROR_LIST_FILE_PATH)
 
 
-
 def get_folders(folder_path, folder_filters):
     logging.info(f"Directory path: {folder_path}, folder filters: {folder_filters}")
 
+    # 1. Flatten the filters if they are nested (turns [['product']] into ['product'])
+    flat_filters = []
+    if folder_filters:
+        for item in folder_filters:
+            if isinstance(item, list):
+                flat_filters.extend(item)
+            else:
+                flat_filters.append(item)
+
+    # 2. Run the logic using the flat_filters list
     file_paths = list(set(
         os.path.join(root, file_name.strip())
         for root, _, file_name_list in scandir_walk(folder_path)
         for file_name in file_name_list
-        # Get the top-level folder name by splitting the relative path and taking the first part [0]
-        if not folder_filters or os.path.relpath(root, folder_path).split(os.sep)[0] in folder_filters
+        # Check against flat_filters instead of folder_filters
+        if not flat_filters or os.path.relpath(root, folder_path).split(os.sep)[0] in flat_filters
     ))
+
+    logging.info(f"Folder path list: {file_paths}")
     return file_paths
     # folders = []
     # for entry in os.listdir(directory_path):
