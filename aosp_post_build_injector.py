@@ -533,22 +533,22 @@ def inject(aosp_path,
 
 
 def get_folders(folder_path, folder_filters):
-    logging.info(f"Directory path: {folder_path}, folder filters: {folder_filters}")
+    logging.debug(f"Directory path: {folder_path}, folder filters: {folder_filters}")
     folders = []
     for entry in os.listdir(folder_path):
         full_path = os.path.join(folder_path, entry)
         if os.path.isdir(full_path):
             folders.append(full_path)
-    logging.info(f"Folders: {folders}")
+    logging.debug(f"Folders: {folders}")
 
     result_list = []
     for entry in folders:
         dir_name = os.path.basename(entry)
-        logging.info(f"Directory name: {dir_name}")
+        logging.debug(f"Directory name: {dir_name}")
         if dir_name in folder_filters:
             result_list.append(entry)
 
-    logging.info(f"Folders to process: {result_list}")
+    logging.debug(f"Folders to process: {result_list}")
     return result_list
 
 
