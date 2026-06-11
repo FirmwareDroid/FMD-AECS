@@ -2080,7 +2080,8 @@ def main():
         partition_list = []
 
     fmd_password = os.getenv('FMD_PASSWORD')
-    if not fmd_password or not args.fmd_username:
+    fmd_username = os.getenv("FMD_USERNAME") or args.fmd_username
+    if not fmd_password or not fmd_username:
         raise RuntimeError(f"Please enter your FMD username/password ({args.fmd_username}): ")
     if not source_folder_path.endswith("/"):
         source_folder_path += "/"
