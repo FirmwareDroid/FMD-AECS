@@ -2018,7 +2018,7 @@ def parse_arguments():
                         help="Username for the authentication to the fmd service.")
     parser.add_argument("-f", "--firmware-id", type=str, default=None, required=False,
                         help="ID of the firmware used in the pre-injector.")
-    parser.add_argument("-f", "--use-file-config", type=bool, default=False, required=False)
+    parser.add_argument("-c", "--use-file-config", type=bool, default=False, required=False)
     parser.add_argument("-p", "--partition-list",
                         nargs = "+",
                         type=lambda s: s.split(','),
