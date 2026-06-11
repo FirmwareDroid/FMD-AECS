@@ -2039,12 +2039,14 @@ def main():
     args = parse_arguments()
 
     if args.use_file_config:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
+        base_dir = Path(os.path.dirname(os.path.abspath(__file__)))
 
         config_file_path = "out/post_builder_args.json"
-        config_file_path_abs = os.path.join(base_dir, config_file_path)
+        config_file_path_abs = base_dir / config_file_path
+
         with open(config_file_path_abs, "r", encoding="utf-8") as f:
             post_builder_args_dict = json.load(f)
+
         aosp_version = post_builder_args_dict.get("aosp_version", None)
         source_folder_path = post_builder_args_dict.get("source_folder_path", None)
         target_out_path = post_builder_args_dict.get("target_out_path", None)
@@ -2055,10 +2057,12 @@ def main():
 
         pre_rel = post_builder_args_dict.get("pre_injector_config_path")
         post_rel = post_builder_args_dict.get("post_injector_config_path")
+
         pre_injector_config_path = str((base_dir / pre_rel).resolve()) if pre_rel else None
         post_injector_config_path = str((base_dir / post_rel).resolve()) if post_rel else None
 
-        logging.info(f"pre_injector_config_path: {pre_injector_config_path}, post_injector_config_path: {post_injector_config_path}")
+        logging.info(
+            f"pre_injector_config_path: {pre_injector_config_path}, post_injector_config_path: {post_injector_config_path}")
     else:
         aosp_version = args.aosp_version
         source_folder_path = args.source_path
