@@ -2040,6 +2040,8 @@ def main():
 
     if args.use_file_config:
         this_file_path = os.path.dirname(os.path.abspath(__file__))
+        base_dir = Path(this_file_path).parent
+
         config_file_path = "out/post_builder_args.json"
         config_file_path_abs = os.path.join(this_file_path, config_file_path)
         with open(config_file_path_abs, "r", encoding="utf-8") as f:
@@ -2051,8 +2053,12 @@ def main():
         lunch_target = post_builder_args_dict.get("lunch_target", None)
         firmware_id = post_builder_args_dict.get("firmware_id", None)
         pre_injector_package_list = post_builder_args_dict.get("pre_injector_package_list", None)
-        pre_injector_config_path = post_builder_args_dict.get("pre_injector_config_path", None)
-        post_injector_config_path = post_builder_args_dict.get("post_injector_config_path", None)
+
+        pre_rel = post_builder_args_dict.get("pre_injector_config_path")
+        post_rel = post_builder_args_dict.get("post_injector_config_path")
+        pre_injector_config_path = str((base_dir / pre_rel).resolve()) if pre_rel else None
+        post_injector_config_path = str((base_dir / post_rel).resolve()) if post_rel else None
+
         logging.info(f"pre_injector_config_path: {pre_injector_config_path}, post_injector_config_path: {post_injector_config_path}")
     else:
         aosp_version = args.aosp_version
