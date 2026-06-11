@@ -21,6 +21,7 @@ from http import cookies
 from types import MappingProxyType
 from pathlib import Path
 from filelock import FileLock
+from sqlalchemy.ext.asyncio import result
 
 from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file, \
     POST_INJECTOR_CONFIG, add_new_apex_file
@@ -534,14 +535,19 @@ def inject(aosp_path,
 
 def get_folders(folder_path, folder_filters):
     logging.info(f"Directory path: {folder_path}, folder filters: {folder_filters}")
-
     folders = []
     for entry in os.listdir(folder_path):
         full_path = os.path.join(folder_path, entry)
         if os.path.isdir(full_path):
             folders.append(full_path)
-    logging.info(f"Folders: {folders}")
-    return folders
+
+    result_list = []
+    for folder_filter in folder_filters:
+        if folder_filter in folders:
+            result_list.append(folder_filter)
+
+    logging.info(f"Folders to process: {result_list}")
+    return result_list
 
 
 
@@ -2020,11 +2026,10 @@ def parse_arguments():
         help="Enable the file configuration"
     )
     parser.add_argument("-p", "--partition-list",
-                        nargs = "+",
-                        type=lambda s: s.split(','),
+                        type=lambda s: [item.strip() for item in s.split(',')],  # Strip spaces too
                         default=None,
                         required=False,
-                        help = "Comma Space-separated list of partitions")
+                        help="Comma-separated list of partitions")
 
     args = parser.parse_args()
 
