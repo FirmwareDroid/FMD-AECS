@@ -542,10 +542,11 @@ def get_folders(folder_path, folder_filters):
     logging.info(f"Folders: {folders}")
 
     result_list = []
-    for enty in folders:
-        dir_name = os.path.dirname(enty)
+    for entry in folders:
+        dir_name = os.path.basename(entry)
+        logging.info(f"Directory name: {dir_name}")
         if dir_name in folder_filters:
-            result_list.append(enty)
+            result_list.append(entry)
 
     logging.info(f"Folders to process: {result_list}")
     return result_list
