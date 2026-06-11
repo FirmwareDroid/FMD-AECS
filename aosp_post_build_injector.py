@@ -75,7 +75,7 @@ def start_post_build_injector(aosp_path,
     :param lunch_target: str - lunch target for the AOSP build.
     """
     if pre_injector_package_list is None:
-    pre_injector_package_list = []
+        pre_injector_package_list = []
     logging.info(
         f"Starting post build injector with config:: {post_injector_config_path} | {pre_injector_config_path}")
     pre_injector_config, post_injector_config = load_configs(pre_injector_config_path, post_injector_config_path)
