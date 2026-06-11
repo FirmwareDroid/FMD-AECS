@@ -2039,11 +2039,10 @@ def main():
     args = parse_arguments()
 
     if args.use_file_config:
-        this_file_path = os.path.dirname(os.path.abspath(__file__))
-        base_dir = Path(this_file_path).parent
+        base_dir = os.path.dirname(os.path.abspath(__file__))
 
         config_file_path = "out/post_builder_args.json"
-        config_file_path_abs = os.path.join(this_file_path, config_file_path)
+        config_file_path_abs = os.path.join(base_dir, config_file_path)
         with open(config_file_path_abs, "r", encoding="utf-8") as f:
             post_builder_args_dict = json.load(f)
         aosp_version = post_builder_args_dict.get("aosp_version", None)
