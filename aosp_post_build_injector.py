@@ -2018,9 +2018,7 @@ def parse_arguments():
                         help="Username for the authentication to the fmd service.")
     parser.add_argument("-f", "--firmware-id", type=str, default=None, required=False,
                         help="ID of the firmware used in the pre-injector.")
-    parser.add_argument(
-        "-c",
-        "--use-file-config",
+    parser.add_argument("-c", "--use-file-config",
         action="store_true",
         help="Enable the file configuration"
     )
@@ -2094,7 +2092,7 @@ def main():
         source_folder_path += "/"
     if not target_out_path.endswith("/"):
         target_out_path += "/"
-    if not aosp_path.endswith("/"):
+    if aosp_path and not aosp_path.endswith("/"):
         aosp_path += "/"
 
 
