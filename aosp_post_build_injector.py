@@ -535,57 +535,14 @@ def inject(aosp_path,
 def get_folders(folder_path, folder_filters):
     logging.info(f"Directory path: {folder_path}, folder filters: {folder_filters}")
 
-    # 1. Normalize and strip trailing slashes from the base path
-    base_path = os.path.normpath(folder_path)
+    folders = []
+    for entry in os.listdir(folder_path):
+        full_path = os.path.join(folder_path, entry)
+        if os.path.isdir(full_path):
+            folders.append(full_path)
+    logging.info(f"Folders: {folders}")
+    return folders
 
-    # 2. Flatten the filters safely (turns [['product']] into ['product'])
-    flat_filters = []
-    if folder_filters:
-        for item in folder_filters:
-            if isinstance(item, list):
-                flat_filters.extend(item)
-            else:
-                flat_filters.append(item)
-
-    # 3. Pre-calculate the exact allowed prefixes
-    # e.g., "/home/ubuntu/FMD-AECS/out/extracted_packages/ALL_FILES/product"
-    allowed_prefixes = [
-        os.path.join(base_path, f_name) for f_name in flat_filters
-    ]
-
-    file_paths_set = set()
-
-    # 4. Walk and check prefixes directly
-    for root, _, file_name_list in scandir_walk(base_path):
-        norm_root = os.path.normpath(root)
-
-        # Check if the current directory matches one of our allowed top-level subfolders
-        # Or if no filters were passed, let everything through
-        is_allowed = False
-        if not flat_filters:
-            is_allowed = True
-        else:
-            for prefix in allowed_prefixes:
-                # If norm_root is exactly the prefix folder OR a sub-item inside it
-                if norm_root == prefix or norm_root.startswith(prefix + os.sep):
-                    is_allowed = True
-                    break
-
-        # If it's a valid directory path, grab its files
-        if is_allowed:
-            for file_name in file_name_list:
-                full_path = os.path.join(root, file_name.strip())
-                file_paths_set.add(full_path)
-
-    file_paths = list(file_paths_set)
-    logging.info(f"Folder path list: {file_paths}")
-    return file_paths
-    # folders = []
-    # for entry in os.listdir(directory_path):
-    #     full_path = os.path.join(directory_path, entry)
-    #     if os.path.isdir(full_path):
-    #         folders.append(full_path)
-    # return folders
 
 
 def process_partitions(aosp_path,
