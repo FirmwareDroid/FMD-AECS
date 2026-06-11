@@ -2053,6 +2053,7 @@ def main():
         pre_injector_package_list = post_builder_args_dict.get("pre_injector_package_list", None)
         pre_injector_config_path = post_builder_args_dict.get("pre_injector_config_path", None)
         post_injector_config_path = post_builder_args_dict.get("post_injector_config_path", None)
+        logging.info(f"pre_injector_config_path: {pre_injector_config_path}, post_injector_config_path: {post_injector_config_path}")
     else:
         aosp_version = args.aosp_version
         source_folder_path = args.source_path
