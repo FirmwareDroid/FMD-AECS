@@ -78,7 +78,8 @@ def start_post_build_injector(aosp_path,
         pre_injector_package_list = []
     logging.info(
         f"Starting post build injector with config:: {post_injector_config_path} | {pre_injector_config_path}")
-    pre_injector_config, post_injector_config = load_configs(pre_injector_config_path, post_injector_config_path)
+    if is_elf_binary(pre_injector_config_path, str) and isinstance(post_injector_config_path, str):
+        pre_injector_config, post_injector_config = load_configs(pre_injector_config_path, post_injector_config_path)
     global PRE_INJECTOR_CONFIG
     global POST_INJECTOR_CONFIG
     PRE_INJECTOR_CONFIG = pre_injector_config
