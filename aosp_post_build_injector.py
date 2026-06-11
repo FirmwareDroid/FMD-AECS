@@ -21,7 +21,6 @@ from http import cookies
 from types import MappingProxyType
 from pathlib import Path
 from filelock import FileLock
-from sqlalchemy.ext.asyncio import result
 
 from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file, \
     POST_INJECTOR_CONFIG, add_new_apex_file
