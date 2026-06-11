@@ -2049,7 +2049,7 @@ def main():
         aosp_version = post_builder_args_dict.get("aosp_version", None)
         source_folder_path = post_builder_args_dict.get("source_folder_path", None)
         target_out_path = post_builder_args_dict.get("target_out_path", None)
-        aosp_path = post_builder_args_dict.get("aosp_root_path", None)
+        aosp_path = post_builder_args_dict.get("aosp_path", None)
         lunch_target = post_builder_args_dict.get("lunch_target", None)
         firmware_id = post_builder_args_dict.get("firmware_id", None)
         pre_injector_package_list = post_builder_args_dict.get("pre_injector_package_list", None)
@@ -2079,6 +2079,13 @@ def main():
     if not partition_list:
         partition_list = []
 
+    if aosp_version not in ["12", "12.1", "13", "14"]:
+        raise RuntimeError("Please provide a valid AOSP version argument (12, 13, 14).")
+    if not args.firmware_id:
+        raise RuntimeError("Please provide a firmware ID argument.")
+    if not aosp_path:
+        raise RuntimeError("Please provide an AOSP path argument.")
+
     fmd_password = os.getenv('FMD_PASSWORD')
     fmd_username = os.getenv("FMD_USERNAME") or args.fmd_username
     if not fmd_password or not fmd_username:
@@ -2089,10 +2096,7 @@ def main():
         target_out_path += "/"
     if not aosp_path.endswith("/"):
         aosp_path += "/"
-    if aosp_version not in ["12", "12.1", "13", "14"]:
-        raise RuntimeError("Please provide a valid AOSP version argument (12, 13, 14).")
-    if not args.firmware_id:
-        raise RuntimeError("Please provide a firmware ID argument.")
+
 
 
     logging.info(f"Source folder path: {source_folder_path}")
