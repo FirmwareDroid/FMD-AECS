@@ -533,19 +533,23 @@ def inject(aosp_path,
 
 
 
-def get_folders(directory_path, partition_list):
-    folders = []
-    for entry in os.listdir(directory_path):
-        if partition_list and len(partition_list) > 0:
-            if entry in partition_list:
-                full_path = os.path.join(directory_path, entry)
-                if os.path.isdir(full_path):
-                    folders.append(full_path)
-        else:
-            full_path = os.path.join(directory_path, entry)
-            if os.path.isdir(full_path):
-                folders.append(full_path)
-    return folders
+def get_folders(folder_path, folder_filters):
+    logging.info(f"Directory path: {folder_path}, folder filters: {folder_filters}")
+
+    file_paths = list(set(
+        os.path.join(root, file_name.strip())
+        for root, _, file_name_list in scandir_walk(folder_path)
+        for file_name in file_name_list
+        # Get the top-level folder name by splitting the relative path and taking the first part [0]
+        if not folder_filters or os.path.relpath(root, folder_path).split(os.sep)[0] in folder_filters
+    ))
+    return file_paths
+    # folders = []
+    # for entry in os.listdir(directory_path):
+    #     full_path = os.path.join(directory_path, entry)
+    #     if os.path.isdir(full_path):
+    #         folders.append(full_path)
+    # return folders
 
 
 def process_partitions(aosp_path,
