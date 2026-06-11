@@ -2079,7 +2079,7 @@ def main():
 
     if aosp_version not in ["12", "12.1", "13", "14"]:
         raise RuntimeError("Please provide a valid AOSP version argument (12, 13, 14).")
-    if not args.firmware_id:
+    if not firmware_id:
         raise RuntimeError("Please provide a firmware ID argument.")
     if not aosp_path:
         raise RuntimeError("Please provide an AOSP path argument.")
