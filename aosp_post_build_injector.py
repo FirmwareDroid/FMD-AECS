@@ -58,12 +58,13 @@ def start_post_build_injector(aosp_path,
                               source_folder_path,
                               target_out_path,
                               lunch_target,
-                              firmware_id=None,
+                              firmware_id=None, # REMOVE
                               pre_injector_package_list=None,
                               pre_injector_config_path=None,
                               post_injector_config_path=None,
-                              cookies=None,
-                              aosp_version=None):
+                              cookies=None, # REMOVE
+                              aosp_version=None,
+                              partition_list=[""]):
     """
     Start the post build injector. Replaces the original objects in the AOSP source code with the vendor flavoured
     objects.
@@ -113,7 +114,16 @@ def start_post_build_injector(aosp_path,
 
     if POST_INJECTOR_CONFIG["ENABLE_INJECTION"]:
         with Executor() as executor:
-            inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list, cookies, aosp_version)
+            inject(aosp_path,
+                   source_folder_path,
+                   target_out_path,
+                   executor,
+                   lunch_target,
+                   firmware_id,
+                   pre_injector_package_list,
+                   cookies,
+                   aosp_version,
+                   partition_list)
     else:
         logging.info(f"Post-Injection is disabled by configuration: {POST_INJECTOR_CONFIG['ENABLE_INJECTION']}")
         logging.info(f"Skipping post build injection for {source_folder_path} into {target_out_path}")
@@ -367,7 +377,16 @@ def create_error_statistics(error_list):
 
     return stats
 
-def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_target, firmware_id, pre_injector_package_list, cookies, aosp_version):
+def inject(aosp_path,
+           source_folder_path,
+           target_out_path,
+           executor,
+           lunch_target,
+           firmware_id,
+           pre_injector_package_list,
+           cookies,
+           aosp_version,
+           partition_list):
     start_time = time.time()
     logging.info(f"Injection started at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
 
@@ -381,7 +400,8 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
                                                                       pre_injector_package_list,
                                                                       firmware_id,
                                                                       cookies,
-                                                                      aosp_version)
+                                                                      aosp_version,
+                                                                      partition_list)
     # Verify Direct Injection targets exist on filesystem and log errors for missing targets
     try:
         direct_inject_errors = verify_direct_injection_targets(inj_partition_list)
@@ -513,17 +533,32 @@ def inject(aosp_path, source_folder_path, target_out_path, executor, lunch_targe
 
 
 
-def get_folders(directory_path):
+def get_folders(directory_path, partition_list):
     folders = []
     for entry in os.listdir(directory_path):
-        full_path = os.path.join(directory_path, entry)
-        if os.path.isdir(full_path):
-            folders.append(full_path)
+        if partition_list and len(partition_list) > 0:
+            if entry in partition_list:
+                full_path = os.path.join(directory_path, entry)
+                if os.path.isdir(full_path):
+                    folders.append(full_path)
+        else:
+            full_path = os.path.join(directory_path, entry)
+            if os.path.isdir(full_path):
+                folders.append(full_path)
     return folders
 
 
-def process_partitions(aosp_path, source_folder_path, target_out_path, executor, lunch_target, pre_injector_package_list, firmware_id, cookies, aosp_version):
-    folder_path_list = get_folders(source_folder_path)
+def process_partitions(aosp_path,
+                       source_folder_path,
+                       target_out_path,
+                       executor,
+                       lunch_target,
+                       pre_injector_package_list,
+                       firmware_id,
+                       cookies,
+                       aosp_version,
+                       partition_list):
+    folder_path_list = get_folders(source_folder_path, partition_list)
     logging.info(f"Folder path list: {folder_path_list}")
     combined_error_list = []
     combined_inj_obj_list = []
@@ -722,7 +757,7 @@ def delete_intermediate_cached_files(target_file_injection_path, file_path):
         if os.path.exists(target_no_vendor_path):
             overwrite_existing_file(target_no_vendor_path, file_path)
         else:
-            logging.info(f"No existing intermediate file found to remove: {target_file_injection_path}")
+            logging.error(f"No existing intermediate file found to remove: {target_file_injection_path}")
 
 
 
@@ -1957,19 +1992,19 @@ def parse_arguments():
     parser.add_argument("-s",
                         "--source-path",
                         default=None,
-                        required=True,
+                        required=False,
                         type=str,
                         help='Path to the source folder where the objects to inject reside.')
     parser.add_argument("-t",
                           "--target-out-path",
                         default=None,
-                        required=True,
+                        required=False,
                         type=str,
                         help='Path to the AOSP target out folder.')
     parser.add_argument("-a",
                         "--aosp-root-path",
                         default=None,
-                        required=True,
+                        required=False,
                         type=str,
                         help='Path to the AOSP root folder.')
     parser.add_argument("-m", "--pre_injector_config",
@@ -1979,10 +2014,18 @@ def parse_arguments():
                         type=str,
                         default="./device_configs/development/post_injector_config_v1.json", )
     parser.add_argument("-e", "--aosp-version", type=str, default="12",)
-    parser.add_argument("-u", "--fmd-username", type=str, default=None, required=True,
+    parser.add_argument("-u", "--fmd-username", type=str, default=None, required=False,
                         help="Username for the authentication to the fmd service.")
-    parser.add_argument("-f", "--firmware-id", type=str, default=None, required=True,
+    parser.add_argument("-f", "--firmware-id", type=str, default=None, required=False,
                         help="ID of the firmware used in the pre-injector.")
+    parser.add_argument("-f", "--use-file-config", type=bool, default=False, required=False)
+    parser.add_argument("-p", "--partition-list",
+                        nargs = "+",
+                        type=lambda s: s.split(','),
+                        default=None,
+                        required=False,
+                        help = "Comma Space-separated list of partitions")
+
     args = parser.parse_args()
 
     return args
@@ -1991,60 +2034,89 @@ def parse_arguments():
 def main():
     logging.info("=======================AOSP POST BUILD INJECTOR=======================")
     args = parse_arguments()
-    source_folder_path = args.source_path
-    if not source_folder_path.endswith("/"):
-        source_folder_path += "/"
-    target_out_path = args.target_out_path
-    if not target_out_path.endswith("/"):
-        target_out_path += "/"
-    aosp_path = args.aosp_root_path
-    if not aosp_path.endswith("/"):
-        aosp_path += "/"
+
+    if args.use_file_config:
+        this_file_path = str(os.path.abspath(__file__))
+        config_file_path = "out/post_builder_args.json"
+        config_file_path_abs = os.path.join(this_file_path, config_file_path)
+        with open(config_file_path_abs, "r", encoding="utf-8") as f:
+            post_builder_args_dict = json.load(f)
+        aosp_version = post_builder_args_dict.get("aosp_version", None)
+        source_folder_path = post_builder_args_dict.get("source_folder_path", None)
+        target_out_path = post_builder_args_dict.get("target_out_path", None)
+        aosp_path = post_builder_args_dict.get("aosp_root_path", None)
+        lunch_target = post_builder_args_dict.get("lunch_target", None)
+        firmware_id = post_builder_args_dict.get("firmware_id", None)
+        pre_injector_package_list = post_builder_args_dict.get("pre_injector_package_list", None)
+        pre_injector_config_path = post_builder_args_dict.get("pre_injector_config_path", None)
+        post_injector_config_path = post_builder_args_dict.get("post_injector_config_path", None)
+    else:
+        aosp_version = args.aosp_version
+        source_folder_path = args.source_path
+        target_out_path = args.target_out_path
+        aosp_path = args.aosp_root_path
+        if aosp_version in ["12", "12.1"]:
+            lunch_target = "sdk_phone64_arm64-userdebug"
+        elif aosp_version == "13":
+            lunch_target = "sdk_phone64_arm64-userdebug"
+        elif aosp_version == "14":
+            lunch_target = "sdk_phone64_arm64-ap2a-userdebug"
+        elif aosp_version in ["15", "16"]:
+            lunch_target = "sdk_phone64_arm64-trunk_staging-userdebug"
+        else:
+            raise RuntimeError("Please provide a valid lunch target argument.")
+        firmware_id = args.firmware_id
+        pre_injector_package_list = []
+        pre_injector_config_path = args.pre_injector_config
+        post_injector_config_path = args.post_injector_config
+
+    partition_list = args.partition_list
+    if not partition_list:
+        partition_list = []
+
     fmd_password = os.getenv('FMD_PASSWORD')
     if not fmd_password or not args.fmd_username:
         raise RuntimeError(f"Please enter your FMD username/password ({args.fmd_username}): ")
-
-    aosp_version = args.aosp_version
+    if not source_folder_path.endswith("/"):
+        source_folder_path += "/"
+    if not target_out_path.endswith("/"):
+        target_out_path += "/"
+    if not aosp_path.endswith("/"):
+        aosp_path += "/"
     if aosp_version not in ["12", "12.1", "13", "14"]:
         raise RuntimeError("Please provide a valid AOSP version argument (12, 13, 14).")
+    if not args.firmware_id:
+        raise RuntimeError("Please provide a firmware ID argument.")
 
-    if aosp_version in ["12", "12.1"]:
-        lunch_target = "sdk_phone64_arm64-userdebug"
-    elif aosp_version == "13":
-        lunch_target = "sdk_phone64_arm64-userdebug"
-    elif aosp_version == "14":
-        lunch_target = "sdk_phone64_arm64-ap2a-userdebug"
-    elif aosp_version in ["15", "16"]:
-        lunch_target = "sdk_phone64_arm64-trunk_staging-userdebug"
-    else:
-        raise RuntimeError("Please provide a valid lunch target argument.")
 
     logging.info(f"Source folder path: {source_folder_path}")
     logging.info(f"Target out path: {target_out_path}")
     logging.info(f"AOSP root path: {aosp_path}")
     logging.info(f"Lunch target: {lunch_target}")
-    logging.info(f"Pre Injector Config: {args.pre_injector_config}")
-    logging.info(f"Post Injector Config: {args.post_injector_config}")
-    pre_injector_config, post_injector_config = load_configs(args.pre_injector_config, args.post_injector_config)
+    logging.info(f"Pre Injector Config: {pre_injector_config_path}")
+    logging.info(f"Post Injector Config: {post_injector_config_path}")
+    pre_injector_config, post_injector_config = load_configs(pre_injector_config_path, post_injector_config_path)
 
     fmd_username = args.fmd_username
     fmd_url = post_injector_config["FMD_URL"]
     graphql_url = post_injector_config["GRAPHQL_API_URL"]
     csrf_cookie = get_csrf_token(fmd_url)
     fmd_cookies = authenticate_fmd(graphql_url, fmd_username, fmd_password, csrf_cookie)
-    if not args.firmware_id:
-        raise RuntimeError("Please provide a firmware ID argument.")
-    firmware_id = args.firmware_id
 
     start_post_build_injector(aosp_path=aosp_path,
                               source_folder_path=source_folder_path,
                               target_out_path=target_out_path,
                               lunch_target=lunch_target,
-                              pre_injector_config_path=args.pre_injector_config,
-                              post_injector_config_path=args.post_injector_config,
                               firmware_id=firmware_id,
+                              pre_injector_package_list=pre_injector_package_list,
+                              pre_injector_config_path=pre_injector_config,
+                              post_injector_config_path=post_injector_config,
                               cookies=fmd_cookies,
-                              aosp_version=aosp_version)
+                              aosp_version=aosp_version,
+                              partition_list=partition_list)
+
+
+
 
     logging.info("=======================AOSP POST BUILD INJECTOR EXIT=======================")
 

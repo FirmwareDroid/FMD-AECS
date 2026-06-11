@@ -539,22 +539,38 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             build_start_time = time.time()
             execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
             build_end_time = time.time()
+            included_package_statistics["main_build_duration"] = round(build_end_time - build_start_time, 2)
             logging.info(f"AOSP main build completed successfully. Continuing with post-build injection.")
             target_out_path = get_target_out_path(aosp_path, lunch_target)
             all_extracted_firmware_files_path = os.path.join(EXTRACTED_PACKAGES_PATH, EXTRACTION_ALL_FILES_DIR_NAME)
 
-            start_post_build_injector(aosp_path=aosp_path,
-                                      source_folder_path=all_extracted_firmware_files_path,
-                                      target_out_path=target_out_path,
-                                      lunch_target=lunch_target,
-                                      firmware_id=firmware_id,
-                                      pre_injector_package_list=included_package_statistics["apps"],
-                                      pre_injector_config_path=PRE_INJECTOR_CONFIG_PATH,
-                                      post_injector_config_path=POST_INJECTOR_CONFIG_PATH,
-                                      cookies=cookies,
-                                      aosp_version=aosp_version
-                                      )
-            included_package_statistics["main_build_duration"] = round(build_end_time - build_start_time, 2)
+            post_builder_args_dict = {"aosp_path": aosp_path,
+                                      "source_folder_path": all_extracted_firmware_files_path,
+                                      "target_out_path": target_out_path,
+                                      "lunch_target": lunch_target,
+                                      "firmware_id": firmware_id,
+                                      "pre_injector_package_list": included_package_statistics["apps"],
+                                      "pre_injector_config_path": PRE_INJECTOR_CONFIG_PATH,
+                                      "post_injector_config_path": POST_INJECTOR_CONFIG_PATH,
+                                      "aosp_version": aosp_version
+                                      }
+
+
+            # start_post_build_injector(aosp_path=aosp_path,
+            #                           source_folder_path=all_extracted_firmware_files_path,
+            #                           target_out_path=target_out_path,
+            #                           lunch_target=lunch_target,
+            #                           firmware_id=firmware_id,
+            #                           pre_injector_package_list=included_package_statistics["apps"],
+            #                           pre_injector_config_path=PRE_INJECTOR_CONFIG_PATH,
+            #                           post_injector_config_path=POST_INJECTOR_CONFIG_PATH,
+            #                           cookies=cookies,
+            #                           aosp_version=aosp_version
+            #                           )
+            
+            with open("./out/post_builder_args.json", "w", encoding="utf-8") as f:
+                json.dump(post_builder_args_dict, f, indent=4)
+                logging.info(f"Post builder args written to out/post_builder_args.json")
             logging.info(f"Summary Pre-Injector: {included_package_statistics}")
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target, aosp_version)
             package_start_time = time.time()
