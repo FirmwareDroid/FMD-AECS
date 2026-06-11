@@ -2041,7 +2041,7 @@ def main():
     args = parse_arguments()
 
     if args.use_file_config:
-        this_file_path = str(os.path.abspath(__file__))
+        this_file_path = os.path.dirname(os.path.abspath(__file__))
         config_file_path = "out/post_builder_args.json"
         config_file_path_abs = os.path.join(this_file_path, config_file_path)
         with open(config_file_path_abs, "r", encoding="utf-8") as f:
