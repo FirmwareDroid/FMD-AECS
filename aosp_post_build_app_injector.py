@@ -9,6 +9,30 @@ from fmd_backend_requests import fetch_app_manifest
 from shell_command import execute_command
 from config_post_injector import *
 
+APKSIGNER_BINARY_PATH_LIST = ["out/host/linux-x86/bin/apksigner", "prebuilts/sdk/tools/linux/bin/apksigner"]
+APKSIGNER_JAVALIB_PATH = "prebuilts/sdk/tools/linux/lib/apksigner.jar"
+ZIPALIGN_BINARY_PATH_LIST = ["prebuilts/sdk/tools/linux/bin/zipalign", "out/host/linux-x86/bin/zipalign"]
+
+def get_apksigner_binary_command(aosp_path):
+    for binary_path in APKSIGNER_BINARY_PATH_LIST:
+        candidate = os.path.join(aosp_path, binary_path)
+        if os.path.exists(candidate):
+            if "prebuilts" in candidate:
+                javalib_path = os.path.join(aosp_path, APKSIGNER_JAVALIB_PATH)
+                dir_path = os.path.dirname(candidate)
+                shutil.copy2(javalib_path, dir_path)
+                logging.info(f"Copied {javalib_path} to {dir_path}")
+            return candidate
+    return "apksigner"
+
+
+def get_zipalign_binary_command(aosp_path):
+    for binary_path in ZIPALIGN_BINARY_PATH_LIST:
+        candidate = os.path.join(aosp_path, binary_path)
+        if os.path.exists(candidate):
+            return candidate
+    return "zipalign"
+
 def handle_apk_signing(file_path, aosp_path, firmware_id, cookies):
     global POST_INJECTOR_CONFIG
     POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
@@ -25,7 +49,7 @@ def handle_apk_signing(file_path, aosp_path, firmware_id, cookies):
         error_message = f"Signing key not found at {signing_key_path}"
 
     if not error_message:
-        is_success, log_message = sign_apk_file(file_path, signing_key_path)
+        is_success, log_message = sign_apk_file(file_path, signing_key_path, aosp_path)
         if not is_success:
             error_message = (f"Error signing APK file with apksigner: "
                              f"Key:{signing_key}|"
@@ -95,17 +119,18 @@ def get_signing_key_path(aosp_path, signing_key_name):
     key_file_path = key_file_path.replace("//", "/")
     return key_file_path
 
-def align_apk_file(apk_file_path):
+def align_apk_file(apk_file_path, aosp_path):
     logging.info(f"Align apk file: {apk_file_path}")
     out_file_path = f"{apk_file_path}.aligned"
-    command = ['zipalign', '-P', '16', '-v', '4', apk_file_path, out_file_path]
+    zipalign_cmd = get_apksigner_binary_command(aosp_path)
+    command = [zipalign_cmd, '-P', '16', '-v', '4', apk_file_path, out_file_path]
     success, log_message = execute_command(command)
     if success:
         shutil.move(out_file_path, apk_file_path)
     return success, log_message
 
 
-def sign_apk_file(apk_file_path, signing_key_path, v2_signing_enabled=True, v3_signing_enabled=True, v4_signing_enabled=True):
+def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled=True, v3_signing_enabled=True, v4_signing_enabled=True):
     """
     Signs the APK file with apksigner.
 
@@ -118,7 +143,8 @@ def sign_apk_file(apk_file_path, signing_key_path, v2_signing_enabled=True, v3_s
     elif not os.path.exists(signing_key_path):
         return False, f"Error: Signing key not found for signing: {signing_key_path}"
 
-    sign_command = ['apksigner', 'sign',
+    apksigner_cmd = get_apksigner_binary_command(aosp_path)
+    sign_command = [apksigner_cmd, 'sign',
                     '--ks', signing_key_path,
                     '--v2-signing-enabled', str(v2_signing_enabled).lower(),
                     '--v3-signing-enabled', str(v3_signing_enabled).lower(),
@@ -131,19 +157,21 @@ def sign_apk_file(apk_file_path, signing_key_path, v2_signing_enabled=True, v3_s
     logging.info(f"Signing APK file: {apk_file_path} with key: {signing_key_path} - success: {success} - {log_message} - sign_command: {sign_command}")
     return success, log_message
 
-def verify_apk_file(apk_file_path):
+def verify_apk_file(apk_file_path, aosp_path):
     logging.info(f"Verifying APK file: {apk_file_path}")
-    verify_command = ['apksigner', 'verify', apk_file_path]
+    apksigner_cmd = get_apksigner_binary_command(aosp_path)
+    verify_command = [apksigner_cmd, 'verify', apk_file_path]
     success, log_message = execute_command(verify_command)
     return success, log_message
 
 
 def sign_apex_container_apksigner(apex_file_path,
-                        signing_key_path,
-                        signing_key_certificate_path,
-                        v2_signing_enabled=True,
-                        v3_signing_enabled=True,
-                        v4_signing_enabled=True):
+                                    signing_key_path,
+                                    signing_key_certificate_path,
+                                    aosp_path,
+                                    v2_signing_enabled=True,
+                                    v3_signing_enabled=True,
+                                    v4_signing_enabled=True):
     """
     Signs the APEX file with apksigner.
 
@@ -156,7 +184,8 @@ def sign_apex_container_apksigner(apex_file_path,
 
     """
     # 'sudo',
-    sign_command = ['apksigner', 'sign',
+    apksigner_cmd = get_apksigner_binary_command(aosp_path)
+    sign_command = [apksigner_cmd, 'sign',
                     '--key', signing_key_path,
                     '--cert', signing_key_certificate_path,
                     '--v2-signing-enabled', str(v2_signing_enabled).lower(),
