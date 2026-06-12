@@ -261,27 +261,29 @@ def disable_platform_tests(version: str, base_path: str, dry_run: bool = False, 
 def disable_boringssl_checks(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
     """Disable reboot_on_failure and add BORINGSSL env where appropriate."""
 
-    if version in ("12", "12_1"):
-        logging.info('--- Disable BoringSSL checks ---')
-        # init.rc modifications (may not exist for all versions)
-        init_rc = os.path.join(base_path, "system/core/rootdir/init.rc")
-        if file_has_any(init_rc, ["#reboot_on_failure reboot,boringssl-self-check-failed"]):
-            if verbose or dry_run:
-                logging.info('[SKIP] boringssl reboot_on_failure already commented in: %s', init_rc)
-        else:
-            modify_file(init_rc, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
+    logging.info('--- Disable BoringSSL checks ---')
+    # init.rc modifications (may not exist for all versions)
+    init_rc = os.path.join(base_path, "system/core/rootdir/init.rc")
+    if not os.path.exists(init_rc):
+        raise FileNotFoundError(init_rc)
+    if file_has_any(init_rc, ["#reboot_on_failure reboot,boringssl-self-check-failed"]):
+        if verbose or dry_run:
+            logging.info('[SKIP] boringssl reboot_on_failure already commented in: %s', init_rc)
+    else:
+        modify_file(init_rc, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
 
-        # boringssl self test rc files
-        candidates = [
-            os.path.join(base_path, "external/boringssl/selftest/boringssl_self_test.rc"),
-            os.path.join(base_path, "external/boringssl/selftest/boringssl_self_test.rc"),
-        ]
-        for c in candidates:
-            if file_has_any(c, ["#reboot_on_failure reboot,boringssl-self-check-failed"]):
-                if verbose or dry_run:
-                    logging.info('[SKIP] boringssl reboot_on_failure already commented in: %s', c)
-            else:
-                modify_file(c, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
+    # boringssl self test rc files
+    candidates = [
+        os.path.join(base_path, "external/boringssl/selftest/boringssl_self_test.rc"),
+    ]
+    for c in candidates:
+        if not os.path.exists(c):
+            raise FileNotFoundError("Expected boringssl self test rc file not found: %s", c)
+        if file_has_any(c, ["#reboot_on_failure reboot,boringssl-self-check-failed"]):
+            if verbose or dry_run:
+                logging.info('[SKIP] boringssl reboot_on_failure already commented in: %s', c)
+        else:
+            modify_file(c, r"reboot_on_failure\s+reboot,boringssl-self-check-failed", r"#reboot_on_failure reboot,boringssl-self-check-failed", flags=0, dry_run=dry_run, verbose=verbose)
 
 
 def disable_vndk_checks(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
