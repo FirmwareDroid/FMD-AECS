@@ -567,7 +567,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             #                           cookies=cookies,
             #                           aosp_version=aosp_version
             #                           )
-            
+
             with open("./out/post_builder_args.json", "w", encoding="utf-8") as f:
                 json.dump(post_builder_args_dict, f, indent=4)
                 logging.info(f"Post builder args written to out/post_builder_args.json")
@@ -1265,8 +1265,10 @@ def execute_build_command(firmware_id, lunch_target, command, aosp_root_path):
         log_path = os.path.join(BUILD_OUT_PATH, log_name)
         logging.info(f"Executing command: {command}")
         logging.info(f"Build logs will be written to: {log_path}")
+        env_variables = os.environ.copy()
+        env_variables["ALLOW_NINJA_ENV"] = "true"
         with open(log_path, "w") as outfile:
-            subprocess.run(command, shell=True, check=True, stdout=outfile, stderr=outfile)
+            subprocess.run(command, shell=True, check=True, stdout=outfile, stderr=outfile, env=env_variables)
     except subprocess.CalledProcessError as err:
         logging.error(f"Got an error building firmware: {err}")
         raise err
