@@ -988,10 +988,10 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                     dst_file_path = dst_file_path.replace(get_after_split, "").replace("@", "")
                     logging.info(f"APEX extract dir after TAG removal: {extract_dir} | {dst_file_path}")
                 current_username = os.getlogin()
-                command = (f'sudo mkdir -p "$(dirname {dst_file_path})" 2>/dev/null '
-                           f'&& sudo cp {file_path} {dst_file_path} '
-                           f'&& sudo chown {current_username}:{current_username} {dst_file_path} '
-                           f'&& sudo chmod 0755 {dst_file_path}')
+                command = (f'mkdir -p "$(dirname {dst_file_path})" 2>/dev/null '
+                           f'&& cp {file_path} {dst_file_path} '
+                           #f'&& chown {current_username}:{current_username} {dst_file_path} '
+                           f'&& chmod 0755 {dst_file_path}')
                 logging.info(f"Copy APEX vendor app: {file_path} into {dst_file_path} with command: {command}")
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
                 if result.returncode != 0:
@@ -1052,9 +1052,9 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 dst_file_path = merged_apex_extract_dir_path + root.replace(apex_vendor_extract_dir_path, "").replace("//", "/")
                 if not dst_file_path.endswith("/"):
                     dst_file_path += "/"
-                command = (f'sudo cp -a {file_path} {dst_file_path} '
-                           f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
-                           f'&& sudo chmod -R 0755 {dst_file_path}')
+                command = (f'cp -a {file_path} {dst_file_path} '
+                           #f'&& chown -R {current_username}:{current_username} {dst_file_path} '
+                           f'&& chmod -R 0755 {dst_file_path}')
                 logging.info(f"Copying symlink in APEX container: {file_path} into {dst_file_path} with command: {command}")
                 result = subprocess.run(command, shell=True, capture_output=True, text=True)
                 if result.returncode != 0:
@@ -1079,9 +1079,9 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     if os.path.isfile(dst_file_path):
                         directory_path = os.path.dirname(dst_file_path)
                         logging.info(f"Creating directory for APEX container: {directory_path}")
-                        command = (f'sudo mkdir -p {directory_path} '
-                                   f'&& sudo chown -R {current_username}:{current_username} {directory_path} '
-                                   f'&& sudo chmod -R 0755 {directory_path}')
+                        command = (f'mkdir -p {directory_path} '
+                                   #f'&& chown -R {current_username}:{current_username} {directory_path} '
+                                   f'&& chmod -R 0755 {directory_path}')
                         result = subprocess.run(command, shell=True, capture_output=True, text=True)
                         if result.returncode != 0:
                             logging.error(
@@ -1127,10 +1127,10 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                             and dst_file_path.startswith(merged_apex_extract_dir_path)
                             and dst_file_path.startswith("/tmp")):
                         dir_path = os.path.dirname(dst_file_path)
-                        command = (f'sudo mkdir -p {dir_path} '
-                                   f'&& sudo cp -f {file_path} {dst_file_path} '
-                                   f'&& sudo chown -R {current_username}:{current_username} {dst_file_path} '
-                                   f'&& sudo chmod -R 0755 {dst_file_path}')
+                        command = (f'mkdir -p {dir_path} '
+                                   f'&& cp -f {file_path} {dst_file_path} '
+                                   #f'&& chown -R {current_username}:{current_username} {dst_file_path} '
+                                   f'&& chmod -R 0755 {dst_file_path}')
                         logging.info(f"Run APEX copy command: {command}")
                         result = subprocess.run(command, shell=True, capture_output=True, text=True)
                         if result.returncode != 0:
@@ -1239,7 +1239,8 @@ def copy_file_to_intermediate_symbols_folder(
 
 def change_file_permission(file_path, permission):
     try:
-        command = ['sudo', 'chmod', permission, file_path]
+        # sudo
+        command = ['chmod', permission, file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True)
         logging.info("Permissions for %s changed to %s", file_path, permission)
     except subprocess.CalledProcessError as e:
@@ -1248,7 +1249,8 @@ def change_file_permission(file_path, permission):
 def change_file_ownership(file_path):
     try:
         current_user = os.getlogin()
-        command = ['sudo', 'chown', current_user, file_path]
+        # sudo'sudo',
+        command = ['chown', current_user, file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True)
         logging.info("Ownership of %s changed to %s", file_path, current_user)
     except subprocess.CalledProcessError as e:

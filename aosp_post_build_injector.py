@@ -1839,7 +1839,8 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
                     shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
                     is_injected = True
                 elif os.path.islink(source_file_path):
-                    command = f'sudo cp -a {source_file_path} {target_file_injection_path} '
+                    # sudo
+                    command = f'cp -a {source_file_path} {target_file_injection_path} '
                     result = subprocess.run(command, shell=True, capture_output=True, text=True)
                     if result.returncode != 0:
                         logging.error(
