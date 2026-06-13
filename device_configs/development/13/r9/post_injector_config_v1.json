@@ -79,7 +79,8 @@
     ".odex",
     ".art",
     ".oat",
-    "/etc/vintf"
+    "/etc/vintf",
+    "/system/bin/bootstrap/linkerconfig"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
