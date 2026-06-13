@@ -83,7 +83,8 @@
     "/system/bin/bootstrap/",
     "hardware.power",
     "/vendor/bin/hw/",
-    "/vendor/bin/"
+    "/vendor/bin/",
+    "/vendor/etc/init"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
