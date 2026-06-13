@@ -82,7 +82,8 @@
     "/etc/vintf",
     "/system/bin/bootstrap/",
     "hardware.power",
-    "/vendor/bin/hw/"
+    "/vendor/bin/hw/",
+    "/vendor/bin/"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
