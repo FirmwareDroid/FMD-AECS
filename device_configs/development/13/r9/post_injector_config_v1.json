@@ -81,7 +81,8 @@
     ".oat",
     "/etc/vintf",
     "/system/bin/bootstrap/",
-    "hardware.power"
+    "hardware.power",
+    "/vendor/bin/hw/"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
@@ -124,7 +125,6 @@
     "system/etc/security/cacerts_google/",
     "libandroid",
     "_jni.so",
-    "system/bin/bootstrap/",
     "android.hardware.camera",
     "android.framework",
     "libservices.so",
@@ -164,14 +164,7 @@
     "/system/etc/compatconfig",
     "/system/etc/appmanager.conf",
     "/system/etc/boot-image.bprof",
-    "/system/etc/boot-image.prof",
-    "/system/bin/bootstrap",
-    "/system/bin/hw",
-    "/vendor/bin/hw",
-    "/system_ext/bin/hw",
-    "/system_other/bin/hw",
-    "/odm/bin/hw",
-    "/product/bin/hw"
+    "/system/etc/boot-image.prof"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
