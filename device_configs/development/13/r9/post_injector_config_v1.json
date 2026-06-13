@@ -80,7 +80,7 @@
     ".art",
     ".oat",
     "/etc/vintf",
-    "/system/bin/bootstrap/linkerconfig",
+    "/system/bin/bootstrap/",
     "hardware.power"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
