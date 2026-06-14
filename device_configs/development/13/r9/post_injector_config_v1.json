@@ -84,7 +84,8 @@
     "hardware.power",
     "/vendor/bin/hw/",
     "/vendor/bin/",
-    "/vendor/etc/init"
+    "/vendor/etc/init",
+    "cust.rc"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
