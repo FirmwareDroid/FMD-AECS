@@ -80,11 +80,11 @@
     ".art",
     ".oat",
     "/etc/vintf",
+    "/etc/init",
     "/system/bin/bootstrap/",
     "hardware.power",
     "/vendor/bin/hw/",
     "/vendor/bin/",
-    "/vendor/etc/init",
     "cust.rc"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
