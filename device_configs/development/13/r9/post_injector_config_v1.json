@@ -84,8 +84,7 @@
     "/system/bin/bootstrap/",
     "hardware.power",
     "/vendor/bin/hw/",
-    "/vendor/bin/",
-    "cust.rc"
+    "/vendor/bin/"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
