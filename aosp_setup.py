@@ -256,6 +256,8 @@ def inject_build_image_script(version: str, build_image_path:str):
     """
     aosp_path = AOSP_PATHS.get(version)
     overwrite_path = os.path.join(str(aosp_path), str(BUILD_IMAGE_SCRIPT_PATH))
+    overwrite_path = os.path.normpath(overwrite_path)
+    overwrite_path = os.path.abspath(overwrite_path)
     if not os.path.exists(overwrite_path):
         raise FileNotFoundError(f"build_image.py path: {overwrite_path} does not exist")
 
