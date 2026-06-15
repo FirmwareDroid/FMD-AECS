@@ -101,16 +101,19 @@ def get_signing_key_from_module(android_apk_file_path, firmware_id, cookies):
     else:
         logging.warning(f"Android.mk/Android.bp Module not found: {module_name} path {android_mk_file_path}."
                         f"File {android_apk_file_path} - fallback to FMD API.")
-        shared_user_id = get_shared_user_from_manifest(firmware_id, android_apk_file_path, cookies)
-        if shared_user_id in POST_INJECTOR_CONFIG["SHARED_USER_ID_MAPPING_DICT"].values():
-            logging.debug(f"Shared User ID from FMD API for {android_apk_file_path}: {shared_user_id}")
-            for key, value in POST_INJECTOR_CONFIG["SHARED_USER_ID_MAPPING_DICT"].items():
-                if value == shared_user_id:
-                    signing_key = key
-                    return signing_key.lower()
+        if cookies:
+            shared_user_id = get_shared_user_from_manifest(firmware_id, android_apk_file_path, cookies)
+            if shared_user_id in POST_INJECTOR_CONFIG["SHARED_USER_ID_MAPPING_DICT"].values():
+                logging.debug(f"Shared User ID from FMD API for {android_apk_file_path}: {shared_user_id}")
+                for key, value in POST_INJECTOR_CONFIG["SHARED_USER_ID_MAPPING_DICT"].items():
+                    if value == shared_user_id:
+                        signing_key = key
+                        return signing_key.lower()
+            else:
+                logging.error(f"APK SIGNING ERROR: Shared User ID not found or not mapped for {android_apk_file_path}: {shared_user_id}. "
+                             f"Fallback to default signing key 'platform'.")
         else:
-            logging.error(f"APK SIGNING ERROR: Shared User ID not found or not mapped for {android_apk_file_path}: {shared_user_id}. "
-                         f"Fallback to default signing key 'platform'.")
+            logging.error(f"APK SIGNING ERROR: No cookies provided for fetching manifest for {android_apk_file_path}. ")
     return "platform"
 
 

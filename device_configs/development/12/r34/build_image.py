@@ -882,12 +882,36 @@ def GlobalDictFromImageProp(image_prop, mount_point):
     copy_prop("partition_size", "system_ext_size")
   return d
 
-def create_fmd_symlink():
-  try:
-    print("Python Execute FMD Injection")
-####### FMD INJECTION MARKER #######
-  except Exception as e:
-    print(e)
+
+def run_script_to_file(partition):
+  script_path = "/home/ubuntu/FMD-AECS/aosp_post_build_injector.py"
+  output_filename = f"/home/ubuntu/FMD-AECS/out/post_injector_out_{partition}.log"
+  python_path = "/home/ubuntu/FMD-AECS/venv/bin/python3"
+
+  # 1. Copy the current system environment safely
+  current_env = os.environ.copy()
+  with open(output_filename, "w", encoding="utf-8") as f:
+    try:
+      command = [
+        python_path,
+        script_path,
+        "--use-file-config",
+        "--partition-list",
+        partition,
+      ]
+      subprocess.run(
+        command,
+        stdout=f,
+        stderr=subprocess.STDOUT,
+        check=True,
+        env=current_env,
+      )
+      print(
+        f"Success! Output successfully written to {output_filename}"
+      )
+    except subprocess.CalledProcessError as e:
+      print(f"Script failed with exit code {e.returncode}. Check {output_filename}")
+      sys.exit(1)
 
 
 def main(argv):
@@ -912,26 +936,35 @@ def main(argv):
     mount_point = ""
     if image_filename == "system.img":
       mount_point = "system"
+      run_script_to_file(mount_point)
     elif image_filename == "system_other.img":
       mount_point = "system_other"
+      run_script_to_file(mount_point)
     elif image_filename == "userdata.img":
       mount_point = "data"
     elif image_filename == "cache.img":
       mount_point = "cache"
     elif image_filename == "vendor.img":
       mount_point = "vendor"
+      run_script_to_file(mount_point)
     elif image_filename == "odm.img":
       mount_point = "odm"
+      run_script_to_file(mount_point)
     elif image_filename == "vendor_dlkm.img":
       mount_point = "vendor_dlkm"
     elif image_filename == "odm_dlkm.img":
       mount_point = "odm_dlkm"
+    elif image_filename == "system_dlkm.img":
+      mount_point = "system_dlkm"
     elif image_filename == "oem.img":
       mount_point = "oem"
+      run_script_to_file(mount_point)
     elif image_filename == "product.img":
       mount_point = "product"
+      run_script_to_file(mount_point)
     elif image_filename == "system_ext.img":
       mount_point = "system_ext"
+      run_script_to_file(mount_point)
     else:
       logger.error("Unknown image file name %s", image_filename)
       sys.exit(1)
@@ -939,7 +972,6 @@ def main(argv):
     image_properties = ImagePropFromGlobalDict(glob_dict, mount_point)
 
   try:
-    create_fmd_symlink()
     BuildImage(in_dir, image_properties, out_file, target_out)
   except:
     logger.error("Failed to build %s from %s", out_file, in_dir)

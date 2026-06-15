@@ -2101,8 +2101,6 @@ def main():
 
     fmd_password = os.getenv('FMD_PASSWORD')
     fmd_username = os.getenv("FMD_USERNAME") or args.fmd_username
-    if not fmd_password or not fmd_username:
-        raise RuntimeError(f"Please enter your FMD username/password ({args.fmd_username}): ")
     if not source_folder_path.endswith("/"):
         source_folder_path += "/"
     if not target_out_path.endswith("/"):
@@ -2120,11 +2118,14 @@ def main():
     logging.info(f"Post Injector Config: {post_injector_config_path}")
     pre_injector_config, post_injector_config = load_configs(pre_injector_config_path, post_injector_config_path)
 
-    fmd_username = args.fmd_username
-    fmd_url = post_injector_config["FMD_URL"]
-    graphql_url = post_injector_config["GRAPHQL_API_URL"]
-    csrf_cookie = get_csrf_token(fmd_url)
-    fmd_cookies = authenticate_fmd(graphql_url, fmd_username, fmd_password, csrf_cookie)
+    if fmd_username and fmd_password:
+        fmd_url = post_injector_config["FMD_URL"]
+        graphql_url = post_injector_config["GRAPHQL_API_URL"]
+        csrf_cookie = get_csrf_token(fmd_url)
+        fmd_cookies = authenticate_fmd(graphql_url, fmd_username, fmd_password, csrf_cookie)
+    else:
+        logging.warning("No FMD username or FMD password provided. APK signing might fail")
+        fmd_cookies = None
 
     start_post_build_injector(aosp_path=aosp_path,
                               source_folder_path=source_folder_path,

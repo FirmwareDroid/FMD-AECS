@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 import re
 import argparse
@@ -15,6 +16,8 @@ AOSP_PATHS = {
     "15": "~/aosp2/aosp15",
     "16": "~/aosp2/aosp16",
 }
+
+BUILD_IMAGE_SCRIPT_PATH = "./build/make/tools/releasetools/build_image.py"
 
 
 def run_command(cmd: str, cwd: Optional[str] = None, dry_run: bool = False, verbose: bool = False):
@@ -246,7 +249,21 @@ def add_build_properties(version: str, base_path: str, dry_run: bool = False, ve
         modify_file(target_path, "", append_block, append=True, dry_run=dry_run, verbose=verbose)
 
 
+def inject_build_image_script(version: str, build_image_path:str):
 
+    """
+    Overwrites the AOSP build_image.py script with a custom version that starts the post-injector build.
+    """
+    aosp_path = AOSP_PATHS.get(version)
+    overwrite_path = os.path.join(str(aosp_path), str(BUILD_IMAGE_SCRIPT_PATH))
+    if not os.path.exists(overwrite_path):
+        raise FileNotFoundError(f"build_image.py path: {overwrite_path} does not exist")
+
+    try:
+        shutil.copyfile(build_image_path, overwrite_path)
+        logging.info(f"Successfully injected custom build_image.py into {overwrite_path}")
+    except Exception as e:
+        logging.error(f"Error injecting build_image.py: {e}")
 
 
 def disable_platform_tests(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
@@ -455,6 +472,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "-p", "--path",
         help="Path to the AOSP repository base. If provided, this overrides the internal AOSP_PATHS mapping for the selected version.")
+    parser.add_argument("-b", "--build-image-script-path", default=None, help="Path to the custom build_image.py script to inject", required=True)
     # The script is intended to run all steps; skipping individual steps was removed.
     parser.add_argument("--dry-run", action="store_true", help="Print actions without making changes")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
@@ -481,6 +499,10 @@ def main(args: argparse.Namespace):
         if not os.path.exists(full_path):
             logging.error('Path for version %s does not exist: %s', ver, full_path)
             return
+
+    build_image_path = args.build_image_script_path
+    if not os.path.exists(build_image_path):
+        raise FileNotFoundError(f"Provided build_image.py path does not exist: {build_image_path}")
 
     logging.info('=== Customizing AOSP %s at %s ===', ver, path)
     # Ensure apksigner available (warn if not). Respect dry-run.
@@ -551,6 +573,9 @@ def main(args: argparse.Namespace):
     disable_eyedropper(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
     disable_zygote_onrestart(full_path, dry_run=args.dry_run, verbose=args.verbose)
     #disable_dex_preopt(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
+
+    inject_build_image_script(ver, build_image_path)
+    
 
 
 if __name__ == "__main__":

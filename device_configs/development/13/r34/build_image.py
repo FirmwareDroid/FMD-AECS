@@ -1,5 +1,3 @@
-# ./build/make/tools/releasetools/build_image.py
-
 #!/usr/bin/env python
 #
 # Copyright (C) 2011 The Android Open Source Project
@@ -32,8 +30,9 @@ import os
 import os.path
 import re
 import shutil
-import sys
 import subprocess
+import sys
+
 import common
 import verity_utils
 
@@ -785,35 +784,6 @@ def LoadGlobalDict(filename):
   f.close()
   return d
 
-
-def GlobalDictFromImageProp(image_prop, mount_point):
-  d = {}
-  def copy_prop(src_p, dest_p):
-    if src_p in image_prop:
-      d[dest_p] = image_prop[src_p]
-      return True
-    return False
-
-  if mount_point == "system":
-    copy_prop("partition_size", "system_size")
-  elif mount_point == "system_other":
-    copy_prop("partition_size", "system_other_size")
-  elif mount_point == "vendor":
-    copy_prop("partition_size", "vendor_size")
-  elif mount_point == "odm":
-    copy_prop("partition_size", "odm_size")
-  elif mount_point == "vendor_dlkm":
-    copy_prop("partition_size", "vendor_dlkm_size")
-  elif mount_point == "odm_dlkm":
-    copy_prop("partition_size", "odm_dlkm_size")
-  elif mount_point == "system_dlkm":
-    copy_prop("partition_size", "system_dlkm_size")
-  elif mount_point == "product":
-    copy_prop("partition_size", "product_size")
-  elif mount_point == "system_ext":
-    copy_prop("partition_size", "system_ext_size")
-  return d
-
 def run_script_to_file(partition):
     script_path = "/home/ubuntu/FMD-AECS/aosp_post_build_injector.py"
     output_filename = f"/home/ubuntu/FMD-AECS/out/post_injector_out_{partition}.log"
@@ -844,8 +814,34 @@ def run_script_to_file(partition):
             print(f"Script failed with exit code {e.returncode}. Check {output_filename}")
             sys.exit(1)
 
-# import sys
-# import subprocess
+def GlobalDictFromImageProp(image_prop, mount_point):
+  d = {}
+  def copy_prop(src_p, dest_p):
+    if src_p in image_prop:
+      d[dest_p] = image_prop[src_p]
+      return True
+    return False
+
+  if mount_point == "system":
+    copy_prop("partition_size", "system_size")
+  elif mount_point == "system_other":
+    copy_prop("partition_size", "system_other_size")
+  elif mount_point == "vendor":
+    copy_prop("partition_size", "vendor_size")
+  elif mount_point == "odm":
+    copy_prop("partition_size", "odm_size")
+  elif mount_point == "vendor_dlkm":
+    copy_prop("partition_size", "vendor_dlkm_size")
+  elif mount_point == "odm_dlkm":
+    copy_prop("partition_size", "odm_dlkm_size")
+  elif mount_point == "system_dlkm":
+    copy_prop("partition_size", "system_dlkm_size")
+  elif mount_point == "product":
+    copy_prop("partition_size", "product_size")
+  elif mount_point == "system_ext":
+    copy_prop("partition_size", "system_ext_size")
+  return d
+
 
 def main(argv):
   if len(argv) != 4:
