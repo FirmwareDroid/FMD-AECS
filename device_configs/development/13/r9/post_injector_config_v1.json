@@ -79,12 +79,7 @@
     ".odex",
     ".art",
     ".oat",
-    "/etc/vintf",
-    "/etc/init",
-    "/system/bin/bootstrap/",
-    "hardware.power",
-    "/vendor/bin/hw/",
-    "/vendor/bin/"
+    "/etc/vintf"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
@@ -167,7 +162,7 @@
     "/system/etc/appmanager.conf",
     "/system/etc/boot-image.bprof",
     "/system/etc/boot-image.prof",
-        "/vendor/lib64/soundfx/",
+    "/vendor/lib64/soundfx/",
     "/vendor/lib64/libprotobuf-cpp-full-3.9.1.so",
     "/vendor/lib64/librilutils.so",
     "/vendor/lib64/libeffects.so",
