@@ -874,10 +874,9 @@ def start_tcpdump() -> bool:
     logging.info('Selected target adb device: %s', serial)
 
     # 2. Privileges & Firewall Setup
-    _ensure_adb_root(serial)
-
-    ipt_cmd = 'iptables -t mangle -C OUTPUT -j NFLOG --nflog-group 1 2>/dev/null || iptables -t mangle -I OUTPUT 1 -j NFLOG --nflog-group 1'
     try:
+        _ensure_adb_root(serial)
+        ipt_cmd = 'iptables -t mangle -C OUTPUT -j NFLOG --nflog-group 1 2>/dev/null || iptables -t mangle -I OUTPUT 1 -j NFLOG --nflog-group 1'
         subprocess.run(['adb', '-s', serial, 'shell', ipt_cmd], capture_output=True, text=True, timeout=10)
         logging.info('Verified/Installed iptables NFLOG rule')
     except Exception:

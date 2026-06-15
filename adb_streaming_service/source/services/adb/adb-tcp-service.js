@@ -954,6 +954,48 @@ class AdbTcpService {
 		return result;
 	}
 
+	async startScrcpyWithRetry(
+		deviceAdb,
+		serverPathForDevice,
+		options,
+		maxAttempts=20,
+		baseDelayMs=3000,
+	) {
+		let lastError;
+
+		for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+			try {
+				logger.info(`scrcpy start attempt ${attempt}/${maxAttempts}`);
+
+				const client = await AdbScrcpyClient.start(
+					deviceAdb,
+					serverPathForDevice,
+					options,
+				);
+
+				logger.info(`scrcpy started successfully on attempt ${attempt}`);
+				return client;
+			} catch (err) {
+				lastError = err;
+
+				logger.warn(
+					`scrcpy start failed on attempt ${attempt}: ${err?.message || err}`,
+				);
+
+				// stop early if last attempt
+				if (attempt === maxAttempts) break;
+
+				// simple backoff (can be replaced with exponential if needed)
+				const delay = baseDelayMs * attempt;
+				await new Promise((r) => setTimeout(r, delay));
+			}
+		}
+
+		throw new Error(
+			`Failed to start AdbScrcpyClient after ${maxAttempts} attempts: ${lastError?.message || lastError}`,
+		);
+	}
+
 	async start(deviceAdb, user, _attempt = 0) {
 		const {
 			audio,
@@ -1149,7 +1191,12 @@ class AdbTcpService {
 				},
 				'Starting scrcpy client',
 			);
-			const client = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, options);
+			//const client = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, options);
+			const client = await startScrcpyWithRetry(
+				deviceAdb,
+				serverPathForDevice,
+				options
+			);
 
 			// richer logging / validation: class instances often stringify to {} — inspect prototype/methods and hidden properties
 			try {
@@ -1212,7 +1259,13 @@ class AdbTcpService {
 								const optionsDefault = new AdbScrcpyOptions2_1(initDefaultAudio, { version: VERSION });
 								logger.info('Retrying scrcpy start with default audio source (unset audioSource)');
 								const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
-								const clientDefault = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsDefault);
+								const client = await startScrcpyWithRetry(
+									deviceAdb,
+									serverPathForDevice,
+									optionsDefault
+								);
+								//const clientDefault = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsDefault);
+
 								const hasCloseDefault = clientDefault && typeof clientDefault.close === 'function';
 								const hasOutputDefault = clientDefault && clientDefault.output;
 								if (clientDefault && hasCloseDefault && hasOutputDefault) {
@@ -1235,7 +1288,12 @@ class AdbTcpService {
 								const optionsRaw = new AdbScrcpyOptions2_1(initRaw, { version: VERSION });
 								logger.info('Retrying scrcpy start with raw audio (audioCodec=raw)');
 								const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
-								const clientRaw = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsRaw);
+								const client = await startScrcpyWithRetry(
+									deviceAdb,
+									serverPathForDevice,
+									optionsRaw
+								);
+								//const clientRaw = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsRaw);
 								const hasCloseRaw = clientRaw && typeof clientRaw.close === 'function';
 								const hasOutputRaw = clientRaw && clientRaw.output;
 								if (clientRaw && hasCloseRaw && hasOutputRaw) {
@@ -1258,7 +1316,12 @@ class AdbTcpService {
 								const optionsNoAudio = new AdbScrcpyOptions2_1(initNoAudio, { version: VERSION });
 								logger.info('Retrying scrcpy start with options (audio disabled)');
 								const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
-								const client2 = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsNoAudio);
+								const client2 = await startScrcpyWithRetry(
+									deviceAdb,
+									serverPathForDevice,
+									optionsNoAudio
+								);
+								//const client2 = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, optionsNoAudio);
 								// basic validation
 								const hasClose2 = client2 && typeof client2.close === 'function';
 								const hasOutput2 = client2 && client2.output;

@@ -145,6 +145,15 @@ def push_jar(serial: str, local_path: str, remote_path: str) -> bool:
 
     if exists:
         logger.info("Remote jar already present on %s: %s (existence-only check)", serial, remote_path)
+        return True
+
+    logger.info("Pushing %s -> %s (device=%s)", local_path, remote_path, serial)
+    cp = run_adb(["-s", serial, "push", local_path, remote_path], timeout=120)
+    if cp.returncode != 0:
+        logger.error("adb push failed for %s: rc=%s stderr=%s", serial, cp.returncode, cp.stderr.strip())
+        return False
+    else:
+        logger.info("Remote jar already present on %s: %s (existence-only check)", serial, remote_path)
         # Ensure the remote jar is executable so it can be launched via app_process
         try:
             cp_chmod = run_adb(["-s", serial, "shell", "chmod", "+x", remote_path], timeout=8)
@@ -153,15 +162,10 @@ def push_jar(serial: str, local_path: str, remote_path: str) -> bool:
             else:
                 logger.warning("Failed to set executable permissions on %s for device %s: rc=%s stderr=%s",
                                remote_path, serial, cp_chmod.returncode, (cp_chmod.stderr or '').strip())
+            return True
         except AdbError as e:
             logger.warning("chmod via adb failed for %s on device %s: %s", remote_path, serial, e)
-        return True
 
-    logger.info("Pushing %s -> %s (device=%s)", local_path, remote_path, serial)
-    cp = run_adb(["-s", serial, "push", local_path, remote_path], timeout=120)
-    if cp.returncode != 0:
-        logger.error("adb push failed for %s: rc=%s stderr=%s", serial, cp.returncode, cp.stderr.strip())
-        return False
     # verify existence after push
     exists2, size2, _ = remote_file_info(serial, remote_path)
     if exists2:
