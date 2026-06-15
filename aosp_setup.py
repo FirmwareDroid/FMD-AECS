@@ -249,15 +249,19 @@ def add_build_properties(version: str, base_path: str, dry_run: bool = False, ve
         modify_file(target_path, "", append_block, append=True, dry_run=dry_run, verbose=verbose)
 
 
-def inject_build_image_script(version: str, build_image_path:str):
-
+def inject_build_image_script(version: str, build_image_path: str):
     """
     Overwrites the AOSP build_image.py script with a custom version that starts the post-injector build.
     """
     aosp_path = AOSP_PATHS.get(version)
+    if not aosp_path:
+        raise ValueError(f"AOSP version '{version}' is not configured in AOSP_PATHS.")
+
     overwrite_path = os.path.join(str(aosp_path), str(BUILD_IMAGE_SCRIPT_PATH))
+    overwrite_path = os.path.expanduser(overwrite_path)
     overwrite_path = os.path.normpath(overwrite_path)
     overwrite_path = os.path.abspath(overwrite_path)
+
     if not os.path.exists(overwrite_path):
         raise FileNotFoundError(f"build_image.py path: {overwrite_path} does not exist")
 
@@ -266,6 +270,7 @@ def inject_build_image_script(version: str, build_image_path:str):
         logging.info(f"Successfully injected custom build_image.py into {overwrite_path}")
     except Exception as e:
         logging.error(f"Error injecting build_image.py: {e}")
+        raise  # Re-raise exception so the script knows it failed
 
 
 def disable_platform_tests(version: str, base_path: str, dry_run: bool = False, verbose: bool = False):
