@@ -873,6 +873,59 @@ def start_tcpdump() -> bool:
         return False
     logging.info('Selected target adb device: %s', serial)
 
+    # Check if TCPDump is not already started
+    try:
+        _ensure_adb_root(serial)
+
+        # 'ps -A' covers newer Android versions, falling back to standard 'ps' for older ones.
+        # We look for tcpdump commands targeting nflog:1 while ignoring our own grep command.
+        ps_cmd = 'ps -A 2>/dev/null || ps'
+        grep_cmd = f'{ps_cmd} | grep "[t]cpdump.*nflog:1"'
+
+        _ensure_adb_root(serial)
+        check_proc = subprocess.run(
+            ['adb', '-s', serial, 'shell', grep_cmd],
+            capture_output=True, text=True, timeout=10
+        )
+
+        # If grep found a matching line
+        if check_proc.returncode == 0 and check_proc.stdout.strip():
+            ps_line = check_proc.stdout.strip().splitlines()[0]
+
+            # Split the ps line to find the PID (usually the 2nd column)
+            # Example ps output: root      12345 1     4524   1200  sys_epoll_ b7ee0000 s tcpdump
+            parts = ps_line.split()
+            if len(parts) >= 2:
+                # Android 'ps' puts PID in the second column. Let's verify it's a number.
+                live_pid = parts[1] if parts[1].isdigit() else parts[2]  # Fallback just in case of weird columns
+
+                if live_pid.isdigit():
+                    logging.info('Live check: tcpdump is actively running on device %s (PID: %s).', serial, live_pid)
+
+                    # Cross-reference with the local PID file
+                    pid_file_matches = False
+                    if os.path.exists(PID_FILE_PATH):
+                        try:
+                            with open(PID_FILE_PATH, 'r', encoding='utf-8') as f:
+                                lines = [line.strip() for line in f.readlines() if line.strip()]
+                                if len(lines) >= 2 and lines[0] == serial and lines[1] == live_pid:
+                                    pid_file_matches = True
+                        except Exception:
+                            logging.warning('PID file existed but was unreadable.')
+
+                    if pid_file_matches:
+                        logging.info('Local tracking file matches live device state. Resuming safely.')
+                    else:
+                        logging.warning('Tracking file missing or out-of-sync. Re-aligning local PID file.')
+                        os.makedirs(OUT_DIR, exist_ok=True)
+                        with open(PID_FILE_PATH, 'w', encoding='utf-8') as f:
+                            f.write(f"{serial}\n{live_pid}\n")
+
+                    return True  # Exit early and leave the running capture alone
+
+    except Exception:
+        logging.exception('Error during early ADB device process check; defaulting to clean setup.')
+
     # 2. Privileges & Firewall Setup
     try:
         _ensure_adb_root(serial)
