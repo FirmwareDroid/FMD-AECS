@@ -895,8 +895,7 @@ def run_script_to_file(partition):
     # 1. Copy the current system environment safely
     current_env = os.environ.copy()
 
-    # Using io.open ensures 'encoding' works seamlessly in older Python versions (including 2.7)
-    with open(output_filename, "w", encoding="utf-8") as f:
+    with open(output_filename, "w") as f:
         try:
             command = [
                 python_path,
