@@ -1124,8 +1124,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     logging.info(f"APEX Vendor: {merged_apex_extract_dir_path} | dst: {dst_file_path}")
                     if (os.path.exists(file_path)
                             and os.path.isfile(file_path)
-                            and dst_file_path.startswith(merged_apex_extract_dir_path)
-                            and dst_file_path.startswith("/tmp")):
+                            and dst_file_path.startswith(merged_apex_extract_dir_path)):
                         dir_path = os.path.dirname(dst_file_path)
                         command = (f'mkdir -p {dir_path} '
                                    f'&& cp -f {file_path} {dst_file_path} '
@@ -1145,7 +1144,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                                 copy_file_to_intermediate_symbols_folder(aosp_path, apex_emulator_folder, file_path, merged_apex_extract_dir_path, apex_vendor_extract_dir_path)
                             files_coped_list.append(dst_file_path)
                     else:
-                        logging.error(f"Incorrect copy path for APEX file: src: {file_path} dst: {dst_file_path}")
+                        logging.error(f"Incorrect copy path for APEX file: src: {file_path} (not existing) dst: {dst_file_path}\n")
                 except FileNotFoundError as e:
                     logging.error(f"APEX: File not found: {e.filename}")
                 except PermissionError as e:
