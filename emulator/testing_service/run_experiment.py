@@ -899,6 +899,7 @@ def start_tcpdump() -> bool:
     )
 
     try:
+        _ensure_adb_root(serial)
         res = subprocess.run(['adb', '-s', serial, 'shell', start_cmd], capture_output=True, text=True, timeout=15)
         if res.returncode != 0:
             logging.error('ADB rejected background pipeline command: %s', (res.stderr or res.stdout).strip())

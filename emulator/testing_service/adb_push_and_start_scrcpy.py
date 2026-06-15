@@ -123,7 +123,7 @@ def remote_file_info(serial: str, remote_path: str):
         # We only care about existence. If ls -l produced output, assume file exists.
         return True, None, remote_path
     except AdbError as e:
-        logger.debug("remote_file_info adb error for %s: %s", serial, e)
+        logger.error("remote_file_info adb error for %s: %s", serial, e)
         return None, None, None
 
 
@@ -319,7 +319,7 @@ def main_loop(local_jar: str, remote_path: str, interval: float, once: bool = Fa
             for s in serials:
                 try:
                     # Only ensure the JAR is present on the device; do not start the server
-                    os.chmod(remote_path, 0o755)
+                    os.chmod(local_jar, 0o755)
                     ensure_adbd_root(s, timeout=30)
                     ok = ensure_server_on_device(s, local_jar, remote_path)
                     if ok and start_server_flag:
