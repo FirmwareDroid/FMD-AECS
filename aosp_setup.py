@@ -249,11 +249,15 @@ def add_build_properties(version: str, base_path: str, dry_run: bool = False, ve
         modify_file(target_path, "", append_block, append=True, dry_run=dry_run, verbose=verbose)
 
 
-def inject_build_image_script(version: str, build_image_path: str):
+def inject_build_image_script(version: str, build_image_path: str, full_path: str):
     """
     Overwrites the AOSP build_image.py script with a custom version that starts the post-injector build.
     """
-    aosp_path = AOSP_PATHS.get(version)
+    if full_path:
+        aosp_path = full_path
+    else:
+        aosp_path = AOSP_PATHS.get(version)
+
     if not aosp_path:
         raise ValueError(f"AOSP version '{version}' is not configured in AOSP_PATHS.")
 
@@ -581,7 +585,7 @@ def main(args: argparse.Namespace):
     disable_zygote_onrestart(full_path, dry_run=args.dry_run, verbose=args.verbose)
     #disable_dex_preopt(ver, full_path, dry_run=args.dry_run, verbose=args.verbose)
 
-    inject_build_image_script(ver, build_image_path)
+    inject_build_image_script(ver, build_image_path, full_path)
     
 
 
