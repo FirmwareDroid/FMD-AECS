@@ -296,7 +296,6 @@
     "/lib64/libshmemutil.so",
     "/lib64/liblayers_proto.so",
     "/lib64/libsensorservice.so",
-    "/lib64/libfs_mgr.so",
     "/lib64/libpdfium.so",
     "/lib64/libdowncast_rs.dylib.so",
     "/lib64/libryu.dylib.so",
@@ -332,7 +331,7 @@
     "/lib64/libheif.so",
     "/lib64/libbacktrace.so",
     "/lib64/libbrillo.so",
-    "lib64/libsparse.so",
+    "/lib64/libsparse.so",
     "/lib64/liblogwrap.so",
     "/lib64/libdrmframework.so",
     "/lib64/libmediautils_delayed.so",
@@ -345,7 +344,6 @@
     "/lib64/libhwbinder.so",
     "/lib64/libmemunreachable.so",
     "/lib64/libmedia_codeclist.so",
-    "/lib64/libdmabufheap.so",
     "/lib64/libfs_mgr_binder.so",
     "/lib64/libidmap2.so",
     "/lib64/libcrc32fast.dylib.so",
@@ -426,7 +424,10 @@
     "/lib64/libsoft_attestation_cert.so",
     "/lib64/liblazy_static.dylib.so",
     "/lib64/libbcinfo.so",
-    "/lib64/libhidltransport.so"
+    "/lib64/libhidltransport.so",
+    "etc/task_profiles.json",
+    "/system/init/init.rc",
+    "android.hardware.graphics.common-V3-ndk_platform.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
@@ -971,6 +972,7 @@
     "wireguard_fmd": "./toolbox/wireguard_app",
     "acv_test_fmd": "./toolbox/acv_app_test"
   },
-  "TOOLBOX_AOSP_PACKAGES": ["curl", "toybox"],
-  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r450784d/runtimes_ndk_cxx/aarch64/lldb-server"
+  "TOOLBOX_AOSP_PACKAGES": ["curl", "toybox", "setcap", "getcap"],
+  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r450784d/runtimes_ndk_cxx/aarch64/lldb-server",
+  "ENABLE_RC_MERGER": true
 }
