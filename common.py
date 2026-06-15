@@ -221,4 +221,27 @@ def get_md5_from_file(file_path):
     return digest.hexdigest()
 
 
+def check_binary_architecture(binary_path):
+    """
+    Check if a binary is compiled for 32-bit or 64-bit.
 
+    :param binary_path: str - path to the binary file.
+    :return: str - '32-bit' or '64-bit' based on the binary architecture.
+    """
+    try:
+        with open(binary_path, 'rb') as f:
+            # Read the first 5 bytes of the file
+            header = f.read(5)
+            if len(header) < 5:
+                return 'Unknown architecture'
+
+            # Check the magic number and class
+            if header[:4] == b'\x7fELF':
+                ei_class = header[4]
+                if ei_class == 1:
+                    return '32-bit'
+                elif ei_class == 2:
+                    return '64-bit'
+            return 'Unknown architecture'
+    except Exception as e:
+        return f"Error determining architecture: {str(e)}"

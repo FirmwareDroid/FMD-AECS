@@ -1,6 +1,7 @@
 import logging
 import os
-from common import is_elf_binary
+from common import is_elf_binary, check_binary_architecture
+
 POST_INJECTOR_CONFIG = None
 
 
@@ -243,6 +244,10 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
         logging.info(f"File {source_file_path} contains a keyword from NEVERALLOW_FILE_INJECT list, marking it as SKIPPED regardless of other settings.")
         module_type = "SKIPPED"
 
+    if module_type in ["EXECUTABLE"]:
+        if not check_binary_architecture(source_file_path) == "64-bit":
+            logging.info(f"Skipping incompatible Binary (likely 32-bit Architecture): {source_file_path}")
+            module_type = "SKIPPED"
 
     if "_apex" in source_file_path:
         module_type = "SKIPPED"

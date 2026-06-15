@@ -27,7 +27,7 @@ from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, 
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
-    check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file
+    check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file, check_binary_architecture
 from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, \
     MEASURE_LOOKUP_PERFORMANCE, EXTRACTION_ALL_FILES_PATH
 from config_post_injector import *
@@ -1360,30 +1360,7 @@ def scandir_walk(dir_path):
         yield from scandir_walk(new_path)
 
 
-def check_binary_architecture(binary_path):
-    """
-    Check if a binary is compiled for 32-bit or 64-bit.
 
-    :param binary_path: str - path to the binary file.
-    :return: str - '32-bit' or '64-bit' based on the binary architecture.
-    """
-    try:
-        with open(binary_path, 'rb') as f:
-            # Read the first 5 bytes of the file
-            header = f.read(5)
-            if len(header) < 5:
-                return 'Unknown architecture'
-
-            # Check the magic number and class
-            if header[:4] == b'\x7fELF':
-                ei_class = header[4]
-                if ei_class == 1:
-                    return '32-bit'
-                elif ei_class == 2:
-                    return '64-bit'
-            return 'Unknown architecture'
-    except Exception as e:
-        return f"Error determining architecture: {str(e)}"
 
 
 def is_abi_compatible(candidate_path, file_path):

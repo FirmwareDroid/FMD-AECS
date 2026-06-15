@@ -439,7 +439,13 @@
     "/lib64/libsensor",
     "/lib64/libmedia",
     "/lib64/librelight",
-    "/lib64/android.hardware.light"
+    "/lib64/android.hardware.light",
+    "/lib64/android.hardware.ir",
+    "/lib64/android.hardware.boot",
+    "/lib64/android.hardware.media",
+    "/lib64/av-types-aidl-cpp.so",
+    "/lib64/libstagefright",
+    "/lib64/libfmq.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
