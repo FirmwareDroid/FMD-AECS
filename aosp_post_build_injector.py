@@ -1062,7 +1062,7 @@ def indirect_injection(target_file_injection_path,
     else:
         is_injected = False
         error_message = f"Original file not found for indirect injection: {file_path} | {file_name}"
-        logging.error(error_message)
+        logging.warning(error_message)
         inj_obj = (error_message, None, module_type)
 
     # record timing
@@ -1860,7 +1860,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
         else:
             # Fîle should not already exist, but if it does, we overwrite it, but it is not recommended.
             is_injected = False
-            logging.error(f"File overwrite: {source_file_path} into {target_file_injection_path}. "
+            logging.warning(f"File overwrite: {source_file_path} into {target_file_injection_path}. "
                           f"This overwrite is likely to be reverted by the AOSP build system. Thus, nothing is injected. "
                           f"Adjust your injection policy to handle this case.")
     else:

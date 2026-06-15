@@ -79,7 +79,8 @@
     ".odex",
     ".art",
     ".oat",
-    "/etc/vintf"
+    "/etc/vintf",
+    "libadbd"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
@@ -427,7 +428,15 @@
     "/lib64/libhidltransport.so",
     "etc/task_profiles.json",
     "/system/init/init.rc",
-    "android.hardware.graphics.common-V3-ndk_platform.so"
+    "android.hardware.graphics.common-V3-ndk_platform.so",
+    "/lib64/libmi",
+    "/lib64/libandroid",
+    "/lib64/libinput",
+    "/lib64/libandroid_runtime",
+    "/lib64/libprocessgroup",
+    "/lib64/libaudio",
+    "/lib64/libsensor",
+    "/lib64/libmedia"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
