@@ -218,7 +218,8 @@ def add_build_properties(version: str, base_path: str, dry_run: bool = False, ve
         "TARGET_SUPPORTS_64_BIT_APPS := true\n"
         "PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions?=log\n"
         "MODULE_BUILD_FROM_SOURCE := true\n"
-        "PRODUCT_PROPERTY_OVERRIDES += ro.sf.lcd_density=240\n"
+        "PRODUCT_PROPERTY_OVERRIDES += ro.sf.lcd_density=240\n",
+        "BUILD_BROKEN_SRC_DIR_IS_WRITABLE := true"  # Android 14 and above only
     )
 
     for t in targets:
