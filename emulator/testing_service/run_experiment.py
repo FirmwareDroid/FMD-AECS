@@ -927,13 +927,45 @@ def start_tcpdump() -> bool:
         logging.exception('Error during early ADB device process check; defaulting to clean setup.')
 
     # 2. Privileges & Firewall Setup
-    try:
-        _ensure_adb_root(serial)
-        ipt_cmd = 'iptables -t mangle -C OUTPUT -j NFLOG --nflog-group 1 2>/dev/null || iptables -t mangle -I OUTPUT 1 -j NFLOG --nflog-group 1'
-        subprocess.run(['adb', '-s', serial, 'shell', ipt_cmd], capture_output=True, text=True, timeout=10)
-        logging.info('Verified/Installed iptables NFLOG rule')
-    except Exception:
-        logging.exception('Failed to apply iptables NFLOG rule')
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        try:
+            _ensure_adb_root(serial)
+
+            # Optimized with explicit su root and thresholds for stability
+            ipt_cmd = (
+                'su root sh -c "'
+                'iptables -t mangle -C OUTPUT -j NFLOG --nflog-group 1 2>/dev/null || '
+                'iptables -t mangle -I OUTPUT 1 -j NFLOG --nflog-group 1 --nflog-threshold 10'
+                '"'
+            )
+
+            res = subprocess.run(
+                ['adb', '-s', serial, 'shell', ipt_cmd],
+                capture_output=True, text=True, timeout=10
+            )
+
+            # Check if iptables command actually succeeded on the device
+            if res.returncode == 0:
+                logging.info('Verified/Installed iptables NFLOG rule on attempt %d/%d', attempt, max_attempts)
+                break  # Success! Break out of the retry loop.
+            else:
+                error_msg = (res.stderr or res.stdout).strip()
+                logging.warning(
+                    'Attempt %d/%d failed. iptables exited with code %d. Error: %s',
+                    attempt, max_attempts, res.returncode, error_msg
+                )
+
+        except Exception as e:
+            logging.warning('Attempt %d/%d raised an exception: %s', attempt, max_attempts, str(e))
+
+        # If we haven't broken out of the loop and this wasn't the last attempt, wait before retrying
+        if attempt < max_attempts:
+            time.sleep(1.5)  # Short cooling-off period before retrying
+    else:
+        # This block executes ONLY if the loop finishes normally without hitting the 'break' statement
+        logging.error('Failed to apply iptables NFLOG rule after %d attempts.', max_attempts)
+        return False
 
     # 3. Clean up any residual tracking artifacts
     if os.path.exists(PID_FILE_PATH):
@@ -945,11 +977,11 @@ def start_tcpdump() -> bool:
     # 4. Fire up tcpdump in the background safely
     remote_workdir = '/data/local/tmp'
     # We remove the old pcap first to guarantee our validation loop checks fresh data
+    # 4. Fire up tcpdump in the background safely
     start_cmd = (
         f"rm -f {REMOTE_PCAP_PATH} && mkdir -p {remote_workdir} && cd {remote_workdir} && "
-        f"nohup tcpdump -i nflog:1 -w {REMOTE_PCAP_PATH} > nohup.out 2>&1 & echo $!"
+        f"su root sh -c 'nohup tcpdump -i nflog:1 -w {REMOTE_PCAP_PATH} > nohup.out 2>&1 & echo $!'"
     )
-
     try:
         _ensure_adb_root(serial)
         res = subprocess.run(['adb', '-s', serial, 'shell', start_cmd], capture_output=True, text=True, timeout=15)
