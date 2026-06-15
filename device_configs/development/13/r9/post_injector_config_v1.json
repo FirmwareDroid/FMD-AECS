@@ -982,6 +982,5 @@
     "acv_test_fmd": "./toolbox/acv_app_test"
   },
   "TOOLBOX_AOSP_PACKAGES": ["curl", "toybox", "setcap", "getcap"],
-  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r450784d/runtimes_ndk_cxx/aarch64/lldb-server",
   "ENABLE_RC_MERGER": true
 }

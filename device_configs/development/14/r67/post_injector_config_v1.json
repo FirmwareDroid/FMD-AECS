@@ -422,14 +422,50 @@
   "COPY_TO_SPECIFIC_PATH": {
   },
   "INDIRECT_INJECTION_FILE_MAPPING": {
-    "framework.jar": "obj/JAVA_LIBRARIES/framework-minus-apex_intermediates/javalib.jar",
-    "com.google.android.tzdata3.apex": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
-    "com.google.android.tzdata4.apex": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
-    "com.google.android.tzdata5.apex": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
-    "framework-res.apk": "obj/APPS/framework-res_intermediates/package.apk",
-    "libandroid.so": "obj/SHARED_LIBRARIES/libandroid_intermediates/libandroid.so"
+    "framework.jar": {
+      "original_path": "obj/JAVA_LIBRARIES/framework-minus-apex_intermediates/javalib.jar",
+      "injection_path": "system/framework/framework.jar"
+    },
+    "com.google.android.tzdata3.apex": {
+      "original_path": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
+      "injection_path": "system/apex/com.google.android.tzdata3.apex"
+    },
+    "com.google.android.tzdata4.apex": {
+      "original_path": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
+      "injection_path": "system/apex/com.google.android.tzdata4.apex"
+    },
+    "framework-res.apk": {
+      "original_path": "obj/APPS/framework-res_intermediates/package.apk",
+      "injection_path": "system/framework/framework-res.apk"
+    },
+    "libandroid.so": {
+      "original_path": "obj/SHARED_LIBRARIES/libandroid_intermediates/libandroid.so",
+      "injection_path": "system/lib/libandroid.so"
+    },
+    "bootclasspath.pb": {
+      "original_path": "obj/ETC/platform-bootclasspath_intermediates/platform-bootclasspath",
+      "injection_path": "system/etc/classpaths/bootclasspath.pb"
+    },
+    "systemserverclasspath.pb": {
+      "original_path": "obj/ETC/platform-systemserverclasspath_intermediates/platform-systemserverclasspath",
+      "injection_path": "system/etc/classpaths/systemserverclasspath.pb"
+    }
   },
   "DIRECT_INJECTION_TARGET_PATH_OVERWRITE": {
     "PixelWifiOverlay2021.apk": "system/priv-app/WifiOverlay/PixelWifiOverlay2021.apk"
-  }
+  },
+  "ENABLE_TOOLBOX_INJECTION": true,
+  "CA_CERTIFICATE_PATH_LIST": [
+    "./toolbox/ca_certificates/9a5ba575.0",
+    "./toolbox/ca_certificates/c8750f0d.0"
+  ],
+  "TOOLBOX_PACKAGE_DICT": {
+    "frida-server_fmd": "./toolbox/frida",
+    "fsmon_fmd": "./toolbox/fsmon",
+    "lldb-server_fmd": "./toolbox/lldb-server",
+    "wireguard_fmd": "./toolbox/wireguard_app",
+    "acv_test_fmd": "./toolbox/acv_app_test"
+  },
+  "TOOLBOX_AOSP_PACKAGES": ["curl", "toybox", "setcap", "getcap"],
+  "ENABLE_RC_MERGER": true
 }

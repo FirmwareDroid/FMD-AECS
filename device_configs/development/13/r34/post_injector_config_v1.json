@@ -585,11 +585,34 @@
   "COPY_TO_SPECIFIC_PATH": {
   },
   "INDIRECT_INJECTION_FILE_MAPPING": {
-    "framework.jar": "obj/JAVA_LIBRARIES/framework-minus-apex_intermediates/javalib.jar",
-    "com.google.android.tzdata3.apex": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
-    "com.google.android.tzdata4.apex": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
-    "framework-res.apk": "obj/APPS/framework-res_intermediates/package.apk",
-    "libandroid.so": "obj/SHARED_LIBRARIES/libandroid_intermediates/libandroid.so"
+    "framework.jar": {
+      "original_path": "obj/JAVA_LIBRARIES/framework-minus-apex_intermediates/javalib.jar",
+      "injection_path": "system/framework/framework.jar"
+    },
+    "com.google.android.tzdata3.apex": {
+      "original_path": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
+      "injection_path": "system/apex/com.google.android.tzdata3.apex"
+    },
+    "com.google.android.tzdata4.apex": {
+      "original_path": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
+      "injection_path": "system/apex/com.google.android.tzdata4.apex"
+    },
+    "framework-res.apk": {
+      "original_path": "obj/APPS/framework-res_intermediates/package.apk",
+      "injection_path": "system/framework/framework-res.apk"
+    },
+    "libandroid.so": {
+      "original_path": "obj/SHARED_LIBRARIES/libandroid_intermediates/libandroid.so",
+      "injection_path": "system/lib/libandroid.so"
+    },
+    "bootclasspath.pb": {
+      "original_path": "obj/ETC/platform-bootclasspath_intermediates/platform-bootclasspath",
+      "injection_path": "system/etc/classpaths/bootclasspath.pb"
+    },
+    "systemserverclasspath.pb": {
+      "original_path": "obj/ETC/platform-systemserverclasspath_intermediates/platform-systemserverclasspath",
+      "injection_path": "system/etc/classpaths/systemserverclasspath.pb"
+    }
   },
   "DIRECT_INJECTION_TARGET_PATH_OVERWRITE": {
     "PixelWifiOverlay2021.apk": "system/priv-app/WifiOverlay/PixelWifiOverlay2021.apk"
@@ -606,5 +629,6 @@
     "wireguard_fmd": "./toolbox/wireguard_app",
     "acv_test_fmd": "./toolbox/acv_app_test"
   },
-  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r450784d/runtimes_ndk_cxx/aarch64/lldb-server"
+  "TOOLBOX_AOSP_PACKAGES": ["curl", "toybox", "setcap", "getcap"],
+  "ENABLE_RC_MERGER": true
 }
