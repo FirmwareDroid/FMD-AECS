@@ -1192,7 +1192,7 @@ class AdbTcpService {
 				'Starting scrcpy client',
 			);
 			//const client = await AdbScrcpyClient.start(deviceAdb, serverPathForDevice, options);
-			const client = await startScrcpyWithRetry(
+			const client = await this.startScrcpyWithRetry(
 				deviceAdb,
 				serverPathForDevice,
 				options
@@ -1259,7 +1259,7 @@ class AdbTcpService {
 								const optionsDefault = new AdbScrcpyOptions2_1(initDefaultAudio, { version: VERSION });
 								logger.info('Retrying scrcpy start with default audio source (unset audioSource)');
 								const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
-								const client = await startScrcpyWithRetry(
+								const client = await this.startScrcpyWithRetry(
 									deviceAdb,
 									serverPathForDevice,
 									optionsDefault
@@ -1288,7 +1288,7 @@ class AdbTcpService {
 								const optionsRaw = new AdbScrcpyOptions2_1(initRaw, { version: VERSION });
 								logger.info('Retrying scrcpy start with raw audio (audioCodec=raw)');
 								const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
-								const client = await startScrcpyWithRetry(
+								const client = await this.startScrcpyWithRetry(
 									deviceAdb,
 									serverPathForDevice,
 									optionsRaw
@@ -1316,7 +1316,7 @@ class AdbTcpService {
 								const optionsNoAudio = new AdbScrcpyOptions2_1(initNoAudio, { version: VERSION });
 								logger.info('Retrying scrcpy start with options (audio disabled)');
 								const serverPathForDevice = getServerPathForAdbInstance(deviceAdb);
-								const client2 = await startScrcpyWithRetry(
+								const client2 = await this.startScrcpyWithRetry(
 									deviceAdb,
 									serverPathForDevice,
 									optionsNoAudio
