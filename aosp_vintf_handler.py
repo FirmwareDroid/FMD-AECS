@@ -99,56 +99,85 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
     if not os.path.isfile(assemble_vintf_bin):
         raise FileNotFoundError(f"Could not find required 'assemble_vintf' executable at: {assemble_vintf_bin}")
 
-    # Ensure output folder safely exists for multiple runs
     os.makedirs(output_dir, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         manifest_temp = os.path.join(temp_dir, "manifests")
         os.makedirs(manifest_temp)
 
+        # 1. Separate staging areas to analyze overlap profile bounds
+        aosp_stage = os.path.join(temp_dir, "aosp_stage")
+        vendor_stage = os.path.join(temp_dir, "vendor_stage")
+        os.makedirs(aosp_stage)
+        os.makedirs(vendor_stage)
+
         logging.info("--- Phase 1: Gathering files into temporary workspace ---")
-        logging.info("Populating base structures from AOSP VINTF folder...")
-        copy_vintf_files(aosp_dir, manifest_temp, overwrite=True)
+        copy_vintf_files(aosp_dir, aosp_stage, overwrite=True)
+        copy_vintf_files(vendor_dir, vendor_stage, overwrite=True)
 
-        logging.info("Injecting vendor-specific components (No overwrite)...")
-        copy_vintf_files(vendor_dir, manifest_temp, overwrite=False)
+        # 2. Extract HAL names claimed directly by the vendor package
+        vendor_hal_signatures = set()
+        hal_pattern = re.compile(r"<name>(android\.hardware\.[a-z0-9_\.]+)</name>")
 
-        # --- DYNAMIC INTERACTION SCRUBBER FOR RE-HOSTING CONFLICTS ---
-        vendor_allocator = os.path.join(manifest_temp, "vendor.qti.hardware.display.allocator-service.xml")
-        if os.path.exists(vendor_allocator):
-            logging.info(
-                "[!] Vendor QTI allocator detected. Scanning temporary workspace to scrub generic duplicates...")
+        for file_name in os.listdir(vendor_stage):
+            if file_name.endswith(".xml") and file_name != "compatibility_matrix.xml":
+                try:
+                    with open(os.path.join(vendor_stage, file_name), "r", encoding="utf-8") as f:
+                        for match in hal_pattern.finditer(f.read()):
+                            vendor_hal_signatures.add(match.group(1))
+                except Exception as e:
+                    logging.debug("Error pre-parsing vendor component %s: %s", file_name, e)
 
-            # Look through all files except the vendor specific one we just added
-            for file_name in os.listdir(manifest_temp):
-                if file_name == "vendor.qti.hardware.display.allocator-service.xml":
-                    continue
+        logging.info("[!] Identified %d discrete HAL interfaces from vendor source.", len(vendor_hal_signatures))
 
-                file_path = os.path.join(manifest_temp, file_name)
-                if os.path.isfile(file_path) and file_name.endswith(".xml"):
-                    try:
-                        with open(file_path, "r", encoding="utf-8") as f:
-                            content = f.read()
+        # 3. Dynamic Filtering: Drop generic AOSP files providing overridden HALs
+        logging.info("Populating workspace and dropping legacy baseline overlaps...")
+        for file_name in os.listdir(aosp_stage):
+            aosp_file_path = os.path.join(aosp_stage, file_name)
 
-                        # If a baseline file contains the overlapping graphics allocator block, remove or scrub it
-                        if "android.hardware.graphics.allocator" in content:
-                            if file_name == "manifest.xml":
-                                # If it's inside the big main manifest, strip out the specific <hal> block
-                                logging.info(
-                                    "Scrubbing duplicate allocator block directly out of baseline manifest.xml")
-                                cleaned_content = re.sub(
-                                    r"<hal[^>]*>\s*<name>android\.hardware\.graphics\.allocator</name>.*?</hal>",
-                                    "", content, flags=re.DOTALL
-                                )
-                                with open(file_path, "w", encoding="utf-8") as f:
-                                    f.write(cleaned_content)
-                            else:
-                                # If it's a standalone standalone fragment file, we can safely delete it entirely
-                                os.remove(file_path)
-                                logging.info("Removed duplicate standalone AOSP fragment: %s", file_name)
-                    except Exception as e:
-                        logging.debug("Could not process file %s for duplication check: %s", file_name, e)
+            if file_name.endswith(".xml") and file_name not in ["manifest.xml", "compatibility_matrix.xml"]:
+                try:
+                    with open(aosp_file_path, "r", encoding="utf-8") as f:
+                        content = f.read()
 
+                    # If an AOSP fragment references any interface vendor has explicitly upgraded
+                    if any(hal in content for hal in vendor_hal_signatures):
+                        logging.info(
+                            "[!] Re-hosting scrub: Dropping reference '%s' superseded by vendor hardware manifest.",
+                            file_name)
+                        continue  # Skip copying this file to the workspace
+                except Exception as e:
+                    logging.debug("Error checking AOSP file %s: %s", file_name, e)
+
+            # Copy non-conflicting files over
+            shutil.copy2(aosp_file_path, os.path.join(manifest_temp, file_name))
+
+        # 4. Inject remaining vendor components
+        logging.info("Injecting vendor-specific hardware components...")
+        copy_vintf_files(vendor_stage, manifest_temp, overwrite=False)
+
+        # 5. Fallback inline scrubbing for unified manifest.xml blocks
+        base_manifest_path = os.path.join(manifest_temp, "manifest.xml")
+        if os.path.exists(base_manifest_path):
+            with open(base_manifest_path, "r", encoding="utf-8") as f:
+                manifest_content = f.read()
+
+            modified = False
+            for target_hal in vendor_hal_signatures:
+                # Surgically drop inline blocks from target reference manifest if found
+                if f"<name>{target_hal}</name>" in manifest_content:
+                    logging.info("Scrubbing inline '%s' block directly out of baseline manifest.xml", target_hal)
+                    manifest_content = re.sub(
+                        r"<hal[^>]*>\s*<name>" + re.escape(target_hal) + r"</name>.*?</hal>",
+                        "", manifest_content, flags=re.DOTALL
+                    )
+                    modified = True
+
+            if modified:
+                with open(base_manifest_path, "w", encoding="utf-8") as f:
+                    f.write(manifest_content)
+
+        # Proceed normally into Phase 2 compilation parsing
         all_files = os.listdir(manifest_temp)
         manifest_files = [f for f in all_files if f.endswith(".xml") and "compatibility_matrix" not in f]
         matrix_files = [f for f in all_files if f.endswith(".xml") and "compatibility_matrix" in f]
