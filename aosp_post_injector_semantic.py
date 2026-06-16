@@ -31,6 +31,8 @@ def get_vintf_vendor_path(partition_name: str, vintf_folder_path_list: list):
     if len(base_dirs) == 1:
         vintf_root_dir = os.path.join(base_dirs[0], VINTF_FOLDER_RELATIVE_PATH)
         logging.info(f"Found vintf root directory: {vintf_root_dir}")
+    elif len(base_dirs) == 0:
+        raise FileNotFoundError(f"Could not find vintf root directory: {partition_name} in {vintf_folder_path_list}")
     else:
         logging.warning(f"Found multiple vintf root directories: {base_dirs}")
         raise RuntimeError(f"Found multiple vintf root directories: {base_dirs}")
