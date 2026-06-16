@@ -588,9 +588,9 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             logging.info(f"AOSP main build completed successfully. Continuing with post-build injection.")
 
             aosp_emulator_out = get_aosp_build_out_dir(aosp_path, aosp_version)
-            logs_out = os.path.join(BUILD_OUT_PATH, "post_injector_logs", firmware_id)
-            os.makedirs(logs_out, exist_ok=True)
-            copy_logs_by_prefix(aosp_emulator_out, logs_out, f"post_injector_")
+            #logs_out = os.path.join(BUILD_OUT_PATH, "post_injector_logs", firmware_id)
+            #os.makedirs(logs_out, exist_ok=True)
+            #copy_logs_by_prefix(aosp_emulator_out, logs_out, f"post_injector_")
 
             # start_post_build_injector(aosp_path=aosp_path,
             #                           source_folder_path=all_extracted_firmware_files_path,
@@ -1620,6 +1620,11 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
     failed_firmware_ids = []
     succeed_firmware_ids = []
     download_url_list = []
+
+    global BUILD_OUT_PATH
+    BUILD_OUT_PATH = os.path.join(args.aosp_path, "out/fmd/")
+    os.makedirs(BUILD_OUT_PATH, exist_ok=True)
+
     clear_environment(args.aosp_path, aosp_packages_abs_path, args.version)
     logging.info(f"Building for lunch target: {lunch_target} with aosp version: {aosp_version}")
     try:
@@ -1707,6 +1712,14 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
             traceback.print_stack()
             failed_firmware_ids.append(firmware_id)
         finally:
+            results_dir = os.path.join(ROOT_PATH, f"out/fmd_build_injector_{firmware_id}")
+            try:
+                os.makedirs(results_dir, exist_ok=True)
+                shutil.copytree(BUILD_OUT_PATH, results_dir, dirs_exist_ok=True)
+            except Exception as err:
+                logging.error(f"Got an error copying build results: {err} | {results_dir}")
+                traceback.print_exc()
+
             if not args.skip_clean:
                 clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
         if args.build_only_first:

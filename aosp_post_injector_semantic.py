@@ -2,6 +2,7 @@ import logging
 import os
 import tempfile
 
+from aosp_sepolicy_merger import merge_sepolicy_pipeline
 from aosp_vintf_handler import merge_vintf_artifacts
 from common import get_aosp_build_out_dir
 
@@ -55,6 +56,37 @@ def handle_vintf_merge(aosp_path: str, aosp_version:str, partition_name: str, vi
     output_folder = os.path.join(temp_folder, partition_name)
     host_bin_dir = find_assemble_vintf(aosp_path)
     merge_vintf_artifacts(aosp_vintf_dir, vendor_vintf_dir, host_bin_dir, output_folder)
+
+
+
+
+
+
+
+
+
+
+
+def handle_seplicy_merging(secilc_path, plat_cil, plat_mapping, vendor_cil, vendor_pub, out_dir, policy_version, partition_name):
+    temp_folder = tempfile.mkdtemp()
+    output_folder = os.path.join(temp_folder, partition_name)
+    os.makedirs(output_folder, exist_ok=True)
+
+    success = merge_sepolicy_pipeline(
+        secilc_bin=secilc_path,
+        plat_cil=plat_cil,
+        plat_mapping=plat_mapping,
+        vendor_cil=vendor_cil,
+        vendor_pub_versioned=vendor_pub,
+        out_dir=out_dir,
+        policy_version=policy_version
+    )
+    if success:
+        logging.info(f"Successfully merged sepolicy folder to: {output_folder}")
+    else:
+        logging.error(f"Failed to merge sepolicy folder to: {output_folder}|{secilc_path}|{plat_cil}|{plat_mapping}|{vendor_cil}|{vendor_pub}")
+    return success, output_folder
+
 
 def start_semantic_injector(aosp_path: str, aosp_version:str, partition_name: str, vintf_folder_path_list: list):
     """
