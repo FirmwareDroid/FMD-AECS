@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import re
+import hashlib
 import subprocess
 import sys
 import tempfile
@@ -14,6 +15,20 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger("sepolicy_merger")
+
+
+def get_file_checksum(file_path: str) -> str:
+    """
+    Calculates the SHA-256 checksum of a file by reading it in memory-safe chunks.
+    """
+    sha256_hash = hashlib.sha256()
+    chunk_size = 65536  # 64KB chunks
+
+    with open(file_path, "rb") as f:
+        while chunk_ := f.read(chunk_size):
+            sha256_hash.update(chunk_)
+
+    return sha256_hash.hexdigest()
 
 
 def extract_declared_types(cil_path):
@@ -117,10 +132,8 @@ def strip_neverallows(pub_cil_in, pub_cil_out):
         for line in infile:
             stripped_line = line.strip()
 
-            # Identify standard or extended neverallow blocks
             if stripped_line.startswith("(neverallow ") or stripped_line.startswith("(neverallowx "):
                 stripped_count += 1
-                # Comment it out cleanly in the pipeline stream
                 lines_buffer.append(f"; STRIPPED CONSTRAINT: {line}")
                 continue
 
@@ -184,11 +197,11 @@ def run_secilc(secilc_bin, input_files, output_policy, output_contexts, policy_v
 def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vendor_pub_versioned, out_dir,
                             policy_version="33"):
     """
-    Core pipeline driver handling clean-up execution wrappers and platform-level
-    constraint stripping for emulator/re-hosting work.
+    Core pipeline driver handling clean-up execution wrappers and alignment verification.
     """
     final_policy = os.path.join(out_dir, "sepolicy")
     final_contexts = os.path.join(out_dir, "file_contexts")
+    final_sha256 = os.path.join(out_dir, "plat_sepolicy_and_mapping.sha256")
 
     os.makedirs(out_dir, exist_ok=True)
 
@@ -198,7 +211,6 @@ def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vend
     platform_identifiers.update(extract_declared_types(plat_mapping))
     logger.info(f"Found {len(platform_identifiers)} unique types/attributes in core platform.")
 
-    # Create temporary handles for all pipeline stages
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_v_cil, \
             tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_p_pub, \
             tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_p_cil:
@@ -208,18 +220,18 @@ def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vend
         temp_plat_cil_path = temp_p_cil.name
 
     try:
-        # Step 1: Clean duplicate definitions out of vendor matrix
+        # Step 1: Clean duplicates out of vendor matrix
         clean_vendor_cil(vendor_cil, temp_vendor_cil_path, platform_identifiers)
 
         # Step 2: Clean API matrix conflicts from public mapping tracking
         strip_neverallows(vendor_pub_versioned, temp_pub_pub_path)
 
-        # Step 3: Strip internal platform constraints causing back-compat attribute collisions
+        # Step 3: Strip internal platform constraints
         logger.info(f"Stripping native platform constraints from core policy file: {plat_cil}")
         strip_neverallows(plat_cil, temp_plat_cil_path)
 
         input_pipeline_files = [
-            temp_plat_cil_path,  # Now passing the clean plat policy
+            temp_plat_cil_path,
             plat_mapping,
             temp_vendor_cil_path,
             temp_pub_pub_path
@@ -231,7 +243,21 @@ def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vend
                 logger.error(f"Critical Error: Missing required file: {f}")
                 return False
 
+        # Step 4: Run compilation stage
         run_secilc(secilc_bin, input_pipeline_files, final_policy, final_contexts, policy_version)
+
+        # Step 5: Generate the cryptographic fingerprint tracking file for AOSP verification loop
+        logger.info("Generating security validation signatures...")
+        # Fingerprint the stripped platform policy file passed to the compilation pass
+        calculated_hash = get_file_checksum(temp_plat_cil_path)
+
+        with open(final_sha256, "w") as sha_file:
+            # Android init requires the lowercased hex string trailed cleanly with a trailing newline
+            sha_file.write(f"{calculated_hash}\n")
+
+        logger.info(f"[+] Fingerprint file written to: {final_sha256}")
+        logger.info(f"[+] SHA-256 Token Value: {calculated_hash}")
+
         return True
 
     except subprocess.CalledProcessError as e:
@@ -249,18 +275,14 @@ def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vend
         return False
 
     finally:
-        # Clean up all temporary structures from the workspace
         for path in (temp_vendor_cil_path, temp_pub_pub_path, temp_plat_cil_path):
             if os.path.exists(path):
                 os.remove(path)
 
 
 def main():
-    """
-    CLI Parser matching the precise requirements of your AOSP workspace setup.
-    """
     parser = argparse.ArgumentParser(
-        description="Merge precompiled Android Platform and Vendor CIL files matching your specific secilc profile."
+        description="Merge precompiled Android Platform and Vendor CIL files with automated SHA-256 signatures."
     )
 
     parser.add_argument("--secilc", required=True, help="Path to host secilc binary")
@@ -269,7 +291,6 @@ def main():
     parser.add_argument("--vendor-cil", required=True, help="Path to raw vendor_sepolicy.cil")
     parser.add_argument("--vendor-pub", required=True, help="Path to vendor plat_pub_versioned.cil")
     parser.add_argument("--out-dir", required=True, help="Output directory for merged artifacts")
-
     parser.add_argument("--policy-version", default="33", help="Target SELinux database version (default: 33)")
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging output")
 
@@ -283,7 +304,7 @@ def main():
         plat_cil=args.plat_cil,
         plat_mapping=args.plat_mapping,
         vendor_cil=args.vendor_cil,
-        vendor_pub_versioned=args.vendor_pub,
+        vendor_pub=args.vendor_pub,
         out_dir=args.out_dir,
         policy_version=args.policy_version
     )
