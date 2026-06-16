@@ -29,6 +29,7 @@ from aosp_build_property_merger import start_property_merge
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
 from aosp_post_injector_semantic import start_semantic_injector
+from aosp_rc_merger import run_rc_merger
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
     check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file, check_binary_architecture, \
     get_aosp_build_out_dir
@@ -1779,40 +1780,6 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
     return target_file_injection_path, target_partition_path
 
 
-def comment_out_boringssl_check(file_path):
-    target_string = "reboot_on_failure reboot,boringssl-self-check-failed"
-    replacement_string = "#reboot_on_failure reboot,boringssl-self-check-failed"
-
-    try:
-        # 1. Read the contents of the file
-        with open(file_path, 'r', encoding='utf-8') as file:
-            file_contents = file.read()
-
-        # Check if the string is already commented out to prevent "##reboot..."
-        if target_string in file_contents and replacement_string not in file_contents:
-            # 2. Replace the string
-            updated_contents = file_contents.replace(target_string, replacement_string)
-
-            # 3. Write the updated contents back to the file
-            with open(file_path, 'w', encoding='utf-8') as file:
-                file.write(updated_contents)
-            logging.info(f"Success: Updated {file_path}")
-        elif replacement_string in file_contents:
-            logging.info(f"Notice: The line is already commented out in {file_path}")
-        else:
-            logging.warning(f"Warning: Target string not found in {file_path}")
-
-    except FileNotFoundError:
-        logging.error(f"Error: The file at {file_path} was not found.")
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")
-
-def start_rc_merger(source_file_path):
-    filename = os.path.basename(source_file_path)
-    if filename == "init.rc" and "/system/init/hw/" in source_file_path:
-        comment_out_boringssl_check(source_file_path)
-    return source_file_path
-
 
 def run_build_property_merger(source_file_path, target_file_injection_path):
     filename = os.path.basename(source_file_path)
@@ -1841,7 +1808,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
         source_file_path = handle_special_matching(source_file_path)
 
     if POST_INJECTOR_CONFIG["ENABLE_RC_MERGER"]:
-        source_file_path = start_rc_merger(source_file_path)
+        source_file_path = run_rc_merger(source_file_path)
 
     if "build.prop" in filename:
         logging.info(f"File {source_file_path} is a property file and will be merged with the existing file instead of "
