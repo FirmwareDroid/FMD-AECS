@@ -1287,6 +1287,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     inj_partition_list = []
     processed_files = set()
     partition_name = os.path.basename(folder_path)
+    partition_path = folder_path
 
     file_paths = list(set(os.path.join(root, file_name.strip()) for root, _, file_name_list in scandir_walk(folder_path)
                           for file_name in file_name_list))
@@ -1341,7 +1342,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
 
     if POST_INJECTOR_CONFIG["ENABLE_SEMANTIC_INJECTOR"]:
         if vintf_path_list and len(inj_obj_list) > 0:
-            start_semantic_injector(aosp_path, aosp_version, str(partition_name), vintf_path_list)
+            start_semantic_injector(aosp_path, aosp_version, str(partition_name), vintf_path_list, partition_path)
 
 
     progress_bar.close()
