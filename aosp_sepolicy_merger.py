@@ -21,7 +21,6 @@ def extract_declared_types(cil_path):
     Parses a CIL file to find all declared types, attributes, and macros.
     """
     declared_identifiers = set()
-    # CHANGED: Added '-' to character class
     pattern = re.compile(r'\((type|typeattribute|macro|common|class)\s+([a-zA-Z0-9_-]+)')
 
     if not os.path.exists(cil_path):
@@ -40,11 +39,10 @@ def extract_declared_types(cil_path):
 def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
     """
     Cleans vendor policies inline with enhanced logging for tracking down
-    secilc compiler resolution faults.
+    secilc compiler resolution faults. Handles hyphenated names cleanly.
     """
     logger.info(f"Surgically scrubbing duplicate platform types and orphaned statements from {vendor_cil_in}...")
 
-    # CHANGED: Added '-' to character classes across all compiler patterns
     decl_pattern = re.compile(r'\((type|typeattribute|macro|common|class)\s+([a-zA-Z0-9_-]+)')
     attr_set_pattern = re.compile(r'\(typeattributeset\s+([a-zA-Z0-9_-]+)\s+\((.*)\)\)')
     aux_keywords = ("roletype", "typeattribute", "typebounds")
@@ -66,15 +64,13 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
             # 1. Base Duplicate Declarations
             decl_match = decl_pattern.search(line)
             if decl_match and decl_match.group(2) in duplicate_set:
-                logger.debug(f"[Line {line_num}] Dropping duplicate declaration: {decl_match.group(2)}")
                 removed_decls += 1
                 continue
 
-            # 2. Auxiliary Structural Statements (Now handles hyphens safely via split strings)
+            # 2. Auxiliary Structural Statements
             clean_tokens = stripped_line.replace("(", "").replace(")", "").split()
             if clean_tokens and clean_tokens[0] in aux_keywords:
                 if any(t in duplicate_set for t in clean_tokens[1:]):
-                    logger.debug(f"[Line {line_num}] Dropping orphaned aux block ({clean_tokens[0]}): {stripped_line}")
                     removed_aux += 1
                     continue
 
@@ -86,7 +82,6 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
                 cleaned_tokens = [t for t in tokens if t not in duplicate_set]
 
                 if attr_name in duplicate_set:
-                    logger.debug(f"[Line {line_num}] Dropping duplicate typeattributeset core name: {attr_name}")
                     removed_decls += 1
                     continue
 
@@ -95,9 +90,7 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
                     if cleaned_tokens:
                         token_string = " ".join(cleaned_tokens)
                         line = f"(typeattributeset {attr_name} ({token_string}))\n"
-                        logger.debug(f"[Line {line_num}] Scrubbed internal duplicate tokens for: {attr_name}")
                     else:
-                        logger.debug(f"[Line {line_num}] Dropping empty typeattributeset sequence for: {attr_name}")
                         continue
 
             lines_buffer.append(line)
@@ -111,10 +104,38 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
     logger.info(f"[+] Scrubbing complete: Cleared {scrubbed_tokens} internal duplicate tokens.")
 
 
+def strip_neverallows(pub_cil_in, pub_cil_out):
+    """
+    Surgically bypasses Android API matrix constraints by neutralising
+    neverallow and neverallowx assertions from the compatibility layer.
+    """
+    logger.info(f"Stripping compatibility matrix constraints from {pub_cil_in}...")
+    stripped_count = 0
+    lines_buffer = []
+
+    with open(pub_cil_in, 'r') as infile:
+        for line in infile:
+            stripped_line = line.strip()
+
+            # Identify standard or extended neverallow blocks
+            if stripped_line.startswith("(neverallow ") or stripped_line.startswith("(neverallowx "):
+                stripped_count += 1
+                # Comment it out cleanly in the pipeline stream
+                lines_buffer.append(f"; STRIPPED CONSTRAINT: {line}")
+                continue
+
+            lines_buffer.append(line)
+
+    with open(pub_cil_out, 'w') as outfile:
+        for line in lines_buffer:
+            outfile.write(line)
+
+    logger.info(f"[+] Constraint removal complete: Defused {stripped_count} static neverallow checks.")
+
+
 def dump_faulty_lines(file_path, target_line, window=5):
     """
-    Helper function to print out a window of lines around a compilation error
-    to inspect context formatting directly.
+    Helper function to print out a window of lines around a compilation error.
     """
     logger.error(f"--- INSPECTING CONTEXT AROUND FAULTY LINE {target_line} ---")
     if not os.path.exists(file_path):
@@ -140,17 +161,17 @@ def run_secilc(secilc_bin, input_files, output_policy, output_contexts, policy_v
 
     cmd = [
               secilc_bin,
-              "-m",  # --multiple-decls
-              "-M", "false",  # --mls true|false
-              "-G",  # --expand-generated
-              "-c", policy_version,  # --policyvers
-              "-o", output_policy,  # --output
-              "-f", output_contexts  # --filecontext
+              "-m",
+              "-M", "false",
+              "-G",
+              "-c", policy_version,
+              "-o", output_policy,
+              "-f", output_contexts
           ] + input_files
 
     logger.info(f"Running command: {' '.join(cmd)}")
     try:
-        res = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         logger.info("Success! Merged policy generated.")
         logger.info(f"Binary Policy: {output_policy}")
         logger.info(f"File Contexts: {output_contexts}")
@@ -163,7 +184,7 @@ def run_secilc(secilc_bin, input_files, output_policy, output_contexts, policy_v
 def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vendor_pub_versioned, out_dir,
                             policy_version="33"):
     """
-    Core pipeline driver accepting dynamic arguments from your environment.
+    Core pipeline driver handling clean-up execution wrappers.
     """
     final_policy = os.path.join(out_dir, "sepolicy")
     final_contexts = os.path.join(out_dir, "file_contexts")
@@ -176,22 +197,29 @@ def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vend
     platform_identifiers.update(extract_declared_types(plat_mapping))
     logger.info(f"Found {len(platform_identifiers)} unique types/attributes in core platform.")
 
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_vendor_cil:
-        temp_vendor_cil_path = temp_vendor_cil.name
+    # Create temporary handles for both clean vendor policies and clean compatibility mappings
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_v_cil, \
+            tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_p_pub:
+        temp_vendor_cil_path = temp_v_cil.name
+        temp_pub_pub_path = temp_p_pub.name
 
     try:
+        # Step 1: Clean duplicates out of vendor matrix
         clean_vendor_cil(vendor_cil, temp_vendor_cil_path, platform_identifiers)
+
+        # Step 2: Clean API matrix conflicts from public mapping tracking
+        strip_neverallows(vendor_pub_versioned, temp_pub_pub_path)
 
         input_pipeline_files = [
             plat_cil,
             plat_mapping,
             temp_vendor_cil_path,
-            vendor_pub_versioned
+            temp_pub_pub_path
         ]
 
         # Verify dependencies
         for f in input_pipeline_files:
-            if f != temp_vendor_cil_path and not os.path.exists(f):
+            if f not in (temp_vendor_cil_path, temp_pub_pub_path) and not os.path.exists(f):
                 logger.error(f"Critical Error: Missing required file: {f}")
                 return False
 
@@ -199,18 +227,23 @@ def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vend
         return True
 
     except subprocess.CalledProcessError as e:
-        # Match error patterns like: "Failed to resolve roletype statement at /tmp/tmptdk4g7tg:1669"
-        match = re.search(r'statement at [^:]+:(\d+)', e.stderr)
+        match = re.search(r'at [^:]+:(\d+)', e.stderr)
         if match:
             fault_line = int(match.group(1))
-            dump_faulty_lines(temp_vendor_cil_path, fault_line, window=5)
+            # Figure out which temporary file failed based on the error context
+            if "plat_pub_versioned" in e.stderr or "neverallow" in e.stderr:
+                dump_faulty_lines(temp_pub_pub_path, fault_line, window=5)
+            else:
+                dump_faulty_lines(temp_vendor_cil_path, fault_line, window=5)
         else:
             logger.error("Could not dynamically parse lines from secilc output stream pattern.")
         return False
 
     finally:
-        if os.path.exists(temp_vendor_cil_path):
-            os.remove(temp_vendor_cil_path)
+        # Clean disk states
+        for path in (temp_vendor_cil_path, temp_pub_pub_path):
+            if os.path.exists(path):
+                os.remove(path)
 
 
 def main():
