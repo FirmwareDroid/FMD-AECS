@@ -2064,6 +2064,11 @@ def main():
         config_file_path = "out/post_builder_args.json"
         config_file_path_abs = base_dir / config_file_path
 
+        if not os.path.exists(config_file_path_abs):
+            logging.warning(f"Config file not found at {config_file_path_abs}. Skipping injection.")
+            # We use exit 0 because we want the build process to skip in case the file does not exist yet
+            exit(0)
+
         with open(config_file_path_abs, "r", encoding="utf-8") as f:
             post_builder_args_dict = json.load(f)
 

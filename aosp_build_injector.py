@@ -31,7 +31,7 @@ from json_writer import write_json_output, write_text_output
 from setup_logger import setup_logger
 
 
-
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 if os.environ.get("FMD_DEBUG") == "True":
     setup_logger(logging.DEBUG)
 else:
@@ -534,6 +534,11 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     retry_attempts = BUILD_RETRY_COUNT
     while not is_successful and retry_attempts > 0:
         try:
+            path_post_builder_args = os.path.join(SCRIPT_DIR, "out/post_builder_args.json")
+            if os.path.exists(path_post_builder_args):
+                logging.info(f"Removing existing post_builder_args.json file: {path_post_builder_args}")
+                os.remove(path_post_builder_args)
+
             fix_missing_file(aosp_path, aosp_version)
             main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
             build_start_time = time.time()
@@ -554,7 +559,9 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
                                       "post_injector_config_path": POST_INJECTOR_CONFIG_PATH,
                                       "aosp_version": aosp_version
                                       }
-
+            with open(, "w", encoding="utf-8") as f:
+                json.dump(post_builder_args_dict, f, indent=4)
+                logging.info(f"Post builder args written to out/post_builder_args.json")
 
             # start_post_build_injector(aosp_path=aosp_path,
             #                           source_folder_path=all_extracted_firmware_files_path,
@@ -568,9 +575,6 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             #                           aosp_version=aosp_version
             #                           )
 
-            with open("./out/post_builder_args.json", "w", encoding="utf-8") as f:
-                json.dump(post_builder_args_dict, f, indent=4)
-                logging.info(f"Post builder args written to out/post_builder_args.json")
             logging.info(f"Summary Pre-Injector: {included_package_statistics}")
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target, aosp_version)
             package_start_time = time.time()
