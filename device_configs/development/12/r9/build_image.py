@@ -889,7 +889,7 @@ def run_script_to_file(partition):
 
     # Backward-compatible string formatting instead of f-strings
     output_filename = (
-        "/home/ubuntu/FMD-AECS/out/post_injector_out_{}.log".format(partition)
+        "/tmp/fmd/post_injector_out_{}.log".format(partition)
     )
 
     # 1. Copy the current system environment safely
@@ -904,12 +904,11 @@ def run_script_to_file(partition):
                 "--partition-list",
                 partition,
             ]
-            subprocess.run(
-                command,
-                stdout=f,
-                stderr=subprocess.STDOUT,
-                check=True,
-                env=current_env,
+            subprocess.check_call(
+              command,
+              stdout=f,
+              stderr=subprocess.STDOUT,
+              env=current_env,
             )
             print("Success! Output successfully written to {0}".format(output_filename))
         except subprocess.CalledProcessError as e:
