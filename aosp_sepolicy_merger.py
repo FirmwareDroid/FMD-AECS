@@ -21,7 +21,8 @@ def extract_declared_types(cil_path):
     Parses a CIL file to find all declared types, attributes, and macros.
     """
     declared_identifiers = set()
-    pattern = re.compile(r'\((type|typeattribute|macro|common|class)\s+([a-zA-Z0-9_]+)')
+    # CHANGED: Added '-' to character class
+    pattern = re.compile(r'\((type|typeattribute|macro|common|class)\s+([a-zA-Z0-9_-]+)')
 
     if not os.path.exists(cil_path):
         logger.warning(f"Reference file not found: {cil_path}")
@@ -43,9 +44,9 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
     """
     logger.info(f"Surgically scrubbing duplicate platform types and orphaned statements from {vendor_cil_in}...")
 
-    # Accurate CIL definition matches
-    decl_pattern = re.compile(r'\((type|typeattribute|macro|common|class)\s+([a-zA-Z0-9_]+)')
-    attr_set_pattern = re.compile(r'\(typeattributeset\s+([a-zA-Z0-9_]+)\s+\((.*)\)\)')
+    # CHANGED: Added '-' to character classes across all compiler patterns
+    decl_pattern = re.compile(r'\((type|typeattribute|macro|common|class)\s+([a-zA-Z0-9_-]+)')
+    attr_set_pattern = re.compile(r'\(typeattributeset\s+([a-zA-Z0-9_-]+)\s+\((.*)\)\)')
     aux_keywords = ("roletype", "typeattribute", "typebounds")
 
     removed_decls = 0
@@ -69,7 +70,7 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
                 removed_decls += 1
                 continue
 
-            # 2. Auxiliary Structural Statements (Token-based checking)
+            # 2. Auxiliary Structural Statements (Now handles hyphens safely via split strings)
             clean_tokens = stripped_line.replace("(", "").replace(")", "").split()
             if clean_tokens and clean_tokens[0] in aux_keywords:
                 if any(t in duplicate_set for t in clean_tokens[1:]):
@@ -101,7 +102,6 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
 
             lines_buffer.append(line)
 
-    # Write out the processed file while tracking written line numbers
     with open(vendor_cil_out, 'w') as outfile:
         for line in lines_buffer:
             outfile.write(line)
