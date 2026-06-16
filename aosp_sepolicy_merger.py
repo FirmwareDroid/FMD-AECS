@@ -38,21 +38,47 @@ def extract_declared_types(cil_path):
 
 def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
     """
-    Filters out any line containing a declaration of an identifier already present in the platform policy.
+    Filters out lines containing declarations OR attribute assignments
+    associated with identifiers already defined in the platform policy.
     """
-    logger.info(f"Stripping duplicate platform declarations from {vendor_cil_in}...")
-    pattern = re.compile(r'\((type|typeattribute|macro|common|class)\s+([a-zA-Z0-9_]+)')
+    logger.info(f"Stripping duplicate platform declarations and sets from {vendor_cil_in}...")
+
+    # Matches type declarations
+    decl_pattern = re.compile(r'\((type|typeattribute|macro|common|class)\s+([a-zA-Z0-9_]+)')
+    # Matches attribute assignments, e.g., (typeattributeset attribute_name (type_name))
+    attr_set_pattern = re.compile(r'\(typeattributeset\s+([a-zA-Z0-9_]+)\s+\(?([a-zA-Z0-9_ ]+)\)?')
+
     removed_count = 0
 
     with open(vendor_cil_in, 'r') as infile, open(vendor_cil_out, 'w') as outfile:
         for line in infile:
-            match = pattern.search(line)
-            if match and match.group(2) in duplicate_set:
+            strip_line = False
+
+            # Check 1: Is this a duplicate declaration?
+            decl_match = decl_pattern.search(line)
+            if decl_match and decl_match.group(2) in duplicate_set:
+                strip_line = True
+
+            # Check 2: Is this assigning a type/attribute that conflicts?
+            if not strip_line:
+                attr_match = attr_set_pattern.search(line)
+                if attr_match:
+                    attr_name = attr_match.group(1)
+                    # Split the target types inside the set block in case there are multiple
+                    targets = attr_match.group(2).split()
+
+                    # If the attribute itself or ANY type inside the target assignment is a duplicate
+                    if attr_name in duplicate_set or any(t in duplicate_set for t in targets):
+                        strip_line = True
+
+            if strip_line:
                 removed_count += 1
+                logger.debug(f"Stripping conflicting line: {line.strip()}")
                 continue
+
             outfile.write(line)
 
-    logger.info(f"Successfully stripped {removed_count} duplicate declarations.")
+    logger.info(f"Successfully stripped {removed_count} duplicate lines/statements.")
 
 
 def run_secilc(secilc_bin, input_files, output_policy, output_contexts, policy_version="33"):
