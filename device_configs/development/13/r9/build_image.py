@@ -845,9 +845,6 @@ def run_script_to_file(partition, base_dir_path):
             print(f"Script failed with exit code {e.returncode}. Check {output_path}")
             sys.exit(1)
 
-# import sys
-# import subprocess
-
 def main(argv):
   if len(argv) != 4:
     print(__doc__)

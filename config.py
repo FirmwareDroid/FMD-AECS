@@ -38,7 +38,8 @@ BASE_FILENAMES = [BASE_PRODUCT_FILE_NAME,
                   BASE_HANDHELD_SYSTEM_EXE_FILE_NAME,
                   BASE_HANDHELD_PRODUCT_FILE_NAME,
                   BASE_HANDHELD_VENDOR_FILE_NAME]
-BUILD_OUT_PATH = os.path.join(ROOT_PATH, "out/")
+TMP_PATH = "/tmp/fmd"
+BUILD_OUT_PATH = os.path.join(TMP_PATH, "out/")
 AOSP_BUILD_OUT_SDK_ARM64_PATH = "out/target/product/emulator_arm64/"
 AOSP_BUILD_OUT_SDK_ARM64_x64_PATH = "out/target/product/emulator64_arm64/"
 AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A = "out/target/product/emu64a/"
