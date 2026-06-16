@@ -184,7 +184,8 @@ def run_secilc(secilc_bin, input_files, output_policy, output_contexts, policy_v
 def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vendor_pub_versioned, out_dir,
                             policy_version="33"):
     """
-    Core pipeline driver handling clean-up execution wrappers.
+    Core pipeline driver handling clean-up execution wrappers and platform-level
+    constraint stripping for emulator/re-hosting work.
     """
     final_policy = os.path.join(out_dir, "sepolicy")
     final_contexts = os.path.join(out_dir, "file_contexts")
@@ -197,21 +198,28 @@ def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vend
     platform_identifiers.update(extract_declared_types(plat_mapping))
     logger.info(f"Found {len(platform_identifiers)} unique types/attributes in core platform.")
 
-    # Create temporary handles for both clean vendor policies and clean compatibility mappings
+    # Create temporary handles for all pipeline stages
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_v_cil, \
-            tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_p_pub:
+            tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_p_pub, \
+            tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_p_cil:
+
         temp_vendor_cil_path = temp_v_cil.name
         temp_pub_pub_path = temp_p_pub.name
+        temp_plat_cil_path = temp_p_cil.name
 
     try:
-        # Step 1: Clean duplicates out of vendor matrix
+        # Step 1: Clean duplicate definitions out of vendor matrix
         clean_vendor_cil(vendor_cil, temp_vendor_cil_path, platform_identifiers)
 
         # Step 2: Clean API matrix conflicts from public mapping tracking
         strip_neverallows(vendor_pub_versioned, temp_pub_pub_path)
 
+        # Step 3: Strip internal platform constraints causing back-compat attribute collisions
+        logger.info(f"Stripping native platform constraints from core policy file: {plat_cil}")
+        strip_neverallows(plat_cil, temp_plat_cil_path)
+
         input_pipeline_files = [
-            plat_cil,
+            temp_plat_cil_path,  # Now passing the clean plat policy
             plat_mapping,
             temp_vendor_cil_path,
             temp_pub_pub_path
@@ -219,7 +227,7 @@ def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vend
 
         # Verify dependencies
         for f in input_pipeline_files:
-            if f not in (temp_vendor_cil_path, temp_pub_pub_path) and not os.path.exists(f):
+            if f not in (temp_vendor_cil_path, temp_pub_pub_path, temp_plat_cil_path) and not os.path.exists(f):
                 logger.error(f"Critical Error: Missing required file: {f}")
                 return False
 
@@ -230,8 +238,9 @@ def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vend
         match = re.search(r'at [^:]+:(\d+)', e.stderr)
         if match:
             fault_line = int(match.group(1))
-            # Figure out which temporary file failed based on the error context
-            if "plat_pub_versioned" in e.stderr or "neverallow" in e.stderr:
+            if "plat_sepolicy" in e.stderr:
+                dump_faulty_lines(temp_plat_cil_path, fault_line, window=5)
+            elif "plat_pub_versioned" in e.stderr or "neverallow" in e.stderr:
                 dump_faulty_lines(temp_pub_pub_path, fault_line, window=5)
             else:
                 dump_faulty_lines(temp_vendor_cil_path, fault_line, window=5)
@@ -240,8 +249,8 @@ def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vend
         return False
 
     finally:
-        # Clean disk states
-        for path in (temp_vendor_cil_path, temp_pub_pub_path):
+        # Clean up all temporary structures from the workspace
+        for path in (temp_vendor_cil_path, temp_pub_pub_path, temp_plat_cil_path):
             if os.path.exists(path):
                 os.remove(path)
 
