@@ -958,8 +958,8 @@ class AdbTcpService {
 		deviceAdb,
 		serverPathForDevice,
 		options,
-		maxAttempts=30,
-		baseDelayMs=500,
+		maxAttempts=10,
+		baseDelayMs=1000,
 	) {
 		let lastError;
 

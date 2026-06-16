@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import logging
 import sys
 import os
 
@@ -101,6 +102,45 @@ def categorize_property(key):
         return 'PRODUCT_SYSTEM_PROPERTIES'
 
 
+def filter_prop(prop_key):
+    is_filtered = False
+    # Check against absolute blacklisted keys
+    if prop_key in TROUBLESOME_PROPERTIES:
+        logging.info(f"[SKIPPED] Trouble key match: {prop_key}")
+        is_filtered = True
+    # Check against blacklisted prefixes
+    if prop_key.startswith(TROUBLESOME_PREFIXES):
+        logging.info(f"[SKIPPED] Trouble prefix match: {prop_key}")
+        is_filtered = True
+    return is_filtered
+
+
+def merge_properties(aosp_props, vendor_props):
+    merged_properties = {}
+    conflict_props = {}
+    for key, value in aosp_props.items():
+        if filter_prop(key):
+            continue
+        merged_properties[key] = value
+
+    for key, value in vendor_props.items():
+        if filter_prop(key):
+            continue
+        if key not in merged_properties:
+            merged_properties[key] = value
+        else:
+            conflict_props[key] = (merged_properties[key], value)
+            logging.info(f"[CONFLICT] Key '{key}' exists in both AOSP and Vendor properties. Using AOSP value: '{merged_properties[key]}'")
+
+    return merged_properties, conflict_props
+
+def generate_output_string(properties):
+    output_string = ""
+    for key, value in properties.items():
+        output_string += f"{key}={value}\n"
+    return output_string
+
+
 def generate_makefile_string(properties):
     """Generates the dynamic Makefile configuration string while skipping troublesome properties."""
     grouped_props = {
@@ -110,18 +150,7 @@ def generate_makefile_string(properties):
         'PRODUCT_SYSTEM_EXT_PROPERTIES': [],
         'PRODUCT_ODM_PROPERTIES': []
     }
-
     for key, value in properties.items():
-        # Check against absolute blacklisted keys
-        if key in TROUBLESOME_PROPERTIES:
-            print(f"[SKIPPED] Trouble key match: {key}", file=sys.stderr)
-            continue
-
-        # Check against blacklisted prefixes
-        if key.startswith(TROUBLESOME_PREFIXES):
-            print(f"[SKIPPED] Trouble prefix match: {key}", file=sys.stderr)
-            continue
-
         target_var = categorize_property(key)
         grouped_props[target_var].append(f"    {key}={value}")
 
@@ -140,15 +169,26 @@ def generate_makefile_string(properties):
 
     return "\n".join(mk_lines)
 
+def start_merge(args):
+    input_file = args[1]
+    vendor_file_path = args[2]
+    output_file_path = args[3]
+    conf_output_file_path = args[4]
+    parsed_props = parse_properties(input_file)
+    vendor_props = parse_properties(vendor_file_path)
+    merged_props, conflict_props = merge_properties(parsed_props, vendor_props)
+    conflict_out_str = generate_output_string(conflict_props)
+    out_str = generate_output_string(merged_props)
+    with open(output_file_path, mode='w', encoding='utf-8') as f:
+        f.write(out_str)
+
+    with open(conf_output_file_path, mode='w', encoding='utf-8') as f:
+        f.write(conflict_out_str)
+
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python3 generate_flash_props.py <path_to_build.prop>")
         sys.exit(1)
-
-    input_file = sys.argv[1]
-    parsed_props = parse_properties(input_file)
-
-    if parsed_props:
-        makefile_string = generate_makefile_string(parsed_props)
-        print(makefile_string)
+    start_merge(sys.argv)
