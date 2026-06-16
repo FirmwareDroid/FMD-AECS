@@ -834,6 +834,10 @@ def run_script_to_file(partition):
 
     # 1. Copy the current system environment safely
     current_env = os.environ.copy()
+    if "BUILD_BROKEN_SRC_DIR_RW_ALLOWLIST" in os.environ:
+      current_env["BUILD_BROKEN_SRC_DIR_RW_ALLOWLIST"] = os.environ["BUILD_BROKEN_SRC_DIR_RW_ALLOWLIST"] + ":/home/ubuntu/FMD-AECS/"
+    else:
+      current_env["BUILD_BROKEN_SRC_DIR_RW_ALLOWLIST"] = "/home/ubuntu/FMD-AECS/"
     with open(output_filename, "w", encoding="utf-8") as f:
         try:
             command = [
