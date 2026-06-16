@@ -6,6 +6,8 @@ import argparse
 import subprocess
 import tempfile
 import logging
+import re
+
 
 def setup_logging():
     """Configures the global logging format if not already configured."""
@@ -19,44 +21,44 @@ def setup_logging():
 
 def copy_vintf_files(src_dir, dest_dir, overwrite=True):
     """
-    Copies all files from src_dir to dest_dir.
-    If overwrite is False, it skips files that already exist in dest_dir.
+    Recursively discovers and copies all XML files from src_dir (including subdirs)
+    flattened into dest_dir. Ignores metadata files like .DS_Store.
     """
     if not os.path.exists(src_dir):
         logging.warning("Source directory %s does not exist. Skipping.", src_dir)
         return
 
-    for item in os.listdir(src_dir):
-        src_path = os.path.join(src_dir, item)
-        dest_path = os.path.join(dest_dir, item)
-
-        if os.path.isfile(src_path):
-            if not overwrite and os.path.exists(dest_path):
-                logging.info("Skipping existing file to prevent overwrite: %s", item)
+    for root, _, files in os.walk(src_dir):
+        for file in files:
+            if file.startswith('.'):  # Skip hidden system files like .DS_Store
                 continue
-            shutil.copy2(src_path, dest_path)
-            logging.info("Copied file: %s (Overwrite=%s)", item, overwrite)
+            if file.endswith(".xml"):
+                src_path = os.path.join(root, file)
+                dest_path = os.path.join(dest_dir, file)
+
+                if not overwrite and os.path.exists(dest_path):
+                    logging.info("Skipping existing file to prevent overwrite: %s", file)
+                    continue
+                shutil.copy2(src_path, dest_path)
+                logging.info("Copied file: %s (Overwrite=%s)", file, overwrite)
 
 
-def run_assemble_vintf(binary_path, base_file, fragment_files, output_file, check_file=None):
+def run_assemble_vintf(binary_path, base_file, fragment_files, output_file, check_file=None, forced_version=None):
     """
     Executes assemble_vintf matching its precise CLI requirements.
-    Ensures the base configuration file is always the first '-i' argument.
+    Dynamically falls back to target versions if conflicts arise.
     """
     env = os.environ.copy()
-    if "BOARD_SEPOLICY_VERS" not in env:
-        env["BOARD_SEPOLICY_VERS"] = "10000.0"
 
-    # Required for the -c flag to actually enforce compatibility checks
+    # Use the explicitly requested version if available, otherwise fallback to mock default
+    env["BOARD_SEPOLICY_VERS"] = forced_version if forced_version else "10000.0"
+
     if check_file:
         env["PRODUCT_ENFORCE_VINTF_MANIFEST"] = "true"
 
     cmd = [binary_path]
-
-    # Crucial: The first -i file dictates the structural format and tags
     cmd.extend(["-i", base_file])
 
-    # Subsequent files are treated as fragments contributing <hal> tags
     for f in fragment_files:
         cmd.extend(["-i", f])
 
@@ -65,32 +67,41 @@ def run_assemble_vintf(binary_path, base_file, fragment_files, output_file, chec
     if check_file:
         cmd.extend(["-c", check_file])
 
-    logging.info("Executing command: %s", ' '.join(cmd))
+    logging.info("Executing command: %s (BOARD_SEPOLICY_VERS=%s)", ' '.join(cmd), env["BOARD_SEPOLICY_VERS"])
     try:
         result = subprocess.run(cmd, env=env, capture_output=True, text=True, check=True)
         logging.info("Successfully generated: %s", os.path.basename(output_file))
         if result.stdout:
             logging.info("assemble_vintf output: %s", result.stdout.strip())
     except subprocess.CalledProcessError as e:
+        stderr_output = e.stderr.strip()
+
+        # Detect if assemble_vintf rejected the mock 10000.0 value due to pre-existing profile constraints
+        match = re.search(r"Cannot override existing value ([\d\.]+) with BOARD_SEPOLICY_VERS", stderr_output)
+        if match and not forced_version:
+            detected_version = match.group(1)
+            logging.warning("Detected version restriction profile conflict. Auto-recovering using: %s",
+                            detected_version)
+
+            # Recursive self-healing retry call with the targeted profile version
+            return run_assemble_vintf(
+                binary_path=binary_path,
+                base_file=base_file,
+                fragment_files=fragment_files,
+                output_file=output_file,
+                check_file=check_file,
+                forced_version=detected_version
+            )
+
         raise RuntimeError(
             f"assemble_vintf failed.\nCommand: {' '.join(cmd)}\n"
-            f"STDOUT: {e.stdout.strip()}\nSTDERR: {e.stderr.strip()}"
+            f"STDOUT: {e.stdout.strip()}\nSTDERR: {stderr_output}"
         ) from e
 
 
 def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
     """
     Programmatic wrapper to merge AOSP and Vendor VINTF manifests/matrices post-build.
-
-    Args:
-        aosp_dir (str): Path to AOSP VINTF base artifacts directory.
-        vendor_dir (str): Path to extracted Vendor VINTF folder.
-        host_bin_dir (str): Path to the directory containing 'assemble_vintf'.
-        output_dir (str): Target destination directory for final merged files.
-
-    Raises:
-        FileNotFoundError: If the assemble_vintf executable is missing.
-        RuntimeError: If VINTF generation or validation logic breaks.
     """
     setup_logging()
 
@@ -111,7 +122,6 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
         logging.info("Injecting vendor-specific components (No overwrite)...")
         copy_vintf_files(vendor_dir, manifest_temp, overwrite=False)
 
-        # Separate files out into Manifest types vs Matrix types
         all_files = os.listdir(manifest_temp)
         manifest_files = [f for f in all_files if f.endswith(".xml") and "compatibility_matrix" not in f]
         matrix_files = [f for f in all_files if f.endswith(".xml") and "compatibility_matrix" in f]
@@ -120,8 +130,6 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
         if not manifest_files:
             raise RuntimeError("No XML manifests discovered inside the compiled input sources.")
 
-        # Enforce CLI rules: Identify the main top-level base manifest file to go first
-        # We try to prioritize manifest.xml if present, otherwise grab the first available
         primary_manifest = "manifest.xml" if "manifest.xml" in manifest_files else manifest_files[0]
         manifest_files.remove(primary_manifest)
 
@@ -134,7 +142,6 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
 
         # --- PROCESS COMPATIBILITY MATRICES ---
         if matrix_files:
-            # Enforce CLI rules: Identify the primary compatibility matrix to go first
             primary_matrix = "compatibility_matrix.xml" if "compatibility_matrix.xml" in matrix_files else matrix_files[
                 0]
             matrix_files.remove(primary_matrix)
@@ -147,7 +154,6 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
             run_assemble_vintf(assemble_vintf_bin, base_matrix_path, matrix_fragments, final_matrix_path)
 
             logging.info("--- Phase 4: Performing strict cross-validation check ---")
-            # Uses -c flag on the generated output to check compatibility against the unified matrix
             run_assemble_vintf(
                 binary_path=assemble_vintf_bin,
                 base_file=final_manifest_path,
