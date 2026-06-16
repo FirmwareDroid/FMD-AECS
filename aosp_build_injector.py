@@ -23,7 +23,7 @@ import time
 from urllib.parse import urlparse
 from aosp_apex_injector import repackage_apex_file
 from aosp_post_build_injector import start_post_build_injector
-from common import extract_zip, load_configs
+from common import extract_zip, load_configs, get_aosp_build_out_dir
 from config import *
 from fmd_backend_requests import download_firmware_build_files, get_csrf_token, authenticate_fmd, \
     get_firmware_ids, get_graphql_url, upload_image_as_raw
@@ -442,6 +442,29 @@ def fix_missing_file(aosp_path, aosp_version):
         except Exception:
             logging.warning(f"Could not create displayconfig: {file_path}")
 
+
+def copy_logs_by_prefix(source_dir: str, output_dir: str, prefix: str) -> None:
+    """
+    Copies all .log files starting with a specific prefix from source_dir
+    (excluding subfolders) to output_dir.
+    """
+    src = Path(source_dir)
+    dest = Path(output_dir)
+
+    # Ensure the output directory exists, create it if it doesn't
+    dest.mkdir(parents=True, exist_ok=True)
+
+    # Construct the glob pattern: prefix followed by anything, ending in .log
+    # Using .glob() instead of .rglob() ensures it stays in the top-level folder
+    glob_pattern = f"{prefix}*.log"
+
+    for file_path in src.glob(glob_pattern):
+        if file_path.is_file():  # Safety check to ensure it's a file, not a directory
+            shutil.copy(file_path, dest / file_path.name)
+            logging.info(f"Copied: {file_path.name}")
+
+
+
 def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering, cookies, tag=None):
     """
     Wrapper method to start the firmware injection and build process.
@@ -563,6 +586,11 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             build_end_time = time.time()
             included_package_statistics["main_build_duration"] = round(build_end_time - build_start_time, 2)
             logging.info(f"AOSP main build completed successfully. Continuing with post-build injection.")
+
+            aosp_emulator_out = get_aosp_build_out_dir(aosp_path, aosp_version)
+            logs_out = os.path.join(BUILD_OUT_PATH, "post_injector_logs", firmware_id)
+            os.makedirs(logs_out, exist_ok=True)
+            copy_logs_by_prefix(aosp_emulator_out, logs_out, f"post_injector_")
 
             # start_post_build_injector(aosp_path=aosp_path,
             #                           source_folder_path=all_extracted_firmware_files_path,
