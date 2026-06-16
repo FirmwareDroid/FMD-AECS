@@ -9,6 +9,7 @@ import re
 import shutil
 import logging
 import subprocess
+import tempfile
 import threading
 import time
 import json
@@ -24,6 +25,7 @@ from filelock import FileLock
 
 from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file, \
     POST_INJECTOR_CONFIG, add_new_apex_file
+from aosp_build_property_merger import start_property_merge
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
@@ -129,6 +131,15 @@ def start_post_build_injector(aosp_path,
         logging.info(f"Skipping post build injection for {source_folder_path} into {target_out_path}")
 
     logging.debug(f"Finished post build injector")
+
+def get_aosp_build_out_dir(aosp_path, aosp_version):
+    if aosp_version and float(aosp_version) in ["12", "12.1", "13"]:
+        abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64")
+    elif aosp_version and float(aosp_version) >= 14:
+        abs_source_path = os.path.join(aosp_path, "out/target/product/emu64a")
+    else:
+        abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64")
+    return abs_source_path
 
 
 def group_errors_by_prefix(error_list):
@@ -1793,6 +1804,24 @@ def start_rc_merger(source_file_path):
     return source_file_path
 
 
+def run_build_property_merger(source_file_path, target_file_injection_path):
+    filename = os.path.basename(source_file_path)
+    if not os.path.exists(PATH_PROPERTY_MERGE_CONFLICTS_DIR):
+        os.makedirs(PATH_PROPERTY_MERGE_CONFLICTS_DIR, exist_ok=True)
+    conflicts_out_file_path = os.path.join(PATH_PROPERTY_MERGE_CONFLICTS_DIR, f"{filename}.conflicts")
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as temp_file:
+        pass
+    merged_prop_file_path = temp_file.name
+    try:
+        start_property_merge(target_file_injection_path, source_file_path, merged_prop_file_path, conflicts_out_file_path)
+        if os.path.exists(merged_prop_file_path) and os.path.getsize(merged_prop_file_path) > 0:
+            shutil.copyfile(merged_prop_file_path, target_file_injection_path)
+            logging.info(f"Success: Updated {target_file_injection_path} with {merged_prop_file_path}")
+    except Exception as e:
+        logging.error(f"An error occurred during merging build properties: {e}")
+    return target_file_injection_path
+
+
 # Direct Injection
 def inject_file_into_partition(source_file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version):
     is_injected = False
@@ -1804,9 +1833,14 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
     if POST_INJECTOR_CONFIG["ENABLE_RC_MERGER"]:
         source_file_path = start_rc_merger(source_file_path)
 
+    if "build.prop" in filename:
+        logging.info(f"File {source_file_path} is a property file and will be merged with the existing file instead of "
+                     f"overwriting: {target_file_injection_path} directly")
+        run_build_property_merger(source_file_path, target_file_injection_path)
+
     if filename in POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"]:
-        target_file_injection_path = os.path.join(aosp_path,
-                                                  "out/target/product/emulator64_arm64",
+        aosp_build_out_path = get_aosp_build_out_dir(aosp_path, aosp_version)
+        target_file_injection_path = os.path.join(aosp_build_out_path,
                                                   POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"][filename]
                                                   )
         logging.info(f"Direct Injection via specific target path overwrite "
@@ -1885,6 +1919,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
     return target_file_injection_path, is_injected
 
 
+
 def handle_special_matching(source_file_injection_path):
     if source_file_injection_path.endswith("app_process32"):
         source_file_injection_path = source_file_injection_path.replace("app_process32", "app_process64")
@@ -1898,13 +1933,8 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
     root_path = get_path_up_to_first_term(source_file_path, partition_name)
     logging.info(f"{source_file_path} - Root path: {root_path}")
     relative_source_path = source_file_path.replace(root_path, "")
-    if aosp_version and float(aosp_version) in ["12", "12.1", "13"]:
-        abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64", relative_source_path)
-    elif aosp_version and float(aosp_version) >= 14:
-        abs_source_path = os.path.join(aosp_path, "out/target/product/emu64a", relative_source_path)
-    else:
-        abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64", relative_source_path)
-
+    aosp_build_out_path = get_aosp_build_out_dir(aosp_path, aosp_version)
+    abs_source_path = os.path.join(aosp_build_out_path, relative_source_path)
     inject_commands = [f"os.remove('{abs_source_path}')",f"subprocess.call(['ln', '-s', '{target_path}', '{abs_source_path}'])"]
     injection_marker = "####### FMD INJECTION MARKER #######"
     build_image_file_path = os.path.join(aosp_path, "build/make/tools/releasetools/build_image.py")

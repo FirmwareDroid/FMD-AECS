@@ -235,21 +235,21 @@ def generate_makefile_string(properties):
 
     return "\n".join(mk_lines)
 
-def start_property_merge(aosp_file_path, vendor_file_path, output_file_path, conf_output_file_path):
+def start_property_merge(aosp_prop_path, vendor_prop_file_path, out_file_path, conflicts_out_file_path):
     try:
         # Parse files and retain their structural tracking streams
-        aosp_props, aosp_structure = parse_properties(aosp_file_path)
-        vendor_props, vendor_structure = parse_properties(vendor_file_path)
+        aosp_props, aosp_structure = parse_properties(aosp_prop_path)
+        vendor_props, vendor_structure = parse_properties(vendor_prop_file_path)
 
         # Merge execution passing down both stream footprints
         merged_lines, conflicts = merge_properties(aosp_props, vendor_props, aosp_structure, vendor_structure)
 
         out_str = generate_output_string(merged_lines)
         conflict_out_str = generate_conflict_string(conflicts)
-        with open(output_file_path, mode='w', encoding='utf-8') as f:
+        with open(out_file_path, mode='w', encoding='utf-8') as f:
             f.write(out_str)
 
-        with open(conf_output_file_path, mode='w', encoding='utf-8') as f:
+        with open(conflicts_out_file_path, mode='w', encoding='utf-8') as f:
             f.write(conflict_out_str)
     except Exception as e:
         logging.error(e)
