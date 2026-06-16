@@ -1711,7 +1711,14 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
             results_dir = os.path.join(ROOT_PATH, f"out/fmd_build_injector_{firmware_id}")
             try:
                 os.makedirs(results_dir, exist_ok=True)
-                shutil.copytree(BUILD_OUT_PATH, results_dir, dirs_exist_ok=True)
+                folders_to_exclude = shutil.ignore_patterns('extracted_packages')
+
+                shutil.copytree(
+                    BUILD_OUT_PATH,
+                    results_dir,
+                    dirs_exist_ok=True,
+                    ignore=folders_to_exclude
+                )
             except Exception as err:
                 logging.error(f"Got an error copying build results: {err} | {results_dir}")
                 traceback.print_exc()
