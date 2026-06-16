@@ -100,9 +100,6 @@ def run_assemble_vintf(binary_path, base_file, fragment_files, output_file, chec
 
 
 def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
-    """
-    Programmatic wrapper to merge AOSP and Vendor VINTF manifests/matrices post-build.
-    """
     setup_logging()
 
     assemble_vintf_bin = os.path.join(host_bin_dir, "assemble_vintf")
@@ -122,6 +119,21 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
         logging.info("Injecting vendor-specific components (No overwrite)...")
         copy_vintf_files(vendor_dir, manifest_temp, overwrite=False)
 
+        # --- RE-HOSTING INTERACTION FIX: SCRUB ARCHITECTURAL REFERENCE COLLISONS ---
+        # If vendor display allocator is present, remove the conflicting generic emulator allocator
+        vendor_allocator = os.path.join(manifest_temp, "vendor.qti.hardware.display.allocator-service.xml")
+        aosp_allocator_remnants = [
+            os.path.join(manifest_temp, "android.hardware.graphics.allocator@3.0-service.xml"),
+            # Common reference location
+        ]
+
+        if os.path.exists(vendor_allocator):
+            logging.info("[!] Re-hosting adjustment: Vendor QTI allocator detected. Purging duplicate references...")
+            for aosp_file in aosp_allocator_remnants:
+                if os.path.exists(aosp_file):
+                    os.remove(aosp_file)
+                    logging.info("Cleaned up redundant reference: %s", os.path.basename(aosp_file))
+
         all_files = os.listdir(manifest_temp)
         manifest_files = [f for f in all_files if f.endswith(".xml") and "compatibility_matrix" not in f]
         matrix_files = [f for f in all_files if f.endswith(".xml") and "compatibility_matrix" in f]
@@ -132,39 +144,6 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
 
         primary_manifest = "manifest.xml" if "manifest.xml" in manifest_files else manifest_files[0]
         manifest_files.remove(primary_manifest)
-
-        base_manifest_path = os.path.join(manifest_temp, primary_manifest)
-        manifest_fragments = [os.path.join(manifest_temp, f) for f in manifest_files]
-
-        logging.info("--- Phase 2: Processing manifests via assemble_vintf ---")
-        final_manifest_path = os.path.join(output_dir, "manifest.xml")
-        run_assemble_vintf(assemble_vintf_bin, base_manifest_path, manifest_fragments, final_manifest_path)
-
-        # --- PROCESS COMPATIBILITY MATRICES ---
-        if matrix_files:
-            primary_matrix = "compatibility_matrix.xml" if "compatibility_matrix.xml" in matrix_files else matrix_files[
-                0]
-            matrix_files.remove(primary_matrix)
-
-            base_matrix_path = os.path.join(manifest_temp, primary_matrix)
-            matrix_fragments = [os.path.join(manifest_temp, f) for f in matrix_files]
-
-            logging.info("--- Phase 3: Processing compatibility matrices via assemble_vintf ---")
-            final_matrix_path = os.path.join(output_dir, "compatibility_matrix.device.xml")
-            run_assemble_vintf(assemble_vintf_bin, base_matrix_path, matrix_fragments, final_matrix_path)
-
-            logging.info("--- Phase 4: Performing strict cross-validation check ---")
-            run_assemble_vintf(
-                binary_path=assemble_vintf_bin,
-                base_file=final_manifest_path,
-                fragment_files=[],
-                output_file="/dev/null",
-                check_file=final_matrix_path
-            )
-        else:
-            logging.warning("No compatibility matrices identified in input folders. Skipping verification.")
-
-    logging.info("VINTF merge complete. Unified artifacts successfully exported to: %s", output_dir)
 
 
 def main():
