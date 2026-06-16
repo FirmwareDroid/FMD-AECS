@@ -1720,6 +1720,9 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
                     dirs_exist_ok=True,
                     ignore=folders_to_exclude
                 )
+                extracted_packes_path = os.path.join(results_dir, "extracted_packages")
+                if os.path.exists(extracted_packes_path):
+                    shutil.rmtree(extracted_packes_path, ignore_errors=True)
                 shutil.rmtree(BUILD_OUT_PATH, ignore_errors=True)
             except Exception as err:
                 logging.error(f"Got an error copying build results: {err} | {results_dir}")
