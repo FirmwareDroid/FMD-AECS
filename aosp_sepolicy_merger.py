@@ -55,19 +55,21 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
     logger.info(f"Successfully stripped {removed_count} duplicate declarations.")
 
 
-def run_secilc(secilc_bin, input_files, output_policy, output_contexts, policy_version="30"):
+def run_secilc(secilc_bin, input_files, output_policy, output_contexts, policy_version="33"):
     """
-    Invokes the secilc compiler with the cleaned pipeline files.
+    Invokes the secilc compiler matching your AOSP 13 tool requirements.
     """
     logger.info("Invoking secilc compiler...")
+
+    # Matching your exact binary options format
     cmd = [
               secilc_bin,
-              "-m",  # Allow multiple declarations
-              "-M", "true",  # Target platform policy optimization
-              "-G",  # Expand auto-generated attributes
-              "-c", policy_version,
-              "-o", output_policy,
-              "-f", output_contexts
+              "-m",  # --multiple-decls
+              "-M", "false",  # --mls true|false (Android uses non-MLS profiles by default)
+              "-G",  # --expand-generated
+              "-c", policy_version,  # --policyvers=<version>
+              "-o", output_policy,  # --output=<file>
+              "-f", output_contexts  # --filecontext=<file>
           ] + input_files
 
     logger.debug(f"Running command: {' '.join(cmd)}")
@@ -83,10 +85,9 @@ def run_secilc(secilc_bin, input_files, output_policy, output_contexts, policy_v
 
 
 def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vendor_pub_versioned, out_dir,
-                            policy_version="30"):
+                            policy_version="33"):
     """
-    Core wrapper function that accepts paths dynamically.
-    This can be safely called directly from other Python automation scripts.
+    Core pipeline driver accepting dynamic arguments from your environment.
     """
     final_policy = os.path.join(out_dir, "sepolicy")
     final_contexts = os.path.join(out_dir, "file_contexts")
@@ -128,13 +129,12 @@ def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vend
 
 def main():
     """
-    CLI Parser handling execution via arguments.
+    CLI Parser matching the precise requirements of your AOSP workspace setup.
     """
     parser = argparse.ArgumentParser(
-        description="Merge precompiled Android Platform and Vendor CIL files for Rehosting dynamically."
+        description="Merge precompiled Android Platform and Vendor CIL files matching your specific secilc profile."
     )
 
-    # Arguments mapped directly to paths
     parser.add_argument("--secilc", required=True, help="Path to host secilc binary")
     parser.add_argument("--plat-cil", required=True, help="Path to platform plat_sepolicy.cil")
     parser.add_argument("--plat-mapping", required=True, help="Path to platform mapping CIL file (e.g., 33.cil)")
@@ -142,7 +142,8 @@ def main():
     parser.add_argument("--vendor-pub", required=True, help="Path to vendor plat_pub_versioned.cil")
     parser.add_argument("--out-dir", required=True, help="Output directory for merged artifacts")
 
-    parser.add_argument("--policy-version", default="30", help="Target SELinux database version (default: 30)")
+    # Defaulting to 33 per your tool's default parameters
+    parser.add_argument("--policy-version", default="33", help="Target SELinux database version (default: 33)")
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging output")
 
     args = parser.parse_args()

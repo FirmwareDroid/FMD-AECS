@@ -8,6 +8,7 @@ from common import get_aosp_build_out_dir
 
 VINTF_FOLDER_RELATIVE_PATH = "etc/vintf"
 ASSEMBLE_VINTF_PATH_LIST = ["out/host/linux-x86/bin/assemble_vintf"]
+SECIL_BINARY_PATH_LIST = ["./out/host/linux-x86/bin/secilc", "out/soong/.intermediates/external/selinux/secilc/secilc"]
 
 def get_aosp_vintf_path(aosp_emulator_out_dir: str, partition_name: str):
     vintf_folder_path = os.path.join(aosp_emulator_out_dir, partition_name, VINTF_FOLDER_RELATIVE_PATH)
@@ -34,14 +35,27 @@ def get_vintf_vendor_path(partition_name: str, vintf_folder_path_list: list):
     return vintf_root_dir
 
 
-def find_assemble_vintf(asop_path):
-    for candidate_path in ASSEMBLE_VINTF_PATH_LIST:
-        bin_path = os.path.join(asop_path, candidate_path)
+def _find_binary_dir(aosp_path, path_list, binary_name):
+    """Helper function to find a binary's directory from a list of candidate paths."""
+    for candidate_path in path_list:
+        bin_path = os.path.join(aosp_path, candidate_path)
         if os.path.exists(bin_path):
             bin_dir = os.path.dirname(bin_path)
-            logging.info(f"Found assemble vintf folder: {bin_dir}")
+            logging.info(f"Found {binary_name} folder: {bin_dir}")
             return str(bin_dir)
-    raise FileNotFoundError(f"Could not find 'assemble_vintf' in expected paths: {ASSEMBLE_VINTF_PATH_LIST}")
+
+    raise FileNotFoundError(
+        f"Could not find '{binary_name}' in expected paths: {path_list}"
+    )
+
+
+def find_assemble_vintf(aosp_path):
+    return _find_binary_dir(aosp_path, ASSEMBLE_VINTF_PATH_LIST, "assemble_vintf")
+
+
+def find_secil_binary(aosp_path):
+    return _find_binary_dir(aosp_path, SECIL_BINARY_PATH_LIST, "secilc")
+
 
 
 def handle_vintf_merge(aosp_path: str, aosp_version:str, partition_name: str, vintf_folder_path_list: list):
