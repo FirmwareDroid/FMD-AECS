@@ -40,7 +40,7 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
     """
     Cleans vendor policies inline. Strips duplicate declarations,
     surgical scrubs complex attribute sets, and clears out orphaned
-    role/attribute associations.
+    role/attribute associations regardless of layout spacing.
     """
     logger.info(f"Surgically scrubbing duplicate platform types and orphaned statements from {vendor_cil_in}...")
 
@@ -50,9 +50,8 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
     # Match complex attribute assignments: (typeattributeset attr_name (token1 token2 ...))
     attr_set_pattern = re.compile(r'\(typeattributeset\s+([a-zA-Z0-9_]+)\s+\((.*)\)\)')
 
-    # Match auxiliary declarations tracking types: (roletype role_name type_name)
-    # Also handles (typeattribute type_name attr_name) or (typebounds parent child)
-    aux_pattern = re.compile(r'\((roletype|typeattribute|typebounds)\s+([a-zA-Z0-9_]+)\s+([a-zA-Z0-9_]+)\)')
+    # Loose match for tracking keywords anywhere on a line
+    aux_keywords = ("roletype", "typeattribute", "typebounds")
 
     removed_decls = 0
     scrubbed_tokens = 0
@@ -60,30 +59,30 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
 
     with open(vendor_cil_in, 'r') as infile, open(vendor_cil_out, 'w') as outfile:
         for line in infile:
-            # 1. Base Duplicate Declarations (Drop entirely)
+            stripped_line = line.strip()
+
+            # 1. Skip Empty or Comment Lines Natively
+            if not stripped_line or stripped_line.startswith(";"):
+                outfile.write(line)
+                continue
+
+            # 2. Base Duplicate Declarations (Drop entirely)
             decl_match = decl_pattern.search(line)
             if decl_match and decl_match.group(2) in duplicate_set:
                 removed_decls += 1
                 continue
 
-            # 2. Auxiliary Type Bindings / Role Assignments
-            aux_match = aux_pattern.search(line)
-            if aux_match:
-                statement_type = aux_match.group(1)
-                param1 = aux_match.group(2)
-                param2 = aux_match.group(3)
-
-                # If it's a roletype, the type name is the second parameter: (roletype r type_name)
-                if statement_type == "roletype" and param2 in duplicate_set:
-                    removed_aux += 1
-                    continue
-                # For typeattribute/typebounds, if either the type or attribute is blacklisted, drop it
-                elif statement_type in ("typeattribute", "typebounds") and (
-                        param1 in duplicate_set or param2 in duplicate_set):
+            # 3. Robust Auxiliary Statement Matching
+            # Tokenize the line by stripping parentheses to inspect the underlying types safely
+            clean_tokens = stripped_line.replace("(", "").replace(")", "").split()
+            if clean_tokens and clean_tokens[0] in aux_keywords:
+                # In (roletype role type) or (typeattribute type attr), check all parameters
+                # If ANY parameter matches a type we dropped, the statement is an orphan
+                if any(t in duplicate_set for t in clean_tokens[1:]):
                     removed_aux += 1
                     continue
 
-            # 3. Complex Attribute Multi-Token Sets
+            # 4. Complex Attribute Multi-Token Sets
             attr_match = attr_set_pattern.search(line)
             if attr_match:
                 attr_name = attr_match.group(1)
@@ -106,7 +105,7 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
             outfile.write(line)
 
     logger.info(f"[+] Scrubbing complete: Deleted {removed_decls} base declarations.")
-    logger.info(f"[+] Scrubbing complete: Removed {removed_aux} orphaned roletype/attribute statements.")
+    logger.info(f"[+] Scrubbing complete: Removed {removed_aux} orphaned structural statements.")
     logger.info(f"[+] Scrubbing complete: Cleared {scrubbed_tokens} internal duplicate tokens.")
 
 
