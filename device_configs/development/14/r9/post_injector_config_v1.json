@@ -2,6 +2,7 @@
   "FMD_URL": "https://firmwaredroid.cloudlab.zhaw.ch",
   "GRAPHQL_API_URL": "https://firmwaredroid.cloudlab.zhaw.ch/graphql",
   "ENABLE_INJECTION": true,
+  "ENABLE_SEMANTIC_INJECTOR": false,
   "DISABLE_MISC_INJECTION": false,
   "ENABLE_MISC_INJECTION_IF_NOT_EXISTS": true,
   "SHARED_USER_ID_MAPPING_DICT":{

@@ -28,8 +28,10 @@ from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, 
 from aosp_build_property_merger import start_property_merge
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
+from aosp_post_injector_semantic import start_semantic_injector
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
-    check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file, check_binary_architecture
+    check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file, check_binary_architecture, \
+    get_aosp_build_out_dir
 from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, \
     MEASURE_LOOKUP_PERFORMANCE, EXTRACTION_ALL_FILES_PATH
 from config_post_injector import *
@@ -132,14 +134,7 @@ def start_post_build_injector(aosp_path,
 
     logging.debug(f"Finished post build injector")
 
-def get_aosp_build_out_dir(aosp_path, aosp_version):
-    if aosp_version and float(aosp_version) in ["12", "12.1", "13"]:
-        abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64")
-    elif aosp_version and float(aosp_version) >= 14:
-        abs_source_path = os.path.join(aosp_path, "out/target/product/emu64a")
-    else:
-        abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64")
-    return abs_source_path
+
 
 
 def group_errors_by_prefix(error_list):
@@ -1300,6 +1295,10 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     # Initialize tqdm progress bar
     progress_bar = tqdm(total=len(file_paths), desc=f"Processing files in partition: {partition_name}")
 
+    vintf_path_keywords = [
+        "/etc/vintf/"
+    ]
+    vintf_path_list = []
     future_dict = {}
     skip_counter = 0
     for file_path in file_paths:
@@ -1307,6 +1306,11 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
             if file_path in processed_files:
                 skip_counter += 1
                 continue
+            for keyword in vintf_path_keywords:
+                if keyword in file_path:
+                    vintf_path_list.append(file_path)
+                    skip_counter += 1
+                    continue
             processed_files.add(file_path)
 
         logging.debug(f"Submitting file for injection: {file_path} | Partition: {partition_name} "
@@ -1334,6 +1338,11 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
             if future.exception():
                 logging.error(f"Future for file {file_path} raised an exception: {future.exception()}")
             progress_bar.update(1)
+
+    if POST_INJECTOR_CONFIG["ENABLE_SEMANTIC_INJECTOR"]:
+        if vintf_path_list and len(inj_obj_list) > 0:
+            start_semantic_injector(aosp_path, aosp_version, str(partition_name), vintf_path_list)
+
 
     progress_bar.close()
     #handle_duplicated_permissions(target_out_path)
@@ -1982,23 +1991,6 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
     start_time = time.time()
     is_injected = False
     try:
-        # if "/apex/" in original_file_path:
-        #     #TODO Remove this check
-        #     if module_type == "JAVA_LIBRARIES":
-        #         new_file_path = "/system/framework/" + file_name
-        #         logging.info(f"Injecting file from apex: {source_file_path} into {new_file_path}")
-        #     elif module_type == "BINARY":
-        #         new_file_path = "/bin/" + file_name
-        #         logging.info(f"Injecting binary from apex: {source_file_path} into {new_file_path}")
-        #     else:
-        #         new_file_path = "/etc/" + file_name
-        #         logging.info(f"Injecting /etc/ file from apex: {source_file_path} into {new_file_path}")
-        #     copy_fast(source_file_path, new_file_path)
-        #     is_injected = True
-        # elif filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
-        #     logging.info(f"Indirect Injection via APEX symlink file: {filename} with path {source_file_path} into {original_file_path}")
-        #     is_injected = inject_apex_symlink_file(filename, source_file_path, original_file_path, aosp_path, partition_name, lunch_target, aosp_version)
-        #else:
         copy_fast(source_file_path, original_file_path)
         is_injected = True
         set_executable_permission(original_file_path)

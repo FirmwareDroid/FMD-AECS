@@ -245,3 +245,13 @@ def check_binary_architecture(binary_path):
             return 'Unknown architecture'
     except Exception as e:
         return f"Error determining architecture: {str(e)}"
+
+
+def get_aosp_build_out_dir(aosp_path, aosp_version):
+    if aosp_version and float(aosp_version) in ["12", "12.1", "13"]:
+        abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64")
+    elif aosp_version and float(aosp_version) >= 14:
+        abs_source_path = os.path.join(aosp_path, "out/target/product/emu64a")
+    else:
+        abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64")
+    return abs_source_path

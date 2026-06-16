@@ -555,6 +555,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
                 json.dump(post_builder_args_dict, f, indent=4)
                 logging.info(f"Post builder args written to out/post_builder_args.json")
 
+
             fix_missing_file(aosp_path, aosp_version)
             main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
             build_start_time = time.time()
