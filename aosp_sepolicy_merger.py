@@ -72,7 +72,7 @@ def run_secilc(secilc_bin, input_files, output_policy, output_contexts, policy_v
               "-f", output_contexts  # --filecontext=<file>
           ] + input_files
 
-    logger.debug(f"Running command: {' '.join(cmd)}")
+    logger.info(f"Running command: {' '.join(cmd)}")
     try:
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         logger.info("Success! Merged policy generated.")
