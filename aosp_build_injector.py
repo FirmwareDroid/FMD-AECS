@@ -559,7 +559,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
                                       "post_injector_config_path": POST_INJECTOR_CONFIG_PATH,
                                       "aosp_version": aosp_version
                                       }
-            with open(, "w", encoding="utf-8") as f:
+            with open(path_post_builder_args, "w", encoding="utf-8") as f:
                 json.dump(post_builder_args_dict, f, indent=4)
                 logging.info(f"Post builder args written to out/post_builder_args.json")
 
