@@ -1710,6 +1710,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
         finally:
             results_dir = os.path.join(ROOT_PATH, f"out/fmd_build_injector_{firmware_id}")
             try:
+                if os.path.exists(results_dir):
+                    shutil.rmtree(results_dir, ignore_errors=True)
                 os.makedirs(results_dir, exist_ok=True)
                 folders_to_exclude = shutil.ignore_patterns('extracted_packages')
                 shutil.copytree(
