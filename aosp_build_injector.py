@@ -1622,7 +1622,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
     download_url_list = []
 
     global BUILD_OUT_PATH
-    BUILD_OUT_PATH = os.path.join(args.aosp_path, "out/fmd/")
+    BUILD_OUT_PATH = os.path.join("/tmp/fmd/")
     os.makedirs(BUILD_OUT_PATH, exist_ok=True)
 
     clear_environment(args.aosp_path, aosp_packages_abs_path, args.version)
