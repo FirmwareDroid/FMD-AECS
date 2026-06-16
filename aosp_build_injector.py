@@ -1773,6 +1773,8 @@ def main():
     logging.info(f"Pre-injector config: {PRE_INJECTOR_CONFIG_PATH}, Post-injector config: {POST_INJECTOR_CONFIG_PATH}")
     set_skipped_module_names()
     fmd_password, docker_repo_password = get_passwords(args)
+
+    os.makedirs(BUILD_OUT_PATH, exist_ok=True)
     # Expose docker/nexus repo credentials as globals so helper functions can upload artefacts
     globals()['DOCKER_REPO_URL_GLOBAL'] = args.docker_repo_url
     globals()['DOCKER_REPO_USERNAME_GLOBAL'] = args.docker_repo_username
