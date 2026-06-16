@@ -64,7 +64,6 @@
     "keymaster",
     "/etc/passwd",
     "/etc/group",
-    "/etc/build.prop",
     "/etc/selinux",
     "/etc/seccomp_policy",
     "/vendor/bin/vndservicemanager",
@@ -448,7 +447,8 @@
     "/lib64/av-types-aidl-cpp.so",
     "/lib64/libstagefright",
     "/lib64/libfmq.so",
-    "/lib64/libclang_rt.ubsan_standalone-aarch64-android.so"
+    "/lib64/libclang_rt.ubsan_standalone-aarch64-android.so",
+    "/etc/build.prop"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
