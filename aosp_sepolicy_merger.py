@@ -38,56 +38,48 @@ def extract_declared_types(cil_path):
 
 def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
     """
-    Cleans vendor policies inline. Strips duplicate declarations,
-    surgical scrubs complex attribute sets, and clears out orphaned
-    role/attribute associations regardless of layout spacing.
+    Cleans vendor policies inline with enhanced logging for tracking down
+    secilc compiler resolution faults.
     """
     logger.info(f"Surgically scrubbing duplicate platform types and orphaned statements from {vendor_cil_in}...")
 
-    # Match standalone declarations: (type name), (typeattribute name), etc.
     decl_pattern = re.compile(r'\((type|typeattribute|macro|common|class)\s+([a-zA-Z0-9_]+)')
-
-    # Match complex attribute assignments: (typeattributeset attr_name (token1 token2 ...))
     attr_set_pattern = re.compile(r'\(typeattributeset\s+([a-zA-Z0-9_]+)\s+\((.*)\)\)')
-
-    # Loose match for tracking keywords anywhere on a line
     aux_keywords = ("roletype", "typeattribute", "typebounds")
 
     removed_decls = 0
     scrubbed_tokens = 0
     removed_aux = 0
 
-    with open(vendor_cil_in, 'r') as infile, open(vendor_cil_out, 'w') as outfile:
+    lines_buffer = []
+
+    with open(vendor_cil_in, 'r') as infile:
         for line in infile:
             stripped_line = line.strip()
 
-            # 1. Skip Empty or Comment Lines Natively
             if not stripped_line or stripped_line.startswith(";"):
-                outfile.write(line)
+                lines_buffer.append(line)
                 continue
 
-            # 2. Base Duplicate Declarations (Drop entirely)
+            # 1. Base Duplicate Declarations
             decl_match = decl_pattern.search(line)
             if decl_match and decl_match.group(2) in duplicate_set:
                 removed_decls += 1
                 continue
 
-            # 3. Robust Auxiliary Statement Matching
-            # Tokenize the line by stripping parentheses to inspect the underlying types safely
+            # 2. Auxiliary Structural Statements
             clean_tokens = stripped_line.replace("(", "").replace(")", "").split()
             if clean_tokens and clean_tokens[0] in aux_keywords:
-                # In (roletype role type) or (typeattribute type attr), check all parameters
-                # If ANY parameter matches a type we dropped, the statement is an orphan
+                # Flag line if ANY part of the token sequence hits a platform type
                 if any(t in duplicate_set for t in clean_tokens[1:]):
                     removed_aux += 1
                     continue
 
-            # 4. Complex Attribute Multi-Token Sets
+            # 3. Complex Attribute Multi-Token Sets
             attr_match = attr_set_pattern.search(line)
             if attr_match:
                 attr_name = attr_match.group(1)
                 tokens = attr_match.group(2).split()
-
                 cleaned_tokens = [t for t in tokens if t not in duplicate_set]
 
                 if attr_name in duplicate_set:
@@ -102,11 +94,37 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
                     else:
                         continue
 
+            lines_buffer.append(line)
+
+    # Write out the processed file while tracking written line numbers
+    with open(vendor_cil_out, 'w') as outfile:
+        for line in lines_buffer:
             outfile.write(line)
 
     logger.info(f"[+] Scrubbing complete: Deleted {removed_decls} base declarations.")
     logger.info(f"[+] Scrubbing complete: Removed {removed_aux} orphaned structural statements.")
     logger.info(f"[+] Scrubbing complete: Cleared {scrubbed_tokens} internal duplicate tokens.")
+
+
+def dump_faulty_lines(file_path, target_line, window=5):
+    """
+    Helper function to print out a window of lines around a compilation error
+    to inspect context formatting directly.
+    """
+    logger.error(f"--- INSPECTING CONTEXT AROUND FAULTY LINE {target_line} ---")
+    if not os.path.exists(file_path):
+        logger.error("Parsed temporary file could not be recovered for analysis.")
+        return
+
+    start = max(1, target_line - window)
+    end = target_line + window
+
+    with open(file_path, 'r') as f:
+        for idx, line in enumerate(f, 1):
+            if start <= idx <= end:
+                marker = ">>>" if idx == target_line else "   "
+                logger.error(f"{marker} [{idx}]: {line.rstrip()}")
+    logger.error("-" * 60)
 
 
 def run_secilc(secilc_bin, input_files, output_policy, output_contexts, policy_version="33"):
