@@ -208,14 +208,30 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
             final_matrix_path = os.path.join(output_dir, "compatibility_matrix.device.xml")
             run_assemble_vintf(assemble_vintf_bin, base_matrix_path, matrix_fragments, final_matrix_path)
 
-            logging.info("--- Phase 4: Performing strict cross-validation check ---")
-            run_assemble_vintf(
-                binary_path=assemble_vintf_bin,
-                base_file=final_manifest_path,
-                fragment_files=[],
-                output_file="/dev/null",
-                check_file=final_matrix_path
-            )
+            # --- Phase 4: Performing strict cross-validation check ---
+            # Only cross-validate if we are checking matching relational pairs
+            # (e.g., Device Manifest vs Framework Matrix).
+            # Device Manifest vs Device Matrix is an architectural type violation.
+
+            framework_matrix_path = os.path.join(aosp_dir,
+                                                 "compatibility_matrix.xml")  # check for framework matrix presence
+
+            if os.path.exists(framework_matrix_path) and "type=\"framework\"" in open(framework_matrix_path).read():
+                logging.info(
+                    "--- Phase 4: Performing strict cross-validation check (Device Manifest vs Framework Matrix) ---")
+                run_assemble_vintf(
+                    binary_path=assemble_vintf_bin,
+                    base_file=final_manifest_path,
+                    fragment_files=[],
+                    output_file="/dev/null",
+                    check_file=framework_matrix_path
+                )
+            else:
+                logging.info("--- Phase 4: Skipping Cross-Validation ---")
+                logging.info(
+                    "Validation skipped: Input compatibility matrix is device-type; type-matching requires an FCM for verification.")
+
+            logging.info("VINTF merge complete. Unified artifacts successfully exported to: %s", output_dir)
         else:
             logging.warning("No compatibility matrices identified in input folders. Skipping verification.")
 
