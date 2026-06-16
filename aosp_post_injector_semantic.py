@@ -3,15 +3,16 @@ import logging
 import os
 import re
 import shutil
+import sys
 import tempfile
-
-from aosp_sepolicy_merger import merge_sepolicy_pipeline
 from aosp_vintf_handler import merge_vintf_artifacts
+from aosp_sepolicy_merger import merge_sepolicy_pipeline
 from common import get_aosp_build_out_dir
 
 VINTF_FOLDER_RELATIVE_PATH = "etc/vintf"
 ASSEMBLE_VINTF_PATH_LIST = ["out/host/linux-x86/bin/assemble_vintf"]
 SECIL_BINARY_PATH_LIST = ["./out/host/linux-x86/bin/secilc", "out/soong/.intermediates/external/selinux/secilc/secilc"]
+
 
 def get_aosp_vintf_path(aosp_emulator_out_dir: str, partition_name: str):
     vintf_folder_path = os.path.join(aosp_emulator_out_dir, partition_name, VINTF_FOLDER_RELATIVE_PATH)
@@ -22,14 +23,13 @@ def get_aosp_vintf_path(aosp_emulator_out_dir: str, partition_name: str):
 
 
 def get_vintf_vendor_path(partition_name: str, vintf_folder_path_list: list):
-    # Extract base dirs, check if partition_name is part of the path segments, and deduplicate
     base_dirs = list(dict.fromkeys(
         path.split('/etc/vintf')[0]
         for path in vintf_folder_path_list
         if partition_name in path.split('/etc/vintf')[0].split('/')
     ))
     if len(base_dirs) == 1:
-        vintf_root_dir = base_dirs[0]
+        vintf_root_dir = os.path.join(base_dirs[0], VINTF_FOLDER_RELATIVE_PATH)
         logging.info(f"Found vintf root directory: {vintf_root_dir}")
     else:
         logging.warning(f"Found multiple vintf root directories: {base_dirs}")
@@ -39,40 +39,86 @@ def get_vintf_vendor_path(partition_name: str, vintf_folder_path_list: list):
 
 
 def _find_binary_dir(aosp_path, path_list, binary_name):
-    """Helper function to find a binary's directory from a list of candidate paths."""
     for candidate_path in path_list:
         bin_path = os.path.join(aosp_path, candidate_path)
         if os.path.exists(bin_path):
             bin_dir = os.path.dirname(bin_path)
             logging.info(f"Found {binary_name} folder: {bin_dir}")
             return str(bin_dir)
-
-    raise FileNotFoundError(
-        f"Could not find '{binary_name}' in expected paths: {path_list}"
-    )
+    raise FileNotFoundError(f"Could not find '{binary_name}' in expected paths: {path_list}")
 
 
 def find_assemble_vintf(aosp_path):
     return _find_binary_dir(aosp_path, ASSEMBLE_VINTF_PATH_LIST, "assemble_vintf")
 
 
-def find_secil_binary(aosp_path):
-    return _find_binary_dir(aosp_path, SECIL_BINARY_PATH_LIST, "secilc")
-
-
-
-def handle_vintf_merge(aosp_path: str, aosp_version:str, partition_name: str, vintf_folder_path_list: list):
+def start_merge_vintf_artifacts(aosp_vintf_dir: str, vendor_vintf_dir: str, host_bin_dir: str, output_folder: str):
     """
-    Merges two vintf folders into one folder.
+    Directly imports aosp_vintf_handler and calls its execution wrapper natively.
     """
-    logging.info(f"Merging vintf folder: {aosp_path}, version: {aosp_version}, partition: {partition_name}, vintf_folder_path_list: {vintf_folder_path_list}")
+    os.makedirs(output_folder, exist_ok=True)
+
+    script_dir = os.getcwd()
+    script_name = "aosp_vintf_handler"
+    script_path = os.path.join(script_dir, f"{script_name}.py")
+
+    if not os.path.exists(script_path):
+        raise FileNotFoundError(f"VINTF merger script missing at: {script_path}")
+
+    # Dynamically inject path if the script resides outside standard package roots
+    if script_dir not in sys.path:
+        sys.path.insert(0, script_dir)
+
+    try:
+        logging.info("Calling aosp_vintf_handler wrapper entrypoint natively...")
+        merge_vintf_artifacts(
+            aosp_dir=aosp_vintf_dir,
+            vendor_dir=vendor_vintf_dir,
+            host_bin_dir=host_bin_dir,
+            output_dir=output_folder
+        )
+    except Exception as e:
+        logging.error(f"In-process execution of VINTF Handler raised an exception: {str(e)}")
+        raise RuntimeError("Failed to complete inline VINTF artifact compilation workflow step.") from e
+
+    logging.info("VINTF native compilation task returned cleanly.")
+
+
+def handle_vintf_merge(aosp_path: str, aosp_version: str, partition_name: str, vintf_folder_path_list: list):
+    """
+    Merges two VINTF folders into one folder and applies a deployment layout matching AOSP runtime parsing.
+    """
+    logging.info(f"Merging vintf folder: {aosp_path}, version: {aosp_version}, "
+                 f"partition: {partition_name}, vintf_folder_path_list: {vintf_folder_path_list}")
     aosp_emulator_out_dir = get_aosp_build_out_dir(aosp_path, aosp_version)
     aosp_vintf_dir = get_aosp_vintf_path(aosp_emulator_out_dir, partition_name)
     vendor_vintf_dir = get_vintf_vendor_path(partition_name, vintf_folder_path_list)
     temp_folder = tempfile.mkdtemp()
-    output_folder = os.path.join(temp_folder, partition_name)
+    output_folder = os.path.join(temp_folder, "merged_vintf_output", partition_name)
     host_bin_dir = find_assemble_vintf(aosp_path)
-    merge_vintf_artifacts(aosp_vintf_dir, vendor_vintf_dir, host_bin_dir, output_folder)
+    start_merge_vintf_artifacts(aosp_vintf_dir, vendor_vintf_dir, host_bin_dir, output_folder)
+
+    if aosp_vintf_dir:
+        logging.info(f"Deploying unified VINTF configurations to live target path: {aosp_vintf_dir}")
+        src_manifest = os.path.join(output_folder, "manifest.xml")
+        src_matrix = os.path.join(output_folder, "compatibility_matrix.device.xml")
+
+        if os.path.exists(src_manifest):
+            shutil.copy2(src_manifest, os.path.join(aosp_vintf_dir, "manifest.xml"))
+            logging.info(f"Deployed merged manifest.xml to AOSP runtime vintf folder successfully: {aosp_vintf_dir}")
+
+        if os.path.exists(src_matrix):
+            shutil.copy2(src_matrix, os.path.join(aosp_vintf_dir, "compatibility_matrix.xml"))
+            logging.info(f"Deployed merged compatibility_matrix.xml to AOSP runtime vintf folder successfully: {aosp_vintf_dir}")
+
+        runtime_manifest_folder = os.path.join(aosp_vintf_dir, "manifest")
+        if os.path.exists(runtime_manifest_folder):
+            shutil.rmtree(runtime_manifest_folder)
+            logging.info(f"Removed existing runtime manifest folder: {runtime_manifest_folder}")
+        os.makedirs(os.path.join(aosp_vintf_dir, "manifest"), exist_ok=True)
+        logging.info("VINTF flattening pipeline structural deployment finalized successfully.")
+
+    return output_folder
 
 
 
@@ -159,6 +205,8 @@ def get_latest_sepolicy_mapping(mapping_dir: str):
 
     return latest_file_path, latest_major_version
 
+def find_secil_binary(aosp_path):
+    return _find_binary_dir(aosp_path, SECIL_BINARY_PATH_LIST, "secilc")
 
 def get_vendor_policy_files(vendor_partition_path: str):
     """
