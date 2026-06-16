@@ -38,36 +38,59 @@ def extract_declared_types(cil_path):
 
 def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
     """
-    Cleans vendor policies inline. Strips duplicate declarations completely,
-    but surgically removes individual conflicting tokens from attribute sets
-    to preserve distinct vendor-specific types.
+    Cleans vendor policies inline. Strips duplicate declarations,
+    surgical scrubs complex attribute sets, and clears out orphaned
+    role/attribute associations.
     """
-    logger.info(f"Surgically scrubbing duplicate platform types from {vendor_cil_in}...")
+    logger.info(f"Surgically scrubbing duplicate platform types and orphaned statements from {vendor_cil_in}...")
 
+    # Match standalone declarations: (type name), (typeattribute name), etc.
     decl_pattern = re.compile(r'\((type|typeattribute|macro|common|class)\s+([a-zA-Z0-9_]+)')
+
+    # Match complex attribute assignments: (typeattributeset attr_name (token1 token2 ...))
     attr_set_pattern = re.compile(r'\(typeattributeset\s+([a-zA-Z0-9_]+)\s+\((.*)\)\)')
+
+    # Match auxiliary declarations tracking types: (roletype role_name type_name)
+    # Also handles (typeattribute type_name attr_name) or (typebounds parent child)
+    aux_pattern = re.compile(r'\((roletype|typeattribute|typebounds)\s+([a-zA-Z0-9_]+)\s+([a-zA-Z0-9_]+)\)')
 
     removed_decls = 0
     scrubbed_tokens = 0
+    removed_aux = 0
 
     with open(vendor_cil_in, 'r') as infile, open(vendor_cil_out, 'w') as outfile:
         for line in infile:
-            # Check 1: Base Duplicate Declarations (Delete whole line)
+            # 1. Base Duplicate Declarations (Drop entirely)
             decl_match = decl_pattern.search(line)
             if decl_match and decl_match.group(2) in duplicate_set:
                 removed_decls += 1
                 continue
 
-            # Check 2: Complex Attribute Sets (Scrub individual items within the list)
+            # 2. Auxiliary Type Bindings / Role Assignments
+            aux_match = aux_pattern.search(line)
+            if aux_match:
+                statement_type = aux_match.group(1)
+                param1 = aux_match.group(2)
+                param2 = aux_match.group(3)
+
+                # If it's a roletype, the type name is the second parameter: (roletype r type_name)
+                if statement_type == "roletype" and param2 in duplicate_set:
+                    removed_aux += 1
+                    continue
+                # For typeattribute/typebounds, if either the type or attribute is blacklisted, drop it
+                elif statement_type in ("typeattribute", "typebounds") and (
+                        param1 in duplicate_set or param2 in duplicate_set):
+                    removed_aux += 1
+                    continue
+
+            # 3. Complex Attribute Multi-Token Sets
             attr_match = attr_set_pattern.search(line)
             if attr_match:
                 attr_name = attr_match.group(1)
                 tokens = attr_match.group(2).split()
 
-                # Filter out the blacklisted duplicate tokens
                 cleaned_tokens = [t for t in tokens if t not in duplicate_set]
 
-                # If the attribute block itself is a duplicate platform name, skip it
                 if attr_name in duplicate_set:
                     removed_decls += 1
                     continue
@@ -75,16 +98,15 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
                 if len(cleaned_tokens) != len(tokens):
                     scrubbed_tokens += (len(tokens) - len(cleaned_tokens))
                     if cleaned_tokens:
-                        # Rebuild the line with remaining valid hardware types
                         token_string = " ".join(cleaned_tokens)
                         line = f"(typeattributeset {attr_name} ({token_string}))\n"
                     else:
-                        # Skip writing if no elements are left in the group
                         continue
 
             outfile.write(line)
 
     logger.info(f"[+] Scrubbing complete: Deleted {removed_decls} base declarations.")
+    logger.info(f"[+] Scrubbing complete: Removed {removed_aux} orphaned roletype/attribute statements.")
     logger.info(f"[+] Scrubbing complete: Cleared {scrubbed_tokens} internal duplicate tokens.")
 
 
