@@ -43,6 +43,7 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
     """
     logger.info(f"Surgically scrubbing duplicate platform types and orphaned statements from {vendor_cil_in}...")
 
+    # Accurate CIL definition matches
     decl_pattern = re.compile(r'\((type|typeattribute|macro|common|class)\s+([a-zA-Z0-9_]+)')
     attr_set_pattern = re.compile(r'\(typeattributeset\s+([a-zA-Z0-9_]+)\s+\((.*)\)\)')
     aux_keywords = ("roletype", "typeattribute", "typebounds")
@@ -54,7 +55,7 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
     lines_buffer = []
 
     with open(vendor_cil_in, 'r') as infile:
-        for line in infile:
+        for line_num, line in enumerate(infile, 1):
             stripped_line = line.strip()
 
             if not stripped_line or stripped_line.startswith(";"):
@@ -64,14 +65,15 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
             # 1. Base Duplicate Declarations
             decl_match = decl_pattern.search(line)
             if decl_match and decl_match.group(2) in duplicate_set:
+                logger.debug(f"[Line {line_num}] Dropping duplicate declaration: {decl_match.group(2)}")
                 removed_decls += 1
                 continue
 
-            # 2. Auxiliary Structural Statements
+            # 2. Auxiliary Structural Statements (Token-based checking)
             clean_tokens = stripped_line.replace("(", "").replace(")", "").split()
             if clean_tokens and clean_tokens[0] in aux_keywords:
-                # Flag line if ANY part of the token sequence hits a platform type
                 if any(t in duplicate_set for t in clean_tokens[1:]):
+                    logger.debug(f"[Line {line_num}] Dropping orphaned aux block ({clean_tokens[0]}): {stripped_line}")
                     removed_aux += 1
                     continue
 
@@ -83,6 +85,7 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
                 cleaned_tokens = [t for t in tokens if t not in duplicate_set]
 
                 if attr_name in duplicate_set:
+                    logger.debug(f"[Line {line_num}] Dropping duplicate typeattributeset core name: {attr_name}")
                     removed_decls += 1
                     continue
 
@@ -91,7 +94,9 @@ def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
                     if cleaned_tokens:
                         token_string = " ".join(cleaned_tokens)
                         line = f"(typeattributeset {attr_name} ({token_string}))\n"
+                        logger.debug(f"[Line {line_num}] Scrubbed internal duplicate tokens for: {attr_name}")
                     else:
+                        logger.debug(f"[Line {line_num}] Dropping empty typeattributeset sequence for: {attr_name}")
                         continue
 
             lines_buffer.append(line)
@@ -133,20 +138,19 @@ def run_secilc(secilc_bin, input_files, output_policy, output_contexts, policy_v
     """
     logger.info("Invoking secilc compiler...")
 
-    # Matching your exact binary options format
     cmd = [
               secilc_bin,
               "-m",  # --multiple-decls
-              "-M", "false",  # --mls true|false (Android uses non-MLS profiles by default)
+              "-M", "false",  # --mls true|false
               "-G",  # --expand-generated
-              "-c", policy_version,  # --policyvers=<version>
-              "-o", output_policy,  # --output=<file>
-              "-f", output_contexts  # --filecontext=<file>
+              "-c", policy_version,  # --policyvers
+              "-o", output_policy,  # --output
+              "-f", output_contexts  # --filecontext
           ] + input_files
 
     logger.info(f"Running command: {' '.join(cmd)}")
     try:
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        res = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         logger.info("Success! Merged policy generated.")
         logger.info(f"Binary Policy: {output_policy}")
         logger.info(f"File Contexts: {output_contexts}")
@@ -194,6 +198,16 @@ def merge_sepolicy_pipeline(secilc_bin, plat_cil, plat_mapping, vendor_cil, vend
         run_secilc(secilc_bin, input_pipeline_files, final_policy, final_contexts, policy_version)
         return True
 
+    except subprocess.CalledProcessError as e:
+        # Match error patterns like: "Failed to resolve roletype statement at /tmp/tmptdk4g7tg:1669"
+        match = re.search(r'statement at [^:]+:(\d+)', e.stderr)
+        if match:
+            fault_line = int(match.group(1))
+            dump_faulty_lines(temp_vendor_cil_path, fault_line, window=5)
+        else:
+            logger.error("Could not dynamically parse lines from secilc output stream pattern.")
+        return False
+
     finally:
         if os.path.exists(temp_vendor_cil_path):
             os.remove(temp_vendor_cil_path)
@@ -214,7 +228,6 @@ def main():
     parser.add_argument("--vendor-pub", required=True, help="Path to vendor plat_pub_versioned.cil")
     parser.add_argument("--out-dir", required=True, help="Output directory for merged artifacts")
 
-    # Defaulting to 33 per your tool's default parameters
     parser.add_argument("--policy-version", default="33", help="Target SELinux database version (default: 33)")
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging output")
 
