@@ -16,7 +16,7 @@ AOSP_PATHS = {
     "15": "~/aosp2/aosp15",
     "16": "~/aosp2/aosp16",
 }
-
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 BUILD_IMAGE_SCRIPT_PATH = "./build/make/tools/releasetools/build_image.py"
 
 
@@ -161,8 +161,9 @@ def add_boardconfig_flags(version: str, base_path: str, dry_run: bool = False, v
         paths = ["build/target/board/generic_arm64/BoardConfig.mk"]
 
     for p in paths:
+        out_path = os.path.join(SCRIPT_DIR, "out")
         modify_file(os.path.join(base_path, p), "",
-                    "BUILD_BROKEN_DUP_RULES := true\nSELINUX_IGNORE_NEVERALLOWS := true\nBUILD_BROKEN_SRC_DIR_IS_WRITABLE := true",
+                    "BUILD_BROKEN_DUP_RULES := true\nSELINUX_IGNORE_NEVERALLOWS := true\nBUILD_BROKEN_SRC_DIR_RW_ALLOWLIST := {out_path}\n}".format(out_path=out_path),
                     append=True, dry_run=dry_run, verbose=verbose)
 
     if version in ("12", "12_1"):

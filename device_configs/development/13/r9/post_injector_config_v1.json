@@ -137,6 +137,7 @@
     "android.hardware.camera",
     "/system/bin/cameraserver",
     "cameraserver.rc",
+    "/system/bin/mediaextractor",
     "/system/bin/mediaserver",
     "/system/bin/app_process64",
     "lib64/bootstrap/",
@@ -445,7 +446,8 @@
     "/lib64/android.hardware.media",
     "/lib64/av-types-aidl-cpp.so",
     "/lib64/libstagefright",
-    "/lib64/libfmq.so"
+    "/lib64/libfmq.so",
+    "/lib64/libclang_rt.ubsan_standalone-aarch64-android.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
