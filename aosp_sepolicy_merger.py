@@ -38,47 +38,54 @@ def extract_declared_types(cil_path):
 
 def clean_vendor_cil(vendor_cil_in, vendor_cil_out, duplicate_set):
     """
-    Filters out lines containing declarations OR attribute assignments
-    associated with identifiers already defined in the platform policy.
+    Cleans vendor policies inline. Strips duplicate declarations completely,
+    but surgically removes individual conflicting tokens from attribute sets
+    to preserve distinct vendor-specific types.
     """
-    logger.info(f"Stripping duplicate platform declarations and sets from {vendor_cil_in}...")
+    logger.info(f"Surgically scrubbing duplicate platform types from {vendor_cil_in}...")
 
-    # Matches type declarations
     decl_pattern = re.compile(r'\((type|typeattribute|macro|common|class)\s+([a-zA-Z0-9_]+)')
-    # Matches attribute assignments, e.g., (typeattributeset attribute_name (type_name))
-    attr_set_pattern = re.compile(r'\(typeattributeset\s+([a-zA-Z0-9_]+)\s+\(?([a-zA-Z0-9_ ]+)\)?')
+    attr_set_pattern = re.compile(r'\(typeattributeset\s+([a-zA-Z0-9_]+)\s+\((.*)\)\)')
 
-    removed_count = 0
+    removed_decls = 0
+    scrubbed_tokens = 0
 
     with open(vendor_cil_in, 'r') as infile, open(vendor_cil_out, 'w') as outfile:
         for line in infile:
-            strip_line = False
-
-            # Check 1: Is this a duplicate declaration?
+            # Check 1: Base Duplicate Declarations (Delete whole line)
             decl_match = decl_pattern.search(line)
             if decl_match and decl_match.group(2) in duplicate_set:
-                strip_line = True
-
-            # Check 2: Is this assigning a type/attribute that conflicts?
-            if not strip_line:
-                attr_match = attr_set_pattern.search(line)
-                if attr_match:
-                    attr_name = attr_match.group(1)
-                    # Split the target types inside the set block in case there are multiple
-                    targets = attr_match.group(2).split()
-
-                    # If the attribute itself or ANY type inside the target assignment is a duplicate
-                    if attr_name in duplicate_set or any(t in duplicate_set for t in targets):
-                        strip_line = True
-
-            if strip_line:
-                removed_count += 1
-                logger.debug(f"Stripping conflicting line: {line.strip()}")
+                removed_decls += 1
                 continue
+
+            # Check 2: Complex Attribute Sets (Scrub individual items within the list)
+            attr_match = attr_set_pattern.search(line)
+            if attr_match:
+                attr_name = attr_match.group(1)
+                tokens = attr_match.group(2).split()
+
+                # Filter out the blacklisted duplicate tokens
+                cleaned_tokens = [t for t in tokens if t not in duplicate_set]
+
+                # If the attribute block itself is a duplicate platform name, skip it
+                if attr_name in duplicate_set:
+                    removed_decls += 1
+                    continue
+
+                if len(cleaned_tokens) != len(tokens):
+                    scrubbed_tokens += (len(tokens) - len(cleaned_tokens))
+                    if cleaned_tokens:
+                        # Rebuild the line with remaining valid hardware types
+                        token_string = " ".join(cleaned_tokens)
+                        line = f"(typeattributeset {attr_name} ({token_string}))\n"
+                    else:
+                        # Skip writing if no elements are left in the group
+                        continue
 
             outfile.write(line)
 
-    logger.info(f"Successfully stripped {removed_count} duplicate lines/statements.")
+    logger.info(f"[+] Scrubbing complete: Deleted {removed_decls} base declarations.")
+    logger.info(f"[+] Scrubbing complete: Cleared {scrubbed_tokens} internal duplicate tokens.")
 
 
 def run_secilc(secilc_bin, input_files, output_policy, output_contexts, policy_version="33"):
