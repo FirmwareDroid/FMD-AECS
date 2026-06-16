@@ -539,16 +539,8 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
                 logging.info(f"Removing existing post_builder_args.json file: {path_post_builder_args}")
                 os.remove(path_post_builder_args)
 
-            fix_missing_file(aosp_path, aosp_version)
-            main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
-            build_start_time = time.time()
-            execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
-            build_end_time = time.time()
-            included_package_statistics["main_build_duration"] = round(build_end_time - build_start_time, 2)
-            logging.info(f"AOSP main build completed successfully. Continuing with post-build injection.")
             target_out_path = get_target_out_path(aosp_path, lunch_target)
             all_extracted_firmware_files_path = os.path.join(EXTRACTED_PACKAGES_PATH, EXTRACTION_ALL_FILES_DIR_NAME)
-
             post_builder_args_dict = {"aosp_path": aosp_path,
                                       "source_folder_path": all_extracted_firmware_files_path,
                                       "target_out_path": target_out_path,
@@ -562,6 +554,14 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             with open(path_post_builder_args, "w", encoding="utf-8") as f:
                 json.dump(post_builder_args_dict, f, indent=4)
                 logging.info(f"Post builder args written to out/post_builder_args.json")
+
+            fix_missing_file(aosp_path, aosp_version)
+            main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
+            build_start_time = time.time()
+            execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
+            build_end_time = time.time()
+            included_package_statistics["main_build_duration"] = round(build_end_time - build_start_time, 2)
+            logging.info(f"AOSP main build completed successfully. Continuing with post-build injection.")
 
             # start_post_build_injector(aosp_path=aosp_path,
             #                           source_folder_path=all_extracted_firmware_files_path,
