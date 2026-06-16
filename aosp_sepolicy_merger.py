@@ -304,7 +304,7 @@ def main():
         plat_cil=args.plat_cil,
         plat_mapping=args.plat_mapping,
         vendor_cil=args.vendor_cil,
-        vendor_pub=args.vendor_pub,
+        vendor_pub_versioned=args.vendor_pub,
         out_dir=args.out_dir,
         policy_version=args.policy_version
     )
