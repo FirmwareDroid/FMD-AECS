@@ -1710,18 +1710,23 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
             traceback.print_stack()
             failed_firmware_ids.append(firmware_id)
         finally:
-            results_dir = os.path.join(ROOT_PATH, f"out/fmd_build_injector_{firmware_id}")
+            out_dir = os.path.join(ROOT_PATH, "out")
+            results_dir = os.path.join(ROOT_PATH, out_dir, f"fmd_build_injector_{firmware_id}")
             try:
                 if os.path.exists(results_dir):
                     shutil.rmtree(results_dir, ignore_errors=True)
                 os.makedirs(results_dir, exist_ok=True)
                 folders_to_exclude = shutil.ignore_patterns('extracted_packages')
                 shutil.copytree(
-                    TMP_PATH,
+                    BUILD_OUT_PATH,
                     results_dir,
                     dirs_exist_ok=True,
                     ignore=folders_to_exclude
                 )
+                for item in os.listdir(TMP_PATH):
+                    source_path = os.path.join(TMP_PATH, item)
+                    if os.path.isfile(source_path):
+                        shutil.copy(source_path, out_dir)
                 extracted_packes_path = os.path.join(results_dir, "extracted_packages")
                 if os.path.exists(extracted_packes_path):
                     shutil.rmtree(extracted_packes_path, ignore_errors=True)
