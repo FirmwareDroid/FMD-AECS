@@ -215,76 +215,78 @@ def run_script(script_path, args=None, description=None):
         logging.error(f"Failed: {description or script_path} (exit code {result.returncode})")
         raise RuntimeError(f"Script failed: {description or script_path} (exit code {result.returncode})")
 
-def run_script_capture(script_path, args=None, description=None):
-    """Run a python script and capture detailed result without exiting the process.
 
-    Returns a dict with keys: script, args, description, returncode, stdout, stderr, start_time, end_time, duration
+def run_script_capture(script_path, args=None, description=None, logfile_path=None):
+    """Run a python script, streaming stdout/stderr directly to a logfile,
+
+    then inspects the file for transient errors and returns execution metadata.
     """
+    if not logfile_path:
+        script_name = os.path.basename(script_path)
+        logfile_path = f"/android/testing_service/out/{script_name}.log"
+
     interpreter = VENV_PYTHON or sys.executable
     cmd = [interpreter, script_path]
     if args:
         cmd.extend(args)
+
     start = datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z'
     t0 = datetime.datetime.now(datetime.timezone.utc)
-    logging.info(f"Running (capture): {description or script_path}")
-    # Compute effective timeout for this subprocess based on global remaining time
+    logging.info(f"Running (direct-to-file): {description or script_path}")
+
     eff_timeout = get_effective_timeout(None)
     if eff_timeout == 0.0:
         raise GlobalTimeoutReached('Global timeout reached before starting subprocess')
+
+    # Ensure the directory for the logfile exists
+    os.makedirs(os.path.dirname(os.path.abspath(logfile_path)), exist_ok=True)
+
+    returncode = -1
+    duration = 0.0
+
+    # Open the file to stream stdout and stderr directly to disk
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=eff_timeout)
+        with open(logfile_path, 'w', encoding='utf-8') as log_file:
+            # Metadata header inside the log file
+            log_file.write(f"=== Command: {' '.join(cmd)} ===\n")
+            log_file.write(f"=== Started: {start} ===\n\n")
+            log_file.flush()  # Ensure header is written before process starts
+
+            # stdout and stderr both point to the same file descriptor
+            proc = subprocess.run(
+                cmd,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                text=True,
+                timeout=eff_timeout
+            )
+
+            t1 = datetime.datetime.now(datetime.timezone.utc)
+            duration = (t1 - t0).total_seconds()
+            returncode = proc.returncode
+
+    except subprocess.TimeoutExpired:
         t1 = datetime.datetime.now(datetime.timezone.utc)
-        end = t1.isoformat() + 'Z'
         duration = (t1 - t0).total_seconds()
-    except subprocess.TimeoutExpired as e:
-        t1 = datetime.datetime.now(datetime.timezone.utc)
-        end = t1.isoformat() + 'Z'
-        duration = (t1 - t0).total_seconds()
-        # Build a result object indicating timeout
-        res = {
-            'script': script_path,
-            'args': args or [],
-            'description': description or script_path,
-            'returncode': -2,
-            'stdout': e.stdout or '',
-            'stderr': (e.stderr or '') + f"\n[timeout after {duration:.1f}s]",
-            'start_time': start,
-            'end_time': end,
-            'duration_seconds': duration,
-        }
+        returncode = -2
+
+        # Append timeout info to the log file
+        with open(logfile_path, 'a', encoding='utf-8') as log_file:
+            log_file.write(f"\n\n[timeout after {duration:.1f}s]\n")
+
         logging.error('Command timed out after %.1f seconds: %s', duration, script_path)
-        # Escalate to global timeout exception so main can handle writing summary
         raise GlobalTimeoutReached(f'Subprocess timed out: {script_path}')
-    res = {
-        'script': script_path,
-        'args': args or [],
-        'description': description or script_path,
-        'returncode': proc.returncode,
-        'stdout': proc.stdout,
-        'stderr': proc.stderr,
-        'start_time': start,
-        'end_time': end,
-        'duration_seconds': duration,
-    }
-    out = (proc.stdout or '').strip()
-    err = (proc.stderr or '').strip()
-    if out:
-        logging.info(out)
-    if err:
-        # Some CLI tools write informational logs to stderr but still succeed.
-        # Log stderr as INFO when the command succeeded (returncode==0), otherwise
-        # treat it as an error.
-        if proc.returncode == 0:
-            logging.info(err)
-        else:
-            logging.error(err)
-    # Detect common adb/device transient failures in tool output and raise
-    # a RuntimeError so the outer experiment retry loop can re-run the full
-    # attempt. We look for phrases such as "device offline" or "device 'X' not found".
+
+    finally:
+        end = datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z'
+
+    # --- Inspection Phase ---
+    # Read the logfile back from disk to perform regex checks
     try:
-        combined = (proc.stdout or '') + '\n' + (proc.stderr or '')
-        low = combined.lower()
-        # Patterns indicating transient adb/device availability issues (all lower-case)
+        with open(logfile_path, 'r', encoding='utf-8') as log_file:
+            combined_content = log_file.read()
+
+        low = combined_content.lower()
         offline_patterns = [
             r'device offline',
             r"device '\w+' not found",
@@ -298,17 +300,28 @@ def run_script_capture(script_path, args=None, description=None):
         ]
         for pat in offline_patterns:
             if re.search(pat, low):
-                logging.error('Detected adb/device availability error in %s output; will treat as transient and retry full experiment: %s', script_path, pat)
-                # Include some context in the exception
-                snippet = '\n'.join((combined or '').splitlines()[-20:])
-                raise RuntimeError(f'ADB/device offline detected while running {script_path}: {snippet}')
+                logging.error('Detected adb/device availability error in logfile %s; retrying full experiment.',
+                              logfile_path)
+                # Grab the last 20 lines for the error snippet context
+                snippet = '\n'.join(combined_content.splitlines()[-20:])
+                raise RuntimeError(f'ADB/device offline detected in log: {snippet}')
+
     except RuntimeError:
-        # propagate to be handled by outer retry loop
         raise
     except Exception:
-        logging.debug('Error while checking tool output for adb/device offline patterns', exc_info=True)
+        logging.debug('Error while checking logfile for adb/device offline patterns', exc_info=True)
 
-    return res
+    # Return metadata (excluding huge stdout/stderr blocks from memory)
+    return {
+        'script': script_path,
+        'args': args or [],
+        'description': description or script_path,
+        'returncode': returncode,
+        'logfile': logfile_path,
+        'start_time': start,
+        'end_time': end,
+        'duration_seconds': duration,
+    }
 
 def run_command(cmd, description=None):
     logging.info(f"Running: {description or cmd}")
