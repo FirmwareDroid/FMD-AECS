@@ -112,13 +112,12 @@ def handle_vintf_merge(aosp_path: str, aosp_version: str, partition_name: str, v
     return output_folder
 
 
-
 def inject_sepolicy(source_dir, aosp_path, aosp_version):
     file_context = "file_contexts"
     file_context_path = os.path.join(source_dir, file_context)
     mapping_sha256_file = "plat_sepolicy_and_mapping.sha256"
     fmapping_sha256_path = os.path.join(source_dir, mapping_sha256_file)
-    plat_sepolicy= "sepolicy"
+    plat_sepolicy = "sepolicy"
     plat_sepolicy_path = os.path.join(source_dir, plat_sepolicy)
 
     merged_file_list = [file_context_path, fmapping_sha256_path, plat_sepolicy_path]
@@ -127,13 +126,16 @@ def inject_sepolicy(source_dir, aosp_path, aosp_version):
             raise FileNotFoundError(f"Could not find file: {file_path}")
 
     aosp_emulator_out = get_aosp_build_out_dir(aosp_path, aosp_version)
-    file_context_dst_path_list = [os.path.join(aosp_emulator_out, "system/etc/selinux/plat_file_contexts"),
-                             os.path.join(aosp_emulator_out,"vendor/etc/selinux/vendor_file_contexts")
-                             ]
+    file_context_dst_path_list = [
+        os.path.join(aosp_emulator_out, "system/etc/selinux/plat_file_contexts"),
+        os.path.join(aosp_emulator_out, "vendor/etc/selinux/vendor_file_contexts")
+    ]
     plat_sepolicy_dst_path_list = [os.path.join(aosp_emulator_out, "vendor/etc/selinux/precompiled_sepolicy")]
-    mapping_sha256_file_dst_path_list = [os.path.join(aosp_emulator_out, "system/etc/selinux/plat_sepolicy_and_mapping.sha256"),
-                                         os.path.join(aosp_emulator_out, "vendor/etc/selinux/precompiled_sepolicy.plat_sepolicy_and_mapping.sha256")
-                                         ]
+    mapping_sha256_file_dst_path_list = [
+        os.path.join(aosp_emulator_out, "system/etc/selinux/plat_sepolicy_and_mapping.sha256"),
+        os.path.join(aosp_emulator_out, "vendor/etc/selinux/precompiled_sepolicy.plat_sepolicy_and_mapping.sha256")
+    ]
+
     mapping_dict = {
         "file_context": {"dst": file_context_dst_path_list, "src": file_context_path},
         "plat_sepolicy": {"dst": plat_sepolicy_dst_path_list, "src": plat_sepolicy_path},
@@ -152,35 +154,16 @@ def inject_sepolicy(source_dir, aosp_path, aosp_version):
 
 
 def get_latest_sepolicy_mapping(mapping_dir: str):
-    """
-    Scans the SELinux mapping directory and returns the absolute file path
-    and base version string of the highest API level mapping file.
-
-    Filters out '.compat.cil' files to focus purely on base definition maps.
-
-    Args:
-        mapping_dir (str): Path to the system/etc/selinux/mapping/ folder.
-
-    Returns:
-        Tuple[str, str]: (absolute_file_path, base_version_major_string)
-                          e.g., ('/path/to/mapping/33.0.cil', '33')
-                          Returns (None, None) if no valid files are discovered.
-    """
-    # Look for all .cil files in the directory
     search_pattern = os.path.join(mapping_dir, "*.cil")
     all_files = glob.glob(search_pattern)
-
     latest_version = -1.0
     latest_file_path = None
     latest_major_version = None
 
-    # Pattern to match clean version schemas like '33.0.cil' while ignoring '.compat.cil'
     version_pattern = re.compile(r"^(\d+\.\d+)\.cil$")
-
     for file_path in all_files:
         file_name = os.path.basename(file_path)
         match = version_pattern.match(file_name)
-
         if match:
             version_str = match.group(1)
             try:
@@ -188,49 +171,36 @@ def get_latest_sepolicy_mapping(mapping_dir: str):
                 if version_float > latest_version:
                     latest_version = version_float
                     latest_file_path = os.path.abspath(file_path)
-                    # Extract the major component (e.g., '33.0' -> '33')
                     latest_major_version = version_str.split('.')[0]
             except ValueError:
-                # Skip files that don't parse cleanly as floats
                 continue
-
     return latest_file_path, latest_major_version
+
 
 def find_secil_binary(aosp_path):
     dir_path = _find_binary_dir(aosp_path, SECIL_BINARY_PATH_LIST, "secilc")
     secil_path = os.path.join(dir_path, "secilc")
-    secil_path_norm = os.path.normpath(secil_path)
-    secil_path_norm = os.path.abspath(secil_path_norm)
-    return secil_path_norm
+    return os.path.abspath(os.path.normpath(secil_path))
+
 
 def get_vendor_policy_files(vendor_partition_path: str):
-    """
-    Traverses the vendor partition path to locate the 'etc/selinux' subdirectory,
-    then retrieves the absolute paths for vendor_sepolicy.cil and plat_pub_versioned.cil.
-
-    Args:
-        vendor_partition_path (str): Root directory of the unpacked vendor partition.
-
-    Returns:
-        Tuple[str, str]: (vendor_sepolicy_path, plat_pub_versioned_path)
-                          Returns None for individual values if not found.
-    """
     vendor_cil = None
     vendor_pub = None
+    vendor_property_contexts = None
 
-    # Standard target relative signature
     target_suffix = os.path.join("etc", "selinux")
 
     for root, dirs, files in os.walk(vendor_partition_path):
-        # Check if we have arrived inside the target configuration folder
         if root.endswith(target_suffix):
             if "vendor_sepolicy.cil" in files:
                 vendor_cil = os.path.abspath(os.path.join(root, "vendor_sepolicy.cil"))
             if "plat_pub_versioned.cil" in files:
                 vendor_pub = os.path.abspath(os.path.join(root, "plat_pub_versioned.cil"))
-            # Found our target folder layout; break early from structural walking
+            if "vendor_property_contexts" in files:
+                vendor_property_contexts = os.path.abspath(os.path.join(root, "vendor_property_contexts"))
             break
-    return vendor_cil, vendor_pub
+
+    return vendor_cil, vendor_pub, vendor_property_contexts
 
 
 def get_policy_files(aosp_path, aosp_version):
@@ -240,21 +210,73 @@ def get_policy_files(aosp_path, aosp_version):
     plat_mapping, policy_version = get_latest_sepolicy_mapping(mapping_dir)
     return plat_cil, plat_mapping, policy_version
 
+
+def verify_property_contexts(sepolicy_analyze_bin, compiled_sepolicy_path, property_contexts_path):
+    """
+    Statically checks if all SELinux labels declared in vendor_property_contexts
+    exist within the newly compiled monolithic sepolicy binary.
+    """
+    import subprocess
+
+    if not property_contexts_path or not os.path.exists(property_contexts_path):
+        logger.error(f"[-] Validation blocked: Target property_contexts file does not exist.")
+        return False
+
+    declared_labels = set()
+    # Captures context values like u:object_r:vendor_default_prop:s0
+    label_regex = re.compile(r'u:object_r:([a-zA-Z0-9_-]+):s0')
+
+    with open(property_contexts_path, 'r') as f:
+        for line in f:
+            # Skip empty lines or pure structural comment declarations
+            if line.strip().startswith("#") or not line.strip():
+                continue
+            match = label_regex.search(line)
+            if match:
+                declared_labels.add(match.group(1))
+
+    cmd = [sepolicy_analyze_bin, compiled_sepolicy_path, "type"]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        valid_types = set(result.stdout.splitlines())
+
+        missing_types = declared_labels - valid_types
+        if missing_types:
+            logger.error(
+                f"[-] Pre-flight validation failed! {len(missing_types)} labels are completely missing from the binary policy database:")
+            for t in sorted(missing_types):
+                logger.error(f"    -> Missing token type: {t}")
+            return False
+
+        logger.info(
+            f"[+] Static verification passed: All {len(declared_labels)} properties map cleanly to the binary database.")
+        return True
+    except Exception as e:
+        logger.error(f"[-] Fatal execution error inside sepolicy-analyze check loop: {e}")
+        return False
+
+
 def handle_seplicy_merging(aosp_version, aosp_path, partition_path_system):
     temp_folder = tempfile.mkdtemp()
     out_dir = os.path.join(temp_folder, "semerger")
     os.makedirs(out_dir, exist_ok=True)
+
     all_files_path = str(os.path.dirname(partition_path_system))
     vendor_partition_path = os.path.join(all_files_path, "vendor/")
     if not os.path.exists(vendor_partition_path):
         raise FileNotFoundError(f"Vendor partition path: {vendor_partition_path} does not exist for semerger")
 
     plat_cil, plat_mapping, policy_version = get_policy_files(aosp_path, aosp_version)
-    vendor_cil, vendor_pub = get_vendor_policy_files(vendor_partition_path)
+    vendor_cil, vendor_pub, vendor_property_contexts = get_vendor_policy_files(vendor_partition_path)
     secilc_path = find_secil_binary(aosp_path)
-    logger.info(f"Starting sepolicy merging with secilc: {secilc_path}, plat_cil: {plat_cil}, vendor_cil: {vendor_cil}"
-                f"vendor_pub: {vendor_pub}, policy_version: {policy_version}")
-    success = merge_sepolicy_pipeline(
+
+    # Deriving the path to sepolicy-analyze situated right next to secilc
+    sepolicy_analyze_path = os.path.join(os.path.dirname(secilc_path), "sepolicy-analyze")
+
+    logger.info(f"Starting sepolicy merging with secilc: {secilc_path}, plat_cil: {plat_cil}, vendor_cil: {vendor_cil}")
+
+    # 1. Compile the unified candidate database
+    compilation_success = merge_sepolicy_pipeline(
         secilc_bin=secilc_path,
         plat_cil=plat_cil,
         plat_mapping=plat_mapping,
@@ -263,41 +285,30 @@ def handle_seplicy_merging(aosp_version, aosp_path, partition_path_system):
         out_dir=out_dir,
         policy_version=policy_version
     )
-    if success:
-        logger.info(f"Successfully merged sepolicy folder to: {out_dir}")
+
+    if not compilation_success:
+        logger.error(f"Failed to merge sepolicy folder to: {out_dir}")
+        return False, out_dir
+
+    # 2. Extract out the binary artifact path generated by your merge_sepolicy_pipeline
+    compiled_binary_candidate = os.path.join(out_dir, "sepolicy")
+
+    # 3. Perform the pre-flight verification gate
+    logger.info("Executing static validation against property definitions...")
+    validation_success = verify_property_contexts(
+        sepolicy_analyze_bin=sepolicy_analyze_path,
+        compiled_sepolicy_path=compiled_binary_candidate,
+        property_contexts_path=vendor_property_contexts
+    )
+
+    # 4. Final Injection Check Gate
+    if validation_success:
+        logger.info(f"Verification clean. Injecting final sepolicy matrix assets into target output tree.")
         inject_sepolicy(out_dir, aosp_path, aosp_version)
+        return True, out_dir
     else:
-        logger.error(f"Failed to merge sepolicy folder to: {out_dir}|{secilc_path}|{plat_cil}|{plat_mapping}|{vendor_cil}|{vendor_pub}")
-    return success, out_dir
-
-
-def start_semantic_injector(aosp_path: str, aosp_version:str, partition_name: str, vintf_folder_path_list: list, partition_path: str):
-    """
-    """
-    logger.info(f"Starting semantic injector with aosp_path: {aosp_path}, aosp_version: {aosp_version}, "
-                f"partition_name: {partition_name}, "
-                f"vintf_folder_path_list: {vintf_folder_path_list}"
-                f"partition_path: {partition_path}")
-    try:
-        handle_vintf_merge(aosp_path, aosp_version, partition_name, vintf_folder_path_list)
-    except Exception as e:
-        logger.error(e)
-
-    if partition_name == "system":
-        try:
-            handle_seplicy_merging(aosp_version, aosp_path, partition_path)
-        except Exception as e:
-            logger.error(e)
-
-
-
-
-
-
-
-
-
-
+        logger.error("[-] Aborting payload injection phase due to missing required property declarations.")
+        return False, out_dir
 
 
 

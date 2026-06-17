@@ -28,7 +28,7 @@ from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, 
 from aosp_build_property_merger import start_property_merge
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
-from aosp_post_injector_semantic import start_semantic_injector
+from aosp_post_injector_semantic import start_semantic_injector, handle_vintf_merge, handle_seplicy_merging
 from aosp_rc_merger import run_rc_merger
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
     check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file, check_binary_architecture, \
@@ -1342,9 +1342,22 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
             progress_bar.update(1)
 
     if POST_INJECTOR_CONFIG["ENABLE_SEMANTIC_INJECTOR"]:
-        if vintf_path_list and len(inj_obj_list) > 0:
-            logging.info(f"Starting Semantic Injector. Logging to file: {SEMANTIC_INJECTOR_LOG_FILE_PATH}")
-            start_semantic_injector(aosp_path, aosp_version, str(partition_name), vintf_path_list, partition_path)
+
+        if POST_INJECTOR_CONFIG["ENABLE_VINTF_MERGE"]:
+            if vintf_path_list and len(inj_obj_list) > 0:
+                logging.info(f"Starting Semantic Injector. Logging to file: {SEMANTIC_INJECTOR_LOG_FILE_PATH}")
+                try:
+                    handle_vintf_merge(aosp_path, aosp_version, str(partition_name), vintf_path_list)
+                except Exception as e:
+                    logging.error(e)
+
+        if POST_INJECTOR_CONFIG["ENABLE_SELINUX_MERGE"]:
+            if partition_name == "system":
+                try:
+                    handle_seplicy_merging(aosp_version, aosp_path, partition_path)
+                except Exception as e:
+                    logging.error(e)
+
 
 
     progress_bar.close()
