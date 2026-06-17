@@ -230,7 +230,8 @@
     "stagefright",
     "__auto_generated_rro",
     "android.hardware.atrace",
-    "libadb_protos"
+    "libadb_protos",
+    "__auto_generated_"
   ],
   "BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES": [
     "aaudio-aidl-cpp",
