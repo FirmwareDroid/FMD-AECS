@@ -117,14 +117,20 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
 
         # 2. Extract HAL names claimed directly by the vendor package
         vendor_hal_signatures = set()
-        hal_pattern = re.compile(r"<name>(android\.hardware\.[a-z0-9_\.]+)</name>")
+        hal_pattern = re.compile(r"<name>([a-zA-Z0-9_\.]+)</name>")
 
         for file_name in os.listdir(vendor_stage):
             if file_name.endswith(".xml") and file_name != "compatibility_matrix.xml":
                 try:
                     with open(os.path.join(vendor_stage, file_name), "r", encoding="utf-8") as f:
-                        for match in hal_pattern.finditer(f.read()):
-                            vendor_hal_signatures.add(match.group(1))
+                        file_content = f.read()
+                        # Clean up whitespace noise before matching to be completely sure
+                        for match in hal_pattern.finditer(file_content):
+                            hal_name = match.group(1).strip()
+                            # Optional: filter out common standard tags that are not HAL packages if needed,
+                            # but generally anything inside <name> under fragments is a target interface.
+                            if hal_name:
+                                vendor_hal_signatures.add(hal_name)
                 except Exception as e:
                     logging.debug("Error pre-parsing vendor component %s: %s", file_name, e)
 
