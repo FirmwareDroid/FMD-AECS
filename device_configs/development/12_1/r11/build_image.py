@@ -885,6 +885,7 @@ def run_script_to_file(partition):
       )
       print("Success! Output successfully written to {0}".format(output_filename))
     except subprocess.CalledProcessError as e:
+      f.write(str(e))
       print(
         "Script failed with exit code {0}. Check {1}".format(
           e.returncode, output_filename

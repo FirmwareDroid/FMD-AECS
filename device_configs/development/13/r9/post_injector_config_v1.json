@@ -450,7 +450,9 @@
     "/lib64/libfmq.so",
     "/lib64/libclang_rt.ubsan_standalone-aarch64-android.so",
     "/lib64/libaudio",
-    "/system/bin/mediaserver64"
+    "/system/bin/mediaserver64",
+    "/lib64/android.hardware.ir@1.0.so",
+    "/lib64/android.hardware.boot@1.0.so"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",

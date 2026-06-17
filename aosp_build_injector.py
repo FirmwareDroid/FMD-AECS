@@ -1495,8 +1495,8 @@ def parse_arguments():
     parser.add_argument("-m", "--pre_injector_config",
                         type=str,
                         default="./device_configs/development/pre_injector_config_v1.json",)
-    parser.add_argument("-1", "--build-only-first", action='store_true', default=False,
-                        help='If set, only builds the first firmware id returned from the fmd service.')
+    parser.add_argument("-1", "--build-only-first", type=int, default=None,
+                        help='If set, only builds the first X firmware ids returned from the fmd service.')
     parser.add_argument("-i", "--post_injector_config",
                         type=str,
                         default="./device_configs/development/post_injector_config_v1.json",)
@@ -1627,6 +1627,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
         os.remove(PATH_BUILD_FILE_ARTEFACT_LOG)
     except FileNotFoundError:
         pass
+    counter = 0
     for firmware_id in tqdm(firmware_id_list):
         os.makedirs(BUILD_OUT_PATH, exist_ok=True)
         logging.info(f"Number of firmware ids left to process: {len(firmware_id_list) - firmware_id_list.index(firmware_id)}")
@@ -1733,7 +1734,9 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
 
             if not args.skip_clean:
                 clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
-        if args.build_only_first:
+
+        counter += 1
+        if args.build_only_first and counter > args.build_only_first:
             logging.info("Build only first flag is set. Stopping after first firmware id.")
             break
 

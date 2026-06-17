@@ -842,6 +842,7 @@ def run_script_to_file(partition):
                 f"Success! Output successfully written to {output_path}"
             )
         except subprocess.CalledProcessError as e:
+            f.write(f"{str(e)}")
             print(f"Script failed with exit code {e.returncode}. Check {output_path}")
             sys.exit(1)
 
