@@ -222,13 +222,18 @@ def main():
     if os.path.exists(watcher_path):
         logger.info(f"Starting background ADB monitor daemon: {watcher_path}")
         try:
-            # We run python3 using sys.executable to match the current execution runtime framework
-            subprocess.Popen(
+            process = subprocess.Popen(
                 [sys.executable, watcher_path],
                 preexec_fn=os.setsid,  # Detach process group so it lives independently
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
+            # Give the process a brief moment to initialize or fail
+            time.sleep(0.5)
+            return_code = process.poll()
+            if return_code is not None:
+                logger.error(f"ADB monitor daemon exited immediately with code {return_code}")
+            logger.info(f"Background ADB monitor daemon started successfully (PID: {process.pid})")
         except Exception as e:
             logger.exception(f"Failed to start background adb_process_watcher.py: {e}")
     else:

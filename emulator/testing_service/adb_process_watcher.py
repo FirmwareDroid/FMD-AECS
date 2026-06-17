@@ -75,9 +75,7 @@ def main():
         if is_process_running(TARGET_CMD):
             restart_adb_server()
         else:
-            logging.debug(
-                "Target process not running."
-            )  # Changed to debug to avoid bloating log file
+            logging.debug("Target process not running." )
 
         time.sleep(CHECK_INTERVAL)
 
