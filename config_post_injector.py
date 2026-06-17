@@ -8,6 +8,7 @@ from config import (BUILD_OUT_PATH,
                     VENDOR_NAMES,
                     MODULE_BASE_INJECT_DIR
                     )
+MAIN_LOG_FILE_PATH = "/tmp/fmd/out/post_builder_main.log"
 PRINT_ALL_LOGS = True
 PRINT_ERROR_LOGS = True
 FOLDER_NAME_OBJECTS = "obj"

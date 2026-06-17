@@ -43,11 +43,10 @@ from tqdm import tqdm
 from copy_helper import copy_fast
 from fast_copy import schedule_copy, wait_for_all_copy_tasks
 
-
 if os.environ.get("FMD_DEBUG") == "True":
     setup_logger(logging.DEBUG)
 else:
-    setup_logger()
+    setup_logger(MAIN_LOG_FILE_PATH)
 
 
 processed_files_lock = threading.Lock()

@@ -1294,7 +1294,7 @@ def execute_build_command(firmware_id, lunch_target, command, aosp_root_path):
         firmware_id = re.sub(r'\W+', '', firmware_id)
         lunch_target = re.sub(r'\W+', '', lunch_target)
         unique_id = uuid.uuid4()
-        log_name = str(unique_id) + "_" + firmware_id + "_" + lunch_target + ".log"
+        log_name = "build_log" + "_" + firmware_id + "_" + lunch_target + f"{str(unique_id)}.log"
         log_path = os.path.join(BUILD_OUT_PATH, log_name)
         logging.info(f"Executing command: {command}")
         logging.info(f"Build logs will be written to: {log_path}")
@@ -1584,7 +1584,7 @@ def setup_firmware_logger(firmware_id):
     Prevents logs from showing in stdout.
     """
     uuid_filename = str(uuid.uuid4())
-    log_file = os.path.join(BUILD_OUT_PATH, f"{uuid_filename}_{firmware_id}_process.log")
+    log_file = os.path.join(BUILD_OUT_PATH, f"main_log_{uuid_filename}_{firmware_id}.log")
     logging.info(f"Logging redirected for id: {firmware_id} to file: {log_file}")
     logger = logging.getLogger()
     logger.handlers.clear()  # Remove all existing handlers, including stdout
