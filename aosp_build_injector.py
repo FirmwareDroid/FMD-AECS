@@ -1736,7 +1736,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
                 clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
 
         counter += 1
-        if args.build_only_first and counter > args.build_only_first:
+        if args.build_only_first and counter >= args.build_only_first:
             logging.info("Build only first flag is set. Stopping after first firmware id.")
             break
 
