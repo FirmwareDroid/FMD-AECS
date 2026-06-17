@@ -1343,6 +1343,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
 
     if POST_INJECTOR_CONFIG["ENABLE_SEMANTIC_INJECTOR"]:
         if vintf_path_list and len(inj_obj_list) > 0:
+            logging.info(f"Starting Semantic Injector. Logging to file: {SEMANTIC_INJECTOR_LOG_FILE_PATH}")
             start_semantic_injector(aosp_path, aosp_version, str(partition_name), vintf_path_list, partition_path)
 
 

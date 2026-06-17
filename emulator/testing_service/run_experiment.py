@@ -1476,6 +1476,8 @@ def write_experiment_summary(results_dir, overall_success, attempt=None, attempt
     out_file = os.path.join(results_dir, 'experiment_summary.json')
     _write_json(out_file, summary)
     logging.info('Wrote experiment summary to %s', out_file)
+
+
 def ensure_adb_available(results_dir):
     """Ensure adb is available and at least one device is connected.
 

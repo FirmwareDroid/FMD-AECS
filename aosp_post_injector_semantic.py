@@ -209,7 +209,11 @@ def get_latest_sepolicy_mapping(mapping_dir: str):
     return latest_file_path, latest_major_version
 
 def find_secil_binary(aosp_path):
-    return _find_binary_dir(aosp_path, SECIL_BINARY_PATH_LIST, "secilc")
+    dir_path = _find_binary_dir(aosp_path, SECIL_BINARY_PATH_LIST, "secilc")
+    secil_path = os.path.join(dir_path, "secilc")
+    secil_path_norm = os.path.normpath(secil_path)
+    secil_path_norm = os.path.abspath(secil_path_norm)
+    return secil_path_norm
 
 def get_vendor_policy_files(vendor_partition_path: str):
     """
