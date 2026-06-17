@@ -901,7 +901,6 @@ def build_intermediate_md5_map(aosp_path, intermediates_path, exclude_dirs=None)
         with Executor(max_workers=workers) as ex:
             for root, dirs, files in os.walk(intermediates_path):
                 # --- EXCLUSION LOGIC FOR PARALLEL WALK ---
-                # Modify 'dirs' in-place to prevent os.walk from entering excluded subfolders
                 for d in list(dirs):
                     full_dir_path = os.path.abspath(os.path.join(root, d))
                     if any(full_dir_path.startswith(ex_dir) for ex_dir in abs_exclude_dirs):
@@ -911,6 +910,14 @@ def build_intermediate_md5_map(aosp_path, intermediates_path, exclude_dirs=None)
 
                 for fname in files:
                     file_path = os.path.join(root, fname)
+                    try:
+                        # --- SKIP EMPTY FILES ---
+                        if os.path.getsize(file_path) == 0:
+                            continue
+                    except Exception:
+                        # If we can't get the size (e.g., broken symlink), skip it
+                        continue
+
                     try:
                         futures[ex.submit(get_md5_from_file, file_path)] = file_path
                     except Exception as e:
@@ -947,6 +954,11 @@ def build_intermediate_md5_map(aosp_path, intermediates_path, exclude_dirs=None)
             for fname in files:
                 try:
                     file_path = os.path.join(root, fname)
+
+                    # --- SKIP EMPTY FILES ---
+                    if os.path.getsize(file_path) == 0:
+                        continue
+
                     md5sum = get_md5_from_file(file_path)
                     if not md5sum:
                         continue
@@ -1642,6 +1654,8 @@ def search_original_file_in_obj(partition_name,
         except Exception:
             logging.debug('Could not write search_original_file_in_obj timing to log')
 
+    not_contain = "/obj/FAKE/"
+    result_file_path_list = [path for path in result_file_path_list if not_contain not in path]
     result_file_path_list = [path for path in result_file_path_list if must_contain in path]
 
     if len(result_file_path_list) > 0:
