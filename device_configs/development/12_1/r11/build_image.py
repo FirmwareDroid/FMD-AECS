@@ -855,35 +855,42 @@ def LoadGlobalDict(filename):
   f.close()
   return d
 
-def run_script_to_file(partition):
-    script_path = "/home/ubuntu/FMD-AECS/aosp_post_build_injector.py"
-    output_filename = f"/home/ubuntu/FMD-AECS/out/post_injector_out_{partition}.log"
-    python_path = "/home/ubuntu/FMD-AECS/venv/bin/python3"
 
-    # 1. Copy the current system environment safely
-    current_env = os.environ.copy()
-    with open(output_filename, "w", encoding="utf-8") as f:
-        try:
-            command = [
-                python_path,
-                script_path,
-                "--use-file-config",
-                "--partition-list",
-                partition,
-            ]
-            subprocess.run(
-                command,
-                stdout=f,
-                stderr=subprocess.STDOUT,
-                check=True,
-                env=current_env,
-            )
-            print(
-                f"Success! Output successfully written to {output_filename}"
-            )
-        except subprocess.CalledProcessError as e:
-            print(f"Script failed with exit code {e.returncode}. Check {output_filename}")
-            sys.exit(1)
+def run_script_to_file(partition):
+  script_path = "/home/ubuntu/FMD-AECS/aosp_post_build_injector.py"
+  python_path = "/home/ubuntu/FMD-AECS/venv/bin/python3"
+
+  # Backward-compatible string formatting instead of f-strings
+  output_filename = (
+    "/tmp/fmd/out/post_injector_out_{}.log".format(partition)
+  )
+
+  # 1. Copy the current system environment safely
+  current_env = os.environ.copy()
+
+  with open(output_filename, "w") as f:
+    try:
+      command = [
+        python_path,
+        script_path,
+        "--use-file-config",
+        "--partition-list",
+        partition,
+      ]
+      subprocess.check_call(
+        command,
+        stdout=f,
+        stderr=subprocess.STDOUT,
+        env=current_env,
+      )
+      print("Success! Output successfully written to {0}".format(output_filename))
+    except subprocess.CalledProcessError as e:
+      print(
+        "Script failed with exit code {0}. Check {1}".format(
+          e.returncode, output_filename
+        )
+      )
+      sys.exit(1)
 
 def GlobalDictFromImageProp(image_prop, mount_point):
   d = {}

@@ -967,34 +967,35 @@ def CopyInputDirectory(src, dst, filter_file):
         os.link(full_src, full_dst, follow_symlinks=False)
 
 def run_script_to_file(partition):
-    script_path = "/home/ubuntu/FMD-AECS/aosp_post_build_injector.py"
-    output_filename = f"/home/ubuntu/FMD-AECS/out/post_injector_out_{partition}.log"
-    python_path = "/home/ubuntu/FMD-AECS/venv/bin/python3"
+  script_path = "/home/ubuntu/FMD-AECS/aosp_post_build_injector.py"
+  output_filename = f"post_injector_out_{partition}.log"
+  output_path = os.path.join("/tmp/fmd/out/", output_filename)
+  python_path = "/home/ubuntu/FMD-AECS/venv/bin/python3"
 
-    # 1. Copy the current system environment safely
-    current_env = os.environ.copy()
-    with open(output_filename, "w", encoding="utf-8") as f:
-        try:
-            command = [
-                python_path,
-                script_path,
-                "--use-file-config",
-                "--partition-list",
-                partition,
-            ]
-            subprocess.run(
-                command,
-                stdout=f,
-                stderr=subprocess.STDOUT,
-                check=True,
-                env=current_env,
-            )
-            print(
-                f"Success! Output successfully written to {output_filename}"
-            )
-        except subprocess.CalledProcessError as e:
-            print(f"Script failed with exit code {e.returncode}. Check {output_filename}")
-            sys.exit(1)
+  # 1. Copy the current system environment safely
+  current_env = os.environ.copy()
+  with open(output_path, "w", encoding="utf-8") as f:
+    try:
+      command = [
+        python_path,
+        script_path,
+        "--use-file-config",
+        "--partition-list",
+        partition,
+      ]
+      subprocess.run(
+        command,
+        stdout=f,
+        stderr=subprocess.STDOUT,
+        check=True,
+        env=current_env,
+      )
+      print(
+        f"Success! Output successfully written to {output_path}"
+      )
+    except subprocess.CalledProcessError as e:
+      print(f"Script failed with exit code {e.returncode}. Check {output_path}")
+      sys.exit(1)
 
 def main(argv):
   parser = argparse.ArgumentParser(

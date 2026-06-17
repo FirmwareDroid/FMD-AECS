@@ -889,7 +889,7 @@ def run_script_to_file(partition):
 
     # Backward-compatible string formatting instead of f-strings
     output_filename = (
-        "/tmp/fmd/post_injector_out_{}.log".format(partition)
+        "/tmp/fmd/out/post_injector_out_{}.log".format(partition)
     )
 
     # 1. Copy the current system environment safely

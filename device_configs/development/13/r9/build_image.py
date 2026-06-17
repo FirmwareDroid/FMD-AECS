@@ -817,7 +817,7 @@ def GlobalDictFromImageProp(image_prop, mount_point):
 def run_script_to_file(partition):
     script_path = "/home/ubuntu/FMD-AECS/aosp_post_build_injector.py"
     output_filename = f"post_injector_out_{partition}.log"
-    output_path = os.path.join("/tmp/fmd/", output_filename)
+    output_path = os.path.join("/tmp/fmd/out/", output_filename)
     python_path = "/home/ubuntu/FMD-AECS/venv/bin/python3"
 
     # 1. Copy the current system environment safely
