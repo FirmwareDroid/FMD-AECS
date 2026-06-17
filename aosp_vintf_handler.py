@@ -94,7 +94,7 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
     Programmatic wrapper to merge AOSP and Vendor VINTF manifests/matrices post-build.
     """
     setup_logging()
-
+    logging.info("Starting VINTF artifact merging process...")
     assemble_vintf_bin = os.path.join(host_bin_dir, "assemble_vintf")
     if not os.path.isfile(assemble_vintf_bin):
         raise FileNotFoundError(f"Could not find required 'assemble_vintf' executable at: {assemble_vintf_bin}")

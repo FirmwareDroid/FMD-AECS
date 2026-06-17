@@ -60,18 +60,6 @@ def start_merge_vintf_artifacts(aosp_vintf_dir: str, vendor_vintf_dir: str, host
     Directly imports aosp_vintf_handler and calls its execution wrapper natively.
     """
     os.makedirs(output_folder, exist_ok=True)
-
-    script_dir = os.getcwd()
-    script_name = "aosp_vintf_handler"
-    script_path = os.path.join(script_dir, f"{script_name}.py")
-
-    if not os.path.exists(script_path):
-        raise FileNotFoundError(f"VINTF merger script missing at: {script_path}")
-
-    # Dynamically inject path if the script resides outside standard package roots
-    if script_dir not in sys.path:
-        sys.path.insert(0, script_dir)
-
     try:
         logging.info("Calling aosp_vintf_handler wrapper entrypoint natively...")
         merge_vintf_artifacts(
