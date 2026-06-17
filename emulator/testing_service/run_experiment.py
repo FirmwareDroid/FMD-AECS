@@ -904,7 +904,6 @@ def start_tcpdump() -> bool:
         # If grep found a matching line
         if check_proc.returncode == 0 and check_proc.stdout.strip():
             ps_line = check_proc.stdout.strip().splitlines()[0]
-
             # Split the ps line to find the PID (usually the 2nd column)
             # Example ps output: root      12345 1     4524   1200  sys_epoll_ b7ee0000 s tcpdump
             parts = ps_line.split()
@@ -997,6 +996,7 @@ def start_tcpdump() -> bool:
     )
     try:
         _ensure_adb_root(serial)
+        logging.info('Executing tcpdump start command on device %s with command: %s', serial, start_cmd)
         res = subprocess.run(['adb', '-s', serial, 'shell', start_cmd], capture_output=True, text=True, timeout=15)
         if res.returncode != 0:
             logging.error('ADB rejected background pipeline command: %s', (res.stderr or res.stdout).strip())
@@ -1496,11 +1496,6 @@ def ensure_adb_available(results_dir):
 
 def start_background_services():
     """Start best-effort background services such as tcpdump and crash watcher."""
-
-    tcp_ok = start_tcpdump()
-    if not tcp_ok:
-        logging.error('Failed to start tcpdump; aborting this attempt so the experiment retry loop can retry')
-        raise RuntimeError('Failed to start tcpdump')
     if crash_watcher:
         try:
             crash_watcher.start_crash_watcher(device=None, interval=5.0)
@@ -1509,6 +1504,23 @@ def start_background_services():
         except Exception:
             logging.exception('Failed to start crash watcher')
 
+    tcp_dump_attempts = 30
+    tcp_dump_delay = 30
+    while tcp_dump_attempts > 0:
+        try:
+            tcp_ok = start_tcpdump()
+            if not tcp_ok:
+                logging.error('Failed to start tcpdump; aborting this attempt so the experiment retry loop can retry')
+                tcp_dump_attempts -= 1
+            else:
+                break
+        except Exception:
+            tcp_dump_attempts -= 1
+            if tcp_dump_attempts > 0:
+                logging.warning('Failed to start background services, will retry in %d seconds (%d attempts left)', tcp_dump_delay, tcp_dump_attempts)
+                time.sleep(tcp_dump_delay)
+            else:
+                logging.error('Failed to start background services after multiple attempts; continuing without them')
 
 def stop_background_services():
     """Stop background services started by start_background_services()."""
@@ -1704,11 +1716,6 @@ def main():
             if attempt < attempts:
                 logging.info('Retrying full-run after %s seconds (attempt %d/%d)', retry_delay, attempt + 1, attempts)
                 time.sleep(retry_delay)
-                # try to restart tcpdump before next attempt
-                try:
-                    start_tcpdump()
-                except Exception:
-                    logging.exception('Failed to restart tcpdump before next attempt')
                 continue
             else:
                 logging.error('Experiment failed after %d attempt(s). Aborting.', attempts)
