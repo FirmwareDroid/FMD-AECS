@@ -1504,8 +1504,8 @@ def start_background_services():
         except Exception:
             logging.exception('Failed to start crash watcher')
 
-    tcp_dump_attempts = 30
-    tcp_dump_delay = 3000
+    tcp_dump_attempts = 10
+    tcp_dump_delay = 10
     while tcp_dump_attempts > 0:
         try:
             tcp_ok = start_tcpdump()
@@ -1653,8 +1653,8 @@ def main():
 
 
     attempts = max(1, int(getattr(args, 'retries', 30)))
-    retry_delay = int(getattr(args, 'retry_delay', 15))
-
+    retry_delay = int(getattr(args, 'retry_delay', 600))
+    logging.info(f"Set Attempts to {attempts} attempts and Retry Delay {retry_delay} seconds.")
     # Single unified retry loop: perform the entire preflight and experiment in one attempt
     for attempt in range(1, attempts + 1):
         logging.info('Full-run attempt %d/%d starting...', attempt, attempts)
