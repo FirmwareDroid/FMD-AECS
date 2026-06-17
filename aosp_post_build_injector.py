@@ -28,7 +28,7 @@ from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, 
 from aosp_build_property_merger import start_property_merge
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import handle_apk_signing
-from aosp_post_injector_semantic import start_semantic_injector, handle_vintf_merge, handle_seplicy_merging
+from aosp_post_injector_semantic import handle_vintf_merge, handle_seplicy_merging
 from aosp_rc_merger import run_rc_merger
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
     check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file, check_binary_architecture, \
