@@ -47,6 +47,7 @@ if os.environ.get("FMD_DEBUG") == "True":
     setup_logger(logging.DEBUG)
 else:
     setup_logger(MAIN_LOG_FILE_PATH)
+    setup_logger(logger_name="semantic_injector", log_file=SEMANTIC_INJECTOR_LOG_FILE_PATH)
 
 
 processed_files_lock = threading.Lock()

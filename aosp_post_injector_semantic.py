@@ -13,12 +13,13 @@ VINTF_FOLDER_RELATIVE_PATH = "etc/vintf"
 ASSEMBLE_VINTF_PATH_LIST = ["out/host/linux-x86/bin/assemble_vintf"]
 SECIL_BINARY_PATH_LIST = ["./out/host/linux-x86/bin/secilc", "out/soong/.intermediates/external/selinux/secilc/secilc"]
 
+logger = logging.getLogger("semantic_injector")
 
 def get_aosp_vintf_path(aosp_emulator_out_dir: str, partition_name: str):
     vintf_folder_path = os.path.join(aosp_emulator_out_dir, partition_name, VINTF_FOLDER_RELATIVE_PATH)
     if not os.path.exists(vintf_folder_path) and not os.path.isdir(vintf_folder_path):
         raise FileNotFoundError(f"VINTF folder not found at expected path: {vintf_folder_path}")
-    logging.info(f"Found aosp vintf folder: {vintf_folder_path}")
+    logger.info(f"Found aosp vintf folder: {vintf_folder_path}")
     return vintf_folder_path
 
 
@@ -30,11 +31,11 @@ def get_vintf_vendor_path(partition_name: str, vintf_folder_path_list: list):
     ))
     if len(base_dirs) == 1:
         vintf_root_dir = os.path.join(base_dirs[0], VINTF_FOLDER_RELATIVE_PATH)
-        logging.info(f"Found vintf root directory: {vintf_root_dir}")
+        logger.info(f"Found vintf root directory: {vintf_root_dir}")
     elif len(base_dirs) == 0:
         raise FileNotFoundError(f"Could not find vintf root directory: {partition_name} in {vintf_folder_path_list}")
     else:
-        logging.warning(f"Found multiple vintf root directories: {base_dirs}")
+        logger.warning(f"Found multiple vintf root directories: {base_dirs}")
         raise RuntimeError(f"Found multiple vintf root directories: {base_dirs}")
 
     return vintf_root_dir
@@ -45,7 +46,7 @@ def _find_binary_dir(aosp_path, path_list, binary_name):
         bin_path = os.path.join(aosp_path, candidate_path)
         if os.path.exists(bin_path):
             bin_dir = os.path.dirname(bin_path)
-            logging.info(f"Found {binary_name} folder: {bin_dir}")
+            logger.info(f"Found {binary_name} folder: {bin_dir}")
             return str(bin_dir)
     raise FileNotFoundError(f"Could not find '{binary_name}' in expected paths: {path_list}")
 
@@ -80,17 +81,17 @@ def start_merge_vintf_artifacts(aosp_vintf_dir: str, vendor_vintf_dir: str, host
             output_dir=output_folder
         )
     except Exception as e:
-        logging.error(f"In-process execution of VINTF Handler raised an exception: {str(e)}")
+        logger.error(f"In-process execution of VINTF Handler raised an exception: {str(e)}")
         raise RuntimeError("Failed to complete inline VINTF artifact compilation workflow step.") from e
 
-    logging.info("VINTF native compilation task returned cleanly.")
+    logger.info("VINTF native compilation task returned cleanly.")
 
 
 def handle_vintf_merge(aosp_path: str, aosp_version: str, partition_name: str, vintf_folder_path_list: list):
     """
     Merges two VINTF folders into one folder and applies a deployment layout matching AOSP runtime parsing.
     """
-    logging.info(f"Merging vintf folder: {aosp_path}, version: {aosp_version}, "
+    logger.info(f"Merging vintf folder: {aosp_path}, version: {aosp_version}, "
                  f"partition: {partition_name}, vintf_folder_path_list: {vintf_folder_path_list}")
     aosp_emulator_out_dir = get_aosp_build_out_dir(aosp_path, aosp_version)
     aosp_vintf_dir = get_aosp_vintf_path(aosp_emulator_out_dir, partition_name)
@@ -101,24 +102,24 @@ def handle_vintf_merge(aosp_path: str, aosp_version: str, partition_name: str, v
     start_merge_vintf_artifacts(aosp_vintf_dir, vendor_vintf_dir, host_bin_dir, output_folder)
 
     if aosp_vintf_dir:
-        logging.info(f"Deploying unified VINTF configurations to live target path: {aosp_vintf_dir}")
+        logger.info(f"Deploying unified VINTF configurations to live target path: {aosp_vintf_dir}")
         src_manifest = os.path.join(output_folder, "manifest.xml")
         src_matrix = os.path.join(output_folder, "compatibility_matrix.device.xml")
 
         if os.path.exists(src_manifest):
             shutil.copy2(src_manifest, os.path.join(aosp_vintf_dir, "manifest.xml"))
-            logging.info(f"Deployed merged manifest.xml to AOSP runtime vintf folder successfully: {aosp_vintf_dir}")
+            logger.info(f"Deployed merged manifest.xml to AOSP runtime vintf folder successfully: {aosp_vintf_dir}")
 
         if os.path.exists(src_matrix):
             shutil.copy2(src_matrix, os.path.join(aosp_vintf_dir, "compatibility_matrix.xml"))
-            logging.info(f"Deployed merged compatibility_matrix.xml to AOSP runtime vintf folder successfully: {aosp_vintf_dir}")
+            logger.info(f"Deployed merged compatibility_matrix.xml to AOSP runtime vintf folder successfully: {aosp_vintf_dir}")
 
         runtime_manifest_folder = os.path.join(aosp_vintf_dir, "manifest")
         if os.path.exists(runtime_manifest_folder):
             shutil.rmtree(runtime_manifest_folder)
-            logging.info(f"Removed existing runtime manifest folder: {runtime_manifest_folder}")
+            logger.info(f"Removed existing runtime manifest folder: {runtime_manifest_folder}")
         os.makedirs(os.path.join(aosp_vintf_dir, "manifest"), exist_ok=True)
-        logging.info("VINTF flattening pipeline structural deployment finalized successfully.")
+        logger.info("VINTF flattening pipeline structural deployment finalized successfully.")
 
     return output_folder
 
@@ -156,10 +157,10 @@ def inject_sepolicy(source_dir, aosp_path, aosp_version):
         for dst in value["dst"]:
             try:
                 shutil.copy2(src, dst)
-                logging.info(f"Successfully injected {key} to: {dst}")
+                logger.info(f"Successfully injected {key} to: {dst}")
             except Exception as e:
-                logging.error(f"Failed to inject {key} to: {dst}|{src}")
-                logging.error(e)
+                logger.error(f"Failed to inject {key} to: {dst}|{src}")
+                logger.error(e)
 
 
 def get_latest_sepolicy_mapping(mapping_dir: str):
@@ -259,7 +260,8 @@ def handle_seplicy_merging(aosp_version, aosp_path, partition_path_system):
     plat_cil, plat_mapping, policy_version = get_policy_files(aosp_path, aosp_version)
     vendor_cil, vendor_pub = get_vendor_policy_files(vendor_partition_path)
     secilc_path = find_secil_binary(aosp_path)
-
+    logger.info(f"Starting sepolicy merging with secilc: {secilc_path}, plat_cil: {plat_cil}, vendor_cil: {vendor_cil}"
+                f"vendor_pub: {vendor_pub}, policy_version: {policy_version}")
     success = merge_sepolicy_pipeline(
         secilc_bin=secilc_path,
         plat_cil=plat_cil,
@@ -270,26 +272,30 @@ def handle_seplicy_merging(aosp_version, aosp_path, partition_path_system):
         policy_version=policy_version
     )
     if success:
-        logging.info(f"Successfully merged sepolicy folder to: {out_dir}")
+        logger.info(f"Successfully merged sepolicy folder to: {out_dir}")
         inject_sepolicy(out_dir, aosp_path, aosp_version)
     else:
-        logging.error(f"Failed to merge sepolicy folder to: {out_dir}|{secilc_path}|{plat_cil}|{plat_mapping}|{vendor_cil}|{vendor_pub}")
+        logger.error(f"Failed to merge sepolicy folder to: {out_dir}|{secilc_path}|{plat_cil}|{plat_mapping}|{vendor_cil}|{vendor_pub}")
     return success, out_dir
 
 
 def start_semantic_injector(aosp_path: str, aosp_version:str, partition_name: str, vintf_folder_path_list: list, partition_path: str):
     """
     """
+    logger.info(f"Starting semantic injector with aosp_path: {aosp_path}, aosp_version: {aosp_version}, "
+                f"partition_name: {partition_name}, "
+                f"vintf_folder_path_list: {vintf_folder_path_list}"
+                f"partition_path: {partition_path}")
     try:
         handle_vintf_merge(aosp_path, aosp_version, partition_name, vintf_folder_path_list)
     except Exception as e:
-        logging.error(e)
+        logger.error(e)
 
     if partition_name == "system":
         try:
             handle_seplicy_merging(aosp_version, aosp_path, partition_path)
         except Exception as e:
-            logging.error(e)
+            logger.error(e)
 
 
 
