@@ -452,7 +452,8 @@
     "/lib64/libaudio",
     "/system/bin/mediaserver64",
     "/lib64/android.hardware.ir@1.0.so",
-    "/lib64/android.hardware.boot@1.0.so"
+    "/lib64/android.hardware.boot@1.0.so",
+    "android.hardware.audio"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",

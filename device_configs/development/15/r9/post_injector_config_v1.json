@@ -429,7 +429,7 @@
     "/lib64/liblazy_static.dylib.so",
     "/lib64/libbcinfo.so",
     "/lib64/libhidltransport.so",
-    "etc/task_profiles.json",
+    "/etc/task_profiles.json",
     "/system/init/init.rc",
     "android.hardware.graphics.common-V3-ndk_platform.so",
     "/lib64/libmi",
@@ -439,7 +439,16 @@
     "/lib64/libprocessgroup",
     "/lib64/libaudio",
     "/lib64/libsensor",
-    "/lib64/libmedia"
+    "/lib64/libmedia",
+    "android.hardware.audio",
+    "/lib64/libstagefright",
+    "/lib64/libfmq.so",
+    "/lib64/libclang_rt.ubsan_standalone-aarch64-android.so",
+    "/lib64/libaudio",
+    "/system/bin/mediaserver64",
+    "/lib64/android.hardware.ir@1.0.so",
+    "/lib64/android.hardware.boot@1.0.so",
+    "android.hardware.audio"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
