@@ -1628,6 +1628,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
     except FileNotFoundError:
         pass
     for firmware_id in tqdm(firmware_id_list):
+        os.makedirs(BUILD_OUT_PATH, exist_ok=True)
         logging.info(f"Number of firmware ids left to process: {len(firmware_id_list) - firmware_id_list.index(firmware_id)}")
         try:
             logging.info(f"Start fetching build files for firmware-id: {firmware_id}")
