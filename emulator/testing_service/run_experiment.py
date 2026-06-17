@@ -1505,7 +1505,7 @@ def start_background_services():
             logging.exception('Failed to start crash watcher')
 
     tcp_dump_attempts = 30
-    tcp_dump_delay = 30
+    tcp_dump_delay = 3000
     while tcp_dump_attempts > 0:
         try:
             tcp_ok = start_tcpdump()
