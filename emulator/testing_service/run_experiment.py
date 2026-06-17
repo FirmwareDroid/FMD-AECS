@@ -1035,82 +1035,6 @@ def start_tcpdump() -> bool:
     return False
 
 
-def stop_tcpdump() -> bool:
-    """Stops tcpdump via PID / Process name signatures and pulls the output safely."""
-    logging.info('Stopping tcpdump execution layout')
-
-    # 1. Parse existing execution markers
-    if not os.path.exists(PID_FILE_PATH):
-        logging.warning('No execution file tracking structure (%s) located. Attempting blind fallback.', PID_FILE_PATH)
-        serial = _get_first_adb_device()
-        pid = None
-    else:
-        try:
-            with open(PID_FILE_PATH, 'r', encoding='utf-8') as f:
-                lines = [line.strip() for line in f if line.strip()]
-                serial = lines[0] if len(lines) > 0 else _get_first_adb_device()
-                pid = lines[1] if len(lines) > 1 else None
-        except Exception:
-            logging.exception('Failed parsing data from active pid tracking structure')
-            serial = _get_first_adb_device()
-            pid = None
-
-    if not serial:
-        logging.error('Cannot execute termination request: No valid target devices found.')
-        return False
-
-    _ensure_adb_root(serial)
-
-    # 2. Terminate Process (Ordered Fallbacks: pkill -> pid-kill -> su-pkill)
-    termination_commands = [
-        ['adb', '-s', serial, 'shell', 'pkill -2 tcpdump'],
-    ]
-    if pid:
-        termination_commands.append(['adb', '-s', serial, 'shell', f'kill -2 {pid}'])
-    termination_commands.append(['adb', '-s', serial, 'shell', 'su', '-c', 'pkill -2 tcpdump'])
-
-    killed = False
-    for cmd in termination_commands:
-        try:
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-            if res.returncode == 0:
-                logging.info('Sent kill signal safely utilizing command: %s', " ".join(cmd))
-                killed = True
-                break
-        except Exception:
-            continue
-
-    if not killed:
-        logging.warning("Signal requests completed, verifying if process terminated automatically...")
-
-    # Allow buffer space for memory pipes to flush on filesystem
-    time.sleep(1.5)
-
-    # 3. Secure File Retrieval
-    local_pcaps_dir = os.path.join(OUT_DIR, "pcaps")
-    os.makedirs(local_pcaps_dir, exist_ok=True)
-    local_pcap_file = os.path.join(local_pcaps_dir, f'tcpdump_on_system.pcap')
-
-    try:
-        # Match REMOTE_PCAP_PATH explicitly to solve your path mismatch bug
-        res = subprocess.run(['adb', '-s', serial, 'pull', REMOTE_PCAP_PATH, local_pcap_file], capture_output=True,
-                             text=True, timeout=60)
-        if res.returncode == 0 and os.path.exists(local_pcap_file) and os.path.getsize(local_pcap_file) > 0:
-            logging.info('Successfully pulled populated tcpdump pcap target to: %s', local_pcap_file)
-
-            # Clean up tracking file and device storage files upon complete validation success
-            if os.path.exists(PID_FILE_PATH): os.remove(PID_FILE_PATH)
-            subprocess.run(['adb', '-s', serial, 'shell', f'rm -f {REMOTE_PCAP_PATH}'], capture_output=True, timeout=5)
-            return True
-        else:
-            logging.error('Failed pulling file or zero-byte file caught. adb logs: %s',
-                          (res.stderr or res.stdout).strip())
-    except Exception:
-        logging.exception('Fatal unexpected termination occurred pulling runtime assets.')
-
-    return False
-
-
 def pull_ecapture_files():
     """Pull all files from /data/ecapture on the device into OUT_DIR/ecapture/<serial>/.
 
@@ -1185,221 +1109,190 @@ def pull_ecapture_files():
         logging.exception('Exception while pulling /data/ecapture from device')
         return False
 
-def stop_tcpdump():
-    logging.info('Stopping tcpdump')
 
-    # Determine first connected device (same selection as start_tcpdump)
-    try:
-        out = subprocess.run(['adb', 'devices'], capture_output=True, text=True, timeout=10)
-        lines = [l.strip() for l in (out.stdout or '').splitlines() if l.strip()]
-        serial = None
-        for l in lines:
-            if l.startswith('List of devices'):
-                continue
-            parts = l.split()
-            if len(parts) >= 2 and parts[1] == 'device':
-                serial = parts[0]
-                break
-        if not serial:
-            logging.warning('No adb device found to stop tcpdump')
-            return False
-    except Exception:
-        logging.exception('Failed to run adb devices to select device for stop_tcpdump')
+def stop_tcpdump() -> bool:
+    """Stops tcpdump via PID / Process name signatures on the target ADB device,
+
+    pulls captured pcaps, optional SSL keylogs, and records package UID maps.
+    """
+    logging.info('Stopping tcpdump execution layout')
+
+    # -------------------------------------------------------------------------
+    # 1. Parse execution markers & select target device
+    # -------------------------------------------------------------------------
+    serial = _get_first_adb_device()
+    pid = None
+
+    if os.path.exists(PID_FILE_PATH):
+        try:
+            with open(PID_FILE_PATH, 'r', encoding='utf-8') as f:
+                lines = [line.strip() for line in f if line.strip()]
+                if len(lines) > 1:
+                    pid = lines[1]
+        except Exception:
+            logging.exception('Failed parsing data from active pid tracking structure')
+
+    if not serial:
+        logging.error('Cannot execute termination request: No valid target devices found.')
         return False
 
-    pid_file = os.path.join(OUT_DIR, 'tcpdump_device.pid')
-    pid = None
-    if os.path.exists(pid_file):
-        try:
-            with open(pid_file, 'r', encoding='utf-8') as f:
-                pid = f.read().strip().splitlines()[0].strip()
-        except Exception:
-            logging.exception('Failed to read tcpdump pid file %s', pid_file)
-
-    # Try to stop tcpdump on device. Prefer pkill, then kill by pid if available.
+    # -------------------------------------------------------------------------
+    # 2. Terminate Process (Ordered fallbacks: root -> pkill -> pid-kill -> su)
+    # -------------------------------------------------------------------------
     try:
-        # Try to become root on the device so pkill/kill have permission to send signals
-        try:
-            adb_root_cmd = ['adb', '-s', serial, 'root']
-            root_res = subprocess.run(adb_root_cmd, capture_output=True, text=True, timeout=10)
-            if root_res.returncode == 0:
-                logging.info('adb root: OK on device %s', serial)
-            else:
-                logging.debug('adb root returned non-zero on device %s: %s', serial, (root_res.stderr or root_res.stdout).strip())
-        except Exception:
-            logging.exception('adb root attempt failed')
-
-        adb_pkill = ['adb', '-s', serial, 'shell', 'pkill -2 tcpdump']
-        res = subprocess.run(adb_pkill, shell=False, capture_output=True, text=True, timeout=10)
-        if res.returncode == 0:
-            logging.info('Requested tcpdump termination via pkill on device %s', serial)
-        else:
-            # If pkill failed due to permission, try running via su on-device if available
-            stderr_out = (res.stderr or res.stdout).strip()
-            logging.info('pkill returned non-zero (may be fine): %s', stderr_out)
-            try:
-                adb_su_pkill = ['adb', '-s', serial, 'shell', 'su', '-c', 'pkill -2 tcpdump']
-                su_res = subprocess.run(adb_su_pkill, shell=False, capture_output=True, text=True, timeout=10)
-                if su_res.returncode == 0:
-                    logging.info('Requested tcpdump termination via su+pkill on device %s', serial)
-                else:
-                    logging.debug('su+pkill returned non-zero on device %s: %s', serial, (su_res.stderr or su_res.stdout).strip())
-            except Exception:
-                logging.exception('su+pkill attempt failed')
+        root_res = subprocess.run(['adb', '-s', serial, 'root'], capture_output=True, text=True, timeout=10)
+        if root_res.returncode == 0:
+            logging.info('adb root: OK on device %s', serial)
     except Exception:
-        logging.exception('pkill on device failed')
+        logging.exception('adb root attempt encountered unexpected failure')
 
+    termination_commands = [
+        ['adb', '-s', serial, 'shell', 'pkill -2 tcpdump'],
+    ]
     if pid:
+        termination_commands.append(['adb', '-s', serial, 'shell', f'kill -2 {pid}'])
+    termination_commands.append(['adb', '-s', serial, 'shell', 'su', '-c', 'pkill -2 tcpdump'])
+
+    killed = False
+    for cmd in termination_commands:
         try:
-            adb_kill = ['adb', '-s', serial, 'shell', f'kill -2 {pid}']
-            res = subprocess.run(adb_kill, capture_output=True, text=True, timeout=10)
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
             if res.returncode == 0:
-                logging.info('Sent SIGINT to tcpdump pid %s on device %s', pid, serial)
+                logging.info('Sent kill signal safely utilizing command: %s', " ".join(cmd))
+                killed = True
+                break
             else:
-                logging.info('kill returned non-zero (may be fine): %s', (res.stderr or res.stdout).strip())
+                logging.debug('Command [%s] non-zero: %s', " ".join(cmd), (res.stderr or res.stdout).strip())
         except Exception:
-            logging.exception('Failed to kill tcpdump pid on device')
+            continue
 
-    # Wait briefly for device to flush pcap
-    time.sleep(1)
+    if not killed:
+        logging.warning("Signal requests completed, verifying if process terminated automatically...")
 
-    # Attempt to pull pcap from device to OUT_DIR
-    remote_pcap = '/storage/emulated/0/Download/tcpdump.pcap'
-    local_pcap = os.path.join(OUT_DIR, "pcaps", f'tcpdump_{serial}.pcap')
+    # Allow buffer space for memory pipes to flush on filesystem
+    time.sleep(1.5)
+
+    # -------------------------------------------------------------------------
+    # 3. Secure File Retrieval (PCAP + SSL Keylogs)
+    # -------------------------------------------------------------------------
+    local_pcaps_dir = os.path.join(OUT_DIR, "pcaps")
+    os.makedirs(local_pcaps_dir, exist_ok=True)
+    local_pcap_file = os.path.join(local_pcaps_dir, f'tcpdump_{serial}.pcap')
+    pcap_pulled_successfully = False
+
     try:
-        adb_pull = ['adb', '-s', serial, 'pull', remote_pcap, local_pcap]
-        res = subprocess.run(adb_pull, capture_output=True, text=True, timeout=60)
-        if res.returncode == 0:
-            logging.info('Pulled tcpdump pcap to %s', local_pcap)
+        res = subprocess.run(['adb', '-s', serial, 'pull', REMOTE_PCAP_PATH, local_pcap_file],
+                             capture_output=True, text=True, timeout=60)
+        if res.returncode == 0 and os.path.exists(local_pcap_file) and os.path.getsize(local_pcap_file) > 0:
+            logging.info('Successfully pulled populated tcpdump pcap target to: %s', local_pcap_file)
+            pcap_pulled_successfully = True
         else:
-            logging.warning('Failed to pull pcap (%s). adb pull output: %s', remote_pcap, (res.stderr or res.stdout).strip())
+            logging.error('Failed pulling pcap or zero-byte file caught. adb logs: %s',
+                          (res.stderr or res.stdout).strip())
     except Exception:
-        logging.exception('Exception while pulling pcap from device')
+        logging.exception('Fatal unexpected termination occurred pulling runtime PCAP assets.')
 
-    # Attempt to pull SSL key log from common locations on the device. Save into OUT_DIR/pcaps
-    try:
-        ssl_dir = os.path.join(OUT_DIR, 'pcaps')
-        os.makedirs(ssl_dir, exist_ok=True)
-        # prefer a per-device filename to avoid collisions
-        local_ssl = os.path.join(ssl_dir, f'sslkeylog_{serial}.log')
-
-        remote_candidates = [
-            '/storage/emulated/0/Download/sslkeylog.log',
-            '/sdcard/Download/sslkeylog.log',
-            '/sdcard/sslkeylog.log',
-            '/data/local/tmp/sslkeylog.log',
-            '/data/misc/ssl/sslkeylog.log',
-        ]
-        pulled = False
-        for remote in remote_candidates:
+    _pull_ssl_keylogs(serial, local_pcaps_dir)
+    # -------------------------------------------------------------------------
+    # 4. Cleanup Execution Tracks
+    # -------------------------------------------------------------------------
+    if pcap_pulled_successfully:
+        if os.path.exists(PID_FILE_PATH):
             try:
-                # Check existence
-                ls_cmd = ['adb', '-s', serial, 'shell', 'ls', '-l', remote]
-                ls_res = subprocess.run(ls_cmd, capture_output=True, text=True, timeout=5)
-                if ls_res.returncode != 0:
-                    continue
-                # Pull the file
-                pull_cmd = ['adb', '-s', serial, 'pull', remote, local_ssl]
-                pull_res = subprocess.run(pull_cmd, capture_output=True, text=True, timeout=20)
-                if pull_res.returncode == 0:
-                    logging.info('Pulled SSL keylog from device %s -> %s (remote=%s)', serial, local_ssl, remote)
-                    pulled = True
-                    break
-                else:
-                    logging.debug('adb pull of %s failed: %s', remote, (pull_res.stderr or pull_res.stdout).strip())
+                os.remove(PID_FILE_PATH)
             except Exception:
-                logging.debug('Exception while attempting to pull SSL key from %s', remote, exc_info=True)
+                logging.debug('Failed to remove tracking file %s', PID_FILE_PATH)
 
-        if not pulled:
-            logging.info('No SSL keylog found on device %s at known locations; skipped pulling ssl keys', serial)
-    except Exception:
-        logging.exception('Failed to pull SSL keylog from device')
+        subprocess.run(['adb', '-s', serial, 'shell', f'rm -f {REMOTE_PCAP_PATH}'], capture_output=True, timeout=5)
+        return True
 
-    # Retrieve package -> UID mapping from device
+    return False
+
+
+def _pull_ssl_keylogs(serial: str, output_dir: str):
+    """Scan known alternative device paths and retrieve available SSL key logs."""
+    local_ssl = os.path.join(output_dir, f'sslkeylog_{serial}.log')
+    remote_candidates = [
+        '/storage/emulated/0/Download/sslkeylog.log',
+        '/sdcard/Download/sslkeylog.log',
+        '/sdcard/sslkeylog.log',
+        '/data/local/tmp/sslkeylog.log',
+        '/data/misc/ssl/sslkeylog.log',
+    ]
+
+    for remote in remote_candidates:
+        try:
+            ls_res = subprocess.run(['adb', '-s', serial, 'shell', 'ls', '-l', remote],
+                                    capture_output=True, text=True, timeout=5)
+            if ls_res.returncode != 0:
+                continue
+
+            pull_res = subprocess.run(['adb', '-s', serial, 'pull', remote, local_ssl],
+                                      capture_output=True, text=True, timeout=20)
+            if pull_res.returncode == 0:
+                logging.info('Pulled SSL keylog from device %s -> %s', serial, local_ssl)
+                return
+        except Exception:
+            logging.debug('Exception while attempting to check/pull SSL key from %s', remote, exc_info=True)
+
+    logging.info('No SSL keylog discovered at targeted device vectors; skipping.')
+
+
+def _collect_package_uid_mapping(serial: str):
+    """Retrieve package -> UID lists and store results atomically using safe-write blocks."""
+    if not serial:
+        serial = _get_first_adb_device()
     try:
-        adb_pm = ['adb', '-s', serial, 'shell', 'pm', 'list', 'packages', '-U']
-        res = subprocess.run(adb_pm, capture_output=True, text=True, timeout=20)
+        res = subprocess.run(['adb', '-s', serial, 'shell', 'pm', 'list', 'packages', '-U'],
+                             capture_output=True, text=True, timeout=20)
         pkg_map = {}
         pm_success = (res.returncode == 0)
-        pm_error = None
+        pm_error = None if pm_success else (res.stderr or res.stdout or '').strip()
+
         if pm_success:
-            out = res.stdout or ''
-            for line in out.splitlines():
+            for line in (res.stdout or '').splitlines():
                 line = line.strip()
-                if not line:
+                if not line.startswith('package:'):
                     continue
-                # Example line: package:com.example uid:12345
-                pkg = None
-                uid = None
-                if line.startswith('package:'):
-                    # split by spaces
-                    parts = line.split()
-                    for p in parts:
-                        if p.startswith('package:'):
-                            pkg = p.split('package:', 1)[1]
-                        if p.startswith('uid:'):
-                            try:
-                                uid = int(p.split('uid:', 1)[1])
-                            except Exception:
-                                uid = None
-                    if pkg:
-                        pkg_map[pkg] = uid
-        else:
-            pm_error = (res.stderr or res.stdout or '').strip()
-            logging.warning('pm list packages -U returned non-zero: %s', pm_error)
-
-        # Prepare JSON content with diagnostics so the file is never left empty and
-        # contains useful information when the pm command failed.
-        mapping_content = {
-            'success': pm_success,
-            'error': pm_error,
-            'mapping': pkg_map,
-        }
-
-        # Write mapping to OUT_DIR (retry and write atomically to avoid partial writes)
-        try:
-            os.makedirs(OUT_DIR, exist_ok=True)
-            mapping_file = os.path.join(OUT_DIR, f'package_uids_{serial}.json')
-            tmp_path = mapping_file + '.tmp'
-            write_ok = False
-            for attempt_write in range(1, 4):
-                try:
-                    with open(tmp_path, 'w', encoding='utf-8') as mf:
-                        json.dump(mapping_content, mf, indent=2)
-                        mf.flush()
+                pkg, uid = None, None
+                for part in line.split():
+                    if part.startswith('package:'):
+                        pkg = part.split('package:', 1)[1]
+                    if part.startswith('uid:'):
                         try:
-                            os.fsync(mf.fileno())
-                        except Exception:
-                            # best-effort; some filesystems may not support fsync on writer
+                            uid = int(part.split('uid:', 1)[1])
+                        except ValueError:
                             pass
-                    os.replace(tmp_path, mapping_file)
-                    logging.info('Wrote package->UID mapping to %s (attempt %d)', mapping_file, attempt_write)
-                    write_ok = True
-                    break
-                except Exception as e:
-                    logging.exception('Attempt %d: Failed to write package->UID mapping to %s: %s', attempt_write, mapping_file, e)
+                if pkg:
+                    pkg_map[pkg] = uid
+
+        mapping_content = {'success': pm_success, 'error': pm_error, 'mapping': pkg_map}
+        mapping_file = os.path.join(OUT_DIR, f'package_uids_{serial}.json')
+        tmp_path = f"{mapping_file}.tmp"
+
+        for attempt in range(1, 4):
+            try:
+                os.makedirs(os.path.dirname(mapping_file), exist_ok=True)
+                with open(tmp_path, 'w', encoding='utf-8') as mf:
+                    json.dump(mapping_content, mf, indent=2)
+                    mf.flush()
                     try:
-                        if os.path.exists(tmp_path):
-                            os.remove(tmp_path)
+                        os.fsync(mf.fileno())
+                    except OSError:
+                        pass
+                os.replace(tmp_path, mapping_file)
+                logging.info('Wrote package->UID mapping to %s (attempt %d)', mapping_file, attempt)
+                return
+            except Exception as e:
+                logging.warning('Attempt %d failed writing package metadata mappings: %s', attempt, e)
+                if os.path.exists(tmp_path):
+                    try:
+                        os.remove(tmp_path)
                     except Exception:
                         pass
-                    time.sleep(0.5 * attempt_write)
-            if not write_ok:
-                logging.error('Failed to write package->UID mapping to %s after multiple attempts', mapping_file)
-        except Exception:
-            logging.exception('Failed to prepare directory for package->UID mapping')
+                time.sleep(0.5 * attempt)
     except Exception:
-        logging.exception('Failed to retrieve package UID mapping from device')
-
-    # Optionally remove pid file
-    try:
-        if os.path.exists(pid_file):
-            os.remove(pid_file)
-    except Exception:
-        logging.debug('Failed to remove pid file %s', pid_file)
-
-    return True
-
+        logging.exception('Failed tracking package data allocations.')
 
 def _write_json(path, obj):
     try:
@@ -1627,6 +1520,8 @@ def stop_background_services():
         pull_ecapture_files()
     except Exception:
         logging.exception('Failed to pull /data/ecapture files during cleanup')
+
+    _collect_package_uid_mapping(serial=_get_first_adb_device())
 
     if crash_watcher:
         try:
