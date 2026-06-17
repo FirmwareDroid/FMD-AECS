@@ -578,8 +578,7 @@
     "_capex"
   ],
   "SKIPPED_APEX_KEYWORD_LIST": [
-    "adb",
-    "vndk"
+    "adb"
   ],
   "SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST": [],
   "ALLOWED_FILE_OVERWRITE_EXTENSION_LIST": [

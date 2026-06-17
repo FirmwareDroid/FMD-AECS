@@ -2559,7 +2559,8 @@
     "Launcher",
     "Media",
     "Phone",
-    "Print"
+    "Print",
+    "DeviceDiagnostics"
   ],
   "ENABLE_ACVTOOL_INSTRUMENTATION": true
 }
