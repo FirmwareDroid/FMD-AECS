@@ -1977,10 +1977,12 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
     Injects a file into the AOSP source code directly without matching to existing files.
     """
     filename = os.path.basename(source_file_path)
-    inj_md5 = get_md5_from_file(source_file_path)
-    org_md5 = get_md5_from_file(original_file_path)
-
-    matching_intermediate_file_list = find_intermediate_file(aosp_path, org_md5)
+    try:
+        inj_md5 = get_md5_from_file(source_file_path)
+        org_md5 = get_md5_from_file(original_file_path)
+        matching_intermediate_file_list = find_intermediate_file(aosp_path, org_md5)
+    except Exception as e:
+        logging.error(f"Error injecting file: {source_file_path} | {e}")
 
     logging.info(f"Overwriting Obj file: {source_file_path}:{inj_md5} into {original_file_path}:{org_md5}")
     file_name = os.path.basename(original_file_path)
@@ -2130,8 +2132,8 @@ def main():
     if not partition_list:
         partition_list = []
 
-    if aosp_version not in ["12", "12.1", "13", "14"]:
-        raise RuntimeError("Please provide a valid AOSP version argument (12, 13, 14).")
+    if aosp_version not in ["12", "12.1", "13", "14", "15", "16"]:
+        raise RuntimeError("Please provide a valid AOSP version argument (12, 13, 14, 15, 16).")
     if not firmware_id:
         raise RuntimeError("Please provide a firmware ID argument.")
     if not aosp_path:

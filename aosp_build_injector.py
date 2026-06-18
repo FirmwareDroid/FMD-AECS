@@ -1098,7 +1098,6 @@ def is_package_skipped(dir_name, package_path):
             if any(keyword in dir_name_cleaned for keyword in PRE_INJECTOR_CONFIG["DISALLOWED_APK_KEYWORDS"]):
                 logging.info(f"Skipping APK package due to disallowed keyword: {dir_name_cleaned}")
                 return True
-
     if "_FMD_APEX" in dir_name:
         if not PRE_INJECTOR_CONFIG["DISABLE_APEX_APP_INJECTION"]:
             if "_FMD_APEX" in dir_name and any(keyword.lower() in dir_name_cleaned for keyword in
@@ -1127,11 +1126,11 @@ def handle_library_package(package_path, dir_name, uuid_dir, aosp_path, out_dir,
     """
     if not PRE_INJECTOR_CONFIG["DISABLE_NATIVE_LIBRARY_INJECTION"]:
         framework_lib_path = os.path.join(aosp_path, f"{out_dir}libs/", f"{dir_name}_{uuid_dir}")
-        logging.debug(f"Copying library package: {package_path} to {framework_lib_path}")
+        logging.info(f"Copying library package: {package_path} to {framework_lib_path}")
         shutil.copytree(package_path, framework_lib_path, dirs_exist_ok=True)
         included_package_statistics["libs"].append(dir_name)
     else:
-        logging.debug(f"Native library injection disabled for package: {dir_name}")
+        logging.info(f"Native library injection disabled for package: {dir_name}")
     return included_package_statistics
 
 

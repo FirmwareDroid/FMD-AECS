@@ -29,5 +29,4 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/media_system_ext.mk)
 
 # /system_ext packages
 PRODUCT_PACKAGES += \
-
 {% for line in package_name_list -%}{{ line }}{%- endfor %}
