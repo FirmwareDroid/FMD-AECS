@@ -247,7 +247,8 @@ def add_build_properties(version: str, base_path: str, dry_run: bool = False, ve
                     flags=re.MULTILINE, dry_run=dry_run, verbose=verbose)
 
         # Ensure the other helpful build flags are present; append_block contains the override too
-        modify_file(target_path, "", append_block, append=True, dry_run=dry_run, verbose=verbose)
+        block_as_string = "".join(append_block)
+        modify_file(target_path, "", block_as_string, append=True, dry_run=dry_run, verbose=verbose)
 
 
 def inject_build_image_script(version: str, build_image_path: str, full_path: str):
