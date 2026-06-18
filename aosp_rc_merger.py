@@ -65,6 +65,60 @@ def defuse_critical_services(file_path: str) -> None:
     logging.info(f"Success: Updated {file_path}: Lines modified: {modified_lines}")
 
 
+def add_oneshot_to_services(file_path: str) -> None:
+    """
+    Parses an AOSP .rc file and ensures that all services have the 'oneshot' flag
+    so they do not restart if they fail or exit. Modifies the file in-place.
+    """
+    path = Path(file_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"The file {file_path} does not exist.")
+
+    lines = path.read_text().splitlines()
+    modified_lines = []
+
+    inside_service = False
+    has_oneshot = False
+    service_indent = "    "  # Default fallback indent for the oneshot flag
+
+    for line in lines:
+        stripped = line.strip()
+
+        # If we hit a new section (service, on, import), we are leaving the previous service block
+        if stripped.startswith(('service ', 'on ', 'import ')):
+            # If we were just inside a service block and it didn't have 'oneshot', add it before moving on
+            if inside_service and not has_oneshot:
+                modified_lines.append(f"{service_indent}oneshot  # Added to prevent restarts on failure")
+
+            # Reset flags for the new block
+            inside_service = stripped.startswith('service ')
+            has_oneshot = False
+            modified_lines.append(line)
+            continue
+
+        # Track if the service already has a oneshot flag
+        if inside_service and stripped == 'oneshot':
+            has_oneshot = True
+
+        # Dynamically capture the indentation used inside this service block
+        if inside_service and stripped and not line.startswith((' ', '\t')):
+            # This handles edge cases where indentation might be weird
+            pass
+        elif inside_service and stripped:
+            # Capture the leading whitespace of the current option line to match style
+            service_indent = line[:len(line) - len(line.lstrip())]
+
+        modified_lines.append(line)
+
+    # Catch the very last service if the file ends while inside a service block
+    if inside_service and not has_oneshot:
+        modified_lines.append(f"{service_indent}oneshot  # Added to prevent restarts on failure")
+
+    # Write the modified content back
+    path.write_text('\n'.join(modified_lines) + '\n')
+    logging.info(f"Success: Added oneshot to services in {file_path}")
+
+
 def handle_init_rc(source_file_path):
     comment_out_boringssl_check(source_file_path)
     return source_file_path
@@ -76,15 +130,16 @@ def handle_vendor_init_rc(source_file_path):
 
 
 def run_rc_merger(source_file_path):
-    target_file_path = source_file_path
     filename = os.path.basename(source_file_path)
     if filename == "init.rc" and "/system/init/hw/" in source_file_path:
         target_file_path = handle_init_rc(source_file_path)
-    elif ("/vendor/etc/init/" in source_file_path
-          or "/product/etc/init/" in source_file_path
-          or "/system_ext/etc/init/" in source_file_path):
-        logging.error(f"Modifying rc file inplace: {source_file_path}")
-        target_file_path = handle_vendor_init_rc(source_file_path)
     else:
-        logging.info(f"Skipping the processing of RC file {source_file_path}. No handler defined.")
+        logging.error(f"Modifying rc file inplace: {source_file_path}")
+        add_oneshot_to_services(source_file_path)
+        target_file_path = handle_vendor_init_rc(source_file_path)
+
     return target_file_path
+
+#("/vendor/etc/init/" in source_file_path
+#          or "/product/etc/init/" in source_file_path
+#          or "/system_ext/etc/init/" in source_file_path):
