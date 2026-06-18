@@ -453,11 +453,12 @@
     "/lib64/libstagefright",
     "/lib64/libfmq.so",
     "/lib64/libclang_rt.ubsan_standalone-aarch64-android.so",
-    "/lib64/libaudio",
     "/system/bin/mediaserver64",
     "/lib64/android.hardware.ir@1.0.so",
     "/lib64/android.hardware.boot@1.0.so",
-    "android.hardware.audio"
+    "android.hardware.audio",
+    "/vendor/bin/hw/android.hardware.boot@1.1-service",
+    "/vendor/bin/hw/android.hardware.ir@1.0-service"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
@@ -735,8 +736,6 @@
     ".prop",
     ".original_apex",
     ".idsig",
-    ".art",
-    ".oat",
     ".apex_original",
     ".capex_original",
     ".imgxtract",
