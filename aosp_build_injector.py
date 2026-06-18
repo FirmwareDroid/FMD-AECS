@@ -1499,6 +1499,7 @@ def parse_arguments():
     parser.add_argument("-i", "--post_injector_config",
                         type=str,
                         default="./device_configs/development/post_injector_config_v1.json",)
+    parser.add_argument("-w", "--skip-counter", default=0, type=int, help="Number of firmware samples to skip.")
     args = parser.parse_args()
 
     if not (args.fmd_url.startswith("https://") or args.fmd_url.startswith("http://")):
@@ -1627,7 +1628,16 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
     except FileNotFoundError:
         pass
     counter = 0
+
+    if args.skip_counter:
+        skip_counter = args.skip_counter
+    else:
+        skip_counter = 0
+
     for firmware_id in tqdm(firmware_id_list):
+        if skip_counter > 0:
+            skip_counter -= 1
+            continue
         os.makedirs(BUILD_OUT_PATH, exist_ok=True)
         logging.info(f"Number of firmware ids left to process: {len(firmware_id_list) - firmware_id_list.index(firmware_id)}")
         try:
