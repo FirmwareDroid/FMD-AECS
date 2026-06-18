@@ -1779,11 +1779,7 @@ def set_skipped_module_names():
 def main():
     logging.info("=======================BUILD INJECTOR=======================")
     args = parse_arguments()
-    if args.reset_aosp:
-        aosp_packages_apps_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
-        clear_environment(args.aosp_path, aosp_packages_apps_abs_path, args.version)
-        logging.info("Reset aosp build environment.")
-        exit(0)
+
     if args.arch not in SUPPORTED_ARCHITECTURES:
         raise RuntimeError(f"Unsupported architecture: {args.arch}. Supported architectures: {SUPPORTED_ARCHITECTURES}")
 
@@ -1804,6 +1800,13 @@ def main():
     POST_INJECTOR_CONFIG_PATH = args.post_injector_config
     PRE_INJECTOR_CONFIG["PRE_INJECTOR_CONFIG_PATH"] = args.pre_injector_config
     logging.info(f"Pre-injector config: {PRE_INJECTOR_CONFIG_PATH}, Post-injector config: {POST_INJECTOR_CONFIG_PATH}")
+
+    if args.reset_aosp:
+        aosp_packages_apps_abs_path = os.path.join(args.aosp_path, AOSP_PACKAGES_APPS_PATH)
+        clear_environment(args.aosp_path, aosp_packages_apps_abs_path, args.version)
+        logging.info("Reset aosp build environment.")
+        exit(0)
+
     set_skipped_module_names()
     fmd_password, docker_repo_password = get_passwords(args)
 
