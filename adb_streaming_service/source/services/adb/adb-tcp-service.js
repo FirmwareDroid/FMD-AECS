@@ -958,7 +958,7 @@ class AdbTcpService {
 		deviceAdb,
 		serverPathForDevice,
 		options,
-		maxAttempts=40,
+		maxAttempts=20,
 		baseDelayMs=500,
 	) {
 		let lastError;
