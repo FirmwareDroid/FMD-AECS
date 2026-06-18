@@ -1475,7 +1475,7 @@ def verify_direct_injection_targets(inj_partition_list):
             module_type = obj[2] if len(obj) > 2 else None
 
             if not target_path or not os.path.exists(target_path):
-                msg = f"Direct Injection target missing: {target_path} for source {source_path} | module_type: {module_type}"
+                msg = f"Sanity Check: Direct Injection target missing (after injection). Likely file removed by the AOSP build system): {target_path} for source {source_path} | module_type: {module_type}"
                 logging.error(msg)
                 errors.append(msg)
         except Exception as e:
