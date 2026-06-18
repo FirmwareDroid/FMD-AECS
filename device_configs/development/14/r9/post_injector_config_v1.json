@@ -60,7 +60,22 @@
     ".art",
     ".oat",
     "/etc/vintf",
-    "libadbd"
+    "libadbd",
+    "/system/etc/vintf/manifest/android.system.keystore2-service.xml",
+    "/system/etc/init/keystore2.rc",
+    "/system/etc/selinux/plat_keystore2_key_contexts",
+    "/system/lib64/android.security.legacykeystore-ndk.so",
+    "/system/lib64/android.system.keystore2-V1-cpp.so",
+    "/system/lib64/android.system.keystore2-V1-ndk.so",
+    "/system/lib64/android.system.keystore2-V3-ndk.so",
+    "/system/lib64/android.system.wifi.keystore@1.0.so",
+    "/system/lib64/libkeystore-attestation-application-id.so",
+    "/system/lib64/libkeystore-engine.so",
+    "/system/lib64/libkeystore2_aaid.so", "/system/lib64/libkeystore2_apc_compat.so",
+    "/system/lib64/libkeystore2_crypto.so",
+    "/system/bin/keystore_cli_v2",
+    "/vendor/etc/permissions/android.hardware.hardware_keystore.xml",
+    "/vendor/etc/permissions/android.hardware.keystore.app_attest_key.xml"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
