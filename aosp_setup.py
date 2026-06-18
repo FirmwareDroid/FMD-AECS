@@ -163,7 +163,7 @@ def add_boardconfig_flags(version: str, base_path: str, dry_run: bool = False, v
     for p in paths:
         out_path = os.path.join(SCRIPT_DIR, "out")
         modify_file(os.path.join(base_path, p), "",
-                    "BUILD_BROKEN_DUP_RULES := true\nSELINUX_IGNORE_NEVERALLOWS := true\nBUILD_BROKEN_SRC_DIR_RW_ALLOWLIST := {out_path}\n}".format(out_path=out_path),
+                    "BUILD_BROKEN_DUP_RULES := true\nSELINUX_IGNORE_NEVERALLOWS := true\n}".format(out_path=out_path),
                     append=True, dry_run=dry_run, verbose=verbose)
 
     if version in ("12", "12_1"):
