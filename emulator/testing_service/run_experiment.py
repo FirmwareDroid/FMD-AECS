@@ -725,19 +725,17 @@ def wait_for_adb_available(max_wait_seconds=600, sleep_seconds=5):
         time.sleep(sleep_seconds)
 
 def execute_apps_with_coverage(app_package_names, mode):
+    #or package in app_package_names:
     for package in app_package_names:
         run_script_capture(ACVTOOL, args=["activate", package],
                            description="Run ACVTool to activate coverage measurement.")
-
-    for package in app_package_names:
         logging.info(f"Starting {package}")
         exec_app_testers(package, mode)
-
-    for package in app_package_names:
         acv_out_dir = os.path.join(OUT_DIR, 'acv_snaps', f"{package}")
         os.makedirs(acv_out_dir, exist_ok=True)
         run_script_capture(ACVTOOL, args=["snap", package, "--wd", acv_out_dir],
                            description="Run ACVTool to get coverage measurement")
+    #for package in app_package_names:
 
 def exec_app_testers(package, mode, skip_install=False):
     logging.info(f"Executing app test with package: {package}, mode: {mode}")
