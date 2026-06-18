@@ -181,18 +181,6 @@ def add_boardconfig_flags(version: str, base_path: str, dry_run: bool = False, v
             modify_file(os.path.join(base_path, p), "",
                         "BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive\n",
                         append=True, dry_run=dry_run, verbose=verbose)
-
-            modify_file(os.path.join(base_path, p), "TARGET_2ND_ARCH_VARIANT := armv8-a",
-                        "TARGET_2ND_ARCH_VARIANT := armv7-a-neon\n",
-                        append=True, dry_run=dry_run, verbose=verbose)
-
-            modify_file(os.path.join(base_path, p), "",
-                        "TARGET_2ND_CPU_ABI := armeabi-v7a\n",
-                        append=True, dry_run=dry_run, verbose=verbose)
-
-            modify_file(os.path.join(base_path, p), "",
-                        "TARGET_2ND_CPU_ABI2 := armeabi\n",
-                        append=True, dry_run=dry_run, verbose=verbose)
         except Exception:
             logging.warning("Warning: '%s' not found in PATH", p)
 
