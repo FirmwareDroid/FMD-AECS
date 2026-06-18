@@ -6,6 +6,7 @@
   "ENABLE_RC_MERGER": false,
   "ENABLE_VINTF_MERGE": false,
   "DISABLE_MISC_INJECTION": true,
+  "ENABLE_APEX_INTERMEDIATE_OVERWRITE": false,
   "SHARED_USER_ID_MAPPING_DICT":{
     "media": ["android.media", "android.uid.media"],
     "shared":["android.shared", "android.uid.shared"],
@@ -1000,5 +1001,5 @@
     "wireguard_fmd": "./toolbox/wireguard_app",
     "acv_test_fmd": "./toolbox/acv_app_test"
   },
-  "TOOLBOX_AOSP_PACKAGES": ["curl", "toybox", "setcap", "getcap"],
+  "TOOLBOX_AOSP_PACKAGES": ["curl", "toybox", "setcap", "getcap"]
 }

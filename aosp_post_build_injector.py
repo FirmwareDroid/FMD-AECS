@@ -1131,7 +1131,8 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                         partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version)
             if is_injected and apex_merge_file_path_list and len(apex_merge_file_path_list) > 0:
-                inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_list, partition_name, target_out_path, aosp_path, lunch_target, aosp_version)
+                if POST_INJECTOR_CONFIG["ENABLE_APEX_INTERMEDIATE_OVERWRITE"]:
+                    inject_apex_intermediate_files(file_name, file_path, apex_merge_file_path_list, partition_name, target_out_path, aosp_path, lunch_target, aosp_version)
 
 
     elif not os.path.exists(target_file_injection_path):
@@ -1977,14 +1978,16 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
     Injects a file into the AOSP source code directly without matching to existing files.
     """
     filename = os.path.basename(source_file_path)
+    matching_intermediate_file_list = []
     try:
         inj_md5 = get_md5_from_file(source_file_path)
         org_md5 = get_md5_from_file(original_file_path)
         matching_intermediate_file_list = find_intermediate_file(aosp_path, org_md5)
+        logging.info(f"Overwriting Obj file: {source_file_path}:{inj_md5} into {original_file_path}:{org_md5}")
     except Exception as e:
         logging.error(f"Error injecting file: {source_file_path} | {e}")
 
-    logging.info(f"Overwriting Obj file: {source_file_path}:{inj_md5} into {original_file_path}:{org_md5}")
+
     file_name = os.path.basename(original_file_path)
     start_time = time.time()
     is_injected = False
