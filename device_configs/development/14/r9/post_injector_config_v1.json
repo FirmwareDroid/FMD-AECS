@@ -788,10 +788,6 @@
       "original_path": "obj/ETC/com.android.tzdata_intermediates/com.android.tzdata.apex",
       "injection_path": "system/apex/com.google.android.tzdata4.apex"
     },
-    "framework-res.apk": {
-      "original_path": "obj/APPS/framework-res_intermediates/package.apk",
-      "injection_path": "system/framework/framework-res.apk"
-    },
     "libandroid.so": {
       "original_path": "obj/SHARED_LIBRARIES/libandroid_intermediates/libandroid.so",
       "injection_path": "system/lib/libandroid.so"
