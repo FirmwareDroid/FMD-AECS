@@ -22,18 +22,17 @@
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \
     abx \
-    aconfigd \
     adbd_system_api \
-    aflags \
     am \
-    NetworkStack \
+    android.hidl.allocator@1.0-service \
     android.hidl.base-V1.0-java \
     android.hidl.manager-V1.0-java \
+    android.hidl.memory@1.0-impl \
+    android.hidl.memory@1.0-impl.vendor \
     android.system.suspend-service \
     android.test.base \
     android.test.mock \
     android.test.runner \
-    PackageInstaller \
     apexd \
     appops \
     app_process \
@@ -79,7 +78,7 @@ PRODUCT_PACKAGES += \
     com.android.scheduling \
     com.android.sdkext \
     com.android.tethering \
-    $(RELEASE_PACKAGE_TZDATA_MODULE) \
+    com.android.tzdata \
     com.android.uwb \
     com.android.virt \
     com.android.wifi \
@@ -87,7 +86,6 @@ PRODUCT_PACKAGES += \
     content \
     debuggerd\
     device_config \
-    DeviceDiagnostics \
     dmctl \
     dnsmasq \
     dmesgd \
@@ -96,22 +94,19 @@ PRODUCT_PACKAGES += \
     dump.erofs \
     dumpstate \
     dumpsys \
-    E2eeContactKeysProvider \
+    DynamicSystemInstallationService \
     e2fsck \
-    enhanced-confirmation.xml \
     ExtShared \
     flags_health_check \
     framework-graphics \
-    framework-location \
     framework-minus-apex \
-    framework-minus-apex-install-dependencies \
+    framework-res \
     framework-sysconfig.xml \
     fsck.erofs \
     fsck_msdos \
     fsverity-release-cert-der \
     fs_config_files_system \
     fs_config_dirs_system \
-    gpu_counter_producer \
     group_system \
     gsid \
     gsi_tool \
@@ -120,6 +115,7 @@ PRODUCT_PACKAGES += \
     gatekeeperd \
     gpuservice \
     hid \
+    hwservicemanager \
     idmap2 \
     idmap2d \
     ime \
@@ -136,8 +132,8 @@ PRODUCT_PACKAGES += \
     IntentResolver \
     ip \
     iptables \
+    ip-up-vpn \
     javax.obex \
-    kcmdlinectrl \
     keystore2 \
     credstore \
     ld.mc \
@@ -212,7 +208,6 @@ PRODUCT_PACKAGES += \
     libui \
     libusbhost \
     libutils \
-    libvintf_jni \
     libvulkan \
     libwilhelm \
     linker \
@@ -234,27 +229,27 @@ PRODUCT_PACKAGES += \
     mke2fs \
     mkfs.erofs \
     monkey \
-    misctrl \
     mtectrl \
+    mtpd \
     ndc \
     netd \
+    NetworkStack \
     odsign \
     org.apache.http.legacy \
     otacerts \
-    package-shareduid-allowlist.xml \
+    PackageInstaller \
     passwd_system \
     perfetto \
     ping \
     ping6 \
-    pintool \
     platform.xml \
     pm \
+    pppd \
     preinstalled-packages-asl-files.xml \
     preinstalled-packages-platform.xml \
-    preinstalled-packages-strict-signature.xml \
-    printflags \
     privapp-permissions-platform.xml \
     prng_seeder \
+    racoon \
     recovery-persist \
     resize2fs \
     rss_hwm_reset \
@@ -271,13 +266,13 @@ PRODUCT_PACKAGES += \
     servicemanager \
     services \
     settings \
-    sfdo \
     sgdisk \
     Shell \
     shell_and_utilities_system \
     sm \
     snapshotctl \
     snapuserd \
+    SoundPicker \
     storaged \
     surfaceflinger \
     svc \
@@ -292,16 +287,15 @@ PRODUCT_PACKAGES += \
     uiautomator \
     uinput \
     uncrypt \
-    uprobestats \
     usbd \
     vdc \
+    viewcompiler \
     voip-common \
     vold \
     watchdogd \
     wificond \
     wifi.rc \
     wm \
-    mediatuner \
 {% for line in package_name_list -%}{{ line }}{%- endfor %}
 
 # When we release crashrecovery module
