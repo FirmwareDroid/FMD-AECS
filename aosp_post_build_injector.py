@@ -1878,9 +1878,8 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
         else:
             # Fîle should not already exist, but if it does, we overwrite it, but it is not recommended.
             is_injected = True
-            logging.warning(f"File overwrite: {source_file_path} into {target_file_injection_path}. "
-                          f"This overwrite is likely to be reverted by the AOSP build system. Thus, nothing is injected. "
-                          f"Adjust your injection policy to handle this case.")
+            logging.info(f"Direct Injection File overwrite: {source_file_path} into {target_file_injection_path}. ")
+            shutil.copy2(str(source_file_path), str(target_file_injection_path), follow_symlinks=False)
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         if not os.path.exists(source_file_path):
@@ -1931,6 +1930,7 @@ def handle_special_matching(source_file_injection_path):
     if source_file_injection_path.endswith("app_process32"):
         source_file_injection_path = source_file_injection_path.replace("app_process32", "app_process64")
         logging.info(f"Special matching app_process32 replace with app_process64: {source_file_injection_path}")
+
     if source_file_injection_path.endswith("mediaserver") and "64" not in source_file_injection_path:
         source_file_injection_path = source_file_injection_path.replace("mediaserver", "mediaserver64")
         logging.info(f"Special matching mediaserver replace with mediaserver64: {source_file_injection_path}")
