@@ -142,7 +142,6 @@
     "/system/bin/cameraserver",
     "cameraserver.rc",
     "/system/bin/mediaextractor",
-    "/system/bin/mediaserver",
     "/system/bin/app_process64",
     "lib64/bootstrap/",
     "libcamera",
