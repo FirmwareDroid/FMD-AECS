@@ -989,11 +989,14 @@ class AdbTcpService {
 					logger.error("Device not found. Aborting further attempts.");
 					break;
 				}
-				// stop early if last attempt
-				if (attempt === maxAttempts) break;
-
+				else if (errorMessage.includes("scrcpy server exited prematurely")) {
+					// stop early if last attempt
+					if (attempt === maxAttempts) break;
+				}else{
+					break
+				}
 				// simple backoff (can be replaced with exponential if needed)
-				const delay = baseDelayMs * attempt;
+				const delay = baseDelayMs;
 				await new Promise((r) => setTimeout(r, delay));
 			}
 		}
