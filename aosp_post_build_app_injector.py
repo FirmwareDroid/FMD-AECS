@@ -157,7 +157,19 @@ def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled
                     '--in', apk_file_path,
                     '--out', apk_file_path]
     success, log_message = execute_command(sign_command)
-    logging.info(f"Signing APK file: {apk_file_path} with key: {signing_key_path} - success: {success} - {log_message} - sign_command: {sign_command}")
+    if not success:
+        sign_command = [apksigner_cmd, 'sign',
+                        '--ks', signing_key_path,
+                        '--v2-signing-enabled', str(v2_signing_enabled).lower(),
+                        '--v3-signing-enabled', str(v3_signing_enabled).lower(),
+                        '--v4-signing-enabled', str(v4_signing_enabled).lower(),
+                        '--ks-pass', 'pass:-',
+                        '--verbose',
+                        '--in', apk_file_path,
+                        '--out', apk_file_path]
+        success, log_message = execute_command(sign_command)
+    command_string = ' '.join(sign_command)
+    logging.info(f"Signing APK file: {apk_file_path} with key: {signing_key_path} - success: {success} - {log_message} - sign_command: {command_string}")
     return success, log_message
 
 def verify_apk_file(apk_file_path, aosp_path):
