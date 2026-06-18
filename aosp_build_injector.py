@@ -1638,6 +1638,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
     for firmware_id in tqdm(firmware_id_list):
         if skip_counter > 0:
             skip_counter -= 1
+            logging.info(f"Skipping firmware id: {firmware_id}. Remaining skip count: {skip_counter}")
             continue
         os.makedirs(BUILD_OUT_PATH, exist_ok=True)
         logging.info(f"Number of firmware ids left to process: {len(firmware_id_list) - firmware_id_list.index(firmware_id)}")
