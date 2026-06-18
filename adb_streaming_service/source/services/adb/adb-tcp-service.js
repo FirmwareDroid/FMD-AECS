@@ -981,7 +981,11 @@ class AdbTcpService {
 				logger.warn(
 					`scrcpy start failed on attempt ${attempt}: ${err?.message || err}`,
 				);
-				if (lastError.contains("no device with transport id")) {
+
+				// Extract the message text to safely check it
+				const errorMessage = lastError?.message || String(lastError);
+
+				if (errorMessage.includes("no device with transport id")) {
 					logger.error("Device not found. Aborting further attempts.");
 					break;
 				}
