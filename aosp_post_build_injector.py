@@ -1160,6 +1160,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                 logging.warning(f"Direct+Indirect injection complete for file but file not injected: {file_path}")
 
 
+    # TODO FIX THIS
     if file_name in POST_INJECTOR_CONFIG["COPY_TO_SPECIFIC_PATH"]:
         dst_path = os.path.join(target_partition_path, POST_INJECTOR_CONFIG["COPY_TO_SPECIFIC_PATH"][file_name])
         if not os.path.exists(dst_path):
@@ -1876,7 +1877,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
                 logging.error(f"Error copying file link: {source_file_path} -> {target_file_injection_path} | {e}")
         else:
             # Fîle should not already exist, but if it does, we overwrite it, but it is not recommended.
-            is_injected = False
+            is_injected = True
             logging.warning(f"File overwrite: {source_file_path} into {target_file_injection_path}. "
                           f"This overwrite is likely to be reverted by the AOSP build system. Thus, nothing is injected. "
                           f"Adjust your injection policy to handle this case.")
