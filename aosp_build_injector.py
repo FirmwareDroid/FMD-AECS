@@ -489,13 +489,13 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     else:
         blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static apexer deapexer avbtool'"
     try:
-        execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path)
+        execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path, log_name="host_tools_build_")
     except Exception as err:
         if aosp_version in ["14"]:
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]
             logging.warning(f"Downgrading lunch target to {lunch_target}")
             blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static apexer deapexer avbtool'"
-            execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path)
+            execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path, log_name="host_tools_build_")
         else:
             raise err
     logging.debug(f"Environment setup for {lunch_target} completed. Moving packages to aosp source code next.")
@@ -582,7 +582,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             fix_missing_file(aosp_path, aosp_version)
             main_build_command = get_aosp_build_command(lunch_target, aosp_version, aosp_path)
             build_start_time = time.time()
-            execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path)
+            execute_build_command(aosp_path, firmware_id, main_build_command, aosp_path, log_name="main_build")
             build_end_time = time.time()
             included_package_statistics["main_build_duration"] = round(build_end_time - build_start_time, 2)
             logging.info(f"AOSP main build completed successfully. Continuing with post-build injection.")
@@ -607,7 +607,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             logging.info(f"Summary Pre-Injector: {included_package_statistics}")
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target, aosp_version)
             package_start_time = time.time()
-            execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path)
+            execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path, log_name="packaging")
             package_end_time = time.time()
             included_package_statistics["package_build_artefacts_duration"] = round(package_end_time - package_start_time, 2)
             is_successful = True
@@ -1276,7 +1276,7 @@ def get_rebuild_jar_modules_command(aosp_root, lunch_target, included_package_na
     return command_list
 
 
-def execute_build_command(firmware_id, lunch_target, command, aosp_root_path):
+def execute_build_command(firmware_id, lunch_target, command, aosp_root_path, log_name=""):
     """
     Start the aosp build process. Pack all Android images with ("m emu_img_zip"). Copy the artefacts to the
     local image folder.
@@ -1287,13 +1287,14 @@ def execute_build_command(firmware_id, lunch_target, command, aosp_root_path):
     :param aosp_root_path: str - root path of the AOSP source code.
 
     """
+
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_root_path)
     try:
         firmware_id = re.sub(r'\W+', '', firmware_id)
         lunch_target = re.sub(r'\W+', '', lunch_target)
         unique_id = uuid.uuid4()
-        log_name = "build_log" + "_" + firmware_id + "_" + lunch_target + f"{str(unique_id)}.log"
+        log_name = log_name +"build_log_" + firmware_id + "_" + lunch_target + f"{str(unique_id)}.log"
         log_path = os.path.join(BUILD_OUT_PATH, log_name)
         logging.info(f"Executing command: {command}")
         logging.info(f"Build logs will be written to: {log_path}")
@@ -1584,7 +1585,7 @@ def setup_firmware_logger(firmware_id):
     Prevents logs from showing in stdout.
     """
     uuid_filename = str(uuid.uuid4())
-    log_file = os.path.join(BUILD_OUT_PATH, f"main_log_{uuid_filename}_{firmware_id}.log")
+    log_file = os.path.join(BUILD_OUT_PATH, f"pre_injector_{uuid_filename}_{firmware_id}.log")
     logging.info(f"Logging redirected for id: {firmware_id} to file: {log_file}")
     logger = logging.getLogger()
     logger.handlers.clear()  # Remove all existing handlers, including stdout
