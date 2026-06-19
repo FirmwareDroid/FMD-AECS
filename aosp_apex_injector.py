@@ -42,7 +42,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aos
     is_merge_success = False
     apex_out_file, org_apex_file = backup_original_apex_file(file_path)
     try:
-        apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path, aosp_version)
+        apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path, aosp_version, aosp_path)
         if apex_emulator_folder and os.path.exists(apex_emulator_folder):
             logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
             is_merge_success, log_message, apex_merge_file_path_list = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path, aosp_version)
@@ -686,11 +686,11 @@ def copy_keys_to_apex_folder(input_apex, apex_main_folder, avb_pub_key_path):
 
 
 def get_apex_build_intermediate_folder(target_out_path, aosp_version):
-
     if float(aosp_version) >= 15:
         apex_folder_path = os.path.join(target_out_path, "symbols", "apex")
     else:
         apex_folder_path = os.path.join(target_out_path, "apex")
+
     logging.info(f"APEX build intermediate folder to look for: {apex_folder_path}")
     if os.path.exists(apex_folder_path):
         apex_folder = apex_folder_path
@@ -701,40 +701,91 @@ def get_apex_build_intermediate_folder(target_out_path, aosp_version):
 
 
 
+# def get_match_existing_emulator_folders(filename_no_vendor, apex_emulator_folder_root):
+#     if "tzdata" in filename_no_vendor:
+#         filename_no_vendor = re.sub(r'tzdata\d+', 'tzdata', filename_no_vendor)
+#
+#     for key in POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"]:
+#         if key in filename_no_vendor:
+#             if key == "media" and ("mediaprovider" in filename_no_vendor or "swcodec" in filename_no_vendor):
+#                 continue
+#             if isinstance(POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key], list):
+#                 for folder_name in POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key]:
+#                     if os.path.exists(os.path.join(apex_emulator_folder_root, folder_name)):
+#                         logging.info(f"Found APEX default path for {filename_no_vendor}: {folder_name}")
+#                         return folder_name
+#             logging.info(f"Found APEX default path for {filename_no_vendor}: {POST_INJECTOR_CONFIG['APEX_DEFAULT_EMULATOR_PATHS_DICT'][key]}")
+#             return POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key]
+#     return None
+
+
 def get_match_existing_emulator_folders(filename_no_vendor, apex_emulator_folder_root):
     if "tzdata" in filename_no_vendor:
         filename_no_vendor = re.sub(r'tzdata\d+', 'tzdata', filename_no_vendor)
 
-    for key in POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"]:
-        if key in filename_no_vendor:
-            if key == "media" and ("mediaprovider" in filename_no_vendor or "swcodec" in filename_no_vendor):
-                continue
-            if isinstance(POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key], list):
-                for folder_name in POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key]:
-                    if os.path.exists(os.path.join(apex_emulator_folder_root, folder_name)):
-                        logging.info(f"Found APEX default path for {filename_no_vendor}: {folder_name}")
-                        return folder_name
-            logging.info(f"Found APEX default path for {filename_no_vendor}: {POST_INJECTOR_CONFIG['APEX_DEFAULT_EMULATOR_PATHS_DICT'][key]}")
-            return POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key]
+    paths_dict = POST_INJECTOR_CONFIG.get("APEX_DEFAULT_EMULATOR_PATHS_DICT", {})
+
+    for key, val in paths_dict.items():
+        if key not in filename_no_vendor:
+            continue
+
+        # Specific edge case bypass
+        if key == "media" and any(x in filename_no_vendor for x in ["mediaprovider", "swcodec"]):
+            continue
+
+        # Normalize to list for uniform handling
+        folder_names = val if isinstance(val, list) else [val]
+
+        for folder_name in folder_names:
+            full_path = os.path.join(apex_emulator_folder_root, folder_name)
+            if os.path.exists(full_path):
+                logging.info(f"Found APEX default path for {filename_no_vendor}: {folder_name}")
+                return folder_name
+
+        # Fallback return if no folder path physically exists but key matches
+        logging.info(f"Found APEX default path for {filename_no_vendor}: {val}")
+        return val
+
     return None
 
 
-def find_emulator_apex_folder(target_out_path, file_path, aosp_version):
-    filename = str(os.path.basename(file_path))
+def get_host_linux_path(aosp_path):
+    """Get the ./host/linux-x86/* path within AOSP."""
+    return os.path.join(aosp_path, "out/host/linux-x86/")
+
+
+def find_emulator_apex_folder(target_out_path, file_path, aosp_version, aosp_path):
+    filename = os.path.basename(file_path)
     filename_no_vendor = remove_vendor_name_from_filename(filename)
     filename_no_vendor = filename_no_vendor.replace(".apex", "").replace(".capex", "")
 
+    # 1. Search in Build Intermediate Folder
     apex_emulator_folder_root = get_apex_build_intermediate_folder(target_out_path, aosp_version)
-    logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
-    apex_emulator_folder_name = get_match_existing_emulator_folders(filename_no_vendor, apex_emulator_folder_root)
-    apex_module_folder = os.path.join(apex_emulator_folder_root, apex_emulator_folder_name)
-    logging.info(f"Test if APEX module folder exists: {apex_module_folder}")
-    if os.path.exists(apex_module_folder):
-        logging.info(f"APEX module folder found: {apex_module_folder} for apex {file_path}")
-    else:
-        apex_module_folder = None
-        logging.warning(f"APEX module folder not found: {filename_no_vendor} for apex {file_path}")
-    return apex_module_folder
+    logging.info(
+        f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
+
+    folder_name = get_match_existing_emulator_folders(filename_no_vendor, apex_emulator_folder_root)
+    if folder_name:
+        apex_module_folder = os.path.join(apex_emulator_folder_root, folder_name)
+        if os.path.exists(apex_module_folder):
+            logging.info(f"APEX module folder found: {apex_module_folder} for apex {file_path}")
+            return apex_module_folder
+
+    # 2. Fallback: Search in Host Linux Directory
+    host_path = get_host_linux_path(aosp_path)
+    logging.info(
+        f"Searching for APEX module folder in host directory: {filename_no_vendor} in {host_path} for apex file {file_path}")
+
+    folder_name = get_match_existing_emulator_folders(filename_no_vendor, host_path)
+    if folder_name:
+        apex_module_folder = os.path.join(host_path, folder_name)
+        if os.path.exists(apex_module_folder):
+            logging.info(f"APEX module folder found: {apex_module_folder} for apex {file_path}")
+            return apex_module_folder
+
+    # 3. Not Found
+    logging.warning(f"APEX module folder not found: {filename_no_vendor} for apex {file_path}")
+    return None
 
 
 def get_last_two_as_int(input_string):

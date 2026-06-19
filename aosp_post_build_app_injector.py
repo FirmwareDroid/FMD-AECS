@@ -14,6 +14,7 @@ APKSIGNER_JAVALIB_PATH = "prebuilts/sdk/tools/linux/lib/apksigner.jar"
 ZIPALIGN_BINARY_PATH_LIST = ["prebuilts/sdk/tools/linux/bin/zipalign", "out/host/linux-x86/bin/zipalign"]
 
 def get_apksigner_binary_command(aosp_path):
+    candidate_list = []
     for binary_path in APKSIGNER_BINARY_PATH_LIST:
         candidate = os.path.join(aosp_path, binary_path)
         if os.path.exists(candidate):
@@ -22,8 +23,8 @@ def get_apksigner_binary_command(aosp_path):
                 dir_path = os.path.dirname(candidate)
                 shutil.copy2(javalib_path, dir_path)
                 logging.info(f"Copied {javalib_path} to {dir_path}")
-            return candidate
-    return "apksigner"
+            candidate_list.append(candidate)
+    return candidate_list
 
 
 def get_zipalign_binary_command(aosp_path):
@@ -145,75 +146,85 @@ def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled
         return False, f"Error: APK file not found for signing: {apk_file_path}"
     elif not os.path.exists(signing_key_path):
         return False, f"Error: Signing key not found for signing: {signing_key_path}"
-
-    apksigner_cmd = get_apksigner_binary_command(aosp_path)
-    sign_command = [apksigner_cmd, 'sign',
-                    '--ks', signing_key_path,
-                    '--v2-signing-enabled', str(v2_signing_enabled).lower(),
-                    '--v3-signing-enabled', str(v3_signing_enabled).lower(),
-                    '--v4-signing-enabled', str(v4_signing_enabled).lower(),
-                    '--ks-pass', 'pass:',
-                    '--verbose',
-                    '--in', apk_file_path,
-                    '--out', apk_file_path]
-    success, log_message = execute_command(sign_command)
-    if not success:
+    success = False
+    log_message = ""
+    apksigner_cmd_list = get_apksigner_binary_command(aosp_path)
+    for apksigner_cmd in apksigner_cmd_list:
         sign_command = [apksigner_cmd, 'sign',
                         '--ks', signing_key_path,
                         '--v2-signing-enabled', str(v2_signing_enabled).lower(),
                         '--v3-signing-enabled', str(v3_signing_enabled).lower(),
                         '--v4-signing-enabled', str(v4_signing_enabled).lower(),
-                        '--ks-pass', '',
+                        '--ks-pass', 'pass:',
                         '--verbose',
                         '--in', apk_file_path,
                         '--out', apk_file_path]
         success, log_message = execute_command(sign_command)
+        if not success:
+            sign_command = [apksigner_cmd, 'sign',
+                            '--ks', signing_key_path,
+                            '--v2-signing-enabled', str(v2_signing_enabled).lower(),
+                            '--v3-signing-enabled', str(v3_signing_enabled).lower(),
+                            '--v4-signing-enabled', str(v4_signing_enabled).lower(),
+                            '--ks-pass', '',
+                            '--verbose',
+                            '--in', apk_file_path,
+                            '--out', apk_file_path]
+            success, log_message = execute_command(sign_command)
 
-    if not success:
-        sign_command = [apksigner_cmd, 'sign',
-                        '--ks', signing_key_path,
-                        '--v2-signing-enabled', str(v2_signing_enabled).lower(),
-                        '--v3-signing-enabled', str(v3_signing_enabled).lower(),
-                        '--v4-signing-enabled', str(v4_signing_enabled).lower(),
-                        '--verbose',
-                        '--in', apk_file_path,
-                        '--out', apk_file_path]
-        success, log_message = execute_command(sign_command)
+        if not success:
+            sign_command = [apksigner_cmd, 'sign',
+                            '--ks', signing_key_path,
+                            '--v2-signing-enabled', str(v2_signing_enabled).lower(),
+                            '--v3-signing-enabled', str(v3_signing_enabled).lower(),
+                            '--v4-signing-enabled', str(v4_signing_enabled).lower(),
+                            '--verbose',
+                            '--in', apk_file_path,
+                            '--out', apk_file_path]
+            success, log_message = execute_command(sign_command)
 
-    if not success:
-        sign_command = [apksigner_cmd, 'sign',
-                        '--ks', signing_key_path,
-                        '--v2-signing-enabled', str(v2_signing_enabled).lower(),
-                        '--v3-signing-enabled', str(v3_signing_enabled).lower(),
-                        '--v4-signing-enabled', str(v4_signing_enabled).lower(),
-                        '--ks-pass', 'env:SIGNING_PW',
-                        '--verbose',
-                        '--in', apk_file_path,
-                        '--out', apk_file_path]
-        env_copy = os.environ.copy()
-        env_copy['SIGNING_PW'] = ""
-        success, log_message = execute_command(sign_command, env=env_copy)
+        if not success:
+            sign_command = [apksigner_cmd, 'sign',
+                            '--ks', signing_key_path,
+                            '--v2-signing-enabled', str(v2_signing_enabled).lower(),
+                            '--v3-signing-enabled', str(v3_signing_enabled).lower(),
+                            '--v4-signing-enabled', str(v4_signing_enabled).lower(),
+                            '--ks-pass', 'env:SIGNING_PW',
+                            '--verbose',
+                            '--in', apk_file_path,
+                            '--out', apk_file_path]
+            env_copy = os.environ.copy()
+            env_copy['SIGNING_PW'] = ""
+            success, log_message = execute_command(sign_command, env=env_copy)
 
-    if not success:
-        sign_command = [apksigner_cmd, 'sign',
-                        '--ks', signing_key_path,
-                        '--v2-signing-enabled', str(v2_signing_enabled).lower(),
-                        '--v3-signing-enabled', str(v3_signing_enabled).lower(),
-                        '--v4-signing-enabled', str(v4_signing_enabled).lower(),
-                        '--ks-pass', 'android',
-                        '--verbose',
-                        '--in', apk_file_path,
-                        '--out', apk_file_path]
-        success, log_message = execute_command(sign_command)
-    command_string = ' '.join(sign_command)
-    logging.info(f"Signing APK file: {apk_file_path} with key: {signing_key_path} - success: {success} - {log_message} - sign_command: {command_string}")
+        if not success:
+            sign_command = [apksigner_cmd, 'sign',
+                            '--ks', signing_key_path,
+                            '--v2-signing-enabled', str(v2_signing_enabled).lower(),
+                            '--v3-signing-enabled', str(v3_signing_enabled).lower(),
+                            '--v4-signing-enabled', str(v4_signing_enabled).lower(),
+                            '--ks-pass', 'android',
+                            '--verbose',
+                            '--in', apk_file_path,
+                            '--out', apk_file_path]
+            success, log_message = execute_command(sign_command)
+        command_string = ' '.join(sign_command)
+        logging.info(f"Signing APK file: {apk_file_path} with key: {signing_key_path} - success: {success} - {log_message} - sign_command: {command_string}")
+
+        if success:
+            break
     return success, log_message
 
 def verify_apk_file(apk_file_path, aosp_path):
     logging.info(f"Verifying APK file: {apk_file_path}")
-    apksigner_cmd = get_apksigner_binary_command(aosp_path)
-    verify_command = [apksigner_cmd, 'verify', apk_file_path]
-    success, log_message = execute_command(verify_command)
+    success = False
+    log_message = ""
+    apksigner_cmd_list = get_apksigner_binary_command(aosp_path)
+    for apksigner_cmd in apksigner_cmd_list:
+        verify_command = [apksigner_cmd, 'verify', apk_file_path]
+        success, log_message = execute_command(verify_command)
+        if success:
+            break
     return success, log_message
 
 
@@ -236,20 +247,25 @@ def sign_apex_container_apksigner(apex_file_path,
 
     """
     # 'sudo',
-    apksigner_cmd = get_apksigner_binary_command(aosp_path)
-    sign_command = [apksigner_cmd, 'sign',
-                    '--key', signing_key_path,
-                    '--cert', signing_key_certificate_path,
-                    '--v2-signing-enabled', str(v2_signing_enabled).lower(),
-                    '--v3-signing-enabled', str(v3_signing_enabled).lower(),
-                    '--v4-signing-enabled', str(v4_signing_enabled).lower(),
-                    '--verbose',
-                    '--in', apex_file_path,
-                    '--out', apex_file_path]
-    success, log_message = execute_command(sign_command)
-    logging.info(f"Signing APEX container file: {apex_file_path} "
-                 f"with key: {signing_key_path} - {success} - {log_message} "
-                 f"- sign_command: {sign_command}")
+    success = False
+    log_message = ""
+    apksigner_cmd_list = get_apksigner_binary_command(aosp_path)
+    for apksigner_cmd in apksigner_cmd_list:
+        sign_command = [apksigner_cmd, 'sign',
+                        '--key', signing_key_path,
+                        '--cert', signing_key_certificate_path,
+                        '--v2-signing-enabled', str(v2_signing_enabled).lower(),
+                        '--v3-signing-enabled', str(v3_signing_enabled).lower(),
+                        '--v4-signing-enabled', str(v4_signing_enabled).lower(),
+                        '--verbose',
+                        '--in', apex_file_path,
+                        '--out', apex_file_path]
+        success, log_message = execute_command(sign_command)
+        logging.info(f"Signing APEX container file: {apex_file_path} "
+                     f"with key: {signing_key_path} - {success} - {log_message} "
+                     f"- sign_command: {sign_command}")
+        if success:
+            break
     return success, log_message
 
 

@@ -769,7 +769,7 @@ def delete_intermediate_cached_files(target_file_injection_path, file_path):
         if os.path.exists(target_no_vendor_path):
             overwrite_existing_file(target_no_vendor_path, file_path)
         else:
-            logging.error(f"No existing intermediate file found to remove: {target_file_injection_path}")
+            logging.info(f"No existing intermediate file found to remove: {target_file_injection_path}")
 
 
 
