@@ -27,6 +27,8 @@ def run_acv_command(cmd_args):
 def activate_app(package):
     return run_acv_command(['acv', 'activate', package])
 
+def activate_start(package):
+    return run_acv_command(['acv', 'start', package])
 
 def snap_coverage(package, wd=None):
     cmd = ['acv', 'snap', package]
@@ -79,6 +81,9 @@ def main():
     parser_report.add_argument('package', help='App package name')
     parser_report.add_argument('--wd', required=False, help='Working directory (optional)')
 
+    parser_snap = subparsers.add_parser('start', help='Start coverage tracking for an app')
+    parser_snap.add_argument('package', help='App package name')
+
     args = parser.parse_args()
 
     if args.command == 'activate':
@@ -91,6 +96,8 @@ def main():
         cover_pickles(args.package, args.wd)
     elif args.command == 'report':
         generate_report(args.package, args.wd)
+    elif args.command == 'start':
+        activate_start(args.package)
     else:
         parser.print_help()
         sys.exit(1)

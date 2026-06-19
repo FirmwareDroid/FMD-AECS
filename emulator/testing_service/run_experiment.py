@@ -728,7 +728,7 @@ def execute_apps_with_coverage(app_package_names, mode):
     #or package in app_package_names:
     for package in app_package_names:
         run_script_capture(ACVTOOL, args=["activate", package],
-                           description="Run ACVTool to activate coverage measurement.")
+                           description="Run ACVTool to create coverage folder.")
         run_script_capture(ACVTOOL, args=["start", package],
                            description="Run ACVTool to activate coverage measurement.")
         logging.info(f"Starting {package}")
