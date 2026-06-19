@@ -601,6 +601,12 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
     #base_dir = str(os.path.dirname(apex_manifest_path))
     temp_dir = tempfile.mkdtemp()
     cleaned_manifest = os.path.join(temp_dir, "apex_manifest_cleaned.json")
+    if not os.path.exists(apex_manifest_path):
+        error_msg = f"ERROR: Could not file for cleaning: {apex_manifest_path}"
+        logging.error(error_msg)
+        is_success = False
+        return is_success, error_msg
+
     clean_json_file(apex_manifest_path, cleaned_manifest)
     if not os.path.exists(cleaned_manifest):
         error_msg = f"ERROR: Could not create apex_manifest_cleaned.json: {cleaned_manifest}"
@@ -889,6 +895,7 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
                 logging.error(f"Failure converting APEX manifest to Protobuf format: {log_message}")
                 logging.error(f"APEX manifest Protobuf file not created: {apex_manifest_path_pb}. EXIT PROGRAM!")
                 traceback.print_stack()
+                time.sleep(5)
                 exit(-1)
             else:
                 logging.info(f"APEX manifest Protobuf file created: {apex_manifest_path_pb}")
@@ -1735,6 +1742,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
                                          encoding='utf-8') as temp_manifest_file:
             temp_manifest_file.write(manifest_json_str)
             temp_manifest_path = temp_manifest_file.name
+            logging.info(f"APEX manifest file created from template: {temp_manifest_path}:{manifest_json_str}")
         try:
             convert_manifest_from_json(
                 apex_manifest_path=temp_manifest_path,
@@ -1745,9 +1753,8 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
             if os.path.exists(manifest_dst):
                 is_apex_manifest_file_found = True
                 logging.info(f"APEX manifest file created from template: {manifest_dst}")
-        finally:
-            if os.path.exists(temp_manifest_path):
-                os.remove(temp_manifest_path)
+        except Exception as ex:
+            logging.error(f"Failed to convert APEX manifest file: {ex}")
 
     return is_apex_manifest_file_found, str(manifest_dst)
 
