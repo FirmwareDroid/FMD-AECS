@@ -30,6 +30,14 @@ PathType = Union[str, os.PathLike]
 
 POST_INJECTOR_CONFIG = {}
 
+OPENSSL_PATH = ["prebuilts/build-tools/linux-x86/bin/openssl"]
+
+
+def get_openssl_path(aosp_path):
+    return os.path.join(aosp_path, OPENSSL_PATH[0])
+
+
+
 def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aosp_version):
     """
     Merges two APEX files into one. Overwrites the vendor's APEX for later injection.
@@ -1539,7 +1547,7 @@ def sign_apex_file(file_path, aosp_path, priv_key_apex_apk_path, apex_apk_certif
     return is_success, error_message
 
 
-def convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path):
+def convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path, aosp_path):
     """
     Converts the private and public keys to a p12 file.
     :param private_key_path: str - path to the private key.
@@ -1551,7 +1559,8 @@ def convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path):
     if not os.path.exists(private_key_path) or not os.path.exists(public_key_path):
         return False, "Private or public key not found."
     is_success = False
-    command = f"openssl pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
+    openssl_bin_path = get_openssl_path(aosp_path)
+    command = f"{openssl_bin_path} pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     if result.returncode == 0:
         is_success = True
@@ -1743,6 +1752,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
             temp_manifest_file.write(manifest_json_str)
             temp_manifest_path = temp_manifest_file.name
             logging.info(f"APEX manifest file created from template: {temp_manifest_path}:{manifest_json_str}")
+
         try:
             convert_manifest_from_json(
                 apex_manifest_path=temp_manifest_path,
@@ -1866,14 +1876,14 @@ def generate_apex_keys(aosp_path, apex_file_name):
     temp_keys_dir, priv_key_path, pub_key_path, priv_pem_file_path, avb_pub_key_path, apex_apk_cert = create_key_paths(apex_file_name)
     is_success = False
     log_message = ""
-
+    openssl_bin_path = get_openssl_path(aosp_path)
     # Generate private and public keys in PEM format
     command_pem = [
-        'openssl', 'genpkey', '-algorithm', 'RSA', '-out', priv_pem_file_path, '-pkeyopt', 'rsa_keygen_bits:4096'
+        openssl_bin_path, 'genpkey', '-algorithm', 'RSA', '-out', priv_pem_file_path, '-pkeyopt', 'rsa_keygen_bits:4096'
     ]
     result_pem = subprocess.run(command_pem, capture_output=True, text=True)
     if result_pem.returncode != 0 or not os.path.exists(priv_pem_file_path):
-        log_message = f"Error generating PEM keys: {result_pem.stderr}"
+        log_message = f"Error generating PEM keys: {result_pem.stderr}|{result_pem.stdout}"
         logging.error(log_message)
     else:
         logging.info(f"PEM keys generated successfully: {priv_pem_file_path}")
@@ -1881,11 +1891,11 @@ def generate_apex_keys(aosp_path, apex_file_name):
 
     # Convert private key from PEM to PK8 format
     command_pk8 = [
-        'openssl', 'pkcs8', '-topk8', '-inform', 'PEM', '-outform', 'DER', '-in', priv_pem_file_path, '-out', priv_key_path, '-nocrypt'
+        openssl_bin_path, 'pkcs8', '-topk8', '-inform', 'PEM', '-outform', 'DER', '-in', priv_pem_file_path, '-out', priv_key_path, '-nocrypt'
     ]
     result_pk8 = subprocess.run(command_pk8, capture_output=True, text=True)
     if result_pk8.returncode != 0 or not os.path.exists(priv_key_path):
-        log_message += f"\nError converting PEM to PK8: {result_pk8.stderr}"
+        log_message += f"\nError converting PEM to PK8: {result_pk8.stderr}|{result_pem.stdout}"
         logging.error(log_message)
     else:
         logging.info(f"PK8 key generated successfully: {priv_key_path}")
@@ -1893,12 +1903,12 @@ def generate_apex_keys(aosp_path, apex_file_name):
 
     # Generate x509 certificate using the private key in PEM format
     command_x509 = [
-        'openssl', 'req', '-x509', '-key', priv_pem_file_path,
+        openssl_bin_path, 'req', '-x509', '-key', priv_pem_file_path,
         '-out', apex_apk_cert, '-days', '365', '-nodes', '-subj', '/CN=example.com'
     ]
     result_x509 = subprocess.run(command_x509, capture_output=True, text=True)
     if result_x509.returncode != 0 or not os.path.exists(apex_apk_cert):
-        log_message += f"\nError generating x509 certificate: {result_x509.stderr}"
+        log_message += f"\nError generating x509 certificate: {result_x509.stderr}|{result_pem.stdout}"
         logging.error(log_message)
     else:
         logging.info(f"x509 certificate generated successfully: {apex_apk_cert}")
@@ -1916,7 +1926,7 @@ def generate_apex_keys(aosp_path, apex_file_name):
 
 
 
-def generate_apex_keys_p12(private_key_path, public_key_path, p12_path):
+def generate_apex_keys_p12(private_key_path, public_key_path, p12_path, aosp_path):
     """
     Generates a private key, a public key, and converts them to a .p12 file.
 
@@ -1928,9 +1938,10 @@ def generate_apex_keys_p12(private_key_path, public_key_path, p12_path):
     is_success = False
     log_message = ""
 
+    openssl_bin_path = get_openssl_path(aosp_path)
     # Generate private and public keys
     command = [
-        'openssl', 'req', '-x509', '-newkey', 'rsa:4096', '-keyout', private_key_path,
+        openssl_bin_path, 'req', '-x509', '-newkey', 'rsa:4096', '-keyout', private_key_path,
         '-out', public_key_path, '-days', '365', '-nodes', '-subj', '/CN=example.com'
     ]
     result = subprocess.run(command, capture_output=True, text=True)
@@ -1942,7 +1953,7 @@ def generate_apex_keys_p12(private_key_path, public_key_path, p12_path):
         log_message = result.stdout
 
         # Convert keys to .p12
-        command = f"openssl pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
+        command = f"{openssl_bin_path} pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
         if result.returncode == 0:
             log_message = result.stdout

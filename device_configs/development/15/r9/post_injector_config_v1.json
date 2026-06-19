@@ -669,7 +669,8 @@
     "devicelock",
     "rebootescrow",
     "cas",
-    "media"
+    "media",
+    "nfcservices"
   ],
   "APEX_DEFAULT_PATHS_DICT": {
     "sdkext": "packages/modules/SdkExtensions",
