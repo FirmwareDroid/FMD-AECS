@@ -1837,7 +1837,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
     if POST_INJECTOR_CONFIG["OVERWRITE_APP_PROCESS_32"]:
         source_file_path = handle_special_matching(source_file_path)
 
-    if POST_INJECTOR_CONFIG["ENABLE_RC_MERGER"]:
+    if POST_INJECTOR_CONFIG["ENABLE_RC_MERGER"] and filename.endswith(".rc"):
         source_file_path = run_rc_merger(source_file_path)
 
     if "build.prop" in filename:
