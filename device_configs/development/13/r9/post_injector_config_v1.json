@@ -462,7 +462,13 @@
     "/vendor/bin/hw/android.hardware.boot@1.1-service",
     "/vendor/bin/hw/android.hardware.ir@1.0-service",
     "/lib64/libaed.so",
-    "/lib64/libmediatek"
+    "/lib64/libmediatek",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".txt",
+    ".ogg"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",

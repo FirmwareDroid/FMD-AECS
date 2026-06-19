@@ -442,7 +442,13 @@
     "/lib64/libprocessgroup",
     "/lib64/libaudio",
     "/lib64/libsensor",
-    "/lib64/libmedia"
+    "/lib64/libmedia",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".txt",
+    ".ogg"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay.apk",

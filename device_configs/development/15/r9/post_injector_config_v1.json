@@ -453,7 +453,13 @@
     "/system/bin/mediaserver64",
     "/lib64/android.hardware.ir@1.0.so",
     "/lib64/android.hardware.boot@1.0.so",
-    "android.hardware.audio"
+    "android.hardware.audio",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".txt",
+    ".ogg"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",

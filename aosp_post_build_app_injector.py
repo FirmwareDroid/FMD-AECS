@@ -10,7 +10,8 @@ from shell_command import execute_command
 from config_post_injector import *
 
 APKSIGNER_BINARY_PATH_LIST = ["out/host/linux-x86/bin/apksigner",
-                              "prebuilts/sdk/tools/linux/bin/apksigner"
+                              "prebuilts/sdk/tools/linux/bin/apksigner",
+                              "apksigner"
                               ]
 APKSIGNER_JAVALIB_PATH = "prebuilts/sdk/tools/linux/lib/apksigner.jar"
 ZIPALIGN_BINARY_PATH_LIST = ["prebuilts/sdk/tools/linux/bin/zipalign", "out/host/linux-x86/bin/zipalign"]

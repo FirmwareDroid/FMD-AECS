@@ -441,7 +441,13 @@
     "/lib64/libaudio",
     "/lib64/libsensor",
     "/lib64/libmedia",
-    "android.hardware.audio"
+    "android.hardware.audio",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".txt",
+    ".ogg"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "Overlay",
