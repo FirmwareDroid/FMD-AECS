@@ -458,7 +458,9 @@
     "/lib64/android.hardware.boot@1.0.so",
     "android.hardware.audio",
     "/vendor/bin/hw/android.hardware.boot@1.1-service",
-    "/vendor/bin/hw/android.hardware.ir@1.0-service"
+    "/vendor/bin/hw/android.hardware.ir@1.0-service",
+    "/lib64/libaed.so",
+    "/lib64/libmediatek"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
