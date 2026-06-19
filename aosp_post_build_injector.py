@@ -1932,8 +1932,9 @@ def handle_special_matching(source_file_injection_path):
         logging.info(f"Special matching app_process32 replace with app_process64: {source_file_injection_path}")
 
     if source_file_injection_path.endswith("mediaserver") and "64" not in source_file_injection_path:
-        source_file_injection_path = source_file_injection_path.replace("mediaserver", "mediaserver64")
-        logging.info(f"Special matching mediaserver replace with mediaserver64: {source_file_injection_path}")
+        if os.path.exists(source_file_injection_path.replace("mediaserver", "mediaserver64")):
+            source_file_injection_path = source_file_injection_path.replace("mediaserver", "mediaserver64")
+            logging.info(f"Special matching mediaserver replace with mediaserver64: {source_file_injection_path}")
     return source_file_injection_path
 
 def inject_apex_symlink_file(filename, source_file_path, original_file_path, aosp_path, partition_name, lunch_target, aosp_version):
