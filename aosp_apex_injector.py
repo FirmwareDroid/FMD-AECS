@@ -549,6 +549,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
 
 
 def clean_json_file(input_path, output_path):
+    logging.info(f"Cleaning JSON file: {input_path} and saving to: {output_path}")
     with open(input_path, 'r') as f:
         lines = f.readlines()
     cleaned_lines = [
@@ -592,8 +593,9 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
         logging.info(message)
         return False, {f"{message}"}
 
-    base_dir = os.path.dirname(apex_manifest_path)
-    cleaned_manifest = os.path.join(base_dir, "apex_manifest_cleaned.json")
+    #base_dir = str(os.path.dirname(apex_manifest_path))
+    temp_dir = tempfile.mkdtemp()
+    cleaned_manifest = os.path.join(temp_dir, "apex_manifest_cleaned.json")
     clean_json_file(apex_manifest_path, cleaned_manifest)
 
     info = f"APEX: conv_apex_manifest tool path: {converter_path}|{cleaned_manifest}|{out_file_path}|{lunch_target}"
