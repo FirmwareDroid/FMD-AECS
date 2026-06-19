@@ -175,6 +175,31 @@ def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled
                         '--v2-signing-enabled', str(v2_signing_enabled).lower(),
                         '--v3-signing-enabled', str(v3_signing_enabled).lower(),
                         '--v4-signing-enabled', str(v4_signing_enabled).lower(),
+                        '--verbose',
+                        '--in', apk_file_path,
+                        '--out', apk_file_path]
+        success, log_message = execute_command(sign_command)
+
+    if not success:
+        sign_command = [apksigner_cmd, 'sign',
+                        '--ks', signing_key_path,
+                        '--v2-signing-enabled', str(v2_signing_enabled).lower(),
+                        '--v3-signing-enabled', str(v3_signing_enabled).lower(),
+                        '--v4-signing-enabled', str(v4_signing_enabled).lower(),
+                        '--ks-pass', 'env:SIGNING_PW',
+                        '--verbose',
+                        '--in', apk_file_path,
+                        '--out', apk_file_path]
+        env_copy = os.environ.copy()
+        env_copy['SIGNING_PW'] = ""
+        success, log_message = execute_command(sign_command, env=env_copy)
+
+    if not success:
+        sign_command = [apksigner_cmd, 'sign',
+                        '--ks', signing_key_path,
+                        '--v2-signing-enabled', str(v2_signing_enabled).lower(),
+                        '--v3-signing-enabled', str(v3_signing_enabled).lower(),
+                        '--v4-signing-enabled', str(v4_signing_enabled).lower(),
                         '--ks-pass', 'android',
                         '--verbose',
                         '--in', apk_file_path,
