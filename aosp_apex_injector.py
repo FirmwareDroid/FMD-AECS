@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import traceback
 import zipfile
 from pathlib import Path
@@ -850,6 +851,7 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
         if not os.path.exists(merged_apex_extract_dir_path):
             logging.error(f"ERROR: APEX Manifest was not copied to: {merged_apex_extract_dir_path}. EXIT PROGRAM!")
             traceback.print_stack()
+            time.sleep(5)
             exit(-1)
     else:
         logging.info(f"Load Manifest from AOSP source tree for APEX: {filename_input}")
@@ -859,6 +861,7 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
         if not apex_keyword:
             logging.error(f"APEX: No matching keyword found in APEX_DEFAULT_PATHS_DICT for {filename_input}. EXIT PROGRAM!")
             traceback.print_stack()
+            time.sleep(5)
             exit(-1)
         logging.info(f"APEX Keyword: {apex_keyword} found for apex: {filename_input}")
         apex_module_path = str(os.path.join(aosp_path, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"][apex_keyword]))
@@ -874,6 +877,7 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
             logging.error(
                 f"APEX: No manifest file found in APEX module path: {apex_module_path}. EXIT PROGRAM!")
             traceback.print_stack()
+            time.sleep(5)
             exit(-1)
 
         logging.info(f"APEX manifest path used: {apex_manifest_path}")
@@ -893,6 +897,7 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
         else:
             logging.error("APEX Manifest path is invalid. EXIT PROGRAM!")
             traceback.print_stack()
+            time.sleep(5)
             exit(-1)
     return apex_manifest_path_pb
 
@@ -1706,6 +1711,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
                         shutil.move(file_path, manifest_dst)
                     else:
                         logging.error(f"No APEX manifest found in {apex_extract_dir_path} | {file_path}. EXITING!")
+                        time.sleep(5)
                         exit(1)
                     #manifest_json_file_path = get_apex_manifest_from_aosp(aosp_path, apex_file_name)
                     #convert_apex_manifest_json_to_pb(manifest_json_file_path, manifest_dst)
