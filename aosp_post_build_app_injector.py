@@ -21,13 +21,14 @@ def get_apksigner_binary_command(aosp_path):
     for binary_path in APKSIGNER_BINARY_PATH_LIST:
         candidate = os.path.join(aosp_path, binary_path)
         if os.path.exists(candidate):
-            if not ".jar" in candidate:
-                if "prebuilts" in candidate or "tools" in candidate:
-                    javalib_path = os.path.join(aosp_path, APKSIGNER_JAVALIB_PATH)
-                    dir_path = os.path.dirname(candidate)
-                    shutil.copy2(javalib_path, dir_path)
-                    logging.info(f"Copied {javalib_path} to {dir_path}")
             candidate_list.append(candidate)
+            # if not ".jar" in candidate:
+            #     if "prebuilts" in candidate or "tools" in candidate:
+            #         javalib_path = os.path.join(aosp_path, APKSIGNER_JAVALIB_PATH)
+            #         dir_path = os.path.dirname(candidate)
+            #         shutil.copy2(javalib_path, dir_path)
+            #         logging.info(f"Copied {javalib_path} to {dir_path}")
+
     return candidate_list
 
 
