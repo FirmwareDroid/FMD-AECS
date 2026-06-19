@@ -32,7 +32,8 @@ def execute_command(command, cwd=None, shell=False, env=None):
         if env:
             result = subprocess.run(command, capture_output=True, text=False, cwd=cwd, shell=shell, env=env)
         else:
-            result = subprocess.run(command, capture_output=True, text=False, cwd=cwd, shell=shell)
+            env_copy = os.environ.copy()
+            result = subprocess.run(command, capture_output=True, text=False, cwd=cwd, shell=shell, env=env_copy)
         logging.debug(f"Executed command: {command} - {result.returncode}")
         if result.returncode == 0:
             is_success = True

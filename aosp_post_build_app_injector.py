@@ -9,7 +9,7 @@ from fmd_backend_requests import fetch_app_manifest
 from shell_command import execute_command
 from config_post_injector import *
 
-APKSIGNER_BINARY_PATH_LIST = ["prebuilts/sdk/tools/linux/bin/apksigner", "out/host/linux-x86/bin/apksigner"]
+APKSIGNER_BINARY_PATH_LIST = ["out/host/linux-x86/bin/apksigner", "./tools/apksig/etc/apksigner", "prebuilts/sdk/tools/linux/bin/apksigner", "host/linux-x86/framework/apksigner.jar", "prebuilts/sdk/tools/linux/lib/apksigner.jar"]
 APKSIGNER_JAVALIB_PATH = "prebuilts/sdk/tools/linux/lib/apksigner.jar"
 ZIPALIGN_BINARY_PATH_LIST = ["prebuilts/sdk/tools/linux/bin/zipalign", "out/host/linux-x86/bin/zipalign"]
 
@@ -18,11 +18,12 @@ def get_apksigner_binary_command(aosp_path):
     for binary_path in APKSIGNER_BINARY_PATH_LIST:
         candidate = os.path.join(aosp_path, binary_path)
         if os.path.exists(candidate):
-            if "prebuilts" in candidate:
-                javalib_path = os.path.join(aosp_path, APKSIGNER_JAVALIB_PATH)
-                dir_path = os.path.dirname(candidate)
-                shutil.copy2(javalib_path, dir_path)
-                logging.info(f"Copied {javalib_path} to {dir_path}")
+            if not ".jar" in candidate:
+                if "prebuilts" in candidate or "tools" in candidate:
+                    javalib_path = os.path.join(aosp_path, APKSIGNER_JAVALIB_PATH)
+                    dir_path = os.path.dirname(candidate)
+                    shutil.copy2(javalib_path, dir_path)
+                    logging.info(f"Copied {javalib_path} to {dir_path}")
             candidate_list.append(candidate)
     return candidate_list
 
@@ -150,7 +151,9 @@ def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled
     log_message = ""
     apksigner_cmd_list = get_apksigner_binary_command(aosp_path)
     for apksigner_cmd in apksigner_cmd_list:
-        sign_command = [apksigner_cmd, 'sign',
+        base_cmd = ["java", "-jar"] if ".jar" in apksigner_cmd else []
+        sign_command = [*base_cmd,
+                        apksigner_cmd, 'sign',
                         '--ks', signing_key_path,
                         '--v2-signing-enabled', str(v2_signing_enabled).lower(),
                         '--v3-signing-enabled', str(v3_signing_enabled).lower(),
@@ -161,7 +164,8 @@ def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled
                         '--out', apk_file_path]
         success, log_message = execute_command(sign_command)
         if not success:
-            sign_command = [apksigner_cmd, 'sign',
+            sign_command = [*base_cmd,
+                            apksigner_cmd, 'sign',
                             '--ks', signing_key_path,
                             '--v2-signing-enabled', str(v2_signing_enabled).lower(),
                             '--v3-signing-enabled', str(v3_signing_enabled).lower(),
@@ -173,7 +177,8 @@ def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled
             success, log_message = execute_command(sign_command)
 
         if not success:
-            sign_command = [apksigner_cmd, 'sign',
+            sign_command = [*base_cmd,
+                            apksigner_cmd, 'sign',
                             '--ks', signing_key_path,
                             '--v2-signing-enabled', str(v2_signing_enabled).lower(),
                             '--v3-signing-enabled', str(v3_signing_enabled).lower(),
@@ -184,7 +189,8 @@ def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled
             success, log_message = execute_command(sign_command)
 
         if not success:
-            sign_command = [apksigner_cmd, 'sign',
+            sign_command = [*base_cmd,
+                            apksigner_cmd, 'sign',
                             '--ks', signing_key_path,
                             '--v2-signing-enabled', str(v2_signing_enabled).lower(),
                             '--v3-signing-enabled', str(v3_signing_enabled).lower(),
@@ -198,7 +204,8 @@ def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled
             success, log_message = execute_command(sign_command, env=env_copy)
 
         if not success:
-            sign_command = [apksigner_cmd, 'sign',
+            sign_command = [*base_cmd,
+                            apksigner_cmd, 'sign',
                             '--ks', signing_key_path,
                             '--v2-signing-enabled', str(v2_signing_enabled).lower(),
                             '--v3-signing-enabled', str(v3_signing_enabled).lower(),
@@ -221,7 +228,8 @@ def verify_apk_file(apk_file_path, aosp_path):
     log_message = ""
     apksigner_cmd_list = get_apksigner_binary_command(aosp_path)
     for apksigner_cmd in apksigner_cmd_list:
-        verify_command = [apksigner_cmd, 'verify', apk_file_path]
+        base_cmd = ["java", "-jar"] if ".jar" in apksigner_cmd else []
+        verify_command = [*base_cmd, apksigner_cmd, 'verify', apk_file_path]
         success, log_message = execute_command(verify_command)
         if success:
             break
@@ -251,7 +259,9 @@ def sign_apex_container_apksigner(apex_file_path,
     log_message = ""
     apksigner_cmd_list = get_apksigner_binary_command(aosp_path)
     for apksigner_cmd in apksigner_cmd_list:
-        sign_command = [apksigner_cmd, 'sign',
+        base_cmd = ["java", "-jar"] if ".jar" in apksigner_cmd else []
+        sign_command = [*base_cmd,
+                        apksigner_cmd, 'sign',
                         '--key', signing_key_path,
                         '--cert', signing_key_certificate_path,
                         '--v2-signing-enabled', str(v2_signing_enabled).lower(),
