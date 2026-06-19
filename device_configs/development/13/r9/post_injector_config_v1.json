@@ -86,7 +86,9 @@
     ".oat",
     "/etc/vintf",
     "libadbd",
-    "android.hardware.drm-service.clearkey"
+    "android.hardware.drm-service.clearkey",
+    "drm-service.widevine",
+    "libstagefright"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",

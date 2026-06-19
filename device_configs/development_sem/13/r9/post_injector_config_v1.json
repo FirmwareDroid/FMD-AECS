@@ -84,7 +84,8 @@
     ".art",
     ".oat",
     "/etc/vintf",
-    "libadbd"
+    "libadbd",
+    "libstagefright"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",

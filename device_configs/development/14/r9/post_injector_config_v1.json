@@ -81,7 +81,8 @@
     "android.hardware.oemlock",
     "citadel",
     "/vendor/bin/hw/init_citadel",
-    "/vendor/bin/hw/android.hardware.drm-service"
+    "/vendor/bin/hw/android.hardware.drm-service",
+    "libstagefright"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
