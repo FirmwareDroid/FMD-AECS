@@ -254,7 +254,6 @@ def sign_apex_container_apksigner(apex_file_path,
     :param v2_signing_enabled: bool - enable v2 signing.
 
     """
-    # 'sudo',
     success = False
     log_message = ""
     apksigner_cmd_list = get_apksigner_binary_command(aosp_path)
