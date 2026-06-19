@@ -1365,7 +1365,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
                 except Exception as e:
                     logging.error(e)
 
-        if POST_INJECTOR_CONFIG["ENABLE_SELINUX_MERGE"]:
+        if POST_INJECTOR_CONFIG["ENABLE_SELINUX_MERGER"]:
             if partition_name == "system":
                 try:
                     handle_seplicy_merging(aosp_version, aosp_path, partition_path)
