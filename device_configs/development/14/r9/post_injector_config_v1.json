@@ -75,7 +75,13 @@
     "/system/lib64/libkeystore2_crypto.so",
     "/system/bin/keystore_cli_v2",
     "/vendor/etc/permissions/android.hardware.hardware_keystore.xml",
-    "/vendor/etc/permissions/android.hardware.keystore.app_attest_key.xml"
+    "/vendor/etc/permissions/android.hardware.keystore.app_attest_key.xml",
+    "/vendor/bin/hw/citadeld",
+    "android.hardware.secure_element",
+    "android.hardware.oemlock",
+    "citadel",
+    "/vendor/bin/hw/init_citadel",
+    "/vendor/bin/hw/android.hardware.drm-service"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
