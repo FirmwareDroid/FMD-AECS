@@ -450,7 +450,6 @@
     "/lib64/android.hardware.boot",
     "/lib64/android.hardware.media",
     "/lib64/av-types-aidl-cpp.so",
-    "/lib64/libstagefright",
     "/lib64/libfmq.so",
     "/lib64/libclang_rt.ubsan_standalone-aarch64-android.so",
     "/system/bin/mediaserver64",
