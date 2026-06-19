@@ -1729,10 +1729,19 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
                                          encoding='utf-8') as temp_manifest_file:
             temp_manifest_file.write(manifest_json_str)
             temp_manifest_path = temp_manifest_file.name
-            convert_manifest_from_json(apex_manifest_path=temp_manifest_path, out_file_path=manifest_dst, aosp_path=aosp_path, lunch_target=lunch_target)
+        try:
+            convert_manifest_from_json(
+                apex_manifest_path=temp_manifest_path,
+                out_file_path=manifest_dst,
+                aosp_path=aosp_path,
+                lunch_target=lunch_target
+            )
             if os.path.exists(manifest_dst):
                 is_apex_manifest_file_found = True
                 logging.info(f"APEX manifest file created from template: {manifest_dst}")
+        finally:
+            if os.path.exists(temp_manifest_path):
+                os.remove(temp_manifest_path)
 
     return is_apex_manifest_file_found, str(manifest_dst)
 
