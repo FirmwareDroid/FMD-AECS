@@ -480,7 +480,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     apex_manifest = f"{{\n\t\"name\": \"{apex_file_name}\",\n\t\"version\": {apex_version}\n}}\n"
     with open(apex_manifest_path, "w") as apex_manifest_file:
         apex_manifest_file.write(apex_manifest)
-    logging.info(f"Created {apex_manifest_path} with content: {apex_manifest} for APEX file {apex_file_name}")
+    logging.info(f"Created apex_manifest: {apex_manifest_path} with content: {apex_manifest} for APEX file {apex_file_name}")
 
     # Remove the old manifest file if it exists
     is_manifest_found, old_apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path, apex_file_name, aosp_path, lunch_target)
@@ -550,21 +550,25 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
 
 def clean_json_file(input_path, output_path):
     logging.info(f"Cleaning JSON file: {input_path} and saving to: {output_path}")
-    with open(input_path, 'r') as f:
-        lines = f.readlines()
-    cleaned_lines = [
-        line for line in lines
-        if "Placeholder module version to be replaced during build." not in line
-        and "Do not change!" not in line
-    ]
-    for i, line in enumerate(cleaned_lines):
-        if "\"version\": 0" in line:
-            cleaned_lines[i] = line.replace("0", "999")
+    try:
+        with open(input_path, 'r') as f:
+            lines = f.readlines()
+        cleaned_lines = [
+            line for line in lines
+            if "Placeholder module version to be replaced during build." not in line
+            and "Do not change!" not in line
+        ]
+        for i, line in enumerate(cleaned_lines):
+            if "\"version\": 0" in line:
+                cleaned_lines[i] = line.replace("0", "999")
 
-    with open(output_path, 'w') as f:
-        f.writelines(cleaned_lines)
-    with open(output_path, 'r') as f:
-        json.load(f)
+        with open(output_path, 'w') as f:
+            f.writelines(cleaned_lines)
+        with open(output_path, 'r') as f:
+            json.load(f)
+    except Exception as e:
+        logging.error(e)
+        traceback.print_exc()
 
 def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lunch_target):
     """
@@ -597,6 +601,11 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
     temp_dir = tempfile.mkdtemp()
     cleaned_manifest = os.path.join(temp_dir, "apex_manifest_cleaned.json")
     clean_json_file(apex_manifest_path, cleaned_manifest)
+    if not os.path.exists(cleaned_manifest):
+        error_msg = f"ERROR: Could not create apex_manifest_cleaned.json: {cleaned_manifest}"
+        logging.error(error_msg)
+        is_success = False
+        return is_success, error_msg
 
     info = f"APEX: conv_apex_manifest tool path: {converter_path}|{cleaned_manifest}|{out_file_path}|{lunch_target}"
     logging.info(info)
@@ -1669,10 +1678,10 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
                                          encoding='utf-8') as temp_manifest_file:
             temp_manifest_file.write(manifest_json_str)
             temp_manifest_path = temp_manifest_file.name
-        convert_manifest_from_json(apex_manifest_path=temp_manifest_path, out_file_path=manifest_dst, aosp_path=aosp_path, lunch_target=lunch_target)
-        if os.path.exists(manifest_dst):
-            is_apex_manifest_file_found = True
-            logging.info(f"APEX manifest file created from template: {manifest_dst}")
+            convert_manifest_from_json(apex_manifest_path=temp_manifest_path, out_file_path=manifest_dst, aosp_path=aosp_path, lunch_target=lunch_target)
+            if os.path.exists(manifest_dst):
+                is_apex_manifest_file_found = True
+                logging.info(f"APEX manifest file created from template: {manifest_dst}")
 
     return is_apex_manifest_file_found, str(manifest_dst)
 
