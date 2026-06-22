@@ -36,7 +36,8 @@ OPENSSL_PATH_LIST = ["openssl"]
 def get_openssl_path(aosp_path):
     openssl_path_list = []
     for path in OPENSSL_PATH_LIST:
-        openssl_path_list.append(os.path.join(aosp_path, path))
+        if "/" in path:
+            openssl_path_list.append(os.path.join(aosp_path, path))
     return openssl_path_list
 
 
