@@ -44,6 +44,8 @@ def get_image_meta():
                 repo_url = lines[1].strip()
                 parsed_url = urlparse(repo_url)
                 domain_and_port = parsed_url.netloc
+                if not domain_and_port.startswith("https"):
+                    domain_and_port = "https://" + domain_and_port
                 logging.info(f"Parsed URL: {repo_url}. Domain: {domain_and_port}. Image: {image_name}")
                 return image_name, domain_and_port
             else:
