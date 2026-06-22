@@ -250,8 +250,20 @@ def build_container_image(tag, build_arch, dockerfile_path=None, extracted_image
         else:
             dockerfile_path = EMULATOR_DOCKERFILE_X8664_ABS_PATH
     if extracted_image_dir:
-        p = subprocess.run(f"docker build --build-arg REPO_URL='{docker_repo_url}' --build-arg IMAGE_NAME='{tag}' --build-arg IMAGE_ARTEFACTS_SRC={extracted_image_dir} -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
-                           shell=True, check=True)
+        cmd = [
+            "docker", "build",
+            "--build-arg", f"REPO_URL={docker_repo_url}",
+            "--build-arg", f"IMAGE_NAME={tag}",
+            "--build-arg", f"IMAGE_ARTEFACTS_SRC={extracted_image_dir}",
+            "-t", tag,
+            "-f", dockerfile_path,
+            "--no-cache",
+            "--platform", build_arch,
+            "."
+        ]
+        p = subprocess.run(cmd, check=True)
+        #p = subprocess.run(f"docker build --build-arg REPO_URL='{docker_repo_url}' --build-arg IMAGE_NAME='{tag}' --build-arg IMAGE_ARTEFACTS_SRC={extracted_image_dir} -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
+        #                   shell=True, check=True)
     else:
         p = subprocess.run(f"docker build -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
                            shell=True, check=True)

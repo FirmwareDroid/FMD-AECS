@@ -1,5 +1,3 @@
-ARG IMAGE_NAME=unknown-image
-ARG REPO_URL=unknown-repo
 FROM debian:12-slim AS fmd-emulator_arm64
 ARG IMAGE_NAME
 ARG REPO_URL
