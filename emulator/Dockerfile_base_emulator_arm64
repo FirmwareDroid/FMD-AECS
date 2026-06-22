@@ -37,6 +37,7 @@ RUN set -eux; \
 ### Add Image Name for ACVTool ####
 ARG IMAGE_NAME=unknown-image
 ARG REPO_URL=unknown-repo
+RUN mkdir -p /android
 RUN echo -e "${IMAGE_NAME}\n" > /android/image_meta.txt
 RUN echo -e "${REPO_URL}\n" >> /android/image_meta.txt
 RUN mkdir -p /root/acvtool/acvtool_working_dir/covered_pickles
