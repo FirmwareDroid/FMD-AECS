@@ -203,17 +203,22 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
             if file_name.endswith(".xml") and "compatibility_matrix" not in file_name:
                 aosp_hals = extract_hal_names_from_file(aosp_file_path)
 
-                # If the entire AOSP fragment is completely superseded by vendor configurations, drop it
                 if aosp_hals and aosp_hals.issubset(vendor_hal_signatures):
                     logging.info("[!] Re-hosting scrub: Dropping whole file '%s' superseded by vendor.", file_name)
                     continue
 
-                # Otherwise, copy it over and strip out only conflicting individual HAL entries
                 shutil.copy2(aosp_file_path, dest_file_path)
                 remove_duplicate_hals_from_file(dest_file_path, vendor_hal_signatures)
             else:
-                # Direct copies for non-manifest files (like matrix XMLs)
                 shutil.copy2(aosp_file_path, dest_file_path)
+
+        # === ADDED: Self-deduplicate primary manifest.xml against internal standalone fragments ===
+        base_manifest_path = os.path.join(manifest_temp, "manifest.xml")
+        internal_manifest_hals = set()
+        if os.path.exists(base_manifest_path):
+            internal_manifest_hals = extract_hal_names_from_file(base_manifest_path)
+            logging.info("[!] Pre-compiled baseline manifest.xml contains %d HAL profiles.",
+                         len(internal_manifest_hals))
 
         # 4. Inject remaining vendor components safely
         logging.info("Injecting vendor-specific hardware components...")
@@ -221,16 +226,27 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
             vendor_file_path = os.path.join(vendor_stage, file_name)
             dest_file_path = os.path.join(manifest_temp, file_name)
 
+            # Deduplicate against vendor signatures
             if os.path.exists(dest_file_path) and "compatibility_matrix" not in file_name:
-                # If a shared base file (like manifest.xml) exists in both, strip duplicates from the AOSP version
                 remove_duplicate_hals_from_file(dest_file_path, vendor_hal_signatures)
-
-                # Append elements structural-style or fallback to let assemble_vintf process them as independent files
-                # Because assemble_vintf doesn't like duplicated standalone files with the same name, we suffix vendor fragments
                 name_root, ext = os.path.splitext(file_name)
                 dest_file_path = os.path.join(manifest_temp, f"{name_root}_vendor{ext}")
 
+            # Deduplicate standalone fragment elements if they are already declared inside manifest.xml
+            if file_name.endswith(".xml") and file_name != "manifest.xml" and "compatibility_matrix" not in file_name:
+                fragment_hals = extract_hal_names_from_file(vendor_file_path)
+                # If the fragment only contains HALs already tracking inside the primary manifest, drop it entirely
+                if fragment_hals and fragment_hals.issubset(internal_manifest_hals):
+                    logging.info(
+                        "[!] Internal Clean: Dropping redundant fragment '%s' already declared inside manifest.xml",
+                        file_name)
+                    continue
+
             shutil.copy2(vendor_file_path, dest_file_path)
+
+            # If the file was copied but has partial overlap with manifest.xml, strip those specific HAL blocks
+            if os.path.exists(dest_file_path) and file_name != "manifest.xml" and internal_manifest_hals:
+                remove_duplicate_hals_from_file(dest_file_path, internal_manifest_hals)
 
         # Proceed normally into Phase 2 compilation parsing
         all_files = os.listdir(manifest_temp)
