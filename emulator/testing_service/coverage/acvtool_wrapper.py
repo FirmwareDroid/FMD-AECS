@@ -44,6 +44,7 @@ def get_image_meta():
                 repo_url = lines[1].strip()
                 parsed_url = urlparse(repo_url)
                 domain_and_port = parsed_url.netloc
+                logging.info(f"Parsed URL: {repo_url}. Domain: {domain_and_port}. Image: {image_name}")
                 return image_name, domain_and_port
             else:
                 logging.warning(f"Image meta file {IMAGE_META_PATH} does not contain enough information.")
@@ -83,6 +84,7 @@ def find_pickle_file(package, wd=None):
     for root, dirs, files in os.walk(wd):
         for file in files:
             if file.endswith('.pickle') and package in file:
+                logging.info(f"Found pickle file: {file} for package: {package}")
                 return os.path.join(root, file)
     return None
 
@@ -92,6 +94,7 @@ def copy_pickle_to_wd(source_pickle: str, target_wd: str):
     try:
         target_file = str(os.path.join(target_wd, os.path.basename(source_pickle)))
         shutil.copy2(source_pickle, target_file)
+        logging.info(f"Copied {source_pickle} to {target_file}.")
     except Exception as e:
         logging.error(f"An error occurred: {e}")
     return

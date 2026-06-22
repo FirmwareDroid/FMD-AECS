@@ -727,6 +727,8 @@ def wait_for_adb_available(max_wait_seconds=600, sleep_seconds=5):
 def execute_apps_with_coverage(app_package_names, mode):
     #or package in app_package_names:
     for package in app_package_names:
+        run_script_capture(ACVTOOL, args=["download", package],
+                           description="Download pickle file for ACVTool.")
         run_script_capture(ACVTOOL, args=["activate", package],
                            description="Run ACVTool to create coverage folder.")
         run_script_capture(ACVTOOL, args=["start", package],
