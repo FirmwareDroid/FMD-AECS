@@ -7,6 +7,6 @@ filelock~=3.16.1
 protobuf==3.19.0
 acvtool==2.3.5
 pyasyncore~=1.0.5
-
+cryptography
 #droidrun~=0.4.26
 #llama-index~=0.14.14

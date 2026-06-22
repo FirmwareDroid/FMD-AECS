@@ -1,10 +1,27 @@
 FROM fmd-emulator_arm64
 
 ################################
+# Catch the build args passed by Python!
+################################
+ARG IMAGE_NAME
+ARG REPO_URL
+ENV IMAGE_NAME=${IMAGE_NAME}
+ENV REPO_URL=${REPO_URL}
+
+################################
 # Copy system image
 ################################
 ARG IMAGE_ARTEFACTS_SRC=./image_artefacts/
 COPY ${IMAGE_ARTEFACTS_SRC} /android/sdk/system-images/android/
+
+################################
+### Add Image Name for ACVTool ####
+################################
+RUN mkdir -p /android
+RUN printf "${IMAGE_NAME}\n" > /android/image_meta.txt
+RUN printf "${REPO_URL}\n" >> /android/image_meta.txt
+RUN mkdir -p /root/acvtool/acvtool_working_dir/covered_pickles
+RUN mkdir -p /root/acvtool/pickles
 
 ###################################
 # Create start script
