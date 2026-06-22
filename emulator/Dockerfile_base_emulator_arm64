@@ -32,8 +32,15 @@ RUN set -eux; \
         ); \
     ); \
     rm -rf /var/lib/apt/lists/*; \
-    apt-get clean
+    apt-get clean \
 
+### Add Image Name for ACVTool ####
+ARG IMAGE_NAME=unknown-image
+ARG REPO_URL=unknown-repo
+RUN echo -e "${IMAGE_NAME}\n" > /android/image_meta.txt
+RUN echo -e "${REPO_URL}\n" >> /android/image_meta.txt
+RUN mkdir -p ~/acvtool/acvtool_working_dir/covered_pickles
+RUN mkdir -p ~/acvtool/pickles
 ################################
 # Install Java
 ################################

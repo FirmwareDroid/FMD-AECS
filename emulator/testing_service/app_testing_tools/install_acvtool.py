@@ -27,7 +27,7 @@ PYEXEC = sys.executable or 'python3'
 
 def run(cmd, check=True):
     logging.info('RUN: %s', cmd)
-    res = subprocess.run(cmd, shell=isinstance(cmd, str), text=True)
+    res = subprocess.run(cmd, shell=isinstance(cmd, str), text=True, timeout=1200)
     if check and res.returncode != 0:
         raise SystemExit(f"Command failed (exit {res.returncode}): {cmd}")
     return res

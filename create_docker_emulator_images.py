@@ -179,7 +179,7 @@ def process_single_image(task_tuple):
 
         image_artefact_path = os.path.join(f"./{IMAGE_ARTEFACTS_PATH}", name)
         logging.info(f"[worker] Building emulator image: {filename} for architecture: {docker_build_arch}")
-        build_ok = build_container_image(tag, docker_build_arch, extracted_image_dir=image_artefact_path)
+        build_ok = build_container_image(tag, docker_build_arch, extracted_image_dir=image_artefact_path, docker_repo_url=docker_repo_url)
 
         if not build_ok:
             raise RuntimeError(f"Docker build failed for {tag}")
@@ -237,7 +237,7 @@ def authenticate_docker_registry(repo_url, docker_user, docker_password):
         raise RuntimeError(f"Authentication to the docker registry failed. See logs for details.")
 
 
-def build_container_image(tag, build_arch, dockerfile_path=None, extracted_image_dir=None):
+def build_container_image(tag, build_arch, dockerfile_path=None, extracted_image_dir=None, docker_repo_url=None):
     """
     Builds a docker container image that includes the image files from the image_artefacts directory.
     """
@@ -250,7 +250,7 @@ def build_container_image(tag, build_arch, dockerfile_path=None, extracted_image
         else:
             dockerfile_path = EMULATOR_DOCKERFILE_X8664_ABS_PATH
     if extracted_image_dir:
-        p = subprocess.run(f"docker build --build-arg IMAGE_ARTEFACTS_SRC={extracted_image_dir} -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
+        p = subprocess.run(f"docker build --build-arg REPO_URL={docker_repo_url} --build-arg IMAGE_NAME={tag} --build-arg IMAGE_ARTEFACTS_SRC={extracted_image_dir} -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
                            shell=True, check=True)
     else:
         p = subprocess.run(f"docker build -t {tag} -f {dockerfile_path} --no-cache --platform {build_arch} .",
