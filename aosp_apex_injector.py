@@ -30,11 +30,14 @@ PathType = Union[str, os.PathLike]
 
 POST_INJECTOR_CONFIG = {}
 
-OPENSSL_PATH = ["prebuilts/build-tools/linux-x86/bin/openssl"]
+OPENSSL_PATH_LIST = ["openssl"]
 
 
 def get_openssl_path(aosp_path):
-    return os.path.join(aosp_path, OPENSSL_PATH[0])
+    openssl_path_list = []
+    for path in OPENSSL_PATH_LIST:
+        openssl_path_list.append(os.path.join(aosp_path, path))
+    return openssl_path_list
 
 
 
@@ -1559,15 +1562,18 @@ def convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path, aosp_p
     if not os.path.exists(private_key_path) or not os.path.exists(public_key_path):
         return False, "Private or public key not found."
     is_success = False
-    openssl_bin_path = get_openssl_path(aosp_path)
-    command = f"{openssl_bin_path} pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
-    env_copy = os.environ.copy()
-    result = subprocess.run(command, shell=True, capture_output=True, text=True, env=env_copy)
-    if result.returncode == 0:
-        is_success = True
-        log_message = result.stdout
-    else:
-        log_message = result.stderr
+    openssl_bin_path_list = get_openssl_path(aosp_path)
+    log_message = ""
+    for openssl_bin_path in openssl_bin_path_list:
+        command = f"{openssl_bin_path} pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
+        env_copy = os.environ.copy()
+        result = subprocess.run(command, shell=True, capture_output=True, text=True, env=env_copy)
+        if result.returncode == 0:
+            is_success = True
+            log_message = result.stdout
+            break
+        else:
+            log_message = result.stderr
     return is_success, log_message
 
 
@@ -1877,51 +1883,54 @@ def generate_apex_keys(aosp_path, apex_file_name):
     temp_keys_dir, priv_key_path, pub_key_path, priv_pem_file_path, avb_pub_key_path, apex_apk_cert = create_key_paths(apex_file_name)
     is_success = False
     log_message = ""
-    openssl_bin_path = get_openssl_path(aosp_path)
-    # Generate private and public keys in PEM format
-    command_pem = [
-        openssl_bin_path, 'genpkey', '-algorithm', 'RSA', '-out', priv_pem_file_path, '-pkeyopt', 'rsa_keygen_bits:4096'
-    ]
-    result_pem = subprocess.run(command_pem, capture_output=True, text=True, env=os.environ.copy())
-    if result_pem.returncode != 0 or not os.path.exists(priv_pem_file_path):
-        log_message = f"Error generating PEM keys: {result_pem.stderr}|{result_pem.stdout}"
-        logging.error(log_message)
-    else:
-        logging.info(f"PEM keys generated successfully: {priv_pem_file_path}")
-        log_message = result_pem.stdout
+    openssl_bin_path_list = get_openssl_path(aosp_path)
+    for openssl_bin_path in openssl_bin_path_list:
+        # Generate private and public keys in PEM format
+        command_pem = [
+            openssl_bin_path, 'genpkey', '-algorithm', 'RSA', '-out', priv_pem_file_path, '-pkeyopt', 'rsa_keygen_bits:4096'
+        ]
+        result_pem = subprocess.run(command_pem, capture_output=True, text=True, env=os.environ.copy())
+        if result_pem.returncode != 0 or not os.path.exists(priv_pem_file_path):
+            log_message = f"Error generating PEM keys: {result_pem.stderr}|{result_pem.stdout}"
+            logging.error(log_message)
+        else:
+            logging.info(f"PEM keys generated successfully: {priv_pem_file_path}")
+            log_message = result_pem.stdout
 
-    # Convert private key from PEM to PK8 format
-    command_pk8 = [
-        openssl_bin_path, 'pkcs8', '-topk8', '-inform', 'PEM', '-outform', 'DER', '-in', priv_pem_file_path, '-out', priv_key_path, '-nocrypt'
-    ]
-    result_pk8 = subprocess.run(command_pk8, capture_output=True, text=True, env=os.environ.copy())
-    if result_pk8.returncode != 0 or not os.path.exists(priv_key_path):
-        log_message += f"\nError converting PEM to PK8: {result_pk8.stderr}|{result_pem.stdout}"
-        logging.error(log_message)
-    else:
-        logging.info(f"PK8 key generated successfully: {priv_key_path}")
-        log_message += result_pk8.stdout
+        # Convert private key from PEM to PK8 format
+        command_pk8 = [
+            openssl_bin_path, 'pkcs8', '-topk8', '-inform', 'PEM', '-outform', 'DER', '-in', priv_pem_file_path, '-out', priv_key_path, '-nocrypt'
+        ]
+        result_pk8 = subprocess.run(command_pk8, capture_output=True, text=True, env=os.environ.copy())
+        if result_pk8.returncode != 0 or not os.path.exists(priv_key_path):
+            log_message += f"\nError converting PEM to PK8: {result_pk8.stderr}|{result_pem.stdout}"
+            logging.error(log_message)
+        else:
+            logging.info(f"PK8 key generated successfully: {priv_key_path}")
+            log_message += result_pk8.stdout
 
-    # Generate x509 certificate using the private key in PEM format
-    command_x509 = [
-        openssl_bin_path, 'req', '-x509', '-key', priv_pem_file_path,
-        '-out', apex_apk_cert, '-days', '365', '-nodes', '-subj', '/CN=example.com'
-    ]
-    result_x509 = subprocess.run(command_x509, capture_output=True, text=True, env=os.environ.copy())
-    if result_x509.returncode != 0 or not os.path.exists(apex_apk_cert):
-        log_message += f"\nError generating x509 certificate: {result_x509.stderr}|{result_pem.stdout}"
-        logging.error(log_message)
-    else:
-        logging.info(f"x509 certificate generated successfully: {apex_apk_cert}")
-        log_message += result_x509.stdout
-        is_success = True
+        # Generate x509 certificate using the private key in PEM format
+        command_x509 = [
+            openssl_bin_path, 'req', '-x509', '-key', priv_pem_file_path,
+            '-out', apex_apk_cert, '-days', '365', '-nodes', '-subj', '/CN=example.com'
+        ]
+        result_x509 = subprocess.run(command_x509, capture_output=True, text=True, env=os.environ.copy())
+        if result_x509.returncode != 0 or not os.path.exists(apex_apk_cert):
+            log_message += f"\nError generating x509 certificate: {result_x509.stderr}|{result_pem.stdout}"
+            logging.error(log_message)
+        else:
+            logging.info(f"x509 certificate generated successfully: {apex_apk_cert}")
+            log_message += result_x509.stdout
+            is_success = True
 
-    is_success = extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
-    if not is_success:
-        log_message += f"\nError extracting AVB public key for APEX: {apex_file_name}. Private key file: {priv_key_path} to {avb_pub_key_path}"
-        logging.error(log_message)
-    else:
-        logging.info(f"AVB public key extracted successfully: {avb_pub_key_path}")
+        if is_success:
+            is_success = extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
+            if not is_success:
+                log_message += f"\nError extracting AVB public key for APEX: {apex_file_name}. Private key file: {priv_key_path} to {avb_pub_key_path}"
+                logging.error(log_message)
+            else:
+                logging.info(f"AVB public key extracted successfully: {avb_pub_key_path}")
+                break
 
     return is_success, log_message, temp_keys_dir, priv_key_path, priv_pem_file_path, pub_key_path, avb_pub_key_path, apex_apk_cert
 
@@ -1939,30 +1948,32 @@ def generate_apex_keys_p12(private_key_path, public_key_path, p12_path, aosp_pat
     is_success = False
     log_message = ""
 
-    openssl_bin_path = get_openssl_path(aosp_path)
-    # Generate private and public keys
-    command = [
-        openssl_bin_path, 'req', '-x509', '-newkey', 'rsa:4096', '-keyout', private_key_path,
-        '-out', public_key_path, '-days', '365', '-nodes', '-subj', '/CN=example.com'
-    ]
-    result = subprocess.run(command, capture_output=True, text=True, env=os.environ.copy())
-    if result.returncode != 0 or not os.path.exists(private_key_path) or not os.path.exists(public_key_path):
-        log_message = f"Error generating keys: {result.stderr}"
-        logging.error(log_message)
-    else:
-        logging.info(f"Keys generated successfully: {private_key_path}, {public_key_path}")
-        log_message = result.stdout
-
-        # Convert keys to .p12
-        command = f"{openssl_bin_path} pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
-        if result.returncode == 0:
-            log_message = result.stdout
-            logging.info(f".p12 file generated successfully: {p12_path}")
-            is_success = True
+    openssl_bin_path_list = get_openssl_path(aosp_path)
+    for openssl_bin_path in openssl_bin_path_list:
+        # Generate private and public keys
+        command = [
+            openssl_bin_path, 'req', '-x509', '-newkey', 'rsa:4096', '-keyout', private_key_path,
+            '-out', public_key_path, '-days', '365', '-nodes', '-subj', '/CN=example.com'
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, env=os.environ.copy())
+        if result.returncode != 0 or not os.path.exists(private_key_path) or not os.path.exists(public_key_path):
+            log_message = f"Error generating keys: {result.stderr}"
+            logging.error(log_message)
         else:
-            log_message = result.stderr
-            logging.error(f"Error converting keys to .p12: {log_message}")
+            logging.info(f"Keys generated successfully: {private_key_path}, {public_key_path}")
+            log_message = result.stdout
+
+            # Convert keys to .p12
+            command = f"{openssl_bin_path} pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
+            result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
+            if result.returncode == 0:
+                log_message = result.stdout
+                logging.info(f".p12 file generated successfully: {p12_path}")
+                is_success = True
+                break
+            else:
+                log_message = result.stderr
+                logging.error(f"Error converting keys to .p12: {log_message}")
 
     return is_success, log_message
 
