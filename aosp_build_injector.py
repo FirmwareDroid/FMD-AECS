@@ -485,16 +485,16 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
     logging.debug(f"Start aosp {aosp_version} build injection with firmware: {firmware_id}")
     overwrite_partition_size(aosp_path)
     if aosp_version in ["11", "12", "12.1"]:
-        blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static'"
+        blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static bssl'"
     else:
-        blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static apexer deapexer avbtool'"
+        blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static apexer deapexer avbtool bssl'"
     try:
         execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path, log_name="host_tools_build_")
     except Exception as err:
         if aosp_version in ["14"]:
             lunch_target = SUPPORTED_LUNCH_TARGETS[2]
             logging.warning(f"Downgrading lunch target to {lunch_target}")
-            blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static apexer deapexer avbtool'"
+            blueprint_build_command = f"bash -c 'cd {aosp_path} && source {aosp_path}/build/envsetup.sh && lunch {lunch_target} && m clean && m blueprint_tools otatools debugfs_static apexer deapexer avbtool bssl'"
             execute_build_command(aosp_path, firmware_id, blueprint_build_command, aosp_path, log_name="host_tools_build_")
         else:
             raise err

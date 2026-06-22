@@ -24,6 +24,10 @@ from shell_command import execute_shell_command
 from config_post_injector import *
 import os
 from typing import Union
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.serialization import pkcs12
+from datetime import datetime, timezone, timedelta
 
 # Using Union[str, os.PathLike] allows both regular strings and Path objects
 PathType = Union[str, os.PathLike]
@@ -31,7 +35,7 @@ PathType = Union[str, os.PathLike]
 POST_INJECTOR_CONFIG = {}
 
 OPENSSL_PATH_LIST = ["out/host/linux-x86/bin/openssl", "openssl", "prebuilts/build-tools/linux-x86/bin/openssl"]
-
+BSSL_PATH_LIST = ["out/host/linux-x86/bin/bssl"]
 
 def get_openssl_path(aosp_path):
     openssl_path_list = []
@@ -39,6 +43,14 @@ def get_openssl_path(aosp_path):
         if "/" in path:
             openssl_path_list.append(os.path.join(aosp_path, path))
     return openssl_path_list
+
+
+def get_bssl_path(aosp_path):
+    bssl_path_list = []
+    for path in BSSL_PATH_LIST:
+        if "/" in path:
+            bssl_path_list.append(os.path.join(aosp_path, path))
+    return bssl_path_list
 
 
 
@@ -1551,31 +1563,192 @@ def sign_apex_file(file_path, aosp_path, priv_key_apex_apk_path, apex_apk_certif
     return is_success, error_message
 
 
+def _generate_fallback_x509_cert(private_key_pem_path, cert_out_path):
+    """
+    Helper using Python cryptography to generate the standard self-signed X.509
+    transport certificate container wrapper that bssl cannot generate natively.
+    """
+    try:
+        with open(private_key_pem_path, "rb") as f:
+            private_key = serialization.load_pem_private_key(f.read(), password=None)
+
+        subject = issuer = x509.Name([
+            x509.NameAttribute(x509.NameOID.COMMON_NAME, u"example.com")
+        ])
+
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(private_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.now(timezone.utc))
+            .not_valid_after(datetime.now(timezone.utc) + timedelta(days=365))
+            .sign(private_key, hashes.SHA256())
+        )
+
+        with open(cert_out_path, "wb") as f:
+            f.write(cert.public_bytes(serialization.Encoding.PEM))
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+
+def generate_apex_keys(aosp_path, apex_file_name):
+    temp_keys_dir, priv_key_path, pub_key_path, priv_pem_file_path, avb_pub_key_path, apex_apk_cert = create_key_paths(
+        apex_file_name)
+    is_success = False
+    log_message = ""
+
+    # Assuming get_bssl_path is configured to point to out/host/linux-x86/bin/bssl
+    bssl_bin_path_list = get_bssl_path(aosp_path)
+
+    for bssl_bin_path in bssl_bin_path_list:
+        # Generate private key in PEM format using bssl genrsa
+        command_pem = [
+            bssl_bin_path, 'genrsa', '-out', priv_pem_file_path, '4096'
+        ]
+        result_pem = subprocess.run(command_pem, capture_output=True, text=True, env=os.environ.copy())
+        if result_pem.returncode != 0 or not os.path.exists(priv_pem_file_path):
+            log_message = f"Error generating PEM keys via bssl: {result_pem.stderr}|{result_pem.stdout}"
+            logging.error(log_message)
+            continue
+        else:
+            logging.info(f"PEM keys generated successfully via bssl: {priv_pem_file_path}")
+            log_message = result_pem.stdout
+
+        # Convert private key from PEM to PK8 format using bssl pkcs8
+        command_pk8 = [
+            bssl_bin_path, 'pkcs8', '-topk8', '-outform', 'DER', '-in', priv_pem_file_path, '-out', priv_key_path,
+            '-nocrypt'
+        ]
+        result_pk8 = subprocess.run(command_pk8, capture_output=True, text=True, env=os.environ.copy())
+        if result_pk8.returncode != 0 or not os.path.exists(priv_key_path):
+            log_message += f"\nError converting PEM to PK8 via bssl: {result_pk8.stderr}|{result_pk8.stdout}"
+            logging.error(log_message)
+            continue
+        else:
+            logging.info(f"PK8 key generated successfully via bssl: {priv_key_path}")
+            log_message += result_pk8.stdout
+
+        # Generate x509 certificate using python fallback (bssl has no 'req'/'x509')
+        cert_success, cert_err = _generate_fallback_x509_cert(priv_pem_file_path, apex_apk_cert)
+        if not cert_success or not os.path.exists(apex_apk_cert):
+            log_message += f"\nError generating x509 certificate fallback: {cert_err}"
+            logging.error(log_message)
+            continue
+        else:
+            logging.info(f"x509 certificate generated successfully: {apex_apk_cert}")
+            is_success = True
+
+        if is_success:
+            is_success = extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
+            if not is_success:
+                log_message += f"\nError extracting AVB public key for APEX: {apex_file_name}. Private key file: {priv_key_path} to {avb_pub_key_path}"
+                logging.error(log_message)
+            else:
+                logging.info(f"AVB public key extracted successfully: {avb_pub_key_path}")
+                break
+
+    return is_success, log_message, temp_keys_dir, priv_key_path, priv_pem_file_path, pub_key_path, avb_pub_key_path, apex_apk_cert
+
+
+def generate_apex_keys_p12(private_key_path, public_key_path, p12_path, aosp_path):
+    """
+    Generates a private key, a public certificate wrapper, and packages them safely into a .p12 archive.
+    """
+    is_success = False
+    log_message = ""
+
+    bssl_bin_path_list = get_bssl_path(aosp_path)
+    for bssl_bin_path in bssl_bin_path_list:
+        # Step 1: Generate the base PEM private key
+        command = [
+            bssl_bin_path, 'genrsa', '-out', private_key_path, '4096'
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, env=os.environ.copy())
+        if result.returncode != 0 or not os.path.exists(private_key_path):
+            log_message = f"Error generating private key via bssl: {result.stderr}"
+            logging.error(log_message)
+            continue
+
+        # Step 2: Generate x509 public wrapper since bssl lacks 'req -newkey'
+        cert_success, cert_err = _generate_fallback_x509_cert(private_key_path, public_key_path)
+        if not cert_success or not os.path.exists(public_key_path):
+            log_message = f"Error creating public cert container: {cert_err}"
+            logging.error(log_message)
+            continue
+
+        logging.info(f"Keys generated successfully: {private_key_path}, {public_key_path}")
+        log_message = "Keypair established."
+
+        # Step 3: Bundle to PKCS12 archive (.p12) using python serialization logic
+        conv_success, conv_log = convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path, aosp_path)
+        log_message += f"\n{conv_log}"
+        if conv_success:
+            is_success = True
+            break
+
+    return is_success, log_message
+
+
+
+# def convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path, aosp_path):
+#     """
+#     Converts the private and public keys to a p12 file.
+#     :param private_key_path: str - path to the private key.
+#     :param public_key_path: str - path to the public key.
+#     :param p12_path: str - path to the p12 file.
+#
+#     :return: Tuple - (bool, str) - True if the conversion was successful, False otherwise. String containing the log.
+#     """
+#     if not os.path.exists(private_key_path) or not os.path.exists(public_key_path):
+#         return False, "Private or public key not found."
+#     is_success = False
+#     openssl_bin_path_list = get_openssl_path(aosp_path)
+#     log_message = ""
+#     for openssl_bin_path in openssl_bin_path_list:
+#         command = f"{openssl_bin_path} pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
+#         env_copy = os.environ.copy()
+#         result = subprocess.run(command, shell=True, capture_output=True, text=True, env=env_copy)
+#         if result.returncode == 0:
+#             is_success = True
+#             log_message = result.stdout
+#             break
+#         else:
+#             log_message = result.stderr
+#     return is_success, log_message
+
+
 def convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path, aosp_path):
     """
-    Converts the private and public keys to a p12 file.
-    :param private_key_path: str - path to the private key.
-    :param public_key_path: str - path to the public key.
-    :param p12_path: str - path to the p12 file.
-
-    :return: Tuple - (bool, str) - True if the conversion was successful, False otherwise. String containing the log.
+    Converts private key and public certificate components to standard .p12 container.
+    Safe from bssl's lack of pkcs12 operations and completely removes dangerous 'shell=True' invocations.
     """
     if not os.path.exists(private_key_path) or not os.path.exists(public_key_path):
-        return False, "Private or public key not found."
-    is_success = False
-    openssl_bin_path_list = get_openssl_path(aosp_path)
-    log_message = ""
-    for openssl_bin_path in openssl_bin_path_list:
-        command = f"{openssl_bin_path} pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
-        env_copy = os.environ.copy()
-        result = subprocess.run(command, shell=True, capture_output=True, text=True, env=env_copy)
-        if result.returncode == 0:
-            is_success = True
-            log_message = result.stdout
-            break
-        else:
-            log_message = result.stderr
-    return is_success, log_message
+        return False, "Private or public key component not found."
+
+    try:
+        with open(private_key_path, "rb") as f:
+            priv_key = serialization.load_pem_private_key(f.read(), password=None)
+        with open(public_key_path, "rb") as f:
+            cert = x509.load_pem_x509_certificate(f.read())
+
+        # Serialize to PKCS12 byte-stream without encryption passphrase (matching 'passout pass:')
+        p12_data = pkcs12.serialize_key_and_certificates(
+            name=b"apex_key",
+            key=priv_key,
+            cert=cert,
+            cas=None,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+
+        with open(p12_path, "wb") as f:
+            f.write(p12_data)
+
+        return True, f".p12 container successfully established via fallback serialization: {p12_path}"
+    except Exception as e:
+        return False, f"Exception occurred during PKCS12 encapsulation step: {str(e)}"
 
 
 def restore_original_apex(file_path, org_apex_file):
@@ -1880,103 +2053,103 @@ def create_key_paths(apex_file_name):
     return temp_keys_dir, priv_key_path, pub_key_path, priv_pem_file_path, avb_pub_key_path, apex_apk_cert
 
 
-def generate_apex_keys(aosp_path, apex_file_name):
-    temp_keys_dir, priv_key_path, pub_key_path, priv_pem_file_path, avb_pub_key_path, apex_apk_cert = create_key_paths(apex_file_name)
-    is_success = False
-    log_message = ""
-    openssl_bin_path_list = get_openssl_path(aosp_path)
-    for openssl_bin_path in openssl_bin_path_list:
-        # Generate private and public keys in PEM format
-        command_pem = [
-            openssl_bin_path, 'genpkey', '-algorithm', 'RSA', '-out', priv_pem_file_path, '-pkeyopt', 'rsa_keygen_bits:4096'
-        ]
-        result_pem = subprocess.run(command_pem, capture_output=True, text=True, env=os.environ.copy())
-        if result_pem.returncode != 0 or not os.path.exists(priv_pem_file_path):
-            log_message = f"Error generating PEM keys: {result_pem.stderr}|{result_pem.stdout}"
-            logging.error(log_message)
-        else:
-            logging.info(f"PEM keys generated successfully: {priv_pem_file_path}")
-            log_message = result_pem.stdout
+# def generate_apex_keys(aosp_path, apex_file_name):
+#     temp_keys_dir, priv_key_path, pub_key_path, priv_pem_file_path, avb_pub_key_path, apex_apk_cert = create_key_paths(apex_file_name)
+#     is_success = False
+#     log_message = ""
+#     openssl_bin_path_list = get_openssl_path(aosp_path)
+#     for openssl_bin_path in openssl_bin_path_list:
+#         # Generate private and public keys in PEM format
+#         command_pem = [
+#             openssl_bin_path, 'genpkey', '-algorithm', 'RSA', '-out', priv_pem_file_path, '-pkeyopt', 'rsa_keygen_bits:4096'
+#         ]
+#         result_pem = subprocess.run(command_pem, capture_output=True, text=True, env=os.environ.copy())
+#         if result_pem.returncode != 0 or not os.path.exists(priv_pem_file_path):
+#             log_message = f"Error generating PEM keys: {result_pem.stderr}|{result_pem.stdout}"
+#             logging.error(log_message)
+#         else:
+#             logging.info(f"PEM keys generated successfully: {priv_pem_file_path}")
+#             log_message = result_pem.stdout
+#
+#         # Convert private key from PEM to PK8 format
+#         command_pk8 = [
+#             openssl_bin_path, 'pkcs8', '-topk8', '-inform', 'PEM', '-outform', 'DER', '-in', priv_pem_file_path, '-out', priv_key_path, '-nocrypt'
+#         ]
+#         result_pk8 = subprocess.run(command_pk8, capture_output=True, text=True, env=os.environ.copy())
+#         if result_pk8.returncode != 0 or not os.path.exists(priv_key_path):
+#             log_message += f"\nError converting PEM to PK8: {result_pk8.stderr}|{result_pem.stdout}"
+#             logging.error(log_message)
+#         else:
+#             logging.info(f"PK8 key generated successfully: {priv_key_path}")
+#             log_message += result_pk8.stdout
+#
+#         # Generate x509 certificate using the private key in PEM format
+#         command_x509 = [
+#             openssl_bin_path, 'req', '-x509', '-key', priv_pem_file_path,
+#             '-out', apex_apk_cert, '-days', '365', '-nodes', '-subj', '/CN=example.com'
+#         ]
+#         result_x509 = subprocess.run(command_x509, capture_output=True, text=True, env=os.environ.copy())
+#         if result_x509.returncode != 0 or not os.path.exists(apex_apk_cert):
+#             log_message += f"\nError generating x509 certificate: {result_x509.stderr}|{result_pem.stdout}"
+#             logging.error(log_message)
+#         else:
+#             logging.info(f"x509 certificate generated successfully: {apex_apk_cert}")
+#             log_message += result_x509.stdout
+#             is_success = True
+#
+#         if is_success:
+#             is_success = extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
+#             if not is_success:
+#                 log_message += f"\nError extracting AVB public key for APEX: {apex_file_name}. Private key file: {priv_key_path} to {avb_pub_key_path}"
+#                 logging.error(log_message)
+#             else:
+#                 logging.info(f"AVB public key extracted successfully: {avb_pub_key_path}")
+#                 break
+#
+#     return is_success, log_message, temp_keys_dir, priv_key_path, priv_pem_file_path, pub_key_path, avb_pub_key_path, apex_apk_cert
 
-        # Convert private key from PEM to PK8 format
-        command_pk8 = [
-            openssl_bin_path, 'pkcs8', '-topk8', '-inform', 'PEM', '-outform', 'DER', '-in', priv_pem_file_path, '-out', priv_key_path, '-nocrypt'
-        ]
-        result_pk8 = subprocess.run(command_pk8, capture_output=True, text=True, env=os.environ.copy())
-        if result_pk8.returncode != 0 or not os.path.exists(priv_key_path):
-            log_message += f"\nError converting PEM to PK8: {result_pk8.stderr}|{result_pem.stdout}"
-            logging.error(log_message)
-        else:
-            logging.info(f"PK8 key generated successfully: {priv_key_path}")
-            log_message += result_pk8.stdout
-
-        # Generate x509 certificate using the private key in PEM format
-        command_x509 = [
-            openssl_bin_path, 'req', '-x509', '-key', priv_pem_file_path,
-            '-out', apex_apk_cert, '-days', '365', '-nodes', '-subj', '/CN=example.com'
-        ]
-        result_x509 = subprocess.run(command_x509, capture_output=True, text=True, env=os.environ.copy())
-        if result_x509.returncode != 0 or not os.path.exists(apex_apk_cert):
-            log_message += f"\nError generating x509 certificate: {result_x509.stderr}|{result_pem.stdout}"
-            logging.error(log_message)
-        else:
-            logging.info(f"x509 certificate generated successfully: {apex_apk_cert}")
-            log_message += result_x509.stdout
-            is_success = True
-
-        if is_success:
-            is_success = extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
-            if not is_success:
-                log_message += f"\nError extracting AVB public key for APEX: {apex_file_name}. Private key file: {priv_key_path} to {avb_pub_key_path}"
-                logging.error(log_message)
-            else:
-                logging.info(f"AVB public key extracted successfully: {avb_pub_key_path}")
-                break
-
-    return is_success, log_message, temp_keys_dir, priv_key_path, priv_pem_file_path, pub_key_path, avb_pub_key_path, apex_apk_cert
 
 
-
-def generate_apex_keys_p12(private_key_path, public_key_path, p12_path, aosp_path):
-    """
-    Generates a private key, a public key, and converts them to a .p12 file.
-
-    :param private_key_path: str - path to the private key.
-    :param public_key_path: str - path to the public key.
-    :param p12_path: str - path to the .p12 file.
-    :return: Tuple - (bool, str) - True if the generation was successful, False otherwise. String containing the log.
-    """
-    is_success = False
-    log_message = ""
-
-    openssl_bin_path_list = get_openssl_path(aosp_path)
-    for openssl_bin_path in openssl_bin_path_list:
-        # Generate private and public keys
-        command = [
-            openssl_bin_path, 'req', '-x509', '-newkey', 'rsa:4096', '-keyout', private_key_path,
-            '-out', public_key_path, '-days', '365', '-nodes', '-subj', '/CN=example.com'
-        ]
-        result = subprocess.run(command, capture_output=True, text=True, env=os.environ.copy())
-        if result.returncode != 0 or not os.path.exists(private_key_path) or not os.path.exists(public_key_path):
-            log_message = f"Error generating keys: {result.stderr}"
-            logging.error(log_message)
-        else:
-            logging.info(f"Keys generated successfully: {private_key_path}, {public_key_path}")
-            log_message = result.stdout
-
-            # Convert keys to .p12
-            command = f"{openssl_bin_path} pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
-            result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
-            if result.returncode == 0:
-                log_message = result.stdout
-                logging.info(f".p12 file generated successfully: {p12_path}")
-                is_success = True
-                break
-            else:
-                log_message = result.stderr
-                logging.error(f"Error converting keys to .p12: {log_message}")
-
-    return is_success, log_message
+# def generate_apex_keys_p12(private_key_path, public_key_path, p12_path, aosp_path):
+#     """
+#     Generates a private key, a public key, and converts them to a .p12 file.
+#
+#     :param private_key_path: str - path to the private key.
+#     :param public_key_path: str - path to the public key.
+#     :param p12_path: str - path to the .p12 file.
+#     :return: Tuple - (bool, str) - True if the generation was successful, False otherwise. String containing the log.
+#     """
+#     is_success = False
+#     log_message = ""
+#
+#     openssl_bin_path_list = get_openssl_path(aosp_path)
+#     for openssl_bin_path in openssl_bin_path_list:
+#         # Generate private and public keys
+#         command = [
+#             openssl_bin_path, 'req', '-x509', '-newkey', 'rsa:4096', '-keyout', private_key_path,
+#             '-out', public_key_path, '-days', '365', '-nodes', '-subj', '/CN=example.com'
+#         ]
+#         result = subprocess.run(command, capture_output=True, text=True, env=os.environ.copy())
+#         if result.returncode != 0 or not os.path.exists(private_key_path) or not os.path.exists(public_key_path):
+#             log_message = f"Error generating keys: {result.stderr}"
+#             logging.error(log_message)
+#         else:
+#             logging.info(f"Keys generated successfully: {private_key_path}, {public_key_path}")
+#             log_message = result.stdout
+#
+#             # Convert keys to .p12
+#             command = f"{openssl_bin_path} pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
+#             result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
+#             if result.returncode == 0:
+#                 log_message = result.stdout
+#                 logging.info(f".p12 file generated successfully: {p12_path}")
+#                 is_success = True
+#                 break
+#             else:
+#                 log_message = result.stderr
+#                 logging.error(f"Error converting keys to .p12: {log_message}")
+#
+#     return is_success, log_message
 
 
 def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
