@@ -19,9 +19,12 @@ ZIPALIGN_BINARY_PATH_LIST = ["prebuilts/sdk/tools/linux/bin/zipalign", "out/host
 def get_apksigner_binary_command(aosp_path):
     candidate_list = []
     for binary_path in APKSIGNER_BINARY_PATH_LIST:
-        candidate = os.path.join(aosp_path, binary_path)
-        if os.path.exists(candidate):
-            candidate_list.append(candidate)
+        if "/" in binary_path:
+            candidate = os.path.join(aosp_path, binary_path)
+            if os.path.exists(candidate):
+                candidate_list.append(candidate)
+        else:
+            candidate_list.append(binary_path)
             # if not ".jar" in candidate:
             #     if "prebuilts" in candidate or "tools" in candidate:
             #         javalib_path = os.path.join(aosp_path, APKSIGNER_JAVALIB_PATH)
