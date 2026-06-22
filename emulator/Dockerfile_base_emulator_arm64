@@ -38,8 +38,6 @@ RUN set -eux; \
     apt-get clean \
 
 ### Add Image Name for ACVTool ####
-ARG IMAGE_NAME=unknown-image
-ARG REPO_URL=unknown-repo
 RUN mkdir -p /android
 RUN printf "${IMAGE_NAME}\n" > /android/image_meta.txt
 RUN printf "${REPO_URL}\n" >> /android/image_meta.txt
