@@ -250,6 +250,7 @@ def build_container_image(tag, build_arch, dockerfile_path=None, extracted_image
         else:
             dockerfile_path = EMULATOR_DOCKERFILE_X8664_ABS_PATH
     if extracted_image_dir:
+        logging.info(f"Extracting docker image from {extracted_image_dir}. Repo URL: {docker_repo_url}, Tag: {tag}")
         cmd = [
             "docker", "build",
             "--build-arg", f"REPO_URL={docker_repo_url}",

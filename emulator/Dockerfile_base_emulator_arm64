@@ -35,12 +35,7 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*; \
     apt-get clean
 
-### Add Image Name for ACVTool ####
-RUN mkdir -p /android
-RUN printf "${IMAGE_NAME}\n" > /android/image_meta.txt
-RUN printf "${REPO_URL}\n" >> /android/image_meta.txt
-RUN mkdir -p /root/acvtool/acvtool_working_dir/covered_pickles
-RUN mkdir -p /root/acvtool/pickles
+
 ################################
 # Install Java
 ################################
@@ -177,6 +172,16 @@ RUN set -eux; \
     fi
 RUN set -eux; python3 /android/testing_service/app_testing_tools/install_tools.py;
 RUN set -eux; python3 /android/testing_service/app_testing_tools/install_acvtool.py
+
+################################
+### Add Image Name for ACVTool ####
+################################
+RUN mkdir -p /android
+RUN printf "${IMAGE_NAME}\n" > /android/image_meta.txt
+RUN printf "${REPO_URL}\n" >> /android/image_meta.txt
+RUN mkdir -p /root/acvtool/acvtool_working_dir/covered_pickles
+RUN mkdir -p /root/acvtool/pickles
+
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["/bin/bash"]
