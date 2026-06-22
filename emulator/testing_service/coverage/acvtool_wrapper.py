@@ -14,6 +14,7 @@ ACV_DOWNLOAD_PATH = "/root/acvtool/pickles"
 ACV_EXTRACTED_PICKLES_PATH = "/root/acvtool/pickles_ext"
 ACV_WD_DIR = "/root/acvtool/acvtool_working_dir"
 ACV_WD_PICKLES_DIR = "/root/acvtool/acvtool_working_dir/covered_pickles"
+PORT = "8443"
 
 def run_acv_command(cmd_args):
     """
@@ -43,7 +44,8 @@ def get_image_meta():
                 image_name = lines[0].strip()
                 repo_url = lines[1].strip()
                 parsed_url = urlparse(repo_url)
-                protocol_and_domain = f"{parsed_url.scheme}://{parsed_url.netloc}"
+                new_netloc = f"{parsed_url.hostname}:{PORT}"
+                protocol_and_domain = parsed_url._replace(netloc=new_netloc, path="", params="", query="", fragment="").geturl()
                 logging.info(f"Parsed URL: {repo_url}. Domain: {protocol_and_domain}. Image: {image_name}")
                 return image_name, protocol_and_domain
             else:
