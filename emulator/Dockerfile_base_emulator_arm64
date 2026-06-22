@@ -1,6 +1,8 @@
 FROM debian:12-slim AS fmd-emulator_arm64
 ARG IMAGE_NAME
 ARG REPO_URL
+ENV IMAGE_NAME=${IMAGE_NAME}
+ENV REPO_URL=${REPO_URL}
 # add arm64 architecture as workaround for apt-get update on linux amd64
 #RUN dpkg --add-architecture arm64
 #RUN sed -i "s/deb h/deb [arch=amd64] h/g" /etc/apt/sources.list
