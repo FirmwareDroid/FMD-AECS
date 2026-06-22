@@ -43,11 +43,9 @@ def get_image_meta():
                 image_name = lines[0].strip()
                 repo_url = lines[1].strip()
                 parsed_url = urlparse(repo_url)
-                domain_and_port = parsed_url.netloc
-                if not domain_and_port.startswith("https"):
-                    domain_and_port = "https://" + domain_and_port
-                logging.info(f"Parsed URL: {repo_url}. Domain: {domain_and_port}. Image: {image_name}")
-                return image_name, domain_and_port
+                protocol_and_domain = f"{parsed_url.scheme}://{parsed_url.netloc}"
+                logging.info(f"Parsed URL: {repo_url}. Domain: {protocol_and_domain}. Image: {image_name}")
+                return image_name, protocol_and_domain
             else:
                 logging.warning(f"Image meta file {IMAGE_META_PATH} does not contain enough information.")
                 return "unknown-image", "unknown-repo"
