@@ -1075,7 +1075,7 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                            #f'&& chown {current_username}:{current_username} {dst_file_path} '
                            f'&& chmod 0755 {dst_file_path}')
                 logging.info(f"Copy APEX vendor app: {file_path} into {dst_file_path} with command: {command}")
-                result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
                 if result.returncode != 0:
                     logging.error(
                         f"Error copying file in APEX container (when injecting APKs): {file_path} with {dst_file_path} | {result.stderr}")
@@ -1138,7 +1138,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                            #f'&& chown -R {current_username}:{current_username} {dst_file_path} '
                            f'&& chmod -R 0755 {dst_file_path}')
                 logging.info(f"Copying symlink in APEX container: {file_path} into {dst_file_path} with command: {command}")
-                result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
                 if result.returncode != 0:
                     try:
                         copy_symlink_shutil(file_path, dst_file_path)
@@ -1164,7 +1164,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         command = (f'mkdir -p {directory_path} '
                                    #f'&& chown -R {current_username}:{current_username} {directory_path} '
                                    f'&& chmod -R 0755 {directory_path}')
-                        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                        result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
                         if result.returncode != 0:
                             logging.error(
                                 f"Error creating directory in APEX container: {directory_path} | {result.stderr}")
@@ -1213,7 +1213,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                                    #f'&& chown -R {current_username}:{current_username} {dst_file_path} '
                                    f'&& chmod -R 0755 {dst_file_path}')
                         logging.info(f"Run APEX copy command: {command}")
-                        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                        result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
                         if result.returncode != 0:
                             logging.error(
                                 f"Error copying file in APEX container: statuscode: {result.returncode}: "
@@ -1322,7 +1322,7 @@ def change_file_permission(file_path, permission):
     try:
         # sudo
         command = ['chmod', permission, file_path]
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        result = subprocess.run(command, check=True, capture_output=True, text=True, env=os.environ.copy())
         logging.info("Permissions for %s changed to %s", file_path, permission)
     except subprocess.CalledProcessError as e:
         logging.error("Error changing permissions for %s: %s", file_path, e.stderr)
@@ -1332,7 +1332,7 @@ def change_file_ownership(file_path):
         current_user = os.getlogin()
         # sudo'sudo',
         command = ['chown', current_user, file_path]
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        result = subprocess.run(command, check=True, capture_output=True, text=True, env=os.environ.copy())
         logging.info("Ownership of %s changed to %s", file_path, current_user)
     except subprocess.CalledProcessError as e:
         logging.error("Error changing ownership of %s: %s", file_path, e.stderr)
@@ -1561,7 +1561,8 @@ def convert_apex_keys_to_p12(private_key_path, public_key_path, p12_path, aosp_p
     is_success = False
     openssl_bin_path = get_openssl_path(aosp_path)
     command = f"{openssl_bin_path} pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    env_copy = os.environ.copy()
+    result = subprocess.run(command, shell=True, capture_output=True, text=True, env=env_copy)
     if result.returncode == 0:
         is_success = True
         log_message = result.stdout
@@ -1770,7 +1771,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
 
 def convert_apex_manifest_json_to_pb(apex_manifest_path, output_file_path):
     command = f"export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python && python3 ./conv_apex_manifest.py proto {apex_manifest_path} -o {output_file_path}"
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
     logging.info(f"Converting APEX manifest file to pb: {command}")
     if result.returncode == 0:
         logging.info(f"APEX: APEX manifest file converted to pb: {output_file_path}")
@@ -1881,7 +1882,7 @@ def generate_apex_keys(aosp_path, apex_file_name):
     command_pem = [
         openssl_bin_path, 'genpkey', '-algorithm', 'RSA', '-out', priv_pem_file_path, '-pkeyopt', 'rsa_keygen_bits:4096'
     ]
-    result_pem = subprocess.run(command_pem, capture_output=True, text=True)
+    result_pem = subprocess.run(command_pem, capture_output=True, text=True, env=os.environ.copy())
     if result_pem.returncode != 0 or not os.path.exists(priv_pem_file_path):
         log_message = f"Error generating PEM keys: {result_pem.stderr}|{result_pem.stdout}"
         logging.error(log_message)
@@ -1893,7 +1894,7 @@ def generate_apex_keys(aosp_path, apex_file_name):
     command_pk8 = [
         openssl_bin_path, 'pkcs8', '-topk8', '-inform', 'PEM', '-outform', 'DER', '-in', priv_pem_file_path, '-out', priv_key_path, '-nocrypt'
     ]
-    result_pk8 = subprocess.run(command_pk8, capture_output=True, text=True)
+    result_pk8 = subprocess.run(command_pk8, capture_output=True, text=True, env=os.environ.copy())
     if result_pk8.returncode != 0 or not os.path.exists(priv_key_path):
         log_message += f"\nError converting PEM to PK8: {result_pk8.stderr}|{result_pem.stdout}"
         logging.error(log_message)
@@ -1906,7 +1907,7 @@ def generate_apex_keys(aosp_path, apex_file_name):
         openssl_bin_path, 'req', '-x509', '-key', priv_pem_file_path,
         '-out', apex_apk_cert, '-days', '365', '-nodes', '-subj', '/CN=example.com'
     ]
-    result_x509 = subprocess.run(command_x509, capture_output=True, text=True)
+    result_x509 = subprocess.run(command_x509, capture_output=True, text=True, env=os.environ.copy())
     if result_x509.returncode != 0 or not os.path.exists(apex_apk_cert):
         log_message += f"\nError generating x509 certificate: {result_x509.stderr}|{result_pem.stdout}"
         logging.error(log_message)
@@ -1944,7 +1945,7 @@ def generate_apex_keys_p12(private_key_path, public_key_path, p12_path, aosp_pat
         openssl_bin_path, 'req', '-x509', '-newkey', 'rsa:4096', '-keyout', private_key_path,
         '-out', public_key_path, '-days', '365', '-nodes', '-subj', '/CN=example.com'
     ]
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(command, capture_output=True, text=True, env=os.environ.copy())
     if result.returncode != 0 or not os.path.exists(private_key_path) or not os.path.exists(public_key_path):
         log_message = f"Error generating keys: {result.stderr}"
         logging.error(log_message)
@@ -1954,7 +1955,7 @@ def generate_apex_keys_p12(private_key_path, public_key_path, p12_path, aosp_pat
 
         # Convert keys to .p12
         command = f"{openssl_bin_path} pkcs12 -export -out {p12_path} -inkey {private_key_path} -in {public_key_path} -passout pass:"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
         if result.returncode == 0:
             log_message = result.stdout
             logging.info(f".p12 file generated successfully: {p12_path}")
@@ -1979,7 +1980,7 @@ def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
     try:
         avbtool_path = os.path.join(aosp_path, "out/host/linux-x86/bin/avbtool")
         avb_extract_command = [avbtool_path, 'extract_public_key', "--key", key, "--output", avb_pub_out_path]
-        subprocess.run(avb_extract_command, check=True)
+        subprocess.run(avb_extract_command, check=True, env=os.environ.copy())
         logging.info(f"AVB public key extracted at: {avb_pub_out_path}")
     except Exception as e:
         logging.error(f"Error extracting AVB public key: {e}")
