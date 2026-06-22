@@ -87,8 +87,7 @@
     "/etc/vintf",
     "libadbd",
     "android.hardware.drm-service.clearkey",
-    "drm-service.widevine",
-    "libstagefright"
+    "drm-service.widevine"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
@@ -468,7 +467,8 @@
     ".jpeg",
     ".webp",
     ".txt",
-    ".ogg"
+    ".ogg",
+    "/lib64/libstagefright"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
