@@ -169,6 +169,9 @@ def main():
     parser_snap = subparsers.add_parser('start', help='Start coverage tracking for an app')
     parser_snap.add_argument('package', help='App package name')
 
+    parser_snap = subparsers.add_parser('download', help='Download coverage data from remote repo')
+    parser_snap.add_argument('package', help='App package name')
+
     args = parser.parse_args()
 
     if args.command == 'activate':
