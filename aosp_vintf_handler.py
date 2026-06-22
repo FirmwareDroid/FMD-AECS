@@ -50,13 +50,11 @@ def extract_hal_names_from_file(file_path):
     try:
         tree = ET.parse(file_path)
         root = tree.getroot()
-        # Find all <name> tags that are direct children of a <hal> tag
         for hal in root.findall('.//hal'):
             name_node = hal.find('name')
             if name_node is not None and name_node.text:
                 hal_names.add(name_node.text.strip())
     except ET.ParseError:
-        # Fallback to broad regex if the file is an incomplete fragment or malformed XML
         hal_pattern = re.compile(r"<hal[^>]*>.*?<name>([a-zA-Z0-9_\.]+)</name>", re.DOTALL)
         try:
             with open(file_path, "r", encoding="utf-8") as f:
@@ -70,12 +68,13 @@ def extract_hal_names_from_file(file_path):
 
 def remove_duplicate_hals_from_file(file_path, target_hals):
     """Surgically extracts and removes entire <hal> blocks matching target_hals from an XML file."""
+    if not target_hals:
+        return False
     try:
         tree = ET.parse(file_path)
         root = tree.getroot()
         modified = False
 
-        # Iterate backward or keep tracking to safely remove elements while looping
         hals_to_remove = []
         for hal in root.findall('.//hal'):
             name_node = hal.find('name')
@@ -83,7 +82,6 @@ def remove_duplicate_hals_from_file(file_path, target_hals):
                 hals_to_remove.append(hal)
 
         for hal in hals_to_remove:
-            # Try to remove from direct root or parent structure
             for parent in root.findall('.//'):
                 if hal in list(parent):
                     parent.remove(hal)
@@ -93,24 +91,31 @@ def remove_duplicate_hals_from_file(file_path, target_hals):
                 modified = True
 
         if modified:
+            # Check if file has any remaining HAL elements
+            remaining_hals = root.findall('.//hal')
+            if not remaining_hals and root.tag != 'manifest':
+                # No HALs left and it's not the primary manifest, we can safely signal to drop it
+                return "EMPTY"
+
             logging.info("[!] Scrubbed structural duplicate HAL definitions from: %s", os.path.basename(file_path))
             tree.write(file_path, encoding="utf-8", xml_declaration=True)
             return True
     except ET.ParseError:
-        # Fallback regex scrubbing for non-standard configurations
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             modified = False
             for hal in target_hals:
-                # Matches <hal> blocks containing the target <name>
                 pattern = r"<hal[^>]*>(?:(?!<\/hal>).)*?<name>" + re.escape(hal) + r"<\/name>.*?<\/hal>"
                 if re.search(pattern, content, re.DOTALL):
                     content = re.sub(pattern, "", content, flags=re.DOTALL)
                     modified = True
 
             if modified:
+                # Basic check if anything substantial remains
+                if not re.search(r"<hal[^>]*>", content) and "manifest" not in os.path.basename(file_path):
+                    return "EMPTY"
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(content)
                 return True
@@ -147,7 +152,6 @@ def run_assemble_vintf(binary_path, base_file, fragment_files, output_file, chec
     except subprocess.CalledProcessError as e:
         stderr_output = e.stderr.strip()
 
-        # Auto-recover sepolicy version profile mismatch
         match = re.search(r"Cannot override existing value ([\d\.]+) with BOARD_SEPOLICY_VERS", stderr_output)
         if match and not forced_version:
             detected_version = match.group(1)
@@ -176,7 +180,6 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
         manifest_temp = os.path.join(temp_dir, "manifests")
         os.makedirs(manifest_temp)
 
-        # 1. Separate staging areas to analyze overlap profile bounds
         aosp_stage = os.path.join(temp_dir, "aosp_stage")
         vendor_stage = os.path.join(temp_dir, "vendor_stage")
         os.makedirs(aosp_stage)
@@ -186,7 +189,18 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
         copy_vintf_files(aosp_dir, aosp_stage, overwrite=True)
         copy_vintf_files(vendor_dir, vendor_stage, overwrite=True)
 
-        # 2. Extract HAL names claimed directly by the vendor package
+        # Find the base manifest file (usually from AOSP, fallback to vendor)
+        base_manifest_source = os.path.join(aosp_stage, "manifest.xml")
+        if not os.path.exists(base_manifest_source):
+            base_manifest_source = os.path.join(vendor_stage, "manifest.xml")
+
+        # Extract baseline definitions to prevent internal fragment overlaps
+        primary_manifest_hals = set()
+        if os.path.exists(base_manifest_source):
+            primary_manifest_hals = extract_hal_names_from_file(base_manifest_source)
+            logging.info("[!] Primary base manifest.xml contains %d HAL entries.", len(primary_manifest_hals))
+
+        # Extract HAL names claimed directly by the vendor package
         vendor_hal_signatures = set()
         for file_name in os.listdir(vendor_stage):
             if file_name.endswith(".xml") and "compatibility_matrix" not in file_name:
@@ -194,61 +208,70 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
 
         logging.info("[!] Identified %d discrete HAL interfaces from vendor source.", len(vendor_hal_signatures))
 
-        # 3. Dynamic Filtering: Drop or scrub AOSP files providing overridden HALs
-        logging.info("Populating workspace and dropping/scrubbing legacy baseline overlaps...")
+        # Combine all block exclusions (Vendor explicit overrides + Baseline manifest definitions)
+        global_exclusion_signatures = vendor_hal_signatures.union(primary_manifest_hals)
+
+        # 2. Process AOSP files
+        logging.info("Processing baseline AOSP configurations...")
         for file_name in os.listdir(aosp_stage):
             aosp_file_path = os.path.join(aosp_stage, file_name)
             dest_file_path = os.path.join(manifest_temp, file_name)
 
             if file_name.endswith(".xml") and "compatibility_matrix" not in file_name:
-                aosp_hals = extract_hal_names_from_file(aosp_file_path)
+                if file_name == "manifest.xml":
+                    shutil.copy2(aosp_file_path, dest_file_path)
+                    # Scrub only vendor overrides from the root manifest
+                    remove_duplicate_hals_from_file(dest_file_path, vendor_hal_signatures)
+                    continue
 
-                if aosp_hals and aosp_hals.issubset(vendor_hal_signatures):
-                    logging.info("[!] Re-hosting scrub: Dropping whole file '%s' superseded by vendor.", file_name)
+                aosp_hals = extract_hal_names_from_file(aosp_file_path)
+                # Drop file entirely if all its declarations are redundant or overridden
+                if aosp_hals and aosp_hals.issubset(global_exclusion_signatures):
+                    logging.info("[!] Scrub: Dropping redundant fragment '%s' to avoid duplicates.", file_name)
                     continue
 
                 shutil.copy2(aosp_file_path, dest_file_path)
-                remove_duplicate_hals_from_file(dest_file_path, vendor_hal_signatures)
+                status = remove_duplicate_hals_from_file(dest_file_path, global_exclusion_signatures)
+                if status == "EMPTY":
+                    os.remove(dest_file_path)
             else:
                 shutil.copy2(aosp_file_path, dest_file_path)
 
-        # === ADDED: Self-deduplicate primary manifest.xml against internal standalone fragments ===
-        base_manifest_path = os.path.join(manifest_temp, "manifest.xml")
-        internal_manifest_hals = set()
-        if os.path.exists(base_manifest_path):
-            internal_manifest_hals = extract_hal_names_from_file(base_manifest_path)
-            logging.info("[!] Pre-compiled baseline manifest.xml contains %d HAL profiles.",
-                         len(internal_manifest_hals))
-
-        # 4. Inject remaining vendor components safely
-        logging.info("Injecting vendor-specific hardware components...")
+        # 3. Process Vendor files
+        logging.info("Processing Vendor configurations...")
         for file_name in os.listdir(vendor_stage):
             vendor_file_path = os.path.join(vendor_stage, file_name)
             dest_file_path = os.path.join(manifest_temp, file_name)
 
-            # Deduplicate against vendor signatures
-            if os.path.exists(dest_file_path) and "compatibility_matrix" not in file_name:
-                remove_duplicate_hals_from_file(dest_file_path, vendor_hal_signatures)
-                name_root, ext = os.path.splitext(file_name)
-                dest_file_path = os.path.join(manifest_temp, f"{name_root}_vendor{ext}")
-
-            # Deduplicate standalone fragment elements if they are already declared inside manifest.xml
-            if file_name.endswith(".xml") and file_name != "manifest.xml" and "compatibility_matrix" not in file_name:
-                fragment_hals = extract_hal_names_from_file(vendor_file_path)
-                # If the fragment only contains HALs already tracking inside the primary manifest, drop it entirely
-                if fragment_hals and fragment_hals.issubset(internal_manifest_hals):
-                    logging.info(
-                        "[!] Internal Clean: Dropping redundant fragment '%s' already declared inside manifest.xml",
-                        file_name)
+            if file_name.endswith(".xml") and "compatibility_matrix" not in file_name:
+                if file_name == "manifest.xml":
+                    # If it's a root manifest, handle manually to merge or append unique sections later
+                    if os.path.exists(dest_file_path):
+                        dest_file_path = os.path.join(manifest_temp, "manifest_vendor_root.xml")
+                    shutil.copy2(vendor_file_path, dest_file_path)
+                    remove_duplicate_hals_from_file(dest_file_path, primary_manifest_hals)
                     continue
 
-            shutil.copy2(vendor_file_path, dest_file_path)
+                vendor_hals = extract_hal_names_from_file(vendor_file_path)
+                # Drop fragment if its contents are already completely defined in the primary base manifest
+                if vendor_hals and vendor_hals.issubset(primary_manifest_hals):
+                    logging.info("[!] Scrub: Dropping vendor fragment '%s' tracking inside primary manifest.",
+                                 file_name)
+                    continue
 
-            # If the file was copied but has partial overlap with manifest.xml, strip those specific HAL blocks
-            if os.path.exists(dest_file_path) and file_name != "manifest.xml" and internal_manifest_hals:
-                remove_duplicate_hals_from_file(dest_file_path, internal_manifest_hals)
+                if os.path.exists(dest_file_path):
+                    name_root, ext = os.path.splitext(file_name)
+                    dest_file_path = os.path.join(manifest_temp, f"{name_root}_vendor_override{ext}")
 
-        # Proceed normally into Phase 2 compilation parsing
+                shutil.copy2(vendor_file_path, dest_file_path)
+                status = remove_duplicate_hals_from_file(dest_file_path, primary_manifest_hals)
+                if status == "EMPTY":
+                    os.remove(dest_file_path)
+            else:
+                if not os.path.exists(dest_file_path):
+                    shutil.copy2(vendor_file_path, dest_file_path)
+
+        # Proceed into final compilation
         all_files = os.listdir(manifest_temp)
         manifest_files = [f for f in all_files if f.endswith(".xml") and "compatibility_matrix" not in f]
         matrix_files = [f for f in all_files if f.endswith(".xml") and "compatibility_matrix" in f]
@@ -256,9 +279,7 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
         if not manifest_files:
             raise RuntimeError("No XML manifests discovered inside the compiled input sources.")
 
-        # Find the primary manifest entry points
-        primary_manifests = [f for f in manifest_files if f.startswith("manifest")]
-        primary_manifest = primary_manifests[0] if primary_manifests else manifest_files[0]
+        primary_manifest = "manifest.xml" if "manifest.xml" in manifest_files else manifest_files[0]
         manifest_files.remove(primary_manifest)
 
         base_manifest_path = os.path.join(manifest_temp, primary_manifest)
@@ -281,12 +302,10 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
             final_matrix_path = os.path.join(output_dir, "compatibility_matrix.device.xml")
             run_assemble_vintf(assemble_vintf_bin, base_matrix_path, matrix_fragments, final_matrix_path)
 
-            # --- Phase 4: Performing strict cross-validation check ---
+            # --- Phase 4: Cross Validation ---
             framework_matrix_path = os.path.join(aosp_dir, "compatibility_matrix.xml")
-
             if os.path.exists(framework_matrix_path) and "type=\"framework\"" in open(framework_matrix_path).read():
-                logging.info(
-                    "--- Phase 4: Performing strict cross-validation check (Device Manifest vs Framework Matrix) ---")
+                logging.info("--- Phase 4: Performing strict cross-validation check ---")
                 run_assemble_vintf(
                     binary_path=assemble_vintf_bin,
                     base_file=final_manifest_path,
@@ -296,8 +315,6 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
                 )
             else:
                 logging.info("--- Phase 4: Skipping Cross-Validation ---")
-                logging.info(
-                    "Validation skipped: Input compatibility matrix is device-type; type-matching requires an FCM for verification.")
 
             logging.info("VINTF merge complete. Unified artifacts successfully exported to: %s", output_dir)
         else:
