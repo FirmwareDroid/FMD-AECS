@@ -74,6 +74,10 @@ def download_and_extract(file_url, download_path, extraction_path):
     except Exception as e:
         logging.info(f"An error occurred: {e}")
 
+def download_pickles():
+    image_name, repo_url = get_image_meta()
+    file_url = f"{repo_url}/repository/raw_files/acvtool_{image_name}.zip"
+    download_and_extract(file_url, f"{ACV_DOWNLOAD_PATH}/acvtool_{image_name}.zip", ACV_EXTRACTED_PICKLES_PATH)
 
 def find_pickle_file(package, wd=None):
     """
@@ -81,6 +85,11 @@ def find_pickle_file(package, wd=None):
     """
     if wd is None:
         wd = ACV_EXTRACTED_PICKLES_PATH
+
+    files = os.listdir(wd)
+    if len(files) == 0:
+        download_pickles()
+
     for root, dirs, files in os.walk(wd):
         for file in files:
             if file.endswith('.pickle') and package in file:
@@ -143,6 +152,7 @@ def flush_coverage(package, wd=None):
     return run_acv_command(cmd)
 
 
+
 def main():
     parser = argparse.ArgumentParser(description='ACVTool Wrapper CLI')
     subparsers = parser.add_subparsers(dest='command', required=True)
@@ -170,7 +180,6 @@ def main():
     parser_snap.add_argument('package', help='App package name')
 
     parser_snap = subparsers.add_parser('download', help='Download coverage data from remote repo')
-    parser_snap.add_argument('package', help='App package name')
 
     args = parser.parse_args()
 
@@ -187,9 +196,7 @@ def main():
     elif args.command == 'start':
         activate_start(args.package)
     elif args.command == 'download':
-        image_name, repo_url = get_image_meta()
-        file_url = f"{repo_url}/repository/raw_files/acvtool_{image_name}.zip"
-        download_and_extract(file_url, f"{ACV_DOWNLOAD_PATH}/acvtool_{image_name}.zip", ACV_EXTRACTED_PICKLES_PATH)
+        download_pickles()
     else:
         parser.print_help()
         sys.exit(1)
