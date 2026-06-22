@@ -232,6 +232,7 @@ def sign_apex_container_apksigner(apex_file_path,
                         '--v2-signing-enabled', str(v2_signing_enabled).lower(),
                         '--v3-signing-enabled', str(v3_signing_enabled).lower(),
                         '--v4-signing-enabled', str(v4_signing_enabled).lower(),
+                        '----ks-pass', 'pass:'
                         '--verbose',
                         '--in', apex_file_path,
                         '--out', apex_file_path]
@@ -239,6 +240,23 @@ def sign_apex_container_apksigner(apex_file_path,
         logging.info(f"Signing APEX container file: {apex_file_path} "
                      f"with key: {signing_key_path} - {success} - {log_message} "
                      f"- sign_command: {sign_command}")
+        if not success:
+            base_cmd = ["java", "-jar"] if ".jar" in apksigner_cmd else []
+            sign_command = [*base_cmd,
+                            apksigner_cmd, 'sign',
+                            '--key', signing_key_path,
+                            '--cert', signing_key_certificate_path,
+                            '--v2-signing-enabled', str(v2_signing_enabled).lower(),
+                            '--v3-signing-enabled', str(v3_signing_enabled).lower(),
+                            '--v4-signing-enabled', str(v4_signing_enabled).lower(),
+                            '----ks-pass', 'pass:android'
+                            '--verbose',
+                            '--in', apex_file_path,
+                            '--out', apex_file_path]
+            success, log_message = execute_command(sign_command)
+            logging.info(f"Signing APEX container file: {apex_file_path} "
+                         f"with key: {signing_key_path} - {success} - {log_message} "
+                         f"- sign_command: {sign_command}")
         if success:
             break
     return success, log_message
