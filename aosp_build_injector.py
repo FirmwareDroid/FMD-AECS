@@ -1739,10 +1739,11 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
                     if os.path.isfile(source_path):
                         shutil.copy(source_path, out_dir)
                 extracted_packes_path = os.path.join(results_dir, "extracted_packages")
-                if os.path.exists(extracted_packes_path):
+                if os.path.exists(extracted_packes_path) and not args.skip_clean:
                     shutil.rmtree(extracted_packes_path, ignore_errors=True)
-                shutil.rmtree(BUILD_OUT_PATH, ignore_errors=True)
-                logging.info(f"Cleaned path: {BUILD_OUT_PATH}")
+                if not args.skip_clean:
+                    shutil.rmtree(BUILD_OUT_PATH, ignore_errors=True)
+                    logging.info(f"Cleaned path: {BUILD_OUT_PATH}")
                 os.makedirs(BUILD_OUT_PATH, exist_ok=True)
             except Exception as err:
                 logging.error(f"Got an error copying build results: {err} | {results_dir}")
