@@ -30,7 +30,7 @@ PathType = Union[str, os.PathLike]
 
 POST_INJECTOR_CONFIG = {}
 
-OPENSSL_PATH_LIST = ["openssl"]
+OPENSSL_PATH_LIST = ["out/host/linux-x86/bin/openssl", "openssl", "prebuilts/build-tools/linux-x86/bin/openssl"]
 
 
 def get_openssl_path(aosp_path):
@@ -1446,7 +1446,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     if not apexer_bin_path:
         message = "APEX create_apex_container failed: Apexer tool not found in any known location."
         logging.info(message)
-        return False, f"{message}", None, None, None, None, None
+        return False, f"{message}", None, None, None, None
 
     apex_file_name = os.path.basename(output_file_path)
     info = f"APEX: Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
@@ -1468,7 +1468,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
             file_contexts_path = FILE_CONTEXT_TEMPLATE_PATH
         if not is_success:
             logging.error(f"Error generating APEX keys: {log_message}")
-            return False, f"Error generating APEX keys: {log_message}", None, None, None, None, None
+            return False, f"Error generating APEX keys: {log_message}", None, None, None, None
 
 
     command = f"cd {apex_root_path} && {apexer_bin_path} --verbose " \
