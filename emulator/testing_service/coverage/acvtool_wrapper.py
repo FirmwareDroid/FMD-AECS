@@ -6,6 +6,7 @@ import logging
 import sys
 import urllib.request
 import zipfile
+from urllib.parse import urlparse
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 IMAGE_META_PATH = "/android/image_meta.txt"
@@ -41,7 +42,9 @@ def get_image_meta():
             if len(lines) >= 2:
                 image_name = lines[0].strip()
                 repo_url = lines[1].strip()
-                return image_name, repo_url
+                parsed_url = urlparse(repo_url)
+                domain_and_port = parsed_url.netloc
+                return image_name, domain_and_port
             else:
                 logging.warning(f"Image meta file {IMAGE_META_PATH} does not contain enough information.")
                 return "unknown-image", "unknown-repo"
