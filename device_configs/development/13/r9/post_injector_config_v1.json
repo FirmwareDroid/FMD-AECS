@@ -468,7 +468,8 @@
     ".webp",
     ".txt",
     ".ogg",
-    "/lib64/libstagefright"
+    "/lib64/libstagefright",
+    "/lib64/"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
