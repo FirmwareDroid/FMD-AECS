@@ -461,6 +461,13 @@
     ".txt",
     ".ogg"
   ],
+  "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
+    "Overlay",
+    "ExtServices",
+    "Settings",
+    "__auto_generated",
+    "Provider"
+  ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
     "GoogleExtShared.apk",
