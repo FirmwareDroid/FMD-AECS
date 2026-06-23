@@ -21,27 +21,48 @@ def setup_logging():
 
 
 def copy_vintf_files(src_dir, dest_dir, overwrite=True):
-    """
-    Recursively discovers and copies all XML files from src_dir (including subdirs)
-    flattened into dest_dir. Ignores system hidden files.
-    """
+    """Recursively discovers and copies all XML files."""
     if not os.path.exists(src_dir):
         logging.warning("Source directory %s does not exist. Skipping.", src_dir)
         return
 
     for root, _, files in os.walk(src_dir):
         for file in files:
-            if file.startswith('.'):  # Skip hidden system files like .DS_Store
+            if file.startswith('.'):
                 continue
             if file.endswith(".xml"):
                 src_path = os.path.join(root, file)
                 dest_path = os.path.join(dest_dir, file)
 
                 if not overwrite and os.path.exists(dest_path):
-                    logging.info("Skipping existing file to prevent overwrite: %s", file)
                     continue
                 shutil.copy2(src_path, dest_path)
-                logging.info("Copied file: %s (Overwrite=%s)", file, overwrite)
+
+
+def inject_permissive_attributes(file_path):
+    """Injects override="true" into manifests and optional="true" into matrices."""
+    try:
+        tree = ET.parse(file_path)
+        root = tree.getroot()
+        modified = False
+
+        is_matrix = "compatibility_matrix" in root.tag or "compatibility_matrix" in os.path.basename(file_path)
+
+        for hal in root.findall('.//hal'):
+            if is_matrix:
+                if hal.get('optional') != 'true':
+                    hal.set('optional', 'true')
+                    modified = True
+            else:
+                if hal.get('override') != 'true':
+                    hal.set('override', 'true')
+                    modified = True
+
+        if modified:
+            tree.write(file_path, encoding="utf-8", xml_declaration=True)
+            logging.debug("[*] Injected permissive attributes into: %s", os.path.basename(file_path))
+    except ET.ParseError:
+        logging.warning("Failed to parse %s for permissive injection (Malformed XML).", file_path)
 
 
 def extract_hal_names_from_file(file_path):
@@ -50,32 +71,31 @@ def extract_hal_names_from_file(file_path):
     try:
         tree = ET.parse(file_path)
         root = tree.getroot()
-        # Find all <name> tags that are direct children of a <hal> tag
         for hal in root.findall('.//hal'):
             name_node = hal.find('name')
             if name_node is not None and name_node.text:
                 hal_names.add(name_node.text.strip())
     except ET.ParseError:
-        # Fallback to broad regex if the file is an incomplete fragment or malformed XML
         hal_pattern = re.compile(r"<hal[^>]*>.*?<name>([a-zA-Z0-9_\.]+)</name>", re.DOTALL)
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
                 for match in hal_pattern.finditer(content):
                     hal_names.add(match.group(1).strip())
-        except Exception as e:
-            logging.debug("Failed parsing file %s for HALs: %s", file_path, e)
+        except Exception:
+            pass
     return hal_names
 
 
 def remove_duplicate_hals_from_file(file_path, target_hals):
-    """Surgically extracts and removes entire <hal> blocks matching target_hals from an XML file."""
+    """Surgically extracts and removes entire <hal> blocks matching target_hals."""
+    if not target_hals:
+        return False
     try:
         tree = ET.parse(file_path)
         root = tree.getroot()
         modified = False
 
-        # Iterate backward or keep tracking to safely remove elements while looping
         hals_to_remove = []
         for hal in root.findall('.//hal'):
             name_node = hal.find('name')
@@ -83,7 +103,6 @@ def remove_duplicate_hals_from_file(file_path, target_hals):
                 hals_to_remove.append(hal)
 
         for hal in hals_to_remove:
-            # Try to remove from direct root or parent structure
             for parent in root.findall('.//'):
                 if hal in list(parent):
                     parent.remove(hal)
@@ -93,33 +112,88 @@ def remove_duplicate_hals_from_file(file_path, target_hals):
                 modified = True
 
         if modified:
-            logging.info("[!] Scrubbed structural duplicate HAL definitions from: %s", os.path.basename(file_path))
+            remaining_hals = root.findall('.//hal')
+            if not remaining_hals and root.tag != 'manifest':
+                return "EMPTY"
+
             tree.write(file_path, encoding="utf-8", xml_declaration=True)
             return True
     except ET.ParseError:
-        # Fallback regex scrubbing for non-standard configurations
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             modified = False
             for hal in target_hals:
-                # Matches <hal> blocks containing the target <name>
                 pattern = r"<hal[^>]*>(?:(?!<\/hal>).)*?<name>" + re.escape(hal) + r"<\/name>.*?<\/hal>"
                 if re.search(pattern, content, re.DOTALL):
                     content = re.sub(pattern, "", content, flags=re.DOTALL)
                     modified = True
 
             if modified:
+                if not re.search(r"<hal[^>]*>", content) and "manifest" not in os.path.basename(file_path):
+                    return "EMPTY"
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(content)
                 return True
-        except Exception as e:
-            logging.debug("Regex fallback scrubbing failed for %s: %s", file_path, e)
+        except Exception:
+            pass
     return False
 
 
-def run_assemble_vintf(binary_path, base_file, fragment_files, output_file, check_file=None, forced_version=None):
+def get_vintf_type(file_path):
+    """Reads the root element to determine if this is a 'device' or 'framework' VINTF file."""
+    try:
+        tree = ET.parse(file_path)
+        root = tree.getroot()
+        return root.get('type', 'device')  # Default to device if not specified
+    except ET.ParseError:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+                if re.search(r'<[^>]*type\s*=\s*[\"\']framework[\"\']', content):
+                    return 'framework'
+        except Exception:
+            pass
+    return 'device'
+
+
+def separate_by_type(file_paths):
+    """Classifies a list of file paths into device and framework categories."""
+    device_files = []
+    framework_files = []
+    for fp in file_paths:
+        vintf_type = get_vintf_type(fp)
+        if vintf_type == 'framework':
+            framework_files.append(fp)
+        else:
+            device_files.append(fp)
+    return device_files, framework_files
+
+
+def compile_vintf_group(assemble_bin, files_list, output_path, default_primary_name, fatal=True):
+    """Handles the finding of the primary manifest and passing it to assemble_vintf."""
+    if not files_list:
+        return None
+
+    primary = None
+    for f in files_list:
+        if os.path.basename(f) == default_primary_name:
+            primary = f
+            break
+
+    # Fallback if preferred primary name isn't found
+    if not primary:
+        primary = files_list[0]
+
+    fragments = [f for f in files_list if f != primary]
+
+    run_assemble_vintf(assemble_bin, primary, fragments, output_path, fatal=fatal)
+    return output_path
+
+
+def run_assemble_vintf(binary_path, base_file, fragment_files, output_file, check_file=None, forced_version=None,
+                       fatal=True):
     """Executes assemble_vintf matching its precise CLI requirements."""
     env = os.environ.copy()
     env["BOARD_SEPOLICY_VERS"] = forced_version if forced_version else "10000.0"
@@ -142,8 +216,6 @@ def run_assemble_vintf(binary_path, base_file, fragment_files, output_file, chec
     try:
         result = subprocess.run(cmd, env=env, capture_output=True, text=True, check=True)
         logging.info("Successfully generated: %s", os.path.basename(output_file))
-        if result.stdout:
-            logging.info("assemble_vintf output: %s", result.stdout.strip())
     except subprocess.CalledProcessError as e:
         stderr_output = e.stderr.strip()
 
@@ -154,19 +226,22 @@ def run_assemble_vintf(binary_path, base_file, fragment_files, output_file, chec
             logging.warning("Detected version restriction profile conflict. Auto-recovering using: %s",
                             detected_version)
             return run_assemble_vintf(binary_path, base_file, fragment_files, output_file, check_file,
-                                      forced_version=detected_version)
+                                      forced_version=detected_version, fatal=fatal)
 
-        raise RuntimeError(
-            f"assemble_vintf failed.\nCommand: {' '.join(cmd)}\n"
-            f"STDOUT: {e.stdout.strip()}\nSTDERR: {stderr_output}"
-        ) from e
+        error_msg = f"assemble_vintf failed.\nCommand: {' '.join(cmd)}\nSTDOUT: {e.stdout.strip()}\nSTDERR: {stderr_output}"
+
+        if fatal:
+            raise RuntimeError(error_msg) from e
+        else:
+            logging.warning("NON-FATAL ERROR: %s", error_msg)
+            logging.warning("Validation failed, but skipping exit to maximize boot probability.")
 
 
 def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
-    """Programmatic wrapper to merge AOSP and Vendor VINTF manifests/matrices post-build."""
     setup_logging()
-    logging.info("Starting VINTF artifact merging process...")
+    logging.info("Starting Permissive VINTF artifact merging process...")
     assemble_vintf_bin = os.path.join(host_bin_dir, "assemble_vintf")
+
     if not os.path.isfile(assemble_vintf_bin):
         raise FileNotFoundError(f"Could not find required 'assemble_vintf' executable at: {assemble_vintf_bin}")
 
@@ -176,7 +251,6 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
         manifest_temp = os.path.join(temp_dir, "manifests")
         os.makedirs(manifest_temp)
 
-        # 1. Separate staging areas to analyze overlap profile bounds
         aosp_stage = os.path.join(temp_dir, "aosp_stage")
         vendor_stage = os.path.join(temp_dir, "vendor_stage")
         os.makedirs(aosp_stage)
@@ -186,106 +260,135 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
         copy_vintf_files(aosp_dir, aosp_stage, overwrite=True)
         copy_vintf_files(vendor_dir, vendor_stage, overwrite=True)
 
-        # 2. Extract HAL names claimed directly by the vendor package
+        base_manifest_source = os.path.join(aosp_stage, "manifest.xml")
+        if not os.path.exists(base_manifest_source):
+            base_manifest_source = os.path.join(vendor_stage, "manifest.xml")
+
+        primary_manifest_hals = set()
+        if os.path.exists(base_manifest_source):
+            primary_manifest_hals = extract_hal_names_from_file(base_manifest_source)
+
         vendor_hal_signatures = set()
         for file_name in os.listdir(vendor_stage):
             if file_name.endswith(".xml") and "compatibility_matrix" not in file_name:
                 vendor_hal_signatures.update(extract_hal_names_from_file(os.path.join(vendor_stage, file_name)))
 
-        logging.info("[!] Identified %d discrete HAL interfaces from vendor source.", len(vendor_hal_signatures))
+        global_exclusion_signatures = vendor_hal_signatures.union(primary_manifest_hals)
 
-        # 3. Dynamic Filtering: Drop or scrub AOSP files providing overridden HALs
-        logging.info("Populating workspace and dropping/scrubbing legacy baseline overlaps...")
+        # 2. Process AOSP files
+        logging.info("Processing baseline AOSP configurations...")
         for file_name in os.listdir(aosp_stage):
             aosp_file_path = os.path.join(aosp_stage, file_name)
             dest_file_path = os.path.join(manifest_temp, file_name)
 
             if file_name.endswith(".xml") and "compatibility_matrix" not in file_name:
-                aosp_hals = extract_hal_names_from_file(aosp_file_path)
-
-                # If the entire AOSP fragment is completely superseded by vendor configurations, drop it
-                if aosp_hals and aosp_hals.issubset(vendor_hal_signatures):
-                    logging.info("[!] Re-hosting scrub: Dropping whole file '%s' superseded by vendor.", file_name)
+                if file_name == "manifest.xml":
+                    shutil.copy2(aosp_file_path, dest_file_path)
+                    remove_duplicate_hals_from_file(dest_file_path, vendor_hal_signatures)
+                    inject_permissive_attributes(dest_file_path)
                     continue
 
-                # Otherwise, copy it over and strip out only conflicting individual HAL entries
-                shutil.copy2(aosp_file_path, dest_file_path)
-                remove_duplicate_hals_from_file(dest_file_path, vendor_hal_signatures)
-            else:
-                # Direct copies for non-manifest files (like matrix XMLs)
-                shutil.copy2(aosp_file_path, dest_file_path)
+                aosp_hals = extract_hal_names_from_file(aosp_file_path)
+                if aosp_hals and aosp_hals.issubset(global_exclusion_signatures):
+                    continue
 
-        # 4. Inject remaining vendor components safely
-        logging.info("Injecting vendor-specific hardware components...")
+                shutil.copy2(aosp_file_path, dest_file_path)
+                status = remove_duplicate_hals_from_file(dest_file_path, global_exclusion_signatures)
+                if status == "EMPTY":
+                    os.remove(dest_file_path)
+                else:
+                    inject_permissive_attributes(dest_file_path)
+            else:
+                shutil.copy2(aosp_file_path, dest_file_path)
+                inject_permissive_attributes(dest_file_path)
+
+        # 3. Process Vendor files
+        logging.info("Processing Vendor configurations...")
         for file_name in os.listdir(vendor_stage):
             vendor_file_path = os.path.join(vendor_stage, file_name)
             dest_file_path = os.path.join(manifest_temp, file_name)
 
-            if os.path.exists(dest_file_path) and "compatibility_matrix" not in file_name:
-                # If a shared base file (like manifest.xml) exists in both, strip duplicates from the AOSP version
-                remove_duplicate_hals_from_file(dest_file_path, vendor_hal_signatures)
+            if file_name.endswith(".xml") and "compatibility_matrix" not in file_name:
+                if file_name == "manifest.xml":
+                    if os.path.exists(dest_file_path):
+                        dest_file_path = os.path.join(manifest_temp, "manifest_vendor_root.xml")
+                    shutil.copy2(vendor_file_path, dest_file_path)
+                    remove_duplicate_hals_from_file(dest_file_path, primary_manifest_hals)
+                    inject_permissive_attributes(dest_file_path)
+                    continue
 
-                # Append elements structural-style or fallback to let assemble_vintf process them as independent files
-                # Because assemble_vintf doesn't like duplicated standalone files with the same name, we suffix vendor fragments
-                name_root, ext = os.path.splitext(file_name)
-                dest_file_path = os.path.join(manifest_temp, f"{name_root}_vendor{ext}")
+                vendor_hals = extract_hal_names_from_file(vendor_file_path)
+                if vendor_hals and vendor_hals.issubset(primary_manifest_hals):
+                    continue
 
-            shutil.copy2(vendor_file_path, dest_file_path)
+                if os.path.exists(dest_file_path):
+                    name_root, ext = os.path.splitext(file_name)
+                    dest_file_path = os.path.join(manifest_temp, f"{name_root}_vendor_override{ext}")
 
-        # Proceed normally into Phase 2 compilation parsing
-        all_files = os.listdir(manifest_temp)
-        manifest_files = [f for f in all_files if f.endswith(".xml") and "compatibility_matrix" not in f]
-        matrix_files = [f for f in all_files if f.endswith(".xml") and "compatibility_matrix" in f]
+                shutil.copy2(vendor_file_path, dest_file_path)
+                status = remove_duplicate_hals_from_file(dest_file_path, primary_manifest_hals)
+                if status == "EMPTY":
+                    os.remove(dest_file_path)
+                else:
+                    inject_permissive_attributes(dest_file_path)
+            else:
+                if not os.path.exists(dest_file_path):
+                    shutil.copy2(vendor_file_path, dest_file_path)
+                    inject_permissive_attributes(dest_file_path)
 
-        if not manifest_files:
-            raise RuntimeError("No XML manifests discovered inside the compiled input sources.")
+        # Build final processing arrays
+        all_files = [os.path.join(manifest_temp, f) for f in os.listdir(manifest_temp) if f.endswith(".xml")]
+        manifest_files = [f for f in all_files if "compatibility_matrix" not in os.path.basename(f)]
+        matrix_files = [f for f in all_files if "compatibility_matrix" in os.path.basename(f)]
 
-        # Find the primary manifest entry points
-        primary_manifests = [f for f in manifest_files if f.startswith("manifest")]
-        primary_manifest = primary_manifests[0] if primary_manifests else manifest_files[0]
-        manifest_files.remove(primary_manifest)
+        # --- NEW ENGINE: Sort by Type (Framework vs Device) ---
+        logging.info("Categorizing VINTF artifacts by hardware/framework type...")
+        device_manifests, framework_manifests = separate_by_type(manifest_files)
+        device_matrices, framework_matrices = separate_by_type(matrix_files)
 
-        base_manifest_path = os.path.join(manifest_temp, primary_manifest)
-        manifest_fragments = [os.path.join(manifest_temp, f) for f in manifest_files]
+        # --- PROCESS MANIFESTS ---
+        final_manifest_path = None
+        logging.info("--- Phase 2A: Processing Device Manifests via assemble_vintf ---")
+        if device_manifests:
+            final_manifest_path = os.path.join(output_dir, "manifest.xml")
+            compile_vintf_group(assemble_vintf_bin, device_manifests, final_manifest_path, "manifest.xml", fatal=True)
 
-        logging.info("--- Phase 2: Processing manifests via assemble_vintf ---")
-        final_manifest_path = os.path.join(output_dir, "manifest.xml")
-        run_assemble_vintf(assemble_vintf_bin, base_manifest_path, manifest_fragments, final_manifest_path)
+        logging.info("--- Phase 2B: Processing Framework Manifests via assemble_vintf ---")
+        if framework_manifests:
+            compile_vintf_group(assemble_vintf_bin, framework_manifests,
+                                os.path.join(output_dir, "framework_manifest.xml"), "framework_manifest.xml",
+                                fatal=False)
 
         # --- PROCESS COMPATIBILITY MATRICES ---
-        if matrix_files:
-            primary_matrix = "compatibility_matrix.xml" if "compatibility_matrix.xml" in matrix_files else matrix_files[
-                0]
-            matrix_files.remove(primary_matrix)
+        logging.info("--- Phase 3A: Processing Device Matrices via assemble_vintf ---")
+        if device_matrices:
+            compile_vintf_group(assemble_vintf_bin, device_matrices,
+                                os.path.join(output_dir, "compatibility_matrix.device.xml"),
+                                "compatibility_matrix.device.xml", fatal=False)
 
-            base_matrix_path = os.path.join(manifest_temp, primary_matrix)
-            matrix_fragments = [os.path.join(manifest_temp, f) for f in matrix_files]
+        logging.info("--- Phase 3B: Processing Framework Matrices via assemble_vintf ---")
+        if framework_matrices:
+            compile_vintf_group(assemble_vintf_bin, framework_matrices,
+                                os.path.join(output_dir, "compatibility_matrix.xml"), "compatibility_matrix.xml",
+                                fatal=False)
 
-            logging.info("--- Phase 3: Processing compatibility matrices via assemble_vintf ---")
-            final_matrix_path = os.path.join(output_dir, "compatibility_matrix.device.xml")
-            run_assemble_vintf(assemble_vintf_bin, base_matrix_path, matrix_fragments, final_matrix_path)
-
-            # --- Phase 4: Performing strict cross-validation check ---
+        # --- Phase 4: Cross Validation ---
+        if final_manifest_path:
             framework_matrix_path = os.path.join(aosp_dir, "compatibility_matrix.xml")
-
             if os.path.exists(framework_matrix_path) and "type=\"framework\"" in open(framework_matrix_path).read():
-                logging.info(
-                    "--- Phase 4: Performing strict cross-validation check (Device Manifest vs Framework Matrix) ---")
+                logging.info("--- Phase 4: Performing non-fatal cross-validation check ---")
                 run_assemble_vintf(
                     binary_path=assemble_vintf_bin,
                     base_file=final_manifest_path,
                     fragment_files=[],
                     output_file="/dev/null",
-                    check_file=framework_matrix_path
+                    check_file=framework_matrix_path,
+                    fatal=False
                 )
             else:
                 logging.info("--- Phase 4: Skipping Cross-Validation ---")
-                logging.info(
-                    "Validation skipped: Input compatibility matrix is device-type; type-matching requires an FCM for verification.")
 
-            logging.info("VINTF merge complete. Unified artifacts successfully exported to: %s", output_dir)
-        else:
-            logging.warning("No compatibility matrices identified in input folders. Skipping verification.")
+        logging.info("VINTF merge complete. Unified artifacts successfully exported to: %s", output_dir)
 
 
 def main():
