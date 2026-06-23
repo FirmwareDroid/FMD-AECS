@@ -173,6 +173,7 @@ def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled
                 '--v3-signing-enabled', str(v3_signing_enabled).lower(),
                 '--v4-signing-enabled', str(v4_signing_enabled).lower(),
                 '--ks-pass', password,
+                '--key-pass', password,
                 '--verbose',
                 '--in', apk_file_path,
                 '--out', apk_file_path
