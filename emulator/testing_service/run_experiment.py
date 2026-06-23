@@ -33,7 +33,7 @@ RUN_MONKEY = os.path.join(BASE_DIR, 'app_testing_tools', 'run_monkey.py')
 RUN_APE = os.path.join(BASE_DIR, 'app_testing_tools', 'run_ape.py')
 RUN_FASTBOT = os.path.join(BASE_DIR, 'app_testing_tools', 'run_fastbot.py')
 RUN_KEA2 = os.path.join(BASE_DIR, 'app_testing_tools', 'run_kea2.py')
-RUN_DROIDRUN = os.path.join(BASE_DIR, 'app_testing_tools', 'droidrun_agent_cli.py')
+RUN_MOBILERUN = os.path.join(BASE_DIR, 'app_testing_tools', 'mobilerun', 'mobilerun_agent_cli.py')
 COLLECT_DEVICE_INFO = os.path.join(BASE_DIR, 'collect_device_info.py')
 
 OUT_DIR = os.path.join(BASE_DIR, 'out')
@@ -741,7 +741,7 @@ def execute_apps_with_coverage(app_package_names, mode):
 def exec_app_testers(package, mode, skip_install=False):
     logging.info(f"Executing app test with package: {package}, mode: {mode}")
     if mode == 'droidrun':
-        run_script_capture(RUN_DROIDRUN, args=["run"], description="Run Droidrun agent to test apps.")
+        run_script_capture(RUN_MOBILERUN, args=["run"], description="Run Droidrun agent to test apps.")
     elif mode == 'monkey':
         run_script_capture(RUN_MONKEY, args=["-m", "5000", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package])
     elif mode == 'ape':
