@@ -1620,8 +1620,7 @@ def generate_apex_keys(aosp_path, apex_file_name):
             logging.error(log_message)
             continue
 
-        if result_pem.returncode != 0 or not os.path.exists(priv_pem_file_path) or os.path.getsize(
-                priv_pem_file_path) == 0:
+        if result_pem.returncode != 0 or not os.path.exists(priv_pem_file_path) or os.path.getsize(priv_pem_file_path) == 0:
             log_message = f"Error generating PEM keys via bssl: {result_pem.stderr}"
             logging.error(log_message)
             continue
