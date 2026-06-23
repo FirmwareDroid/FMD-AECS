@@ -165,6 +165,7 @@ def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled
         base_cmd = ["java", "-jar"] if ".jar" in apksigner_cmd else []
 
         for password in password_options:
+            # 1. Build the full command with passwords
             sign_command = [
                 *base_cmd,
                 apksigner_cmd, 'sign',
@@ -184,6 +185,23 @@ def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled
 
             logging.info(f"Trying password variation '{password}' for APK: {apk_file_path} - success: {success}")
 
+            # 2. Fallback: If it fails, try without the password arguments
+            if not success:
+                logging.info(
+                    f"Failed with password. Retrying without --ks-pass and --key-pass for APK: {apk_file_path}")
+
+                # Slice out or filter out the password flags and their values
+                fallback_command = [
+                    arg for arg in sign_command
+                    if arg not in ['--ks-pass', '--key-pass', password]
+                ]
+
+                success, log_message = execute_command(fallback_command)
+                command_string = ' '.join(fallback_command)
+
+                logging.info(f"Retry without passwords for APK: {apk_file_path} - success: {success}")
+
+            # 3. Check for overall success (either from the main try or the fallback)
             if success:
                 logging.info(f"Successfully signed APK file: {apk_file_path} using command: {command_string}")
                 break
