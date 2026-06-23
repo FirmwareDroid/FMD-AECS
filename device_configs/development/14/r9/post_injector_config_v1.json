@@ -78,7 +78,8 @@
     "citadel",
     "/vendor/bin/hw/init_citadel",
     "/vendor/bin/hw/android.hardware.drm-service",
-    "libstagefright"
+    "libstagefright",
+    "android.hardware.boot"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
