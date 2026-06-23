@@ -1600,36 +1600,57 @@ def generate_apex_keys(aosp_path, apex_file_name):
     is_success = False
     log_message = ""
 
-    # Assuming get_bssl_path is configured to point to out/host/linux-x86/bin/bssl
     bssl_bin_path_list = get_bssl_path(aosp_path)
 
     for bssl_bin_path in bssl_bin_path_list:
         # Generate private key in PEM format using bssl genrsa
-        command_pem = [
-            bssl_bin_path, 'genrsa', '-out', priv_pem_file_path, '4096'
-        ]
-        result_pem = subprocess.run(command_pem, capture_output=True, text=True, env=os.environ.copy())
-        if result_pem.returncode != 0 or not os.path.exists(priv_pem_file_path):
-            log_message = f"Error generating PEM keys via bssl: {result_pem.stderr}|{result_pem.stdout}"
+        command_pem = [bssl_bin_path, 'genrsa', '-bits', '4096']
+
+        try:
+            with open(priv_pem_file_path, 'w') as out_file:
+                result_pem = subprocess.run(
+                    command_pem,
+                    stdout=out_file,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    env=os.environ.copy()
+                )
+        except Exception as e:
+            log_message = f"File system error setup for bssl: {str(e)}"
+            logging.error(log_message)
+            continue
+
+        if result_pem.returncode != 0 or not os.path.exists(priv_pem_file_path) or os.path.getsize(
+                priv_pem_file_path) == 0:
+            log_message = f"Error generating PEM keys via bssl: {result_pem.stderr}"
             logging.error(log_message)
             continue
         else:
             logging.info(f"PEM keys generated successfully via bssl: {priv_pem_file_path}")
-            log_message = result_pem.stdout
+            log_message = "PEM key generated."
 
-        # Convert private key from PEM to PK8 format using bssl pkcs8
-        command_pk8 = [
-            bssl_bin_path, 'pkcs8', '-topk8', '-outform', 'DER', '-in', priv_pem_file_path, '-out', priv_key_path,
-            '-nocrypt'
-        ]
-        result_pk8 = subprocess.run(command_pk8, capture_output=True, text=True, env=os.environ.copy())
-        if result_pk8.returncode != 0 or not os.path.exists(priv_key_path):
-            log_message += f"\nError converting PEM to PK8 via bssl: {result_pk8.stderr}|{result_pk8.stdout}"
+        # Convert private key from PEM to PK8 (DER) format using python cryptography
+        try:
+            with open(priv_pem_file_path, "rb") as f:
+                pem_data = f.read()
+
+            private_key = serialization.load_pem_private_key(pem_data, password=None)
+
+            pk8_data = private_key.private_bytes(
+                encoding=serialization.Encoding.DER,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption()
+            )
+
+            with open(priv_key_path, "wb") as f:
+                f.write(pk8_data)
+
+            logging.info(f"PK8 key generated successfully via serialization: {priv_key_path}")
+            log_message += "\nPK8 conversion successful."
+        except Exception as e:
+            log_message += f"\nError converting PEM to PK8 via cryptography: {str(e)}"
             logging.error(log_message)
             continue
-        else:
-            logging.info(f"PK8 key generated successfully via bssl: {priv_key_path}")
-            log_message += result_pk8.stdout
 
         # Generate x509 certificate using python fallback (bssl has no 'req'/'x509')
         cert_success, cert_err = _generate_fallback_x509_cert(priv_pem_file_path, apex_apk_cert)
@@ -1642,6 +1663,7 @@ def generate_apex_keys(aosp_path, apex_file_name):
             is_success = True
 
         if is_success:
+            # Reverted to passing the DER formatted key (priv_key_path) to match your legacy openssl flow
             is_success = extract_avb_public_key(aosp_path, priv_key_path, avb_pub_key_path)
             if not is_success:
                 log_message += f"\nError extracting AVB public key for APEX: {apex_file_name}. Private key file: {priv_key_path} to {avb_pub_key_path}"
@@ -1662,12 +1684,23 @@ def generate_apex_keys_p12(private_key_path, public_key_path, p12_path, aosp_pat
 
     bssl_bin_path_list = get_bssl_path(aosp_path)
     for bssl_bin_path in bssl_bin_path_list:
-        # Step 1: Generate the base PEM private key
-        command = [
-            bssl_bin_path, 'genrsa', '-out', private_key_path, '4096'
-        ]
-        result = subprocess.run(command, capture_output=True, text=True, env=os.environ.copy())
-        if result.returncode != 0 or not os.path.exists(private_key_path):
+        # Step 1: Generate the base PEM private key via stdout redirection
+        command = [bssl_bin_path, 'genrsa', '-bits','4096']
+        try:
+            with open(private_key_path, 'w') as out_file:
+                result = subprocess.run(
+                    command,
+                    stdout=out_file,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    env=os.environ.copy()
+                )
+        except Exception as e:
+            log_message = f"File system error setup for bssl p12: {str(e)}"
+            logging.error(log_message)
+            continue
+
+        if result.returncode != 0 or not os.path.exists(private_key_path) or os.path.getsize(private_key_path) == 0:
             log_message = f"Error generating private key via bssl: {result.stderr}"
             logging.error(log_message)
             continue
