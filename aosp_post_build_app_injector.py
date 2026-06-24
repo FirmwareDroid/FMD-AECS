@@ -183,7 +183,7 @@ def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled
             success, log_message = execute_command(sign_command)
             command_string = ' '.join(sign_command)
 
-            logging.info(f"Trying password variation '{password}' for APK: {apk_file_path} - success: {success}")
+            logging.info(f"Trying password variation '{password}' for APK: {apk_file_path} - success: {success} - command_string: {command_string}")
 
             # 2. Fallback: If it fails, try without the password arguments
             if not success:
