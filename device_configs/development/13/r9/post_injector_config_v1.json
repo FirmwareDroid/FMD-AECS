@@ -85,7 +85,8 @@
     "android.hardware.drm-service.clearkey",
     "drm-service.widevine",
     "android.hardware.graphics",
-    "android.hardware"
+    "android.hardware",
+    "libstagefright"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
@@ -465,7 +466,8 @@
     ".jpeg",
     ".webp",
     ".txt",
-    ".ogg"
+    ".ogg",
+    "/lib64/"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",

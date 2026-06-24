@@ -464,6 +464,15 @@ def copy_logs_by_prefix(source_dir: str, output_dir: str, prefix: str) -> None:
             logging.info(f"Copied: {file_path.name}")
 
 
+def has_extracted_partitions(all_files_dir_path):
+    """
+        Returns True if all target directories exist in the root,
+        otherwise returns False.
+        """
+    target_dirs = ['/vendor', '/system', '/product']
+    # all() returns True only if every element in the iterable is True
+    return all(os.path.isdir(d) for d in target_dirs)
+
 
 def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering, cookies, tag=None):
     """
@@ -564,6 +573,11 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
 
             target_out_path = get_target_out_path(aosp_path, lunch_target)
             all_extracted_firmware_files_path = os.path.join(EXTRACTED_PACKAGES_PATH, EXTRACTION_ALL_FILES_DIR_NAME)
+
+            has_partitions = has_extracted_partitions(all_extracted_firmware_files_path)
+            if not has_partitions:
+                raise RuntimeError(f"Missing required partitions in extracted firmware files: {all_extracted_firmware_files_path}. Likely the firmware images was not correctly extracted or AECS file corrupt.")
+
             post_builder_args_dict = {"aosp_path": aosp_path,
                                       "source_folder_path": all_extracted_firmware_files_path,
                                       "target_out_path": target_out_path,
