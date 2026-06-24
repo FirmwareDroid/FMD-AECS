@@ -459,7 +459,6 @@
     "/lib64/libbcinfo.so",
     "/lib64/libhidltransport.so",
     "etc/task_profiles.json",
-    "/system/init/init.rc",
     "android.hardware.graphics.common-V3-ndk_platform.so",
     "/lib64/libmi",
     "/lib64/libandroid",
