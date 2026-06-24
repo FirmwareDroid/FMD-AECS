@@ -37,7 +37,6 @@
   "NEVERALLOW_FILE_INJECT_KEYWORD_LIST": [
     "selinux/",
     "boringssl_self_test",
-    "hardware.security",
     "keymint",
     "keystore",
     "keymaster",
@@ -85,7 +84,9 @@
     "fsverity_init",
     "android.hardware.security",
     "/system/bin/vdc",
-    "/etc/init/hw/"
+    "/etc/init/hw/",
+    "android.hardware",
+    "/etc/init/"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
