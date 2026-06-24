@@ -1,3 +1,4 @@
+import os
 import time
 import logging
 import subprocess
@@ -38,8 +39,15 @@ def process_emulator_job(job, static_ip, ports):
 
     logging.info(f"[Job {job['id']}] Starting container {container_name} with IP {static_ip}")
 
+    # 1. Resolve absolute paths for the Docker daemon
+    host_base_dir = os.path.abspath(f"./emulator/emulator_out/{image_name}")
+    host_tools_dir = os.path.abspath(f"./emulator/emulator_out/{image_name}/app_testing_tools/out")
+
+    # Ensure the directories exist on the host before mounting
+    os.makedirs(host_base_dir, exist_ok=True)
+    os.makedirs(host_tools_dir, exist_ok=True)
+
     try:
-        # 1. Create Container on the frontend network
         container = client.containers.create(
             image=image_name,
             name=container_name,
@@ -53,11 +61,16 @@ def process_emulator_job(job, static_ip, ports):
             },
             sysctls={"net.ipv6.conf.all.disable_ipv6": 1},
             dns=["172.31.250.2"],
+            # 2. Corrected volumes mapping
             volumes={
-                f'./emulator/emulator_out/{image_name}:/android/testing_service/out': {
-                    'bind': '/android/testing_service/out', 'mode': 'rw'},
-                f'./emulator/emulator_out/{image_name}/app_testing_tools/out': {
-                    'bind': '/android/testing_service/app_testing_tools/out', 'mode': 'rw'}
+                host_base_dir: {
+                    'bind': '/android/testing_service/out',
+                    'mode': 'rw'
+                },
+                host_tools_dir: {
+                    'bind': '/android/testing_service/app_testing_tools/out',
+                    'mode': 'rw'
+                }
             },
             devices=["/dev/kvm:/dev/kvm:rwm"],
             network="project_frontend",
