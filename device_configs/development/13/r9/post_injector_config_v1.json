@@ -84,7 +84,8 @@
     "libadbd",
     "android.hardware.drm-service.clearkey",
     "drm-service.widevine",
-    "android.hardware.graphics.composer"
+    "android.hardware.graphics",
+    "android.hardware"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",

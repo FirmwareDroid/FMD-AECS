@@ -81,7 +81,10 @@
     "libstagefright",
     "android.hardware.boot",
     "android.hardware.biometrics",
-    "android.hardware.gatekeeper"
+    "android.hardware.gatekeeper",
+    "fsverity_init",
+    "android.hardware.security",
+    "/system/bin/vdc"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
