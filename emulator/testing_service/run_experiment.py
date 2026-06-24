@@ -148,13 +148,13 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Run experiment pipeline')
     parser.add_argument(
         '--mode',
-        choices=['basic', 'droidrun', 'single', 'monkey', 'ape', 'fastbot', 'kea2', 'pipeline'],
+        choices=['basic', 'mobilerun', 'single', 'monkey', 'ape', 'fastbot', 'kea2', 'pipeline'],
         default='single',
         help=(
             'Test mode: '
             '"basic" runs the START_APPS_BASIC start/stop test; '
             '"monkey" runs Android Monkey; '
-            '"droidrun" runs the Droidrun LLM agent; '
+            '"mobilerun" runs the mobilerun LLM agent; '
             '"ape" runs the Ape search-based testing tool; '
             '"fastbot" runs Fastbot2.0 model-based testing; '
             '"kea2" runs Kea2 property-based testing; '
@@ -163,7 +163,7 @@ def parse_args():
         ),
     )
     parser.add_argument('--test-only-one', action='store_true', help='If set, only the first app in the list will be tested')
-    parser.add_argument('--skip-setup', action='store_true', help='Skip device setup steps (installing Appium/PCAPdroid/Droidrun)')
+    parser.add_argument('--skip-setup', action='store_true', help='Skip device setup steps (installing Appium/PCAPdroid, etc.)')
     # pcap_http_port=args.pcap_http_port, socks5_address=args.socks5_address
     parser.add_argument('--pcapdroid', action='store_true', help='Enable PCAPdroid setup on connected devices')
     parser.add_argument('--pcap-http-port', type=int, default=54320, help='Port to use for pcap http server (used when --pcapdroid set)')
@@ -402,9 +402,8 @@ def setup_devices(mode='basic', pcapdroid=False, pcap_http_port=54320, socks5_ad
         else:
             logging.error('Failed to start Appium server; skipping PCAPdroid configuration')
 
-    if mode == 'droidrun':
-        # Install Droidrun on all devices
-        run_command("droidrun setup --latest", description="Install Droidrun on all devices")
+    if mode == 'mobilerun':
+        run_command("mobilerun setup", description="Install mobilerun on all devices")
     elif mode == 'ape':
         # Verify Ape binaries are present (they will be pushed per-app in execute_app_with_coverage)
         ape_jar = os.path.join(BASE_DIR, 'app_testing_tools', 'tools', 'ape-bin', 'ape.jar')
@@ -728,7 +727,7 @@ def execute_apps_with_coverage(app_package_names, mode):
     for package in app_package_names:
         run_script_capture(ACVTOOL, args=["activate", package],
                            description="Run ACVTool to create coverage folder.")
-        
+
     for package in app_package_names:
         logging.info(f"Starting {package}")
         exec_app_testers(package, mode)
@@ -741,8 +740,8 @@ def execute_apps_with_coverage(app_package_names, mode):
 
 def exec_app_testers(package, mode, skip_install=False):
     logging.info(f"Executing app test with package: {package}, mode: {mode}")
-    if mode == 'droidrun':
-        run_script_capture(RUN_MOBILERUN, args=["run"], description="Run Droidrun agent to test apps.")
+    if mode == 'mobilerun':
+        run_script_capture(RUN_MOBILERUN, args=["run"], description="Run mobilerun agent to test apps.")
     elif mode == 'monkey':
         run_script_capture(RUN_MONKEY, args=["-m", "5000", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package])
     elif mode == 'ape':

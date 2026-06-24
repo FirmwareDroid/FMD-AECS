@@ -8,6 +8,7 @@ import subprocess
 import time
 from getpass import getpass
 import platform
+import job_queue
 import csv
 try:
     import docker
@@ -622,6 +623,46 @@ def parse_arguments():
     return parser.parse_args()
 
 
+
+
+def enqueue_images(successfully_built_images):
+    # Initialize the database (safe to call multiple times)
+    job_queue.init_db()
+
+    # Example: List of images successfully built by your existing script
+    successfully_built_images = [
+        "68b1075d65e2ad36cf0776d5_v12_sdk_phone64_arm64_userdebug_r9_dev",
+        "another_image_tag_v12_arm64",
+        "third_firmware_image_x86_64"
+    ]
+
+    for image in successfully_built_images:
+        logging.info(f"Pushing {image} to the job queue.")
+        job_queue.push_job(image)
+
+    logging.info("All built images have been queued for processing.")
+
+
+
+
+def write_image_names_to_file():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    output_file = os.path.join(script_dir, "docker_images.txt")
+    result = subprocess.run(
+        ["docker", "images", "--format", "{{.Repository}}"],
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    successfully_built_images = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    with open(output_file, "w") as f:
+        for image in successfully_built_images:
+            f.write(f"{image}\n")
+    print(f"Captured {len(successfully_built_images)} images.")
+    return successfully_built_images
+
+
+
 def main():
     args = parse_arguments()
 
@@ -858,6 +899,9 @@ def main():
                         logging.info(f"Pushed image: {tag}")
                     except Exception as e:
                         logging.exception(f"Failed to push image {tag}: {e}")
+
+    successfully_built_images = write_image_names_to_file()
+    enqueue_images(successfully_built_images)
 
     # Final aggregated summary for the streaming pipeline
     try:
