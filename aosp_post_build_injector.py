@@ -1177,6 +1177,15 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         else:
             logging.info(f"SKIPPED COPY_TO_SPECIFIC_PATH: {file_path}|{dst_path} already exists")
 
+    # Try to avoid linking errors
+    if file_extension in [".so"] and "/apex/lib64/" in file_path:
+        dst_path = os.path.join(target_partition_path, "lib64", os.path.basename(file_path))
+        logging.info(f"Matched outside Library: {file_path}: {dst_path}")
+        if not os.path.exists(dst_path):
+            logging.info(f"COPY_OUTSIDE_LIB_TO_LIB64: {file_path} to {dst_path}")
+            copy_fast(file_path, dst_path)
+        else:
+            logging.info(f"Outside Lib match SKIPPED (file already exists): {file_path}|{dst_path}")
 
     if target_path:
         try:
