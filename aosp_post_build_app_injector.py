@@ -159,7 +159,7 @@ def sign_apk_file(apk_file_path, signing_key_path, aosp_path, v2_signing_enabled
 
     # Try different password formats that standard AOSP keys might use
     # Note: 'pass:' represents a truly empty password to Java/apksigner
-    password_options = ['pass:', 'pass: ', 'pass:""']
+    password_options = ['pass:', 'pass: ', 'pass:""',"pass:android"]
 
     for apksigner_cmd in apksigner_cmd_list:
         base_cmd = ["java", "-jar"] if ".jar" in apksigner_cmd else []

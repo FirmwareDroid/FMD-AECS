@@ -57,10 +57,13 @@ def parse_args():
         description="Run Mobilerun agent for UI testing and exploration on Android devices.")
     parser.add_argument('--config-file', type=str, default=DEFAULT_CONFIG_FILE,
                         help=f'Path to key=value config file (default: {DEFAULT_CONFIG_FILE})')
+    parser.add_argument('--provider', type=str, default=None,
+                        help='Explicitly set the LLM Provider (e.g. GoogleGenAI, OpenAILike)')
     parser.add_argument('--model', type=str, default=None, help='LLM model name')
     parser.add_argument('--api-base', type=str, default=None, help='OpenAI API base URL')
     parser.add_argument('--api-key', type=str, default=None, help='OpenAI API key')
     parser.add_argument('--gemini-api-key', type=str, default=None, help='Gemini API key')
+    parser.add_argument('--publicai-api-key', type=str, default=None, help='PublicAI API key')
     parser.add_argument('--prompt', type=str, default=None, help='Prompt for the agent')
     parser.add_argument('--package', type=str, default=None,
                         help='Package name to launch and aggressively explore (e.g., com.example.app)')
@@ -80,6 +83,7 @@ def parse_args():
 
     file_config = load_config_file(args.config_file)
 
+    # Load raw keys
     if args.api_base is None:
         args.api_base = file_config.get('api-base') or file_config.get('api_base') or file_config.get('OPENAI_BASE_URL')
     if args.api_key is None:
@@ -89,16 +93,29 @@ def parse_args():
                 file_config.get('gemini-api-key') or file_config.get('gemini_api_key') or
                 file_config.get('GOOGLE_API_KEY') or file_config.get('GEMINI_API_KEY')
         )
+    if args.publicai_api_key is None:
+        args.publicai_api_key = (
+                file_config.get('publicai-api-key') or file_config.get('publicai_api_key') or
+                file_config.get('PUBLICAI_API_KEY')
+        )
+
     if args.model is None:
         args.model = file_config.get('model') or file_config.get('MODEL')
 
-    if args.model is None:
-        if args.gemini_api_key:
-            args.model = 'gemini-1.5-flash'  # Fast model for high-speed UI testing
-        else:
-            args.model = 'llama3.2-vision'
+    if args.provider is None:
+        args.provider = file_config.get('provider') or file_config.get('PROVIDER')
 
-    # Auto-adjust steps for 5-minute exploration if package is provided
+    # Auto-route PublicAI config and safeguard the /v1 suffix
+    if args.publicai_api_key:
+        if not args.api_base or "platform.publicai.co" in args.api_base:
+            args.api_base = "https://api.publicai.co/v1"
+        elif "publicai.co" in args.api_base and not args.api_base.endswith("/v1"):
+            args.api_base = args.api_base.rstrip("/") + "/v1"
+
+    # Standard Fallbacks
+    if args.model is None:
+        args.model = 'gemini-3.5-flash' if args.gemini_api_key else 'allenai/Olmo-3.1-32B-Instruct'
+
     if args.package and args.max_steps == 30:
         args.max_steps = 150
 
@@ -117,6 +134,27 @@ class CustomJSONEncoder(json.JSONEncoder):
             return str(obj)
         except Exception:
             return 'unserializable'
+
+
+def determine_active_provider(model_name: str, explicit_provider: str = None) -> str:
+    if explicit_provider:
+        return explicit_provider
+    if not model_name:
+        return "OpenAILike"
+
+    model_lower = model_name.lower()
+
+    provider_mappings = {
+        "gemini": "GoogleGenAI",
+        "gpt": "OpenAI",
+        "claude": "Anthropic"
+    }
+
+    for keyword, provider in provider_mappings.items():
+        if keyword in model_lower:
+            return provider
+
+    return "OpenAILike"
 
 
 def check_and_install_mobilerun(device_serial):
@@ -201,57 +239,80 @@ def setup_mobilerun_permissions(device_serial):
 
 
 def start_target_app(device_serial, package_name):
-    """Launches the target application via ADB before the agent starts exploring."""
     logging.info('Launching target package: %s on device: %s', package_name, device_serial)
     try:
-        # 'monkey' is the most robust way to start the default launcher activity of any package
-        subprocess.run(
-            ["adb", "-s", device_serial, "shell", "monkey", "-p", package_name, "1"],
-            check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-        # Give the app a moment to load its initial screen
+        subprocess.run(["adb", "-s", device_serial, "shell", "monkey", "-p", package_name, "1"], check=False,
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         time.sleep(3)
     except Exception as e:
         logging.error("Failed to launch app %s: %s", package_name, e)
 
 
 def apply_speed_optimizations(config: MobileConfig, max_steps: int) -> MobileConfig:
-    """Configures the agent for maximum execution speed."""
     if hasattr(config, "agent"):
         config.agent.max_steps = max_steps
-        # Drastically reduce wait time after actions (200ms instead of 1s+)
         config.agent.after_sleep_action = 0.2
-        # Disable LLM text reasoning to save token generation time
         config.agent.reasoning = False
-        # Disable streaming overhead
         config.agent.streaming = False
     return config
 
 
 async def run_agent_on_device(device_serial, args):
-    if args.api_key:
-        os.environ["OPENAI_API_KEY"] = args.api_key
-    if args.api_base:
-        os.environ["OPENAI_BASE_URL"] = args.api_base
-    if args.gemini_api_key:
+    provider = determine_active_provider(args.model, args.provider)
+
+    # Purge local script environment to let Mobilerun's native config drive auth variables
+    for key in ["OPENAI_API_KEY", "OPENAI_BASE_URL", "GEMINI_API_KEY", "GOOGLE_API_KEY"]:
+        os.environ.pop(key, None)
+
+    if provider == "GoogleGenAI" and args.gemini_api_key:
         os.environ["GEMINI_API_KEY"] = args.gemini_api_key
         os.environ["GOOGLE_API_KEY"] = args.gemini_api_key
 
     config = MobileConfig()
-
-    # 1. Apply speed tuning
     config = apply_speed_optimizations(config, args.max_steps)
 
     if hasattr(config, "device"):
         config.device.serial = device_serial
 
+    # Natively inject target properties directly into Mobilerun profile schema
     if hasattr(config, "llm_profiles"):
-        for profile_name, profile in config.llm_profiles.items():
-            profile.model = args.model
-            if args.api_base:
-                profile.base_url = args.api_base
+        profiles_iterable = config.llm_profiles.items() if hasattr(config.llm_profiles,
+                                                                   "items") else config.llm_profiles
 
-    # 2. Launch the App if specified
+        for profile_name, profile in profiles_iterable:
+            active_key = args.publicai_api_key or args.api_key
+
+            # Scenario A: Profiles are organized as structured objects
+            if hasattr(profile, "model"):
+                profile.model = args.model
+                profile.provider = provider
+                if args.api_base:
+                    profile.base_url = args.api_base
+                if hasattr(profile, "api_key_source"):
+                    profile.api_key_source = "env"
+                if hasattr(profile, "kwargs"):
+                    if profile.kwargs is None:
+                        profile.kwargs = {}
+                    # Inject custom headers directly into client initialization parameters
+                    profile.kwargs["default_headers"] = {
+                        "User-Agent": "MobilerunTestingClient/1.0 (Mozilla/5.0 Android Automation)",
+                        "Authorization": f"Bearer {active_key}"
+                    }
+
+            # Scenario B: Profiles are fallback Python dictionaries
+            elif isinstance(profile, dict):
+                profile["model"] = args.model
+                profile["provider"] = provider
+                if args.api_base:
+                    profile["base_url"] = args.api_base
+                profile["api_key_source"] = "env"
+                if "kwargs" not in profile or profile["kwargs"] is None:
+                    profile["kwargs"] = {}
+                profile["kwargs"]["default_headers"] = {
+                    "User-Agent": "MobilerunTestingClient/1.0 (Mozilla/5.0 Android Automation)",
+                    "Authorization": f"Bearer {active_key}"
+                }
+
     if args.package:
         start_target_app(device_serial, args.package)
 
@@ -265,6 +326,7 @@ async def run_agent_on_device(device_serial, args):
         'device': device_serial,
         'parameters': {
             'model': args.model,
+            'provider': provider,
             'api_base': args.api_base,
             'prompt': args.prompt,
             'package': args.package,
@@ -273,7 +335,8 @@ async def run_agent_on_device(device_serial, args):
     }
 
     try:
-        logging.info("Starting MobileAgent execution on %s (Max Steps: %s)...", device_serial, args.max_steps)
+        logging.info("Starting MobileAgent execution on %s (Provider: %s | Model: %s | Max Steps: %s)...",
+                     device_serial, provider, args.model, args.max_steps)
         result = await agent.run()
         log_entry['result'] = result
         log_entry['success'] = getattr(result, 'success', 'N/A')
