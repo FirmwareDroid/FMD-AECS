@@ -86,7 +86,10 @@
     "/system/bin/vdc",
     "/etc/init/hw/",
     "android.hardware",
-    "/etc/init/"
+    "/etc/init/",
+    "android.security",
+    "/lib64/libfsverity.so",
+    "/bin/hw/"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
