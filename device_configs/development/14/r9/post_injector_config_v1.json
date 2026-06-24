@@ -84,7 +84,8 @@
     "android.hardware.gatekeeper",
     "fsverity_init",
     "android.hardware.security",
-    "/system/bin/vdc"
+    "/system/bin/vdc",
+    "/etc/init/hw/"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
