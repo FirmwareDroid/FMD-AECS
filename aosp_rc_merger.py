@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 
+logger = logging.getLogger("semantic_injector")
 
 def comment_out_boringssl_check(file_path):
     target_string = "reboot_on_failure reboot,boringssl-self-check-failed"
@@ -14,15 +15,15 @@ def comment_out_boringssl_check(file_path):
             updated_contents = file_contents.replace(target_string, replacement_string)
             with open(file_path, 'w', encoding='utf-8') as file:
                 file.write(updated_contents)
-            logging.info(f"Success: Updated {file_path}")
+            logger.info(f"Success: Updated {file_path}")
         elif replacement_string in file_contents:
-            logging.info(f"Notice: The line is already commented out in {file_path}")
+            logger.info(f"Notice: The line is already commented out in {file_path}")
         else:
-            logging.warning(f"Warning: Target string not found in {file_path}")
+            logger.warning(f"Warning: Target string not found in {file_path}")
     except FileNotFoundError:
-        logging.error(f"Error: The file at {file_path} was not found.")
+        logger.error(f"Error: The file at {file_path} was not found.")
     except Exception as e:
-        logging.error(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
 
 
 def defuse_critical_services(file_path: str) -> None:
@@ -62,7 +63,7 @@ def defuse_critical_services(file_path: str) -> None:
 
     # Write the modified content back to the file
     path.write_text('\n'.join(modified_lines) + '\n')
-    logging.info(f"Success: Updated {file_path}: Lines modified: {modified_lines}")
+    logger.info(f"Success: Updated {file_path}: Lines modified: {modified_lines}")
 
 
 def add_oneshot_to_services(file_path: str) -> None:
@@ -97,16 +98,19 @@ def add_oneshot_to_services(file_path: str) -> None:
             continue
 
         # Track if the service already has a oneshot flag
-        if inside_service and stripped == 'oneshot':
-            has_oneshot = True
+        # We split by '#' and strip to ignore any inline comments (e.g., 'oneshot  # comment')
+        if inside_service and stripped:
+            command_only = stripped.split('#')[0].strip()
+            if command_only == 'oneshot':
+                has_oneshot = True
 
-        # Dynamically capture the indentation used inside this service block
-        if inside_service and stripped and not line.startswith((' ', '\t')):
-            # This handles edge cases where indentation might be weird
-            pass
-        elif inside_service and stripped:
-            # Capture the leading whitespace of the current option line to match style
-            service_indent = line[:len(line) - len(line.lstrip())]
+            # Dynamically capture the indentation used inside this service block
+            if not line.startswith((' ', '\t')):
+                # This handles edge cases where indentation might be weird
+                pass
+            else:
+                # Capture the leading whitespace of the current option line to match style
+                service_indent = line[:len(line) - len(line.lstrip())]
 
         modified_lines.append(line)
 
@@ -116,7 +120,7 @@ def add_oneshot_to_services(file_path: str) -> None:
 
     # Write the modified content back
     path.write_text('\n'.join(modified_lines) + '\n')
-    logging.info(f"Success: Added oneshot to services in {file_path}")
+    logger.info(f"Success: Added oneshot to services in {file_path}")
 
 
 def handle_init_rc(source_file_path):
@@ -134,7 +138,7 @@ def run_rc_merger(source_file_path):
     if filename == "init.rc" and "/system/init/hw/" in source_file_path:
         target_file_path = handle_init_rc(source_file_path)
     else:
-        logging.error(f"Modifying rc file inplace: {source_file_path}")
+        logger.error(f"Modifying rc file inplace: {source_file_path}")
         add_oneshot_to_services(source_file_path)
         target_file_path = handle_vendor_init_rc(source_file_path)
 
