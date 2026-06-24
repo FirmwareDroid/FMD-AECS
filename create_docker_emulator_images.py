@@ -629,13 +629,6 @@ def enqueue_images(successfully_built_images):
     # Initialize the database (safe to call multiple times)
     job_queue.init_db()
 
-    # Example: List of images successfully built by your existing script
-    successfully_built_images = [
-        "68b1075d65e2ad36cf0776d5_v12_sdk_phone64_arm64_userdebug_r9_dev",
-        "another_image_tag_v12_arm64",
-        "third_firmware_image_x86_64"
-    ]
-
     for image in successfully_built_images:
         logging.info(f"Pushing {image} to the job queue.")
         job_queue.push_job(image)
