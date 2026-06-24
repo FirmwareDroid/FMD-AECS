@@ -5,7 +5,7 @@ werkzeug~=3.0.1
 tqdm~=4.66.1
 filelock~=3.16.1
 protobuf==3.19.0
-acvtool==2.3.5
+acvtool==2.3.6
 pyasyncore~=1.0.5
 cryptography
 #droidrun~=0.4.26

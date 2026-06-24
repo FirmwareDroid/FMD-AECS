@@ -79,10 +79,6 @@
     "/system/etc/vintf/manifest/manifest_android.frameworks.cameraservice.service@2.2.xml",
     "/system/etc/vintf/manifest/manifest_media_c2_software.xml",
     "/system/etc/vintf/manifest/secure_element-service.xml",
-    ".vdex",
-    ".odex",
-    ".art",
-    ".oat",
     "/etc/vintf",
     "libadbd",
     "libstagefright"
@@ -432,8 +428,7 @@
     "/lib64/liblazy_static.dylib.so",
     "/lib64/libbcinfo.so",
     "/lib64/libhidltransport.so",
-    "etc/task_profiles.json",
-    "/system/init/init.rc",
+    "/etc/task_profiles.json",
     "android.hardware.graphics.common-V3-ndk_platform.so",
     "/lib64/libmi",
     "/lib64/libandroid",
@@ -457,6 +452,7 @@
     "/lib64/android.hardware.ir@1.0.so",
     "/lib64/android.hardware.boot@1.0.so",
     "android.hardware.audio",
+    "/lib64/libmedia",
     "/etc/build.prop"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [

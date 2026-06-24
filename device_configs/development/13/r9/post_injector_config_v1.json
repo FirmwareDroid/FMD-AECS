@@ -465,10 +465,7 @@
     ".jpeg",
     ".webp",
     ".txt",
-    ".ogg",
-    "/lib64/libstagefright",
-    "/lib64/",
-    "/system/bin/surfaceflinger"
+    ".ogg"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",

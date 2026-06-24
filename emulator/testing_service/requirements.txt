@@ -14,3 +14,4 @@ Pillow~=9.5.0
 scipy~=1.10.0
 pyflann-py3~=1.8.4
 psutil
+acvtool==2.3.6
