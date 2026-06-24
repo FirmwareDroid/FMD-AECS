@@ -636,21 +636,27 @@ def enqueue_images(successfully_built_images):
     logging.info("All built images have been queued for processing.")
 
 
-
-
 def write_image_names_to_file():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_file = os.path.join(script_dir, "docker_images.txt")
+
     result = subprocess.run(
         ["docker", "images", "--format", "{{.Repository}}"],
         capture_output=True,
         text=True,
         check=True
     )
-    successfully_built_images = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+    # Filter added: only keep lines that are not empty AND contain the specific substring
+    successfully_built_images = [
+        line.strip() for line in result.stdout.splitlines()
+        if line.strip() and "sdk_phone64_arm64" in line
+    ]
+
     with open(output_file, "w") as f:
         for image in successfully_built_images:
             f.write(f"{image}\n")
+
     print(f"Captured {len(successfully_built_images)} images.")
     return successfully_built_images
 
