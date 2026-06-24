@@ -478,9 +478,9 @@ def has_extracted_partitions(all_files_dir_path):
         full_path = os.path.join(all_files_dir_path, d)
 
         if os.path.isdir(full_path):
-            logger.info(f"FOUND: Directory exists -> {full_path}")
+            logging.info(f"FOUND: Directory exists -> {full_path}")
         else:
-            logger.warning(f"MISSING: Directory not found -> {full_path}")
+            logging.warning(f"MISSING: Directory not found -> {full_path}")
             all_exist = False
 
     return all_exist
