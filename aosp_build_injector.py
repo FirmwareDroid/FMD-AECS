@@ -466,12 +466,24 @@ def copy_logs_by_prefix(source_dir: str, output_dir: str, prefix: str) -> None:
 
 def has_extracted_partitions(all_files_dir_path):
     """
-        Returns True if all target directories exist in the root,
-        otherwise returns False.
-        """
-    target_dirs = ['/vendor', '/system', '/product']
-    # all() returns True only if every element in the iterable is True
-    return all(os.path.isdir(d) for d in target_dirs)
+    Returns True if all target directories exist in the root,
+    otherwise returns False. Logs the existence of each directory.
+    """
+    # Removed leading slashes so os.path.join works as intended
+    target_dirs = ['vendor', 'system', 'product']
+
+    all_exist = True
+
+    for d in target_dirs:
+        full_path = os.path.join(all_files_dir_path, d)
+
+        if os.path.isdir(full_path):
+            logger.info(f"FOUND: Directory exists -> {full_path}")
+        else:
+            logger.warning(f"MISSING: Directory not found -> {full_path}")
+            all_exist = False
+
+    return all_exist
 
 
 def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering, cookies, tag=None):
