@@ -61,7 +61,6 @@ def process_emulator_job(job, static_ip, ports):
             },
             sysctls={"net.ipv6.conf.all.disable_ipv6": 1},
             dns=["172.31.250.2"],
-            # 2. Corrected volumes mapping
             volumes={
                 host_base_dir: {
                     'bind': '/android/testing_service/out',
@@ -86,11 +85,9 @@ def process_emulator_job(job, static_ip, ports):
         logging.info(f"[Job {job['id']}] Container {container_name} is running.")
 
         # 4. Trigger Testing Script
-        # Wait briefly for services inside the emulator to initialize
         time.sleep(10)
 
         logging.info(f"[Job {job['id']}] Executing testing tool on {container_name}...")
-        # Call your modified run_app_testing_tool.py targeting ONLY this container
         cmd = [
             "python3", "./emulator/run_app_testing_tool.py",
             "--filter", container_name,
@@ -99,24 +96,36 @@ def process_emulator_job(job, static_ip, ports):
 
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
-            logging.error(f"[Job {job['id']}] Test failed: {result.stderr}")
+            logging.error(f"[Job {job['id']}] Test script finished with error: {result.stderr}")
         else:
-            logging.info(f"[Job {job['id']}] Test completed successfully.")
+            logging.info(f"[Job {job['id']}] Test script completed successfully.")
 
     except Exception as e:
         logging.error(f"[Job {job['id']}] Pipeline error: {e}")
     finally:
-        # 5. Teardown
+        # 5. Monitor and Teardown
         if container:
-            logging.info(f"[Job {job['id']}] Stopping and removing container {container_name}")
-            container.stop(timeout=10)
-            container.remove(force=True)
-
-            # Optional: Remove the image to save disk space
             try:
-                 client.images.remove(image_name, force=True)
-            except docker.errors.APIError:
-                pass
+                # Refresh container status
+                container.reload()
+
+                # Block the thread until the container stops natively
+                if container.status != 'exited':
+                    logging.info(
+                        f"[Job {job['id']}] Monitoring container {container_name}. Waiting for it to stop natively...")
+                    container.wait()
+                    logging.info(f"[Job {job['id']}] Container {container_name} has stopped natively.")
+
+                # Remove the now-stopped container
+                logging.info(f"[Job {job['id']}] Removing stopped container {container_name}")
+                container.remove(v=True)  # v=True removes associated anonymous volumes
+
+                # Remove the image to free space
+                logging.info(f"[Job {job['id']}] Removing image {image_name} to free disk space")
+                client.images.remove(image_name, force=True)
+
+            except docker.errors.APIError as e:
+                logging.warning(f"[Job {job['id']}] Cleanup error during teardown: {e}")
 
         # Mark job as completed in DB
         job_queue.mark_job_completed(job['id'])
