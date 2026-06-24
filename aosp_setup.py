@@ -94,9 +94,14 @@ def setup_certificates(version, base_path, dry_run: bool = False, verbose: bool 
         keys.extend(["nfc", "sdk_sandbox", "cts_uicc_2021"])
 
     for key in keys:
-        cmd = (f"openssl pkcs8 -in {key}.pk8 -inform DER -nocrypt -out {key}.pem && "
-               f"openssl pkcs12 -export -in {key}.x509.pem -inkey {key}.pem "
-               f"-out {key}.p12 -name {key} -passout pass:")
+        if version in ["12", "12_1"]:
+            cmd = (f"openssl pkcs8 -in {key}.pk8 -inform DER -nocrypt -out {key}.pem && "
+                   f"openssl pkcs12 -export -in {key}.x509.pem -inkey {key}.pem "
+                   f"-out {key}.p12 -name {key} -passout pass: -legacy")
+        else:
+            cmd = (f"openssl pkcs8 -in {key}.pk8 -inform DER -nocrypt -out {key}.pem && "
+                   f"openssl pkcs12 -export -in {key}.x509.pem -inkey {key}.pem "
+                   f"-out {key}.p12 -name {key} -passout pass:")
         run_command(cmd, cwd=os.path.expanduser(sec_path), dry_run=dry_run, verbose=verbose)
 
     if version in ["12", "12_1"]:
