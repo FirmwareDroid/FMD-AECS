@@ -613,8 +613,8 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
       -h, --help            show this help message and exit
     """
     conv_bin_candidates = [
-        os.path.join(aosp_path, "out/soong/host/linux-x86/bin/conv_apex_manifest"),
         os.path.join(aosp_path, "out/host/linux-x86/bin/conv_apex_manifest"),
+        os.path.join(aosp_path, "out/soong/host/linux-x86/bin/conv_apex_manifest"),
     ]
     converter_path = next((p for p in conv_bin_candidates if os.path.exists(p)), None)
     if not converter_path:
@@ -644,8 +644,9 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
     is_success = False
     log = ""
     while attempt < 3 and not is_success:
-        command = f"bash -c 'cd {aosp_path} && source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
-                   f"&& {converter_path} proto -o {out_file_path} {cleaned_manifest}'"
+        #command = f"bash -c 'cd {aosp_path} && source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
+        #           f"&& {converter_path} proto -o {out_file_path} {cleaned_manifest}'"
+        command = f"{converter_path} proto -o {out_file_path} {cleaned_manifest}'"
         is_success, log = execute_shell_command(command, aosp_path)
         if not is_success:
             logging.error(f"APEX: conv_apex_manifest conversion command failed. Trying again: {command} | {is_success} | {log}")
