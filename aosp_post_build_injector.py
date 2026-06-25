@@ -1849,10 +1849,11 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
     if POST_INJECTOR_CONFIG["ENABLE_RC_MERGER"] and filename.endswith(".rc"):
         source_file_path = run_rc_merger(source_file_path)
 
-    if "build.prop" in filename:
-        logging.info(f"File {source_file_path} is a property file and will be merged with the existing file instead of "
-                     f"overwriting: {target_file_injection_path} directly")
-        run_build_property_merger(source_file_path, target_file_injection_path)
+    if POST_INJECTOR_CONFIG["ENABLE_BUILD_PROPERTY_MERGER"] and filename.endswith(".prop"):
+        if "build.prop" in filename:
+            logging.info(f"File {source_file_path} is a property file and will be merged with the existing file instead of "
+                         f"overwriting: {target_file_injection_path} directly")
+            run_build_property_merger(source_file_path, target_file_injection_path)
 
     if filename in POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"]:
         aosp_build_out_path = get_aosp_build_out_dir(aosp_path, aosp_version)

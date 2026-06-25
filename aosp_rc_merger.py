@@ -138,7 +138,7 @@ def run_rc_merger(source_file_path):
     if filename == "init.rc" and "/system/init/hw/" in source_file_path:
         target_file_path = handle_init_rc(source_file_path)
     else:
-        logger.error(f"Modifying rc file inplace: {source_file_path}")
+        logger.info(f"Modifying rc file inplace: {source_file_path}")
         add_oneshot_to_services(source_file_path)
         target_file_path = handle_vendor_init_rc(source_file_path)
 
