@@ -1025,6 +1025,14 @@ def build_intermediate_md5_map(aosp_path, intermediates_path, exclude_dirs=None)
     return MappingProxyType(immutable_map)
 
 
+def is_inject_if_not_exist(target_file_injection_path, file_path):
+    if os.path.exists(target_file_injection_path):
+        logging.info(f"Skipped indirect injection for shared library file: {file_path} as "
+                     f"ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS is set.")
+        return False
+    else:
+        logging.info(f"Allow indirect injection for shared library file: {file_path}")
+        return True
 
 def indirect_injection(target_file_injection_path,
                        file_name,
@@ -1045,16 +1053,14 @@ def indirect_injection(target_file_injection_path,
 
     if not (file_name in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS"]
             or any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST"])):
-        if file_ext == ".so":
-            if POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"]:
-                if os.path.exists(target_file_injection_path):
-                    logging.info(f"Skipped indirect injection for shared library file: {file_path} as "
-                                 f"ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS is set.")
-                    return None, inj_partition, False
-                else:
-                    logging.info(f"Allow indirect injection for shared library file: {file_path}")
-            else:
-                logging.info(f"Indirect injection for shared library file: {file_path}")
+        if file_ext == ".so" and POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"]:
+            is_allowed = is_inject_if_not_exist(target_file_injection_path, file_path)
+            if not is_allowed:
+                return None, inj_partition, False
+        elif module_type == ["EXECUTABLES"] and POST_INJECTOR_CONFIG["ENABLE_EXECUTABLES_INJECTION_IF_NOT_EXISTS"]:
+            is_allowed = is_inject_if_not_exist(target_file_injection_path, file_path)
+            if not is_allowed:
+                return None, inj_partition, False
 
 
     delete_intermediate_cached_files(target_file_injection_path, file_path)
