@@ -40,7 +40,7 @@
     ".art",
     ".idc",
     ".fsv_meta",
-    ".rc",
+    ".rc"
   ],
   "ALLOW_MISC_INJECT_ALWAYS": [],
   "ALLOW_MISC_INJECT_ALWAYS_KEYWORD_LIST": [
