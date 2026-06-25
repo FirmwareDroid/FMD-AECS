@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 client = docker.from_env()
 
 # --- Resource Pool Configuration ---
-MAX_CONCURRENT_EMULATORS = 40
+MAX_CONCURRENT_EMULATORS = 30
 
 # Generate pools for IPs and Ports
 ip_pool = Queue()
