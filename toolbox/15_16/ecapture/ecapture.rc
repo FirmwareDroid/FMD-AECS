@@ -2,11 +2,28 @@ on post-fs-data
     mkdir /data/ecapture 0777 root root
     restorecon /data/ecapture
 
-service ecapture /system/bin/ecapture tls -m pcapng --pcapfile /data/ecapture/ecapture.pcapng -k /data/ecapture/sslkey.log
+# Instance 1: Binding to eth0
+service ecapture_eth0 /system/bin/ecapture tls -i eth0 -m pcapng --pcapfile /data/ecapture/eth0.pcapng -k /data/ecapture/sslkey.log
     class late_start
     user root
     group root
     seclabel u:r:su:s0
+    oneshot
+    timeout_period 5
+
+# Instance 2: Binding to wlan0
+service ecapture_wlan0 /system/bin/ecapture --listen=127.0.0.1:28257 tls -i wlan0 -m pcapng --pcapfile /data/ecapture/wlan0.pcapng -k /data/ecapture/sslkey.log
+    class late_start
+    user root
+    group root
+    seclabel u:r:su:s0
+    oneshot
+    timeout_period 5
 
 on property:sys.boot_completed=1
-    start ecapture
+    # Bring the interface up and assign a dummy IP to bypass eCapture validation
+    exec - root root -- /system/bin/ifconfig wlan0 up
+    exec - root root -- /system/bin/ifconfig wlan0 192.168.254.254 netmask 255.255.255.0
+
+    start ecapture_eth0
+    start ecapture_wlan0

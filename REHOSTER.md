@@ -445,6 +445,12 @@ export DOCKER_REPO_PASSWORD=YOUR_PW
 python3 ./aosp_build_injector.py -f "https://example.com" -u "fmd-admin" -s "/home/ubuntu/aosp_12" -e "12" -r "https://fmd-repo.example:8443/repository/emulator-images/" -d "UPLOAD_USER" -a "arm64" -p "ID_HERE"
 ```
 
-
+### Runtime Configuration for Emulator Host
+Enable and start the FMD-AECS consumer service which will dynamically spawn docker containers
+```
+sudo systemctl daemon-reload
+sudo systemctl enable fmd-consumer
+sudo systemctl start fmd-consumer
+```
 
 
