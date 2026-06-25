@@ -131,10 +131,6 @@
     "libgui.so",
     "libgui_vendor.so",
     "libz.so",
-    "cameraserver",
-    "libcamera2ndk.so",
-    "libcameraservice.so",
-    "libcamera_metadata.so",
     "bootclasspath.bp",
     "cust.prop"
   ],

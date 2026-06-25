@@ -1894,7 +1894,7 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target, 
     logging.info(info)
     #command = f"bash -c 'cd {aosp_path} && source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
     #           f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}'"
-    command = f"{deapexer_tool_path} extract {apex_file_path} {output_dir_path}'"
+    command = f"{deapexer_tool_path} extract {apex_file_path} {output_dir_path}"
     logging.info(f"APEX: Deapexer command: {command}")
     is_success, log = execute_shell_command(command, aosp_path)
     if not is_success:
