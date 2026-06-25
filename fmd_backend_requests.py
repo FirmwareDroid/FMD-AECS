@@ -263,6 +263,7 @@ def upload_image_as_raw(repo_url, username, password, file_path, filename):
 
     url = f'{repo_url}{filename}'
     logging.info(f'Uploading image {file_path} as raw to {url}')
+    response = None
     try:
         with open(file_path, 'rb') as f:
             response = requests.put(url, auth=(username, password), data=f, verify=VERIFY_SSL)

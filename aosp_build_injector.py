@@ -1240,6 +1240,10 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
             logging.info(f"Skipping firmware id: {firmware_id}. Remaining skip count: {skip_counter}")
             continue
         os.makedirs(BUILD_OUT_PATH, exist_ok=True)
+
+        # Copy template for later access in post injector
+        shutil.copytree(TEMPLATE_PATH, TMP_TEMPLATE_PATH)
+
         logging.info(f"Number of firmware ids left to process: {len(firmware_id_list) - firmware_id_list.index(firmware_id)}")
         try:
             logging.info(f"Start fetching build files for firmware-id: {firmware_id}")
