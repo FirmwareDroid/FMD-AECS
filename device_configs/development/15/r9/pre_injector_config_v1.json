@@ -2552,17 +2552,5 @@
       "path": "./toolbox/15_16/ecapture"
     }
   ],
-  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r536225/runtimes_ndk_cxx/aarch64/lldb-server",
-  "ACVTOOL_SKIP_APK_KEYWORDS": [
-    "Framework",
-    "Overlay",
-    "CarrierConfig",
-    "SystemUI",
-    "Launcher",
-    "Media",
-    "Phone",
-    "Print",
-    "DeviceDiagnostics"
-  ],
-  "ENABLE_ACVTOOL_INSTRUMENTATION": true
+  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r536225/runtimes_ndk_cxx/aarch64/lldb-server"
 }

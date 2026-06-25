@@ -567,5 +567,16 @@
     "wireguard_fmd": "./toolbox/wireguard_app",
     "acv_test_fmd": "./toolbox/acv_app_test"
   },
-  "TOOLBOX_AOSP_PACKAGES": ["curl", "toybox", "setcap", "getcap"]
+  "TOOLBOX_AOSP_PACKAGES": ["curl", "toybox", "setcap", "getcap"],
+  "ACVTOOL_SKIP_APK_KEYWORDS": [
+    "Framework",
+    "Overlay",
+    "CarrierConfig",
+    "SystemUI",
+    "Launcher",
+    "Media",
+    "Phone",
+    "Print"
+  ],
+  "ENABLE_ACVTOOL_INSTRUMENTATION": true
 }
