@@ -22,12 +22,11 @@ from http import cookies
 from types import MappingProxyType
 from pathlib import Path
 from filelock import FileLock
-
+from acv_instrumenter import add_acvtool_instrumentation_multiprocessing
 from aosp_apex_injector import handle_apex_modules, prepare_capex, rename_file, repackage_apex_file, \
     POST_INJECTOR_CONFIG, add_new_apex_file
 from aosp_build_property_merger import start_property_merge
 from aosp_module_type import get_module_type
-from aosp_post_build_app_injector import handle_apk_signing
 from aosp_post_injector_semantic import handle_vintf_merge, handle_seplicy_merging
 from aosp_rc_merger import run_rc_merger
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
@@ -69,7 +68,8 @@ def start_post_build_injector(aosp_path,
                               post_injector_config_path=None,
                               cookies=None, # REMOVE
                               aosp_version=None,
-                              partition_list=[""]):
+                              partition_list=[""],
+                              tag=None):
     """
     Start the post build injector. Replaces the original objects in the AOSP source code with the vendor flavoured
     objects.
@@ -128,7 +128,8 @@ def start_post_build_injector(aosp_path,
                    pre_injector_package_list,
                    cookies,
                    aosp_version,
-                   partition_list)
+                   partition_list,
+                   tag)
     else:
         logging.info(f"Post-Injection is disabled by configuration: {POST_INJECTOR_CONFIG['ENABLE_INJECTION']}")
         logging.info(f"Skipping post build injection for {source_folder_path} into {target_out_path}")
@@ -393,13 +394,14 @@ def inject(aosp_path,
            pre_injector_package_list,
            cookies,
            aosp_version,
-           partition_list):
+           partition_list,
+           tag):
     start_time = time.time()
     logging.info(f"Injection started at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
 
     target_obj_path = build_intermediate_file_index(aosp_path, target_out_path)
 
-    error_list, inj_obj_list, inj_partition_list = process_partitions(aosp_path,
+    error_list, inj_obj_list, inj_partition_list, acv_result_dict = process_partitions(aosp_path,
                                                                       source_folder_path,
                                                                       target_out_path,
                                                                       executor,
@@ -408,7 +410,8 @@ def inject(aosp_path,
                                                                       firmware_id,
                                                                       cookies,
                                                                       aosp_version,
-                                                                      partition_list)
+                                                                      partition_list,
+                                                                      tag)
     # Verify Direct Injection targets exist on filesystem and log errors for missing targets
     try:
         direct_inject_errors = verify_direct_injection_targets(inj_partition_list)
@@ -477,14 +480,20 @@ def inject(aosp_path,
                     skipped_apex_list.append(file_name)
                 if ".so" in obj:
                     skipped_libs_list.append(file_name)
-
+    logging.info(f"============================================================")
     logging.info(f"============================== ERRORS ==============================")
+    logging.info(f"============================================================")
     for error in error_list:
         logging.info(f"{error}")
         if "_apex" in error or "_capex" in error:
             error_list.remove(error)
     logging.info(f"============================================================")
-
+    logging.info(f"============================== ACV ==============================")
+    logging.info(f"============================================================")
+    logging.info(f"acv_result_dict: {acv_result_dict}")
+    logging.info(f"============================================================")
+    logging.info(f"============================== INJ-METRICS ==============================")
+    logging.info(f"============================================================")
     logging.info(f"Execution time: {execution_time_minutes} minutes")
     number_of_files = count_number_of_extracted_files(source_folder_path)
     logging.info(f"Number of File in ALL_FILES: {number_of_files}")
@@ -492,7 +501,7 @@ def inject(aosp_path,
     logging.info(f"Number of objects injected: {len(inj_obj_list)}")
     logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
     logging.info(f"Number of files processed: {len(error_list) + len(inj_obj_list) + len(inj_partition_list)}")
-
+    logging.info(f"============================================================")
     logging.info(f"\n\nInjected Apps/APEX/Libraries Summary:")
     logging.info(f"Post-Injection Apps injected: {app_list}\n\n")
     logging.info(f"Post-Injection APEX injected: {apex_list}\n\n")
@@ -501,7 +510,9 @@ def inject(aosp_path,
     logging.info(f"Post-Injection Libraries skipped: {skipped_libs_list}\n\n")
     logging.info(f"Post-Injection Apps skipped: {skipped_app_list}\n\n")
     logging.info(f"Post-Injection APEX skipped: {skipped_apex_list}\n\n")
-
+    logging.info(f"============================================================")
+    logging.info(f"============================== GROUPED ERRORS ==============================")
+    logging.info(f"============================================================")
     grouped_errors, error_sample_list = group_errors_by_prefix(error_list)
 
     logging.info(f"Grouped Errors:")
@@ -516,6 +527,7 @@ def inject(aosp_path,
     logging.info(f"File Type Frequencies:")
     for file_type, count in file_type_frequencies.items():
         logging.info(f".{file_type}: {count} occurrences")
+    logging.info(f"============================================================")
 
     result = {
         "hostname": os.uname()[1],
@@ -531,6 +543,7 @@ def inject(aosp_path,
         "files_injected": len(inj_obj_list) + len(inj_partition_list),
         "errors_file_type_frequencies": file_type_frequencies,
         "errors_grouped": grouped_errors,
+        "acv_results": acv_result_dict,
     }
 
     write_json_output(result, PATH_EXECUTION_TIME_LOG)
@@ -569,14 +582,28 @@ def process_partitions(aosp_path,
                        firmware_id,
                        cookies,
                        aosp_version,
-                       partition_list):
+                       partition_list,
+                       tag):
     folder_path_list = get_folders(source_folder_path, partition_list)
     logging.info(f"Folder path list: {folder_path_list}")
     combined_error_list = []
     combined_inj_obj_list = []
     combined_inj_partition_list = []
+    acv_result_dict = {}
 
     for folder_path in tqdm(folder_path_list, desc="Processing partitions"):
+        if POST_INJECTOR_CONFIG["ENABLE_ACVTOOL_INSTRUMENTATION"]:
+            acv_result_dict = add_acvtool_instrumentation_multiprocessing(
+                firmware_id,
+                aosp_path,
+                cookies,
+                folder_path,
+                version=aosp_version,
+                lunch_target=lunch_target,
+                tag=tag,
+                delete_instrumented_apks=ACVTOOL_DELETE_INSTRUMENTED_APKS
+            )
+
         error_list, inj_obj_list, inj_partition_list = process_partition_files(aosp_path,
                                                                                folder_path,
                                                                                target_out_path,
@@ -590,7 +617,7 @@ def process_partitions(aosp_path,
         combined_inj_obj_list.extend(inj_obj_list)
         combined_inj_partition_list.extend(inj_partition_list)
 
-    return combined_error_list, combined_inj_obj_list, combined_inj_partition_list
+    return combined_error_list, combined_inj_obj_list, combined_inj_partition_list, acv_result_dict
 
 
 def process_file_concurrently(aosp_path, file_path, partition_name, target_out_path, lunch_target, pre_injector_package_list, firmware_id, cookies, aosp_version):
@@ -716,12 +743,7 @@ def rename_file(file_path, new_name):
 
 
 
-def handle_app_modules(file_path, aosp_path, firmware_id, cookies):
-    error_message = None
-    signing_success, output, subprocess_error_message = handle_apk_signing(file_path, aosp_path, firmware_id, cookies)
-    if not signing_success:
-        error_message = f"Error signing APK file: {file_path}|{subprocess_error_message}"
-    return error_message
+
 
 
 def replace_capex_with_apex(file_path):
@@ -1313,6 +1335,11 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     partition_name = os.path.basename(folder_path)
     partition_path = folder_path
 
+
+
+
+
+
     file_paths = list(set(os.path.join(root, file_name.strip()) for root, _, file_name_list in scandir_walk(folder_path)
                           for file_name in file_name_list))
     logging.debug(f"Found {len(file_paths)} files in {folder_path} for post-injection...")
@@ -1365,7 +1392,6 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
             progress_bar.update(1)
 
     if POST_INJECTOR_CONFIG["ENABLE_SEMANTIC_INJECTOR"]:
-
         if POST_INJECTOR_CONFIG["ENABLE_VINTF_MERGE"]:
             if vintf_path_list and len(inj_obj_list) > 0:
                 logging.info(f"Starting Semantic Injector. Logging to file: {SEMANTIC_INJECTOR_LOG_FILE_PATH}")
@@ -2086,6 +2112,8 @@ def parse_arguments():
                         default=None,
                         required=False,
                         help="Comma-separated list of partitions")
+    parser.add_argument("-g", "--tag", type=str, default=None, required=False,
+                        help="Tag for the uploaded artefact name.")
 
     args = parser.parse_args()
 
@@ -2117,7 +2145,7 @@ def main():
         lunch_target = post_builder_args_dict.get("lunch_target", None)
         firmware_id = post_builder_args_dict.get("firmware_id", None)
         pre_injector_package_list = post_builder_args_dict.get("pre_injector_package_list", None)
-
+        tag = post_builder_args_dict.get("tag", None)
         pre_rel = post_builder_args_dict.get("pre_injector_config_path")
         post_rel = post_builder_args_dict.get("post_injector_config_path")
 
@@ -2145,6 +2173,7 @@ def main():
         pre_injector_package_list = []
         pre_injector_config_path = args.pre_injector_config
         post_injector_config_path = args.post_injector_config
+        tag = args.tag
 
     partition_list = args.partition_list
     if not partition_list:
@@ -2195,7 +2224,8 @@ def main():
                               post_injector_config_path=post_injector_config_path,
                               cookies=fmd_cookies,
                               aosp_version=aosp_version,
-                              partition_list=partition_list)
+                              partition_list=partition_list,
+                              tag=tag)
 
 
 

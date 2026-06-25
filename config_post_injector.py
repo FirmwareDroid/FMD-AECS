@@ -28,3 +28,6 @@ PATH_MAPPING_EXECUTION_TIME_LOG = os.path.join(TMP_PATH, NAME_EXECUTION_MAPPING_
 ENABLE_INJECTION_PERFORMANCE_LOG = False
 PROPERTY_MERGE_CONFLICT_DIR = "property_merge_conflicts"
 PATH_PROPERTY_MERGE_CONFLICTS_DIR = os.path.join(BUILD_OUT_PATH, PROPERTY_MERGE_CONFLICT_DIR)
+# When True, ACVTool's instrumented APK files will be deleted from the ACV output folder
+# before creating the archive so they are not included in the uploaded zip.
+ACVTOOL_DELETE_INSTRUMENTED_APKS = True

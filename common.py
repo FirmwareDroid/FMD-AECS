@@ -8,6 +8,8 @@ from config import VENDOR_NAMES
 import hashlib
 import subprocess
 
+from fmd_backend_requests import upload_image_as_raw
+
 
 def extract_zip(file_path, destination):
     logging.info("Extracting %s to %s", file_path, destination)
@@ -255,3 +257,35 @@ def get_aosp_build_out_dir(aosp_path, aosp_version):
     else:
         abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64")
     return abs_source_path
+
+
+def upload_build_artefact(repo_url, username, password, artefact_path, filename):
+    """
+    Uploads the build artefact to the docker registry. Retries the upload process if it fails.
+
+    :param repo_url: str - URL to the docker registry.
+    :param username: str - username for the docker registry.
+    :param password: str - password for the docker registry.
+    :param artefact_path: str - path to the build artefact.
+    :param filename: str - name of the build artefact.
+
+    :returns: bool - True if the upload was successful.
+
+    """
+    is_upload_success = False
+    max_attempts = 5
+    download_url = None
+    while not is_upload_success and max_attempts > 0:
+        logging.debug(f"Uploading image {filename} to repo {repo_url}.")
+        try:
+            is_upload_success, download_url = upload_image_as_raw(repo_url,
+                                                    username,
+                                                    password,
+                                                    artefact_path,
+                                                    filename)
+        except Exception as err:
+            logging.error(f"Error uploading image: {err}")
+        max_attempts -= 1
+        if not is_upload_success:
+            logging.error(f"Failed to upload image {filename} to repo. Retrying...{max_attempts}")
+    return is_upload_success, download_url

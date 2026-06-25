@@ -104,10 +104,6 @@ VERIFY_SSL = False  # You can suppress warnings with: export PYTHONWARNINGS="ign
 
 MODULE_BASE_INJECT_DIR = "packages/modules/fmd/"
 
-# When True, ACVTool's instrumented APK files will be deleted from the ACV output folder
-# before creating the archive so they are not included in the uploaded zip.
-ACVTOOL_DELETE_INSTRUMENTED_APKS = True
-
 VENDOR_NAMES = [
     "Google", "Samsung", "Apple", "Huawei", "Xiaomi", "Oppo", "Vivo", "OnePlus",
     "Realme", "Sony", "LG", "Nokia", "Motorola", "Asus", "Lenovo", "ZTE", "HTC",
