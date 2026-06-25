@@ -646,7 +646,7 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
     while attempt < 3 and not is_success:
         #command = f"bash -c 'cd {aosp_path} && source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
         #           f"&& {converter_path} proto -o {out_file_path} {cleaned_manifest}'"
-        command = f"{converter_path} proto -o {out_file_path} {cleaned_manifest}'"
+        command = f"{converter_path} proto -o {out_file_path} {cleaned_manifest}"
         is_success, log = execute_shell_command(command, aosp_path)
         if not is_success:
             logging.error(f"APEX: conv_apex_manifest conversion command failed. Trying again: {command} | {is_success} | {log}")
