@@ -32,6 +32,7 @@ from aosp_rc_merger import run_rc_merger
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
     check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file, check_binary_architecture, \
     get_aosp_build_out_dir
+from common_post_injector import handle_app_modules
 from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, \
     MEASURE_LOOKUP_PERFORMANCE, EXTRACTION_ALL_FILES_PATH
 from config_post_injector import *
