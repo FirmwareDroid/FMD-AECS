@@ -1242,7 +1242,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
         os.makedirs(BUILD_OUT_PATH, exist_ok=True)
 
         # Copy template for later access in post injector
-        shutil.copytree(TEMPLATE_PATH, TMP_TEMPLATE_PATH)
+        shutil.copytree(TEMPLATE_PATH, TMP_TEMPLATE_PATH, dirs_exist_ok=True)
 
         logging.info(f"Number of firmware ids left to process: {len(firmware_id_list) - firmware_id_list.index(firmware_id)}")
         try:
