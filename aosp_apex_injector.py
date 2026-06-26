@@ -619,7 +619,7 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
     converter_path = next((p for p in conv_bin_candidates if os.path.exists(p)), None)
     if not converter_path:
         message = "APEX conv_apex_manifest failed: conv_apex_manifest tool not found in any known location."
-        logging.info(message)
+        logging.error(message)
         return False, {f"{message}"}
 
     #base_dir = str(os.path.dirname(apex_manifest_path))
@@ -1470,6 +1470,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
         private_key_path, priv_pem_file_path, avb_pub_key_path, cert_apex_apk_path = get_apex_default_keys(aosp_path, apex_file_name)
         if not file_contexts_path:
             file_contexts_path = get_existing_file_context(apex_file_name, aosp_path)
+            logging.info(f"Using default file contexts for APEX: {apex_file_name}|{file_contexts_path}")
     else:
         logging.info(f"Creating key material for APEX: {apex_file_name}")
         is_success, log_message, temp_keys_dir, private_key_path, priv_pem_file_path, pub_key_path, avb_pub_key_path, \
@@ -1477,8 +1478,11 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
         logging.info(f"Key material created for APEX: {temp_keys_dir}, "
                      f"{private_key_path},"
                      f"{priv_pem_file_path}, {pub_key_path}, {avb_pub_key_path}, {cert_apex_apk_path}")
+
         if not file_contexts_path:
             file_contexts_path = FILE_CONTEXT_TEMPLATE_PATH
+            logging.info(f"Using default file contexts for APEX: {apex_file_name}|{file_contexts_path}")
+
         if not is_success:
             logging.error(f"Error generating APEX keys: {log_message}")
             return False, f"Error generating APEX keys: {log_message}", None, None, None, None
@@ -1969,12 +1973,15 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
             logging.info(f"APEX manifest file created from template: {temp_manifest_path}:{manifest_json_str}")
 
         try:
-            convert_manifest_from_json(
+            is_success, error_msg = convert_manifest_from_json(
                 apex_manifest_path=temp_manifest_path,
                 out_file_path=manifest_dst,
                 aosp_path=aosp_path,
                 lunch_target=lunch_target
             )
+            if not is_success:
+                raise RuntimeError(error_msg)
+
             if os.path.exists(manifest_dst):
                 is_apex_manifest_file_found = True
                 logging.info(f"APEX manifest file created from template: {manifest_dst}")

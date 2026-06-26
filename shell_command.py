@@ -7,7 +7,8 @@ import traceback
 def execute_shell_command(command, aosp_root_path):
     current_directory = os.path.dirname(os.path.realpath(__file__))
     os.chdir(aosp_root_path)
-    result = subprocess.run(command, shell=True, capture_output=True, text=False)
+    env_copy = os.environ.copy()
+    result = subprocess.run(command, shell=True, capture_output=True, text=False, env=env_copy)
     log_out = result.stdout.decode('utf-8', errors='ignore').strip()
     log_err = result.stderr.decode('utf-8', errors='ignore').strip()
 
