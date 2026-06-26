@@ -1871,36 +1871,40 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file, apk_name_list=
                 #     file_inserted_entries.append(f"/{relative_file_path} {user_id} {group_id} {mode}")
     logging.info(f"APEX: Canned FS Config file created: {output_file} | {file_inserted_entries}")
 
+
 def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target, aosp_version):
     """
     Extracts the APEX file using deapexer.
-
-    :param aosp_path: str - path to the AOSP source code.
-    :param apex_file_path: str - path to the APEX file.
-    :param output_dir_path: str - path to the output directory where the apex will be extracted to.
-    :param lunch_target: str - lunch target for the AOSP build.
-
-    :return: bool - True if the extraction was successful, False otherwise.
-
     """
     logging.info(f"Extracting APEX file: {apex_file_path}")
     deapexer_candidates = [
         os.path.join(aosp_path, "out/soong/host/linux-x86/bin/deapexer"),
         os.path.join(aosp_path, "out/host/linux-x86/bin/deapexer"),
     ]
+
     deapexer_tool_path = next((p for p in deapexer_candidates if os.path.exists(p)), None)
     if not deapexer_tool_path:
         message = "APEX extract_apex_file failed: Deapexer tool not found in any known location."
         logging.info(message)
         return False, {f"{message}"}
 
+    # Determine the debugfs path by looking in the same 'bin' directory as deapexer
+    bin_dir = os.path.dirname(deapexer_tool_path)
+    debugfs_path = os.path.join(bin_dir, "debugfs")
+
+    if not os.path.exists(debugfs_path):
+        # Fallback to appending _static if standard debugfs is missing (common in newer AOSP builds)
+        debugfs_path = os.path.join(bin_dir, "debugfs_static")
+
     info = f"APEX: Deapexer tool path: {deapexer_tool_path}|{lunch_target}|{apex_file_path}|{output_dir_path}"
     logging.info(info)
-    #command = f"bash -c 'cd {aosp_path} && source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
-    #           f"&& {deapexer_tool_path} extract {apex_file_path} {output_dir_path}'"
-    command = f"{deapexer_tool_path} extract {apex_file_path} {output_dir_path}"
+
+    # Inject the --debugfs_path flag into the command
+    command = f"{deapexer_tool_path} --debugfs_path {debugfs_path} extract {apex_file_path} {output_dir_path}"
+
     logging.info(f"APEX: Deapexer command: {command}")
     is_success, log = execute_shell_command(command, aosp_path)
+
     if not is_success:
         logging.warning(f"APEX: Deapexer extraction failed - retry: {log}")
         is_success, log = execute_shell_command(command, aosp_path)
