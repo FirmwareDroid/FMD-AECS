@@ -85,7 +85,11 @@
     "libstagefright",
     "/system/",
     "/vendor/bin",
-    "/vendor/lib"
+    "/vendor/lib",
+    "/system_ext/lib",
+    "/product/lib",
+    "/system_ext/bin",
+    "/product/bin"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
