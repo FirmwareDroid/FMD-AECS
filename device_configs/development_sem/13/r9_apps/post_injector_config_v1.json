@@ -83,7 +83,9 @@
     "/etc/vintf",
     "libadbd",
     "libstagefright",
-    "/system/"
+    "/system/",
+    "/vendor/bin",
+    "/vendor/lib"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
