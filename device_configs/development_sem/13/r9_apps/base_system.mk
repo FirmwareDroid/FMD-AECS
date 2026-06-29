@@ -13,10 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # Disabled Packages
-#
-# PackageInstaller \
-#
-# SettingsProvider \
 # CtsShimPrebuilt \
 # CtsShimPrivPrebuilt \
 #
@@ -28,6 +24,8 @@ PRODUCT_PACKAGES += \
     am \
     NetworkStack \
     libcamera2ndk \
+    PackageInstaller \
+	SettingsProvider \
     android.hidl.allocator@1.0-service \
     android.hidl.base-V1.0-java \
     android.hidl.manager-V1.0-java \
