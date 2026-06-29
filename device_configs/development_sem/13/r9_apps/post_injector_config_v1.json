@@ -89,6 +89,7 @@
     "/system_ext/lib",
     "/product/lib",
     "/system_ext/lib",
+    "/apex/",
     "/system_ext/bin",
     "/product/bin",
     "/system_ext/etc/",
