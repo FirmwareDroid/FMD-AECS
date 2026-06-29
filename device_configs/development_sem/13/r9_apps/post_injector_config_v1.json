@@ -89,7 +89,10 @@
     "/system_ext/lib",
     "/product/lib",
     "/system_ext/bin",
-    "/product/bin"
+    "/product/bin",
+    "/system_ext/etc/",
+    "/product/etc/",
+    "/vendor/etc/"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
