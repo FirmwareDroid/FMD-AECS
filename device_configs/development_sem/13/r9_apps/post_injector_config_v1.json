@@ -88,6 +88,7 @@
     "/vendor/lib",
     "/system_ext/lib",
     "/product/lib",
+    "/system_ext/lib",
     "/system_ext/bin",
     "/product/bin",
     "/system_ext/etc/",

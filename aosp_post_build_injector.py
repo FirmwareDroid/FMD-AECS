@@ -446,26 +446,26 @@ def inject(aosp_path,
     if PRINT_ALL_LOGS:
         for obj in inj_obj_list:
             logging.info(f"Indirect Inject via obj: {obj}")
-            if isinstance(obj, tuple) and any(".apk" in str(element) for element in obj):
+            if isinstance(obj, tuple) and obj and isinstance(obj[0], str) and obj[0].endswith(".apk"):
                 file_name = os.path.basename(obj[0])
                 app_list.append(file_name)
-            elif isinstance(obj, tuple) and any(".apex" in str(element) for element in obj):
+            elif isinstance(obj, tuple) and obj and isinstance(obj[0], str) and obj[0].endswith(".apex"):
                 file_name = os.path.basename(obj[0])
                 apex_list.append(file_name)
-            elif isinstance(obj, tuple) and any(".so" in str(element) for element in obj):
+            elif isinstance(obj, tuple) and obj and isinstance(obj[0], str) and obj[0].endswith(".so"):
                 file_name = os.path.basename(obj[0])
                 libs_list.append(file_name)
 
         logging.info(f"Partition files injected:")
         for obj in inj_partition_list:
             logging.info(f"Direct Inject: {obj}")
-            if isinstance(obj, tuple) and any(".apk" in str(element) for element in obj):
+            if isinstance(obj, tuple) and obj and isinstance(obj[0], str) and obj[0].endswith(".apk"):
                 file_name = os.path.basename(obj[0])
                 app_list.append(file_name)
-            elif isinstance(obj, tuple) and any(".apex" in str(element) for element in obj):
+            elif isinstance(obj, tuple) and obj and isinstance(obj[0], str) and obj[0].endswith(".apex"):
                 file_name = os.path.basename(obj[0])
                 apex_list.append(file_name)
-            elif isinstance(obj, tuple) and any(".so" in str(element) for element in obj):
+            elif isinstance(obj, tuple) and obj and isinstance(obj[0], str) and obj[0].endswith(".so"):
                 file_name = os.path.basename(obj[0])
                 libs_list.append(file_name)
     if PRINT_ERROR_LOGS:
