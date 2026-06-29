@@ -493,18 +493,7 @@ def inject(aosp_path,
     logging.info(f"============================================================")
     logging.info(f"acv_result_dict: {acv_result_dict}")
     logging.info(f"============================================================")
-    logging.info(f"============================== INJ-METRICS ==============================")
-    logging.info(f"============================================================")
-    logging.info(f"Execution time: {execution_time_minutes} minutes")
-    number_of_files = count_number_of_extracted_files(source_folder_path)
-    logging.info(f"Number of File in ALL_FILES: {number_of_files}")
-    logging.info(f"Number of errors: {len(error_list)}")
-    logging.info(f"Number of objects injected: {len(inj_obj_list)}")
-    logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
-    logging.info(f"Number of files processed: {len(error_list) + len(inj_obj_list) + len(inj_partition_list)}")
-    logging.info(f"Post-Injection Apps injected: {len(app_list)}")
-    logging.info(f"Post-Injection APEX injected: {len(apex_list)}")
-    logging.info(f"Post-Injection Libraries injected: {len(libs_list)}")
+    logging.info(f"============================== Injected by Module Type ==============================")
     logging.info(f"============================================================")
     logging.info(f"\n\nInjected Apps/APEX/Libraries Summary:")
     logging.info(f"Post-Injection Apps injected: {app_list}\n\n")
@@ -518,7 +507,6 @@ def inject(aosp_path,
     logging.info(f"============================== GROUPED ERRORS ==============================")
     logging.info(f"============================================================")
     grouped_errors, error_sample_list = group_errors_by_prefix(error_list)
-
     logging.info(f"Grouped Errors:")
     for prefix, count in grouped_errors.items():
         logging.info(f"{prefix} {count} occurrences")
@@ -531,7 +519,20 @@ def inject(aosp_path,
     logging.info(f"File Type Frequencies:")
     for file_type, count in file_type_frequencies.items():
         logging.info(f".{file_type}: {count} occurrences")
+
     logging.info(f"============================================================")
+    logging.info(f"============================== INJ-METRICS ==============================")
+    logging.info(f"============================================================")
+    logging.info(f"Execution time: {execution_time_minutes} minutes")
+    number_of_files = count_number_of_extracted_files(source_folder_path)
+    logging.info(f"Number of File in ALL_FILES: {number_of_files}")
+    logging.info(f"Number of errors: {len(error_list)}")
+    logging.info(f"Number of objects injected: {len(inj_obj_list)}")
+    logging.info(f"Number of partition files injected: {len(inj_partition_list)}")
+    logging.info(f"Number of files processed: {len(error_list) + len(inj_obj_list) + len(inj_partition_list)}")
+    logging.info(f"Post-Injection Apps injected: {len(app_list)}")
+    logging.info(f"Post-Injection APEX injected: {len(apex_list)}")
+    logging.info(f"Post-Injection Libraries injected: {len(libs_list)}")
 
     result = {
         "hostname": os.uname()[1],

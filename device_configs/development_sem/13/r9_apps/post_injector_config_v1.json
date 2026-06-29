@@ -94,7 +94,10 @@
     "/product/bin",
     "/system_ext/etc/",
     "/product/etc/",
-    "/vendor/etc/"
+    "/vendor/etc/",
+    "/system_ext/framework",
+    "/product/framework",
+    "/vendor/framework"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
