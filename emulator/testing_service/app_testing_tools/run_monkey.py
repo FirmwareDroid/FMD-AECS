@@ -385,7 +385,15 @@ def get_apk_path(package: str, serial: Optional[str] = None) -> Optional[str]:
     return first
 
 
-def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.0, package: Optional[str] = None, monkey_events: int = 1, monkey_opts: Optional[Dict[str, Any]] = None, blacklist: Optional[Set[str]] = None):
+def start_packages(serial=None,
+                   delay=0.3,
+                   stop_after_start=False,
+                   stop_delay=1.0,
+                   package: Optional[str] = None,
+                   monkey_events: int = 1,
+                   monkey_opts: Optional[Dict[str, Any]] = None,
+                   blacklist: Optional[Set[str]] = None,
+                   output_path=DEFAULT_OUT_DIR):
     """Start packages. If `package` is provided, only that package will be attempted.
 
     Returns (out_summary, failures)
@@ -437,14 +445,6 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
                         skipped_packages.append(p)
                         skipped_details.append({'package': p, 'reason': 'blacklist'})
                 logging.info('Filtered %d blacklisted packages; remaining to test: %d', len([p for p in orig_packages if p in bl]), len(packages))
-
-    success = []
-    failures = []
-    failure_reasons = Counter()
-    failure_examples = defaultdict(list)
-    started_by_script = []
-    skipped_packages = []
-    skipped_details = []
 
     for pkg in packages:
         logging.info('Processing package: %s', pkg)
@@ -572,7 +572,11 @@ def start_packages(serial=None, delay=0.3, stop_after_start=False, stop_delay=1.
 
     try:
         os.makedirs(DEFAULT_OUT_DIR, exist_ok=True)
-        out_path = os.path.join(DEFAULT_OUT_DIR, 'app_start_summary.json')
+        if os.path.isdir(output_path):
+            out_path = os.path.join(output_path, 'app_start_summary.json')
+        else:
+            out_path = output_path
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
         # Prepare a run entry that will be appended to the historical runs list
         run_entry = {
@@ -706,6 +710,8 @@ def main():
     parser.add_argument('--no-pretty', dest='pretty', action='store_false', help='Do not pretty-print output summary')
     # Accept package either as positional argument or via --package flag to support both usages
     parser.add_argument('package', nargs='?', help='(optional) single package to start')
+    parser.add_argument('-o', '--output', default=DEFAULT_OUT_DIR,
+                        help='Directory or file path to store summary.json (default: out/)')
     parser.add_argument('-p', '--package', dest='package_flag', help='(optional) single package to start (alternative flag)')
     parser.add_argument('-m', '--monkey-events', dest='monkey_events', type=int, default=1, help='Number of monkey events to send when attempting monkey launch (default 1)')
 
@@ -785,7 +791,16 @@ def main():
             logging.exception('Failed to read blacklist file %s', args.blacklist_file)
 
     try:
-        summary, failures = start_packages(args.serial, args.delay, stop_after_start=args.stop_after_start, stop_delay=args.stop_delay, package=package_to_start, monkey_events=args.monkey_events, monkey_opts=monkey_opts, blacklist=blacklist_set)
+        summary, failures = start_packages(args.serial,
+                                           args.delay,
+                                           stop_after_start=args.stop_after_start,
+                                           stop_delay=args.stop_delay,
+                                           package=package_to_start,
+                                           monkey_events=args.monkey_events,
+                                           monkey_opts=monkey_opts,
+                                           blacklist=blacklist_set,
+                                           output_path=args.output
+                                           )
         if args.pretty:
             pretty_print_summary(summary, failures)
     except RuntimeError as e:

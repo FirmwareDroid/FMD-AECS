@@ -6,7 +6,7 @@ concurrent installs are aggregated in a thread-safe way.
 
 New: add --all-devices to run the install on every connected device sequentially.
 """
-
+import keyword
 import subprocess
 import argparse
 import sys
@@ -19,6 +19,8 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 import re
+
+SKIPPED_KEYWORD_LIST = ["overlay", "gpudriver", "__auto_generated"]
 
 
 def normalize_install_error(msg: str) -> str:
@@ -188,6 +190,10 @@ def get_apk_files(serial=None):
                 pkg_name = parts[1].strip()
                 if path.startswith('/data/'):
                     logging.debug('Skipping installed-package path under /data/: %s', path)
+                    if pkg_name:
+                        skipped_package_names.append(pkg_name)
+                elif any(pack_keyword in path for pack_keyword in SKIPPED_KEYWORD_LIST):
+                    logging.debug('Skipping path due to keyword filter: %s', path)
                     if pkg_name:
                         skipped_package_names.append(pkg_name)
                 else:

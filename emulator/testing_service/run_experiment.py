@@ -159,7 +159,7 @@ def parse_args():
             '"fastbot" runs Fastbot2.0 model-based testing; '
             '"kea2" runs Kea2 property-based testing; '
             '"single" runs a simple test cycle (default); '
-            '"pipeline" runs Fastbot -> Kea2 -> Ape -> Monkey -> basic in sequence'
+            '"pipeline" runs the testing tools in sequence'
         ),
     )
     parser.add_argument('--test-only-one', action='store_true', help='If set, only the first app in the list will be tested')
@@ -752,6 +752,7 @@ def exec_app_testers(package, mode, skip_install=False):
         run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
     elif mode == 'pipeline':
         logging.info('Running pipeline: Fastbot -> Kea2 -> Ape -> Monkey for %s', package)
+        run_script_capture(RUN_MONKEY, args=["-p", package], description=f"Run basic start/stop test for {package}")
         run_script_capture(RUN_FASTBOT, args=["-p", package], description=f"Run Fastbot2.0 model-based testing for {package}")
         run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
         run_script_capture(RUN_APE, args=["-p", package], description=f"Run Ape search-based testing for {package}")

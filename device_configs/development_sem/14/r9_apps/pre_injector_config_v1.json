@@ -31,21 +31,24 @@
     "PixelConnectivityOverlay2021",
     "VpnDialogs",
     "CellBroadcast",
-    "CompOSPayloadApp",
+    "AccessibilityMenu",
+    "E2eeContactKeysProvider",
     "CtsShimPrivPrebuilt",
     "CtsShimPrebuilt",
     "Launcher3",
-    "ServiceUwbResources",
-    "WifiDialog",
-    "OnDevicePersonalization",
-    "AdServices",
-    "SdkSandbox",
-    "SafetyCenterResources",
     "MiuiSystemUI",
     "SystemUI"
   ],
   "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
-  "ALLOW_APP_KEYWORD_ALWAYS_LIST": ["ExtServices", "ExtShared", "AndroidPlatformServices", "ServicesFramework", "SystemUIGoogle", "DocumentsUIGoogle", "NexusLauncherRelease"],
+  "ALLOW_APP_KEYWORD_ALWAYS_LIST": [
+    "ExtServices",
+    "ExtShared",
+    "AndroidPlatformServices",
+    "ServicesFramework",
+    "SystemUIGoogle",
+    "DocumentsUIGoogle",
+    "NexusLauncherRelease"
+  ],
   "SHARED_USER_ID_MAPPING_DICT": {
     "media": [
       "android.media",
@@ -232,7 +235,9 @@
     "stagefright",
     "__auto_generated_rro",
     "android.hardware.atrace",
-    "libadb_protos"
+    "libadb_protos",
+    "arcore",
+    "__auto_generated_"
   ],
   "BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES": [
     "aaudio-aidl-cpp",
@@ -2548,5 +2553,5 @@
       "path": "./toolbox/12_13_14/ecapture"
     }
   ],
-  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r450784d/runtimes_ndk_cxx/aarch64/lldb-server"
+  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r487747c/runtimes_ndk_cxx/aarch64/lldb-server"
 }
