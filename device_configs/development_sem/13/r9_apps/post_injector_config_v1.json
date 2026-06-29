@@ -97,7 +97,8 @@
     "/vendor/etc/",
     "/system_ext/framework",
     "/product/framework",
-    "/vendor/framework"
+    "/vendor/framework",
+    "MiuiSystemUI"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
