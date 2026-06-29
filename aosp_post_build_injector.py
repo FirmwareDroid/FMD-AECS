@@ -533,7 +533,7 @@ def inject(aosp_path,
     logging.info(f"Post-Injection Apps injected: {len(app_list)}")
     logging.info(f"Post-Injection APEX injected: {len(apex_list)}")
     logging.info(f"Post-Injection Libraries injected: {len(libs_list)}")
-
+    logging.info(f"============================================================")
     result = {
         "hostname": os.uname()[1],
         "firmware_id": firmware_id,
@@ -651,7 +651,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 #processed_files.add(file_path)
 
             if module_type in ["SKIPPED"]:
-                error_message = f"Skipped File post-inject (Keyword/Extension/Filename): {file_path} | module_type: {module_type}"
+                error_message = f"Skipped File (Keyword/Extension/Filename): {file_path} | module_type: {module_type}"
                 logging.info(error_message)
             else:
                 logging.debug(f"Processing file {file_path}")

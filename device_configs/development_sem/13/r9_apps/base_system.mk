@@ -19,7 +19,7 @@
 # SettingsProvider \
 # CtsShimPrebuilt \
 # CtsShimPrivPrebuilt \
-# libcamera2ndk \
+#
 
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \
@@ -27,6 +27,7 @@ PRODUCT_PACKAGES += \
     adbd_system_api \
     am \
     NetworkStack \
+    libcamera2ndk \
     android.hidl.allocator@1.0-service \
     android.hidl.base-V1.0-java \
     android.hidl.manager-V1.0-java \
