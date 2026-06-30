@@ -109,7 +109,32 @@
     "/system/etc/vintf/manifest/manifest_media_c2_software.xml",
     "/system/etc/vintf/manifest/secure_element-service.xml",
     "/etc/vintf",
-    "libadbd"
+    "libadbd",
+    "android.hardware.drm-service.clearkey",
+    "drm-service.widevine",
+    "android.hardware.graphics",
+    "android.hardware",
+    "libstagefright",
+    "android.hardware.boot",
+    "android.hardware.biometrics",
+    "android.hardware.gatekeeper",
+    "fsverity_init",
+    "android.hardware.security",
+    "/system/bin/vdc",
+    "/etc/init/hw/",
+    "/lib64/bootstrap/",
+    "/lib64/libselinux",
+    "/lib64/libkeystore2",
+    "/lib64/libkeyutils.so",
+    "/lib64/libkeymaster",
+    "/lib64/libgatekeeper",
+    "/lib64/android.security",
+    "/lib64/android.hardware.security",
+    "/lib64/android.hardware.secure",
+    "/lib64/android.hardware.keymaster",
+    "/lib64/android.hardware.gatekeeper",
+    "/lib64/android.hardware.drm",
+    "/lib64/android.hardware.boot"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
@@ -175,7 +200,8 @@
     "/system/etc/compatconfig",
     "/system/etc/appmanager.conf",
     "/system/etc/boot-image.bprof",
-    "/system/etc/boot-image.prof"
+    "/system/etc/boot-image.prof",
+    "/lib64/"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "ConfigOverlay.apk",
