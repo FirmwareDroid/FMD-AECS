@@ -162,7 +162,8 @@ def run_rc_merger(source_file_path):
         target_file_path = handle_init_rc(source_file_path)
     else:
         logger.info(f"Modifying rc file inplace: {source_file_path}")
-        add_oneshot_to_services(source_file_path)
+        if "/system_ext/" in source_file_path:
+            add_oneshot_to_services(source_file_path)
         # add_disabled_to_services(source_file_path)  # Uncomment to apply to all vendor init scripts
         target_file_path = handle_vendor_init_rc(source_file_path)
 
