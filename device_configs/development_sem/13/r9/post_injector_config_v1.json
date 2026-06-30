@@ -3,7 +3,7 @@
   "GRAPHQL_API_URL": "https://firmwaredroid.cloudlab.zhaw.ch/graphql",
   "ENABLE_INJECTION": true,
   "ENABLE_SEMANTIC_INJECTOR": true,
-  "ENABLE_RC_MERGER": true,
+  "ENABLE_RC_MERGER": false,
   "ENABLE_VINTF_MERGE": false,
   "ENABLE_SELINUX_MERGER": false,
   "DISABLE_MISC_INJECTION": true,
