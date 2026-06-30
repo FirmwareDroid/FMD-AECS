@@ -1217,6 +1217,9 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         if not os.path.exists(dst_path):
             logging.info(f"COPY_OUTSIDE_LIB_TO_LIB64: {file_path} to {dst_path}")
             copy_fast(file_path, dst_path)
+            dst_path2 = dst_path.replace("/system_ext/", "/vendor/")
+            if not os.path.exists(dst_path2):
+                copy_fast(file_path, dst_path2)
         else:
             logging.info(f"Outside Lib match SKIPPED (file already exists): {file_path}|{dst_path}")
 
