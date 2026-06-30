@@ -94,7 +94,6 @@
     "drm-service.widevine",
     "android.hardware.graphics",
     "android.hardware",
-    "libstagefright",
     "android.hardware.boot",
     "android.hardware.biometrics",
     "android.hardware.gatekeeper",
@@ -118,7 +117,8 @@
     "libGLES",
     "libEGL",
     "android.software.opengles",
-    "android.hardware.vulkan"
+    "android.hardware.vulkan",
+    "fstab"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
@@ -168,6 +168,7 @@
     "/lib64/libcamera",
     "/camera/",
     "/vendor/bin",
+    "/system/bin",
     "/system_ext/bin",
     "/prodcut/bin",
     "/system_other/bin",
