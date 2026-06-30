@@ -83,7 +83,6 @@
     "/etc/vintf",
     "libadbd",
     "libstagefright",
-    "fstab",
     "ueventd.rc"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
