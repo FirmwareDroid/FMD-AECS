@@ -168,7 +168,7 @@ COPY ./emulator/testing_service/ /android/testing_service/
 COPY ./emulator/testing_service/requirements.txt /android/testing_service/requirements.txt
 RUN set -eux; \
     if [ -f /android/testing_service/requirements.txt ]; then \
-        python3 -m pip install --no-cache-dir -r /android/testing_service/requirements.txt || python3 -m pip install --no-cache-dir -r /android/testing_service/requirements.txt || true; \
+        python3 -m pip install --no-cache-dir -r /android/testing_service/requirements.txt || python3 -m pip install --no-cache-dir -r /android/testing_service/requirements.txt; \
     fi
 RUN set -eux; python3 /android/testing_service/app_testing_tools/install_tools.py;
 RUN set -eux; python3 /android/testing_service/app_testing_tools/install_acvtool.py
