@@ -274,7 +274,9 @@
     "android.resolv.apex",
     "android.mediaprovider.apex",
     "android.media.apex",
-    "android.usb.apex"
+    "android.usb.apex",
+    "com.android.vndk",
+    "android.scheduling.apex"
   ],
   "SKIPPED_FILE_EXTENSION_LIST_GENERAL": [
     ".rc",

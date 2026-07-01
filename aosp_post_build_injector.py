@@ -478,7 +478,8 @@ def inject(aosp_path,
                 if ".apk" in obj:
                     skipped_app_list.append(file_name)
                 if ".apex" in obj:
-                    skipped_apex_list.append(file_name)
+                    if "original_apex" not in obj:
+                        skipped_apex_list.append(file_name)
                 if ".so" in obj:
                     skipped_libs_list.append(file_name)
     logging.info(f"============================================================")
@@ -651,7 +652,10 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 #processed_files.add(file_path)
 
             if module_type in ["SKIPPED"]:
-                error_message = f"Skipped File (Keyword/Extension/Filename): {file_path} | module_type: {module_type}"
+                if "_apex" in file_path:
+                    error_message = f"File Ignored (Keyword/Extension/Filename): {file_path} | module_type: {module_type}"
+                else:
+                    error_message = f"Skipped File (Keyword/Extension/Filename): {file_path} | module_type: {module_type}"
                 logging.info(error_message)
             else:
                 logging.debug(f"Processing file {file_path}")
@@ -695,11 +699,12 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                             is_repack_success, log_message = repackage_apex_file(aosp_path, file_path, lunch_target, aosp_version)
                             if not is_repack_success:
                                 error_message = f"Error handling repack APEX file: {file_path}|{log_message}"
+                                raise RuntimeError(error_message)
                             else:
                                 error_message = None
                         except Exception as e:
                             error_message = f"Exception occurred: {e}:{traceback.format_exc()}\n{traceback.print_stack()}"
-                            is_repack_success = False
+                            raise e
                 elif module_type == "EXECUTABLES" and is_elf_binary(file_path):
                     if filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
                         try:

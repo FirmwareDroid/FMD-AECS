@@ -199,6 +199,8 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version):
                         file_contexts_path=None,
                         aosp_version=aosp_version
                     )
+                if not is_success:
+                    log_message = f"Apex repack failed: {log_message}"
             else:
                 log_message = f"APEX manifest file not found after extraction: {apex_extract_dir_path} | apex_manifest_path: {apex_manifest_path}"
         else:
