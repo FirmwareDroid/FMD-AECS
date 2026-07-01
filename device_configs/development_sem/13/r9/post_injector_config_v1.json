@@ -454,7 +454,8 @@
     "/lib64/android.hardware.boot@1.0.so",
     "android.hardware.audio",
     "/lib64/libmedia",
-    "/etc/build.prop"
+    "/etc/build.prop",
+    "ueventd.rc"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "PixelLiveWallpaper",
