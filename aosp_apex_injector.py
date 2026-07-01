@@ -1905,7 +1905,7 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target, 
     command = f"{deapexer_tool_path} --debugfs_path {debugfs_path} extract {apex_file_path} {output_dir_path}"
 
     logging.info(f"APEX: Deapexer command: {command}")
-    is_success, log = execute_shell_command(command, aosp_path)
+    is_success, log = execute_shell_command(command, aosp_path, lunch_target)
 
     if not is_success:
         logging.warning(f"APEX: Deapexer extraction failed - retry: {log}")

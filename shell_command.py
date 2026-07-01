@@ -3,9 +3,9 @@ import os
 import subprocess
 import traceback
 
-def execute_shell_command(command, aosp_root_path, lunch_target):
+def execute_shell_command(command, aosp_root_path, lunch_target=None):
     env_copy = os.environ.copy()
-    if "ANDROID_HOST_OUT" not in env_copy:
+    if "ANDROID_HOST_OUT" not in env_copy and lunch_target:
         final_command = f"source build/envsetup.sh && lunch {lunch_target} && {command}"
     else:
         final_command = command
