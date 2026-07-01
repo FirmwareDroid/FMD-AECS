@@ -1040,7 +1040,7 @@ def build_intermediate_md5_map(aosp_path, intermediates_path, exclude_dirs=None)
                     logging.warning(f"Error while hashing intermediate file {fname} in {root}: {e}")
                     continue
 
-    immutable_map = MappingProxyType({k: tuple(v) for k, v in md5_map.items()})
+    immutable_map = {k: tuple(v) for k, v in md5_map.items()}
     if ENABLE_INJECTION_PERFORMANCE_LOG:
         try:
             duration = time.time() - start_time
