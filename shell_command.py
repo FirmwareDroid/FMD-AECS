@@ -3,18 +3,23 @@ import os
 import subprocess
 import traceback
 
-
-def execute_shell_command(command, aosp_root_path):
-    current_directory = os.path.dirname(os.path.realpath(__file__))
-    os.chdir(aosp_root_path)
+def execute_shell_command(command, aosp_root_path, lunch_target):
     env_copy = os.environ.copy()
-    result = subprocess.run(command, shell=True, capture_output=True, text=False, env=env_copy)
+    if "ANDROID_HOST_OUT" not in env_copy:
+        final_command = f"source build/envsetup.sh && lunch {lunch_target} && {command}"
+    else:
+        final_command = command
+    result = subprocess.run(
+        final_command,
+        shell=True,
+        executable='/bin/bash',
+        cwd=aosp_root_path,
+        capture_output=True,
+        env=env_copy
+    )
     log_out = result.stdout.decode('utf-8', errors='ignore').strip()
     log_err = result.stderr.decode('utf-8', errors='ignore').strip()
-
-    is_success = result.returncode == 0 or "error" not in log_err.lower()
-
-    os.chdir(current_directory)
+    is_success = result.returncode == 0
     log = f"is_success: {is_success} result.returncode: {result.returncode}, stdout: {log_out} | error: {log_err}"
     return is_success, log
 
