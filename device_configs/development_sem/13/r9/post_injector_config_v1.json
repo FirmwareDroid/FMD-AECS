@@ -82,8 +82,7 @@
     "/system/etc/vintf/manifest/secure_element-service.xml",
     "/etc/vintf",
     "libadbd",
-    "libstagefright",
-    "ueventd.rc"
+    "libstagefright"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
