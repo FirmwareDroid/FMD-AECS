@@ -851,6 +851,7 @@ def run_script_to_file(partition):
         stderr=subprocess.STDOUT,
         check=True,
         env=current_env,
+        cwd="/home/ubuntu/FMD-AECS/"
       )
       print(
         f"Success! Output successfully written to {output_path}"
