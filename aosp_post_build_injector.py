@@ -499,7 +499,8 @@ def inject(aosp_path,
                 file_path = match.group(1).strip()
                 file_name = os.path.basename(file_path)
                 if ".apk" in obj:
-                    skipped_app_list.append(file_name)
+                    if not ".apk.idsig" not in obj:
+                        skipped_app_list.append(file_name)
                 if ".apex" in obj:
                     if "original_apex" not in obj:
                         skipped_apex_list.append(file_name)
@@ -895,13 +896,14 @@ def find_intermediate_file(aosp_path, md5_original_file):
         for fname in files:
             try:
                 file_path = os.path.join(root, fname)
-                logging.debug(f"Found intermediate APEX candidate: {file_path}")
-                md5sum = get_md5_from_file(file_path)
-                if not md5sum:
-                    continue
-                if md5sum.strip().lower() == target_md5:
-                    logging.info(f"Matched intermediate APEX by md5: {file_path}")
-                    matching_intermediate_file_list.append(file_path)
+                logging.debug(f"Found intermediate candidate: {file_path}")
+                if os.path.exists(file_path) and os.path.isfile(file_path):
+                    md5sum = get_md5_from_file(file_path)
+                    if not md5sum:
+                        continue
+                    if md5sum.strip().lower() == target_md5:
+                        logging.info(f"Matched intermediate by md5: {file_path}")
+                        matching_intermediate_file_list.append(file_path)
             except Exception as e:
                 logging.warning(f"Error while checking intermediate file {fname} in {root}: {e}")
                 continue
