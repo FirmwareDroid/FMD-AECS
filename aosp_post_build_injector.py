@@ -1972,7 +1972,8 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
             # Fîle should not already exist, but if it does, we overwrite it, but it is not recommended.
             is_injected = True
             logging.info(f"Direct Injection File overwrite: {source_file_path} into {target_file_injection_path}. ")
-            shutil.copy2(str(source_file_path), str(target_file_injection_path), follow_symlinks=False)
+            copy_fast(str(source_file_path), str(target_file_injection_path))
+            #shutil.copy2(str(source_file_path), str(target_file_injection_path), follow_symlinks=False)
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
         if not os.path.exists(source_file_path):
@@ -1984,7 +1985,8 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
                 logging.error(f"Error creating directory: {target_file_injection_path} -> {e}")
             try:
                 if os.path.isfile(source_file_path) and not os.path.islink(source_file_path):
-                    shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
+                    copy_fast(source_file_path, target_file_injection_path)
+                    #shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
                     is_injected = True
                 elif os.path.islink(source_file_path):
                     # sudo

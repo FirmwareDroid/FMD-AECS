@@ -33,6 +33,9 @@ def copy_fast(src_path, dst_path,
     if os.path.abspath(src_path) == os.path.abspath(dst_path):
         return
 
+    if os.path.islink(src_path):
+        raise RuntimeError(f"{src_path} is a symbolic link")
+
     # Create an atomic temp path in the destination directory
     dstdir = os.path.dirname(dst_path) or "."
     fd_tmp, tmpname = tempfile.mkstemp(prefix=".tmp.copy.", dir=dstdir)
@@ -114,7 +117,7 @@ def copy_fast(src_path, dst_path,
         # optionally preserve mode/metadata (permissions, times)
         if preserve_mode:
             try:
-                shutil.copystat(src_path, tmpname)
+                shutil.copystat(src_path, tmpname, follow_symlinks=False)
             except Exception:
                 # ignore stat copy errors (permission denied, etc.)
                 pass
