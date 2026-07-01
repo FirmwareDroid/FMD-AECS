@@ -29,8 +29,6 @@
   "SKIPPED_APP_KEYWORDLIST": [
   ],
   "SKIPPED_MISC_KEYWORD_LIST": [
-    "/vendor/bin/",
-    "/system/bin/"
   ],
   "SKIPPED_MISC_EXTENSION_LIST": [
     ".kl",
@@ -180,7 +178,8 @@
     "/system/etc/compatconfig",
     "/system/etc/appmanager.conf",
     "/system/etc/boot-image.bprof",
-    "/system/etc/boot-image.prof"
+    "/system/etc/boot-image.prof",
+    "/system/bin/init"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "Overlay",
