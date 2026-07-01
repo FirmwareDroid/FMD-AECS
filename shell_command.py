@@ -15,7 +15,8 @@ def execute_shell_command(command, aosp_root_path, lunch_target=None):
         executable='/bin/bash',
         cwd=aosp_root_path,
         capture_output=True,
-        env=env_copy
+        env=env_copy,
+        timeout=600,
     )
     log_out = result.stdout.decode('utf-8', errors='ignore').strip()
     log_err = result.stderr.decode('utf-8', errors='ignore').strip()

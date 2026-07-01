@@ -624,8 +624,10 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
         logging.error(message)
         return False, {f"{message}"}
 
-    #base_dir = str(os.path.dirname(apex_manifest_path))
-    temp_dir = tempfile.mkdtemp()
+    #base_dir = str(os.path.dirname(apex_manifest_path))+
+    custom_base_dir = "/tmp/fmd/out/temp"
+    os.makedirs(custom_base_dir, exist_ok=True)
+    temp_dir = tempfile.mkdtemp(dir=custom_base_dir)
     cleaned_manifest = os.path.join(temp_dir, "apex_manifest_cleaned.json")
     if not os.path.exists(apex_manifest_path):
         error_msg = f"ERROR: Could not file for cleaning: {apex_manifest_path}"
