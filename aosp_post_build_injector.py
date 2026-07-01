@@ -952,7 +952,7 @@ def build_intermediate_md5_map(aosp_path, intermediates_path, exclude_dirs=None)
 
     if not os.path.exists(intermediates_path):
         logging.warning(f"Intermediates path does not exist (build map): {intermediates_path}")
-        return MappingProxyType({})
+        return {}
 
     logging.info(f"Building intermediate md5 map from: {intermediates_path}")
 
