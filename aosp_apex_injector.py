@@ -722,7 +722,7 @@ def copy_keys_to_apex_folder(input_apex, apex_main_folder, avb_pub_key_path):
 
 
 def get_apex_build_intermediate_folder(target_out_path, aosp_version):
-    if float(aosp_version) >= 15:
+    if float(aosp_version) >= 14:
         apex_folder_path = os.path.join(target_out_path, "symbols", "apex")
     else:
         apex_folder_path = os.path.join(target_out_path, "apex")
