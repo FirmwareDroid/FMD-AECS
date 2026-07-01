@@ -892,21 +892,21 @@ def find_intermediate_file(aosp_path, md5_original_file):
         return matching_intermediate_file_list
 
 
-    for root, dirs, files in os.walk(intermediates_path):
-        for fname in files:
-            try:
-                file_path = os.path.join(root, fname)
-                logging.debug(f"Found intermediate candidate: {file_path}")
-                if os.path.exists(file_path) and os.path.isfile(file_path):
-                    md5sum = get_md5_from_file(file_path)
-                    if not md5sum:
-                        continue
-                    if md5sum.strip().lower() == target_md5:
-                        logging.info(f"Matched intermediate by md5: {file_path}")
-                        matching_intermediate_file_list.append(file_path)
-            except Exception as e:
-                logging.warning(f"Error while checking intermediate file {fname} in {root}: {e}")
-                continue
+    # for root, dirs, files in os.walk(intermediates_path):
+    #     for fname in files:
+    #         try:
+    #             file_path = os.path.join(root, fname)
+    #             logging.debug(f"Found intermediate candidate: {file_path}")
+    #             if os.path.exists(file_path) and os.path.isfile(file_path):
+    #                 md5sum = get_md5_from_file(file_path)
+    #                 if not md5sum:
+    #                     continue
+    #                 if md5sum.strip().lower() == target_md5:
+    #                     logging.info(f"Matched intermediate by md5: {file_path}")
+    #                     matching_intermediate_file_list.append(file_path)
+    #         except Exception as e:
+    #             logging.warning(f"Error while checking intermediate file {fname} in {root}: {e}")
+    #             continue
     # record timing for the walk-based search
     if MEASURE_LOOKUP_PERFORMANCE and ENABLE_INJECTION_PERFORMANCE_LOG:
         try:
@@ -1478,24 +1478,25 @@ def scandir_walk(top):
         filenames = []
         dir_paths = []
 
+        d_append = dirnames.append
+        dp_append = dir_paths.append
+        f_append = filenames.append
+
         try:
             with os.scandir(dir_path) as scandir_it:
                 for entry in scandir_it:
                     if entry.is_dir(follow_symlinks=False):
-                        dirnames.append(entry.name)
-                        # Save the pre-calculated C-level path, skip os.path.join
-                        dir_paths.append(entry.path)
+                        d_append(entry.name)
+                        dp_append(entry.path)
                     else:
-                        filenames.append(entry.name)
-        except PermissionError:
-            # Common in massive trees like AOSP; skip unreadable folders safely
+                        f_append(entry.name)
+        except OSError:
+            # Broader than PermissionError: catches FileNotFoundError
+            # (broken symlinks) and NotADirectoryError safely.
             continue
 
         yield dir_path, dirnames, filenames
-
-        # Reverse the paths before adding to the stack to maintain
-        # the standard top-down alphabetical traversal order
-        stack.extend(reversed(dir_paths))
+        stack.extend(dir_paths)
 
 
 
