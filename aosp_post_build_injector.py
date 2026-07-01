@@ -426,9 +426,11 @@ def inject(aosp_path,
     pre_execution_time_minutes = -1
     if len(folder_path_list) > 0:
         start_preprocessing = time.time()
+        logging.info(f"Start preprocessing {len(folder_path_list)} folders: {start_preprocessing}")
         target_obj_path = build_intermediate_file_index(aosp_path, target_out_path)
         end_preprocessing = time.time()
         pre_execution_time_minutes = (end_preprocessing - start_preprocessing) / 60
+        logging.info(f"Preprocessing completed in {pre_execution_time_minutes:.2f} minutes")
 
 
 
@@ -951,7 +953,7 @@ def build_intermediate_md5_map(aosp_path, intermediates_path, exclude_dirs=None)
     method = "parallel"
 
     if not os.path.exists(intermediates_path):
-        logging.warning(f"Intermediates path does not exist (build map): {intermediates_path}")
+        logging.debug(f"Intermediates path does not exist (build map): {intermediates_path}")
         return {}
 
     logging.info(f"Building intermediate md5 map from: {intermediates_path}")
