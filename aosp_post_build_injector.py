@@ -1375,11 +1375,6 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     partition_name = os.path.basename(folder_path)
     partition_path = folder_path
 
-
-
-
-
-
     file_paths = list(set(os.path.join(root, file_name.strip()) for root, _, file_name_list in scandir_walk(folder_path)
                           for file_name in file_name_list))
     logging.debug(f"Found {len(file_paths)} files in {folder_path} for post-injection...")
@@ -1432,16 +1427,17 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
             progress_bar.update(1)
 
     if POST_INJECTOR_CONFIG["ENABLE_SEMANTIC_INJECTOR"]:
-        logging.info(f"ENABLE_SEMANTIC_INJECTOR is activated")
+        logging.info(f"ENABLE_SEMANTIC_INJECTOR is activated: {SEMANTIC_INJECTOR_LOG_FILE_PATH}")
         if POST_INJECTOR_CONFIG["ENABLE_VINTF_MERGE"]:
             if vintf_path_list and len(inj_obj_list) > 0:
-                logging.info(f"Starting Semantic Injector. Logging to file: {SEMANTIC_INJECTOR_LOG_FILE_PATH}")
+                logging.info(f"Starting VINTF Merge")
                 try:
                     handle_vintf_merge(aosp_path, aosp_version, str(partition_name), vintf_path_list)
                 except Exception as e:
                     logging.error(e)
 
         if POST_INJECTOR_CONFIG["ENABLE_SELINUX_MERGER"]:
+            logging.info(f"Starting SELinux Policy Merging for partition: {partition_name}")
             if partition_name == "system":
                 try:
                     handle_seplicy_merging(aosp_version, aosp_path, partition_path)
