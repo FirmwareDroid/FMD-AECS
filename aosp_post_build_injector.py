@@ -420,19 +420,22 @@ def inject(aosp_path,
     start_time = time.time()
     logging.info(f"Injection started at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
 
-    target_obj_path = build_intermediate_file_index(aosp_path, target_out_path)
+    folder_path_list = get_folders(source_folder_path, partition_list)
+    logging.info(f"Folder path list: {folder_path_list}")
+    if len(folder_path_list) > 0:
+        target_obj_path = build_intermediate_file_index(aosp_path, target_out_path)
+
 
     error_list, inj_obj_list, inj_partition_list, acv_result_dict = process_partitions(aosp_path,
-                                                                      source_folder_path,
-                                                                      target_out_path,
-                                                                      executor,
-                                                                      lunch_target,
-                                                                      pre_injector_package_list,
-                                                                      firmware_id,
-                                                                      cookies,
-                                                                      aosp_version,
-                                                                      partition_list,
-                                                                      tag)
+                       target_out_path,
+                       executor,
+                       lunch_target,
+                       pre_injector_package_list,
+                       firmware_id,
+                       cookies,
+                       aosp_version,
+                       tag,
+                       folder_path_list)
     # Verify Direct Injection targets exist on filesystem and log errors for missing targets
     try:
         direct_inject_errors = verify_direct_injection_targets(inj_partition_list)
@@ -579,6 +582,9 @@ def inject(aosp_path,
 
 
 def get_folders(folder_path, folder_filters):
+    """
+    Get the partition folders to process.
+    """
     logging.debug(f"Directory path: {folder_path}, folder filters: {folder_filters}")
     folders = []
     for entry in os.listdir(folder_path):
@@ -600,7 +606,6 @@ def get_folders(folder_path, folder_filters):
 
 
 def process_partitions(aosp_path,
-                       source_folder_path,
                        target_out_path,
                        executor,
                        lunch_target,
@@ -608,10 +613,9 @@ def process_partitions(aosp_path,
                        firmware_id,
                        cookies,
                        aosp_version,
-                       partition_list,
-                       tag):
-    folder_path_list = get_folders(source_folder_path, partition_list)
-    logging.info(f"Folder path list: {folder_path_list}")
+                       tag,
+                       folder_path_list):
+
     combined_error_list = []
     combined_inj_obj_list = []
     combined_inj_partition_list = []
