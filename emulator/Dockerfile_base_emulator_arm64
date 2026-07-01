@@ -162,6 +162,8 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 ################################
 # Install Python dependencies for testing service
 ################################
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 COPY ./emulator/testing_service/ /android/testing_service/
 COPY ./emulator/testing_service/requirements.txt /android/testing_service/requirements.txt
 RUN set -eux; \
