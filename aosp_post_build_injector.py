@@ -40,7 +40,6 @@ from fmd_backend_requests import get_csrf_token, authenticate_fmd
 from json_writer import write_json_nd_output, write_json_output
 from setup_logger import setup_logger
 from tqdm import tqdm
-from copy_helper import copy_fast
 from fast_copy import schedule_copy, wait_for_all_copy_tasks
 import concurrent.futures
 
@@ -805,7 +804,7 @@ def overwrite_existing_file(target_file_injection_path, file_path):
             exact_destination_path = os.path.join(target_dir, target_filename)
             try:
                 os.makedirs(target_dir, exist_ok=True)
-                copy_fast(file_path, exact_destination_path)
+                schedule_copy(file_path, exact_destination_path)
                 #shutil.copy2(file_path, exact_destination_path)
                 logging.info(
                     f"Successfully injected file preserving original name: src:{file_path} -> dst:{exact_destination_path}")
@@ -1238,7 +1237,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                 except Exception as e:
                     logging.error(f"Error copying file for COPY_TO_SPECIFIC_PATH: {file_path} to {dst_path} | {e}")
             else:
-                copy_fast(file_path, dst_path)
+                schedule_copy(file_path, dst_path)
         else:
             logging.info(f"SKIPPED COPY_TO_SPECIFIC_PATH: {file_path}|{dst_path} already exists")
 
@@ -1248,7 +1247,7 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         logging.info(f"Matched outside Library: {file_path}: {dst_path}")
         if not os.path.exists(dst_path):
             logging.info(f"COPY_OUTSIDE_LIB_TO_LIB64: {file_path} to {dst_path}")
-            copy_fast(file_path, dst_path)
+            schedule_copy(file_path, dst_path)
             #dst_path2 = dst_path.replace("/system_ext/", "/vendor/")
             #if not os.path.exists(dst_path2):
             #    logging.info(f"COPY_OUTSIDE_LIB_TO_LIB64: {file_path} to {dst_path2}")
@@ -1914,7 +1913,8 @@ def run_build_property_merger(source_file_path, target_file_injection_path):
             return target_file_injection_path
         start_property_merge(target_file_injection_path, source_file_path, merged_prop_file_path, conflicts_out_file_path)
         if os.path.exists(merged_prop_file_path) and os.path.getsize(merged_prop_file_path) > 0:
-            shutil.copyfile(merged_prop_file_path, target_file_injection_path)
+            schedule_copy(merged_prop_file_path, target_file_injection_path)
+            #shutil.copyfile(merged_prop_file_path, target_file_injection_path)
             logging.info(f"Success: Updated {target_file_injection_path} with {merged_prop_file_path}")
     except Exception as e:
         logging.error(f"An error occurred during merging build properties: {e}")
@@ -1972,7 +1972,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
             # Fîle should not already exist, but if it does, we overwrite it, but it is not recommended.
             is_injected = True
             logging.info(f"Direct Injection File overwrite: {source_file_path} into {target_file_injection_path}. ")
-            copy_fast(str(source_file_path), str(target_file_injection_path))
+            schedule_copy(str(source_file_path), str(target_file_injection_path))
             #shutil.copy2(str(source_file_path), str(target_file_injection_path), follow_symlinks=False)
     else:
         logging.debug(f"Injecting file: {source_file_path} into {target_file_injection_path}\n")
@@ -1985,7 +1985,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
                 logging.error(f"Error creating directory: {target_file_injection_path} -> {e}")
             try:
                 if os.path.isfile(source_file_path) and not os.path.islink(source_file_path):
-                    copy_fast(source_file_path, target_file_injection_path)
+                    schedule_copy(source_file_path, target_file_injection_path)
                     #shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
                     is_injected = True
                 elif os.path.islink(source_file_path):
@@ -2092,7 +2092,7 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
     start_time = time.time()
     is_injected = False
     try:
-        copy_fast(source_file_path, original_file_path)
+        schedule_copy(source_file_path, original_file_path)
         is_injected = True
         set_executable_permission(original_file_path)
         for file_path in matching_intermediate_file_list:
