@@ -1,13 +1,13 @@
 ## Core Python dependencies used by the emulator testing service and app-testing tools.
 Appium-Python-Client~=5.2.7
 # droidrun: model / runner wrapper used by some app-testing helpers. Use a minimum version to avoid very old releases.
-droidrun~=0.6.0
+mobilerun~=0.6.8
 # kea2-python: optional toolbox installed by install_tools.py
 kea2-python~=0.1.0
 # uiautomator2: device automation backend used by several tools
 #uiautomator2~=2.26.0
 # Pillow for image handling
-Pillow~=9.5.0
+#Pillow~=9.5.0
 # Optional heavy dependencies (only required for specific tools like Humanoid).
 # Install these only when you need the corresponding tools to keep image size small.
 # matplotlib>=3.6.0
