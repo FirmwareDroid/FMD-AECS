@@ -155,7 +155,9 @@
     "/system/etc/compatconfig",
     "/system/etc/appmanager.conf",
     "/system/etc/boot-image.bprof",
-    "/system/etc/boot-image.prof"
+    "/system/etc/boot-image.prof",
+    "/vendor/etc/ueventd.rc",
+    "/system/system/etc/ueventd.rc"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
     "Overlay",
