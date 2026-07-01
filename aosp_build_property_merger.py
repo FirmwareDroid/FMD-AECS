@@ -237,6 +237,7 @@ def generate_makefile_string(properties):
 
 def start_property_merge(aosp_prop_path, vendor_prop_file_path, out_file_path, conflicts_out_file_path):
     try:
+        logging.info(f"Starting property merging with AOSP: {aosp_prop_path} and Vendor: {vendor_prop_file_path} to {out_file_path} and {conflicts_out_file_path}")
         # Parse files and retain their structural tracking streams
         aosp_props, aosp_structure = parse_properties(aosp_prop_path)
         vendor_props, vendor_structure = parse_properties(vendor_prop_file_path)

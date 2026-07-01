@@ -1908,6 +1908,9 @@ def run_build_property_merger(source_file_path, target_file_injection_path):
         pass
     merged_prop_file_path = temp_file.name
     try:
+        if target_file_injection_path == source_file_path:
+            logging.warning(f"Source and target property files are the same: {source_file_path}. Skipping merge.")
+            return target_file_injection_path
         start_property_merge(target_file_injection_path, source_file_path, merged_prop_file_path, conflicts_out_file_path)
         if os.path.exists(merged_prop_file_path) and os.path.getsize(merged_prop_file_path) > 0:
             shutil.copyfile(merged_prop_file_path, target_file_injection_path)
