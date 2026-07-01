@@ -90,7 +90,8 @@
     "/etc/init/",
     "android.security",
     "/lib64/libfsverity.so",
-    "/bin/hw/"
+    "/bin/hw/",
+    "/vendor/etc/displayconfig/"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
