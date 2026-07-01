@@ -805,7 +805,8 @@ def overwrite_existing_file(target_file_injection_path, file_path):
             exact_destination_path = os.path.join(target_dir, target_filename)
             try:
                 os.makedirs(target_dir, exist_ok=True)
-                shutil.copy2(file_path, exact_destination_path)
+                copy_fast(file_path, exact_destination_path)
+                #shutil.copy2(file_path, exact_destination_path)
                 logging.info(
                     f"Successfully injected file preserving original name: src:{file_path} -> dst:{exact_destination_path}")
             except Exception as e:
@@ -1631,7 +1632,7 @@ def search_original_file_in_obj(partition_name,
             file_extension = os.path.splitext(file_name)[1]
             # flatten all paths with the extension
             file_path_list = [p for paths in idx.values() for p in paths if os.path.splitext(p)[1] == file_extension]
-            logging.info("File Matcher: No exact matches found for %s. Filtered by extension (%s) using index", file_name, file_extension)
+            logging.debug("File Matcher: No exact matches found for %s. Filtered by extension (%s) using index", file_name, file_extension)
     else:
         # Fallback: expensive full walk
         file_path_list = get_all_files(search_folder_path)
@@ -1749,10 +1750,10 @@ def search_original_file_in_obj(partition_name,
     result_file_path_list = [path for path in result_file_path_list if must_contain in path]
 
     if len(result_file_path_list) > 0:
-        logging.info("File Matcher: Found file for %s in %s with partition %s and results: %s", file_name, search_folder_path, partition_name, result_file_path_list)
+        logging.debug("File Matcher: Found file for %s in %s with partition %s and results: %s", file_name, search_folder_path, partition_name, result_file_path_list)
         return result_file_path_list
     else:
-        logging.info("File Matcher: No file found for %s in %s with partition %s", file_name, search_folder_path, partition_name)
+        logging.debug("File Matcher: No file found for %s in %s with partition %s", file_name, search_folder_path, partition_name)
         return None
 
 
