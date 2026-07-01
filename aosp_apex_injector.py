@@ -721,20 +721,6 @@ def copy_keys_to_apex_folder(input_apex, apex_main_folder, avb_pub_key_path):
     return is_success, log_message, public_key_name
 
 
-def get_apex_build_intermediate_folder(target_out_path, aosp_version):
-    if float(aosp_version) >= 14:
-        apex_folder_path = os.path.join(target_out_path, "symbols", "apex")
-    else:
-        apex_folder_path = os.path.join(target_out_path, "apex")
-
-    logging.info(f"APEX build intermediate folder to look for: {apex_folder_path}")
-    if os.path.exists(apex_folder_path):
-        apex_folder = apex_folder_path
-    else:
-        raise ValueError(f"APEX build intermediate folder not found: {apex_folder_path}")
-    logging.info(f"APEX build intermediate folder: {apex_folder}")
-    return apex_folder
-
 
 
 # def get_match_existing_emulator_folders(filename_no_vendor, apex_emulator_folder_root):
@@ -796,16 +782,15 @@ def find_emulator_apex_folder(target_out_path, file_path, aosp_version, aosp_pat
     filename_no_vendor = filename_no_vendor.replace(".apex", "").replace(".capex", "")
 
     # 1. Search in Build Intermediate Folder
-    apex_emulator_folder_root = get_apex_build_intermediate_folder(target_out_path, aosp_version)
-    logging.info(
-        f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
-
-    folder_name = get_match_existing_emulator_folders(filename_no_vendor, apex_emulator_folder_root)
-    if folder_name:
-        apex_module_folder = os.path.join(apex_emulator_folder_root, folder_name)
-        if os.path.exists(apex_module_folder):
-            logging.info(f"APEX module folder found: {apex_module_folder} for apex {file_path}")
-            return apex_module_folder
+    apex_emulator_folder_root_list = [str(os.path.join(target_out_path, "apex")), str(os.path.join(target_out_path, "symbols", "apex"))]
+    for apex_emulator_folder_root in apex_emulator_folder_root_list:
+        logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
+        folder_name = get_match_existing_emulator_folders(filename_no_vendor, apex_emulator_folder_root)
+        if folder_name:
+            apex_module_folder = os.path.join(apex_emulator_folder_root, folder_name)
+            if os.path.exists(apex_module_folder):
+                logging.info(f"APEX module folder found: {apex_module_folder} for apex {file_path}")
+                return apex_module_folder
 
     # 2. Fallback: Search in Host Linux Directory
     host_path = get_host_linux_path(aosp_path)
