@@ -42,6 +42,8 @@ from setup_logger import setup_logger
 from tqdm import tqdm
 from copy_helper import copy_fast
 from fast_copy import schedule_copy, wait_for_all_copy_tasks
+import concurrent.futures
+
 
 if os.environ.get("FMD_DEBUG") == "True":
     setup_logger(logging.DEBUG)
@@ -195,29 +197,42 @@ def count_number_of_extracted_files(source_folder_path):
     return file_count_per_partition
 
 
+
 def build_intermediate_file_index(aosp_path, target_out_path):
     global INTERMEDIATE_MD5_MAP
     try:
+        # Removed redundant str() wrappers
         intermediate_path_list = [
-            str(os.path.join(aosp_path, "out/soong/.intermediates/")),
-            str(os.path.join(aosp_path, "out/target/product/emulator64_arm64/apex/")),
-            str(os.path.join(aosp_path, "out/target/product/emu64a/apex/")),
-            str(os.path.join(aosp_path, "out/target/product/emu64a/obj/")),
-            str(os.path.join(aosp_path, "out/target/product/emulator64_arm64/obj/")),
+            os.path.join(aosp_path, "out/soong/.intermediates/"),
+            os.path.join(aosp_path, "out/target/product/emulator64_arm64/apex/"),
+            os.path.join(aosp_path, "out/target/product/emu64a/apex/"),
+            os.path.join(aosp_path, "out/target/product/emu64a/obj/"),
+            os.path.join(aosp_path, "out/target/product/emulator64_arm64/obj/"),
         ]
 
-        # Define the absolute subfolders we want to actively skip
         exclude_list = [
-            str(os.path.join(aosp_path, "out/soong/.intermediates/prebuilts"))
+            os.path.join(aosp_path, "out/soong/.intermediates/prebuilts")
         ]
 
         combined_md5_map = defaultdict(list)
 
-        for intermediates_path in intermediate_path_list:
-            # Pass the exclusion list straight into the builder loop
-            partial_map = build_intermediate_md5_map(aosp_path, intermediates_path, exclude_dirs=exclude_list)
-            for md5_key, paths_tuple in partial_map.items():
-                combined_md5_map[md5_key].extend(paths_tuple)
+        # 1. PARALLELIZE MD5 GENERATION
+        # ProcessPoolExecutor bypasses the GIL for CPU-bound MD5 hashing.
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            # Map futures to their paths for error logging
+            futures = {
+                executor.submit(build_intermediate_md5_map, aosp_path, path, exclude_dirs=exclude_list): path
+                for path in intermediate_path_list
+            }
+
+            for future in concurrent.futures.as_completed(futures):
+                path = futures[future]
+                try:
+                    partial_map = future.result()
+                    for md5_key, paths_list in partial_map.items():
+                        combined_md5_map[md5_key].extend(paths_list)
+                except Exception as exc:
+                    logging.warning(f"Error processing intermediate path {path}: {exc}")
 
         INTERMEDIATE_MD5_MAP = MappingProxyType({
             k: tuple(v) for k, v in combined_md5_map.items()
@@ -226,20 +241,25 @@ def build_intermediate_file_index(aosp_path, target_out_path):
     except Exception as e:
         logging.warning(f"Failed to build INTERMEDIATE_MD5_MAP: {e}")
 
-    # Build a file basename -> paths index for the target obj path to avoid repeated os.walk
+    # 2. DOUBLE-CHECKED LOCKING
     target_obj_path = None
     try:
         target_obj_path = os.path.join(target_out_path, FOLDER_NAME_OBJECTS)
-        # Build index if not present (protect with lock to avoid races)
-        with FILE_INDEX_LOCK:
-            if target_obj_path not in FILE_INDEX_CACHE:
-                idx = defaultdict(list)
-                if os.path.exists(target_obj_path):
-                    for root, dirs, files in scandir_walk(target_obj_path):
-                        for f in files:
-                            idx[f].append(os.path.join(root, f))
-                FILE_INDEX_CACHE[target_obj_path] = idx
-                logging.info(f"Built file index for {target_obj_path} with {sum(len(v) for v in idx.values())} entries")
+
+        # Unlocked read check prevents blocking after initialization
+        if target_obj_path not in FILE_INDEX_CACHE:
+            with FILE_INDEX_LOCK:
+                # Locked read check prevents race condition if two threads miss the first check
+                if target_obj_path not in FILE_INDEX_CACHE:
+                    idx = defaultdict(list)
+                    if os.path.exists(target_obj_path):
+                        for root, dirs, files in scandir_walk(target_obj_path):
+                            for f in files:
+                                idx[f].append(os.path.join(root, f))
+
+                    FILE_INDEX_CACHE[target_obj_path] = idx
+                    logging.info(
+                        f"Built file index for {target_obj_path} with {sum(len(v) for v in idx.values())} entries")
     except Exception as e:
         logging.warning(f"Failed to build file index for target objects: {e}")
 
@@ -1444,26 +1464,36 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
     return error_list, inj_obj_list, inj_partition_list
 
 
-def scandir_walk(dir_path):
+def scandir_walk(top):
     """
-    A generator that yields a tuple (dirpath, dirnames, filenames) similar to os.walk,
-    but uses os.scandir to improve performance.
+    Highly optimized, iterative generator yielding (dirpath, dirnames, filenames).
     """
-    dirnames = []
-    filenames = []
+    stack = [top]
 
-    with os.scandir(dir_path) as scandir_it:
-        for entry in scandir_it:
-            if entry.is_dir(follow_symlinks=False):
-                dirnames.append(entry.name)
-            else:
-                filenames.append(entry.name)
+    while stack:
+        dir_path = stack.pop()
+        dirnames = []
+        filenames = []
+        dir_paths = []
 
-    yield dir_path, dirnames, filenames
+        try:
+            with os.scandir(dir_path) as scandir_it:
+                for entry in scandir_it:
+                    if entry.is_dir(follow_symlinks=False):
+                        dirnames.append(entry.name)
+                        # Save the pre-calculated C-level path, skip os.path.join
+                        dir_paths.append(entry.path)
+                    else:
+                        filenames.append(entry.name)
+        except PermissionError:
+            # Common in massive trees like AOSP; skip unreadable folders safely
+            continue
 
-    for dirname in dirnames:
-        new_path = os.path.join(dir_path, dirname)
-        yield from scandir_walk(new_path)
+        yield dir_path, dirnames, filenames
+
+        # Reverse the paths before adding to the stack to maintain
+        # the standard top-down alphabetical traversal order
+        stack.extend(reversed(dir_paths))
 
 
 
