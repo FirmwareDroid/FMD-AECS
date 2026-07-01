@@ -633,6 +633,7 @@ def process_partitions(aosp_path,
 
     for folder_path in tqdm(folder_path_list, desc="Processing partitions"):
         if POST_INJECTOR_CONFIG["ENABLE_ACVTOOL_INSTRUMENTATION"]:
+            start_time = time.time()
             acv_result_dict = add_acvtool_instrumentation_multiprocessing(
                 firmware_id,
                 aosp_path,
@@ -643,6 +644,9 @@ def process_partitions(aosp_path,
                 tag=tag,
                 delete_instrumented_apks=ACVTOOL_DELETE_INSTRUMENTED_APKS
             )
+            acv_end_time = time.time()
+            execution_time = acv_end_time - start_time
+            acv_result_dict["execution_time"] = execution_time
 
         error_list, inj_obj_list, inj_partition_list = process_partition_files(aosp_path,
                                                                                folder_path,
