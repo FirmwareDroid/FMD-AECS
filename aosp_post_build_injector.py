@@ -215,9 +215,11 @@ def build_intermediate_file_index(aosp_path, target_out_path):
 
         combined_md5_map = defaultdict(list)
 
-        # 1. PARALLELIZE MD5 GENERATION
-        # ProcessPoolExecutor bypasses the GIL for CPU-bound MD5 hashing.
-        with concurrent.futures.ProcessPoolExecutor() as executor:
+        num_tasks = len(intermediate_path_list)
+        cpu_count = os.cpu_count() or 1
+        optimal_workers = min(num_tasks, cpu_count)
+
+        with concurrent.futures.ProcessPoolExecutor(max_workers=optimal_workers) as executor:
             # Map futures to their paths for error logging
             futures = {
                 executor.submit(build_intermediate_md5_map, aosp_path, path, exclude_dirs=exclude_list): path
@@ -421,8 +423,13 @@ def inject(aosp_path,
 
     folder_path_list = get_folders(source_folder_path, partition_list)
     logging.info(f"Folder path list: {folder_path_list}")
+    pre_execution_time_minutes = -1
     if len(folder_path_list) > 0:
+        start_preprocessing = time.time()
         target_obj_path = build_intermediate_file_index(aosp_path, target_out_path)
+        end_preprocessing = time.time()
+        pre_execution_time_minutes = (end_preprocessing - start_preprocessing) / 60
+
 
 
     error_list, inj_obj_list, inj_partition_list, acv_result_dict = process_partitions(aosp_path,
@@ -547,6 +554,7 @@ def inject(aosp_path,
     logging.info(f"============================================================")
     logging.info(f"============================== INJ-METRICS ==============================")
     logging.info(f"============================================================")
+    logging.info(f"Pre-Processing time: {pre_execution_time_minutes} minutes")
     logging.info(f"Execution time: {execution_time_minutes} minutes")
     number_of_files = count_number_of_extracted_files(source_folder_path)
     logging.info(f"Number of File in ALL_FILES: {number_of_files}")
