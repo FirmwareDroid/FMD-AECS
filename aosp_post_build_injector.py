@@ -1217,9 +1217,10 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         if not os.path.exists(dst_path):
             logging.info(f"COPY_OUTSIDE_LIB_TO_LIB64: {file_path} to {dst_path}")
             copy_fast(file_path, dst_path)
-            dst_path2 = dst_path.replace("/system_ext/", "/vendor/")
-            if not os.path.exists(dst_path2):
-                copy_fast(file_path, dst_path2)
+            #dst_path2 = dst_path.replace("/system_ext/", "/vendor/")
+            #if not os.path.exists(dst_path2):
+            #    logging.info(f"COPY_OUTSIDE_LIB_TO_LIB64: {file_path} to {dst_path2}")
+            #    copy_fast(file_path, dst_path2)
         else:
             logging.info(f"Outside Lib match SKIPPED (file already exists): {file_path}|{dst_path}")
 
@@ -1406,6 +1407,7 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
             progress_bar.update(1)
 
     if POST_INJECTOR_CONFIG["ENABLE_SEMANTIC_INJECTOR"]:
+        logging.info(f"ENABLE_SEMANTIC_INJECTOR is activated")
         if POST_INJECTOR_CONFIG["ENABLE_VINTF_MERGE"]:
             if vintf_path_list and len(inj_obj_list) > 0:
                 logging.info(f"Starting Semantic Injector. Logging to file: {SEMANTIC_INJECTOR_LOG_FILE_PATH}")
