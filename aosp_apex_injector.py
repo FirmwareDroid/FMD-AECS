@@ -136,7 +136,7 @@ def prepare_capex(file_path, output_dir, output_filename):
     """
     logging.info(f"Unzipping capex file: {file_path}")
     try:
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir="/tmp/fmd/out/temp/") as temp_dir:
             with zipfile.ZipFile(file_path, 'r') as zip_ref:
                 zip_ref.extractall(temp_dir)
             apex_file = os.path.join(temp_dir, "original_apex")
@@ -174,7 +174,7 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version):
 
     apex_out_file, org_apex_file = backup_original_apex_file(apex_file_path)
     try:
-        apex_root_path = tempfile.mkdtemp(suffix=f"_{filename}_apex_repack")
+        apex_root_path = tempfile.mkdtemp(suffix=f"_{filename}_apex_repack", dir="/tmp/fmd/out/temp/")
         apex_extract_dir_path = tempfile.mkdtemp(dir=apex_root_path, suffix=f"_{filename}_extract")
         extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target, aosp_version)
         if extract_success:
@@ -289,7 +289,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     # Copy the template APEX file to a temporary location
     template_folder_abs_path = os.path.join(ROOT_PATH, TEMPLATE_FOLDER, "apex")
     apex_template_file = os.path.join(template_folder_abs_path, "com.android.fmd.apex")
-    tempdir = tempfile.TemporaryDirectory()
+    tempdir = tempfile.TemporaryDirectory(dir="/tmp/fmd/out/temp/")
     apex_in_file = str(os.path.join(tempdir.name, apex_file_name))
     try:
         shutil.copyfile(apex_template_file, apex_in_file)
@@ -299,7 +299,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
         return False, f"Error copying APEX template file: {e}"
 
     # Extract the APEX file to a temporary directory
-    apex_root_path = tempfile.mkdtemp(suffix=f"_{filename}_apex_repack")
+    apex_root_path = tempfile.mkdtemp(suffix=f"_{filename}_apex_repack", dir="/tmp/fmd/out/temp/")
     apex_extract_dir_path = tempfile.mkdtemp(dir=apex_root_path, suffix=f"_{filename}_extract")
     extract_success, log_message = extract_apex_file(aosp_path, apex_in_file, apex_extract_dir_path, lunch_target, aosp_version)
     if os.path.exists(apex_in_file):
@@ -985,9 +985,9 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
 
     logging.info(f"Merging APEX files: {apex_emulator_folder} and {input_apex}")
     is_success, log_message = False, None
-    apex_root_path = tempfile.mkdtemp(suffix=f"_{filename_input}_merged")
+    apex_root_path = tempfile.mkdtemp(suffix=f"_{filename_input}_merged", dir="/tmp/fmd/out/temp/")
     merged_apex_extract_dir_path = tempfile.mkdtemp(suffix=f"extract", dir=apex_root_path)
-    apex_vendor_extract_dir_path = tempfile.mkdtemp(suffix=f"_{filename_input}_vendor")
+    apex_vendor_extract_dir_path = tempfile.mkdtemp(suffix=f"_{filename_input}_vendor", dir="/tmp/fmd/out/temp/")
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target, aosp_version)
     if extract_success:
         if POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_FILES"] and any(keyword in filename_input for keyword in POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_KEYWORD_LIST"]):
@@ -1016,7 +1016,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         else:
             logging.info("Injecting APEX vendor apps is disabled.")
 
-        with tempfile.NamedTemporaryFile(delete=False) as canned_fs_config:
+        with tempfile.NamedTemporaryFile(delete=False, dir="/tmp/fmd/out/temp/") as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name, apk_name_list)
 
 
@@ -1974,7 +1974,10 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
         "version": 999999
         }}
         """
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode='w',
+        with tempfile.NamedTemporaryFile(delete=False,
+                                         dir="/tmp/fmd/out/temp/",
+                                         suffix=".json",
+                                         mode='w',
                                          encoding='utf-8') as temp_manifest_file:
             temp_manifest_file.write(manifest_json_str)
             temp_manifest_path = temp_manifest_file.name
@@ -2092,7 +2095,7 @@ def copy_android_prebuilt_jar(aosp_path, apex_root_path):
 
 
 def create_key_paths(apex_file_name):
-    temp_keys_dir = tempfile.mkdtemp(suffix="_apex_keys")
+    temp_keys_dir = tempfile.mkdtemp(suffix="_apex_keys", dir="/tmp/fmd/out/temp/")
     apex_file_name = apex_file_name.replace(".apex", "").replace(".capex", "")
     priv_key_path = os.path.join(temp_keys_dir, f"{apex_file_name}.pk8")
     pub_key_path = os.path.join(temp_keys_dir, f"{apex_file_name}.cert")
