@@ -1884,10 +1884,15 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
         else:
             target_dir_injection_path = target_partition_path + str(os.path.join(*subfolder_list))
 
-        target_dir_injection_path = target_dir_injection_path.replace("/system/system/", "/system/")
-        target_dir_injection_path = target_dir_injection_path.replace("/system/system_ext/", "/system_ext/")
-        target_dir_injection_path = target_dir_injection_path.replace("/system/vendor/", "/vendor/")
-        target_dir_injection_path = target_dir_injection_path.replace("/system/product/", "/product/")
+        if "/system/" in target_dir_injection_path:
+            if "/system/system/" in target_dir_injection_path:
+                target_dir_injection_path = target_dir_injection_path.replace("/system/system/", "/system/")
+            elif "/system/system_ext/" in target_dir_injection_path:
+                target_dir_injection_path = target_dir_injection_path.replace("/system/system_ext/", "/system_ext/")
+            elif "/system/vendor/" in target_dir_injection_path:
+                target_dir_injection_path = target_dir_injection_path.replace("/system/vendor/", "/vendor/")
+            elif "/system/product/" in target_dir_injection_path:
+                target_dir_injection_path = target_dir_injection_path.replace("/system/product/", "/product/")
 
     if (not os.path.exists(target_dir_injection_path)
             and not os.path.islink(target_dir_injection_path)):
