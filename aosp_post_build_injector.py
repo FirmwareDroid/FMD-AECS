@@ -1048,7 +1048,7 @@ def build_intermediate_md5_map(aosp_path, intermediates_path, exclude_dirs=None)
             }, PATH_MAPPING_EXECUTION_TIME_LOG)
         except Exception:
             logging.debug('Could not write build_intermediate_md5_map timing to log')
-    return MappingProxyType(immutable_map)
+    return immutable_map
 
 
 def is_inject_if_not_exist(target_file_injection_path, file_path):
