@@ -63,6 +63,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aos
     apex_merge_file_path_list = []
     if not POST_INJECTOR_CONFIG:
         raise Exception("No POST_INJECTOR_CONFIG found")
+    os.makedirs("/tmp/fmd/out/temp", exist_ok=True)
     logging.info(f"Handling APEX merge modules: {file_path} | {aosp_path} | {lunch_target} | {target_out_path}")
     is_merge_success = False
     apex_out_file, org_apex_file = backup_original_apex_file(file_path)
@@ -167,6 +168,7 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version):
     """
     global POST_INJECTOR_CONFIG
     POST_INJECTOR_CONFIG = ConfigManager.get_config("POST_INJECTOR_CONFIG")
+    os.makedirs("/tmp/fmd/out/temp", exist_ok=True)
 
     filename = str(os.path.basename(apex_file_path)).replace(".apex", "").replace(".capex", "")
     logging.info(f"Repackaging APEX file: {apex_file_path}")
