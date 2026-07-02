@@ -1010,5 +1010,5 @@
     "Phone",
     "Print"
   ],
-  "ENABLE_ACVTOOL_INSTRUMENTATION": false
+  "ENABLE_ACVTOOL_INSTRUMENTATION": true
 }
