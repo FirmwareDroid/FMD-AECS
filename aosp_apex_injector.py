@@ -1370,9 +1370,9 @@ def get_apex_file_mapping(key):
 
 def remove_apex_build_strings(apex_split_name_list):
     for split in apex_split_name_list:
-        if "_compressed" in split or "_trimmed" in split:
+        if "_compressed" in split or "_trimmed" in split or "_tplus" in split:
             apex_split_name_list.remove(split)
-            split = split.replace("_compressed", "").replace("_trimmed", "")
+            split = split.replace("_compressed", "").replace("_trimmed", "").replace("_tplus", "")
             apex_split_name_list.append(split)
     return apex_split_name_list
 
