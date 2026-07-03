@@ -1330,7 +1330,7 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
                 if os.path.exists(results_dir):
                     shutil.rmtree(results_dir, ignore_errors=True)
                 os.makedirs(results_dir, exist_ok=True)
-                folders_to_exclude = shutil.ignore_patterns('extracted_packages')
+                folders_to_exclude = shutil.ignore_patterns('extracted_packages', 'temp')
                 shutil.copytree(
                     BUILD_OUT_PATH,
                     results_dir,
