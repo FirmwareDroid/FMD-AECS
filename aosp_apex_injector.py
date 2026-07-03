@@ -655,10 +655,10 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
         #command = f"bash -c 'cd {aosp_path} && source {aosp_path}build/envsetup.sh && lunch {lunch_target} " \
         #           f"&& {converter_path} proto -o {out_file_path} {cleaned_manifest}'"
         command = f"{converter_path} proto -o {out_file_path} {cleaned_manifest}"
-        is_success, log = execute_shell_command(command, aosp_path)
+        is_success, log = execute_shell_command(command, aosp_path, lunch_target)
         if not is_success:
             logging.error(f"APEX: conv_apex_manifest conversion command failed. Trying again: {command} | {is_success} | {log}")
-            is_success, log = execute_shell_command(command, aosp_path)
+            is_success, log = execute_shell_command(command, aosp_path, lunch_target)
         logging.info(f"APEX: conv_apex_manifest extraction command: {command} | {is_success} | {log}")
 
     return is_success, {f"ERROR: {log}| More infos: {info}"}
@@ -1357,15 +1357,15 @@ def get_aosp_default_keys(aosp_path):
 
 
 def get_apex_file_mapping(key):
-    apex_file_name_no_extension = f"com.android.{key}"
+    apex_file_name_no_extension = ["com.android.{key}"]
     if key == "vndk":
-        apex_file_name_no_extension = f"com.android.vndk.current"
+        apex_file_name_no_extension = ["com.android.vndk.current", "com.android.vndk"]
     elif key == "statsd":
-        apex_file_name_no_extension = f"com.android.os.statsd"
+        apex_file_name_no_extension = ["com.android.os.statsd"]
     elif key == "swcodec":
-        apex_file_name_no_extension = f"com.android.media.swcodec"
+        apex_file_name_no_extension = ["com.android.media.swcodec"]
     elif key == "tzdata3" or key == "tzdata4" or key == "tzdata5" or key == "tzdata":
-        apex_file_name_no_extension = f"com.android.tzdata"
+        apex_file_name_no_extension = ["com.android.tzdata"]
     return apex_file_name_no_extension
 
 def remove_apex_build_strings(apex_split_name_list):
@@ -1379,14 +1379,25 @@ def remove_apex_build_strings(apex_split_name_list):
 def get_apex_default_keys(aosp_path, apex_file_name):
     apex_split_name_list = apex_file_name.split(".")
     apex_split_name_list = remove_apex_build_strings(apex_split_name_list)
+    apex_file_name_no_extension = ""
     logging.info(f"APEX: Getting default keys for: {apex_split_name_list}")
     for key, value in POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"].items():
         if key.lower() in [s.lower() for s in apex_split_name_list]:
-            apex_file_name_no_extension = get_apex_file_mapping(key)
+            package_name_list = get_apex_file_mapping(key)
             module_path = str(os.path.join(aosp_path, value))
+            for name in package_name_list:
+                priv_key_file_path = os.path.join(module_path, name + ".pk8")
+                if os.path.exists(priv_key_file_path):
+                    apex_file_name_no_extension = name
+                    break
+            if not apex_file_name_no_extension:
+                raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Package name not found.")
+
             priv_pem_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pem")
             priv_key_file_path = os.path.join(module_path, apex_file_name_no_extension + ".pk8")
             avb_pub_key_path = os.path.join(module_path, apex_file_name_no_extension + ".avbpubkey")
+
+
             if not os.path.exists(avb_pub_key_path):
                 is_success = extract_avb_public_key(aosp_path, priv_pem_file_path, avb_pub_key_path)
                 if not is_success:
@@ -1502,7 +1513,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
         and os.path.exists(avb_pub_key_path) \
         and os.path.exists(priv_pem_file_path):
         log_files_in_dir(apex_root_path)
-        is_success, log_message = execute_shell_command(command, aosp_path)
+        is_success, log_message = execute_shell_command(command, aosp_path, lunch_target)
         if is_success and os.path.exists(output_file_path):
             logging.info(f"APEX create_apex_container success: {output_file_path}. Command-Log: {log_message}")
             success = True
@@ -1900,7 +1911,7 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target, 
 
     if not is_success:
         logging.warning(f"APEX: Deapexer extraction failed - retry: {log}")
-        is_success, log = execute_shell_command(command, aosp_path)
+        is_success, log = execute_shell_command(command, aosp_path, lunch_target)
 
     logging.info(f"APEX: Deapexer extraction command: {command} | {is_success} | {log}")
     return is_success, {f"ERROR: {log}| More infos: {info}"}
