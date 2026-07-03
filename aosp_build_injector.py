@@ -1198,6 +1198,28 @@ def setup_firmware_logger(firmware_id):
     return file_handler
 
 
+def copy_result_files(results_dir, out_dir, skip_clean):
+    if os.path.exists(results_dir):
+        shutil.rmtree(results_dir, ignore_errors=True)
+    os.makedirs(results_dir, exist_ok=True)
+    folders_to_exclude = shutil.ignore_patterns('extracted_packages', 'temp')
+    shutil.copytree(
+        BUILD_OUT_PATH,
+        results_dir,
+        dirs_exist_ok=True,
+        ignore=folders_to_exclude
+    )
+    for item in os.listdir(TMP_PATH):
+        source_path = os.path.join(TMP_PATH, item)
+        if os.path.isfile(source_path):
+            shutil.copy(source_path, out_dir)
+    extracted_packes_path = os.path.join(results_dir, "extracted_packages")
+    if os.path.exists(extracted_packes_path) and not skip_clean:
+        shutil.rmtree(extracted_packes_path, ignore_errors=True)
+    if not skip_clean:
+        shutil.rmtree(BUILD_OUT_PATH, ignore_errors=True)
+        logging.info(f"Cleaned path: {BUILD_OUT_PATH}")
+    os.makedirs(BUILD_OUT_PATH, exist_ok=True)
 
 
 def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, fmd_password):
@@ -1235,6 +1257,8 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
         skip_counter = 0
 
     for firmware_id in tqdm(firmware_id_list):
+        out_dir = os.path.join(ROOT_PATH, "out")
+        results_dir = os.path.join(ROOT_PATH, out_dir, f"fmd_build_injector_{firmware_id}")
         if skip_counter > 0:
             skip_counter -= 1
             logging.info(f"Skipping firmware id: {firmware_id}. Remaining skip count: {skip_counter}")
@@ -1324,34 +1348,11 @@ def process_firmware_ids(args, firmware_id_list, cookies, docker_repo_password, 
             traceback.print_stack()
             failed_firmware_ids.append(firmware_id)
         finally:
-            out_dir = os.path.join(ROOT_PATH, "out")
-            results_dir = os.path.join(ROOT_PATH, out_dir, f"fmd_build_injector_{firmware_id}")
             try:
-                if os.path.exists(results_dir):
-                    shutil.rmtree(results_dir, ignore_errors=True)
-                os.makedirs(results_dir, exist_ok=True)
-                folders_to_exclude = shutil.ignore_patterns('extracted_packages', 'temp')
-                shutil.copytree(
-                    BUILD_OUT_PATH,
-                    results_dir,
-                    dirs_exist_ok=True,
-                    ignore=folders_to_exclude
-                )
-                for item in os.listdir(TMP_PATH):
-                    source_path = os.path.join(TMP_PATH, item)
-                    if os.path.isfile(source_path):
-                        shutil.copy(source_path, out_dir)
-                extracted_packes_path = os.path.join(results_dir, "extracted_packages")
-                if os.path.exists(extracted_packes_path) and not args.skip_clean:
-                    shutil.rmtree(extracted_packes_path, ignore_errors=True)
-                if not args.skip_clean:
-                    shutil.rmtree(BUILD_OUT_PATH, ignore_errors=True)
-                    logging.info(f"Cleaned path: {BUILD_OUT_PATH}")
-                os.makedirs(BUILD_OUT_PATH, exist_ok=True)
+                copy_result_files(results_dir, out_dir, args.skip_clean)
             except Exception as err:
                 logging.error(f"Got an error copying build results: {err} | {results_dir}")
                 traceback.print_exc()
-
             if not args.skip_clean:
                 clear_environment(args.aosp_path, aosp_packages_abs_path, aosp_version)
 
