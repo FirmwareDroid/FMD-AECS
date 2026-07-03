@@ -582,14 +582,16 @@ def clean_json_file(input_path, output_path):
     try:
         with open(input_path, 'r') as f:
             lines = f.readlines()
-        cleaned_lines = [
-            line for line in lines
-            if "Placeholder module version to be replaced during build." not in line
-            and "Do not change!" not in line
-        ]
-        for i, line in enumerate(cleaned_lines):
-            if "\"version\": 0" in line:
-                cleaned_lines[i] = line.replace("0", "999")
+        cleaned_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("//"):
+                continue
+            if "Placeholder module version to be replaced during build." in line or "Do not change!" in line:
+                continue
+            if '"version": 0' in line:
+                line = line.replace("0", "999")
+            cleaned_lines.append(line)
 
         with open(output_path, 'w') as f:
             f.writelines(cleaned_lines)
