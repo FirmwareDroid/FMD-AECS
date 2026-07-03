@@ -1507,7 +1507,7 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
             logging.info(f"APEX create_apex_container success: {output_file_path}. Command-Log: {log_message}")
             success = True
         else:
-            log_message = f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info}"
+            log_message = f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info} | Command {command}"
             logging.error(f"{log_message}")
     else:
         info = f"Container Creation not started for {apex_file_name} because of missing files:\n" \
