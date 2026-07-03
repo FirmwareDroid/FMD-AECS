@@ -1357,7 +1357,7 @@ def get_aosp_default_keys(aosp_path):
 
 
 def get_apex_file_mapping(key):
-    apex_file_name_no_extension = ["com.android.{key}"]
+    apex_file_name_no_extension = [f"com.android.{key}"]
     if key == "vndk":
         apex_file_name_no_extension = ["com.android.vndk.current", "com.android.vndk"]
     elif key == "statsd":
