@@ -1202,7 +1202,7 @@ def copy_result_files(results_dir, out_dir, skip_clean):
     if os.path.exists(results_dir):
         shutil.rmtree(results_dir, ignore_errors=True)
     os.makedirs(results_dir, exist_ok=True)
-    folders_to_exclude = shutil.ignore_patterns('extracted_packages', 'temp')
+    folders_to_exclude = shutil.ignore_patterns('extracted_packages', 'temp', "acvtool_instrumentation")
     shutil.copytree(
         BUILD_OUT_PATH,
         results_dir,
