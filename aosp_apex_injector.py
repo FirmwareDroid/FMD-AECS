@@ -1390,6 +1390,7 @@ def get_apex_default_keys(aosp_path, apex_file_name):
                 if os.path.exists(priv_key_file_path):
                     apex_file_name_no_extension = name
                     break
+
             if not apex_file_name_no_extension:
                 raise ValueError(f"Error getting APEX default keys: {apex_file_name}. Package name not found.")
 
