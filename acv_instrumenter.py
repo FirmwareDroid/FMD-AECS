@@ -281,6 +281,8 @@ def _create_and_upload_archive(firmware_id, firmware_folder, base_path_acv, vers
         try:
             shutil.rmtree(firmware_folder)
             logging.info(f"Removed intermediate ACVTool folder after archiving: {firmware_folder}")
+            os.remove(archive_path)
+            logging.info(f"Removed ACV Archive: {archive_path}")
         except Exception as e:
             logging.warning(f"Failed to remove intermediate ACVTool folder {firmware_folder}: {e}")
 
