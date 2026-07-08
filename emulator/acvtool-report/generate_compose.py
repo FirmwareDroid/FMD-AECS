@@ -168,14 +168,17 @@ def main():
         for pkg in sorted(firmware_packages[fw]):
             ec_dir = emulator_out / fw / "acv_snaps" / pkg / "ec_files"
             has_files = False
-            if ec_dir.exists():
+
+            if ec_dir.exists() and ec_dir.is_dir():
                 try:
-                    has_files = bool(next(ec_dir.glob(".ec"), None))
+                    has_files = any(ec_dir.glob("*.ec"))
                 except Exception:
                     has_files = False
+
             if not has_files:
-                logger.warning(f"Skipping {fw}/{pkg}: no files in {ec_dir}")
+                logger.warning(f"Skipping {fw}/{pkg}: no .ec files in {ec_dir}")
                 continue
+
             services.append((fw, pkg))
 
     # Recompute actual number of services and inform if some were skipped
