@@ -152,7 +152,7 @@ def main() -> int:
     parser.add_argument("--emulator-out", default="./data/01_journal_extension/emulator_out", help="Path to emulator_out")
     parser.add_argument("--base-url", default="https://fmd-repo.cloudlab.zhaw.ch:8443/repository/raw_files/", help="Nexus raw_files base URL")
     parser.add_argument("--timeout", type=int, default=60, help="HTTP timeout seconds")
-    parser.add_argument("--max-workers", type=int, default=4, help="Parallel download workers")
+    parser.add_argument("--max-workers", type=int, default=10, help="Parallel download workers")
     parser.add_argument("--progress-interval", type=int, default=10, help="Progress print interval in percent")
     parser.add_argument("--firmware", action="append", default=[], help="Firmware name filter (substring match). Can be repeated.")
     parser.add_argument("--samples", type=int, default=0, help="Limit number of selected firmware folders (0 = no limit)")
