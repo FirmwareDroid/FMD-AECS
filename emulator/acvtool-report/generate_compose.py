@@ -162,11 +162,27 @@ def main():
     total_tasks = sum(len(p) for p in firmware_packages.values())
     logger.info(f"Found {len(firmware_packages)} firmware(s), {total_tasks} package(s)")
 
-    # Flatten firmware/package pairs into a stable list
+    # Flatten firmware/package pairs into a stable list and skip packages with empty ec_files
     services = []
     for fw in sorted(firmware_packages.keys()):
         for pkg in sorted(firmware_packages[fw]):
+            ec_dir = emulator_out / fw / "acv_snaps" / pkg / "ec_files"
+            has_files = False
+            if ec_dir.exists():
+                try:
+                    # any() will be True if directory has at least one entry
+                    has_files = any(ec_dir.iterdir())
+                except Exception:
+                    has_files = False
+            if not has_files:
+                logger.warning(f"Skipping {fw}/{pkg}: no files in {ec_dir}")
+                continue
             services.append((fw, pkg))
+
+    # Recompute actual number of services and inform if some were skipped
+    actual_services = len(services)
+    if actual_services != total_tasks:
+        logger.info(f"{total_tasks - actual_services} package(s) skipped because ec_files was empty")
 
     max_per_file = args.max_services
     if max_per_file <= 0:
@@ -190,17 +206,17 @@ def main():
 
     if len(written_files) == 1:
         logger.info(f"\nNext steps:")
-        logger.info(f"  docker-compose -f {written_files[0].name} up -d")
-        logger.info(f"  docker-compose -f {written_files[0].name} logs -f")
-        logger.info(f"  docker-compose -f {written_files[0].name} down")
+        logger.info(f"  docker compose -f {written_files[0].name} up -d")
+        logger.info(f"  docker compose -f {written_files[0].name} logs -f")
+        logger.info(f"  docker compose -f {written_files[0].name} down")
     else:
         logger.info("\nWrote multiple compose files:")
         for p in written_files:
             logger.info(f"  {p.name}")
         logger.info("\nNext steps (example):")
-        logger.info(f"  docker-compose -f {written_files[0].name} up -d")
-        logger.info(f"  docker-compose -f {written_files[0].name} logs -f")
-        logger.info(f"  docker-compose -f {written_files[0].name} down")
+        logger.info(f"  docker compose -f {written_files[0].name} up -d")
+        logger.info(f"  docker compose -f {written_files[0].name} logs -f")
+        logger.info(f"  docker compose -f {written_files[0].name} down")
 
     return 0
 
