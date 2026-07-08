@@ -11,7 +11,9 @@ from __future__ import annotations
 import argparse
 import logging
 import shutil
+import os
 from pathlib import Path
+import concurrent.futures
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -93,6 +95,12 @@ def main() -> int:
         action="store_true",
         help="Show what would be copied without actually copying",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=8,
+        help="Number of parallel copy worker threads (default: %(default)s)",
+    )
     args = parser.parse_args()
 
     emulator_out = Path(args.emulator_out).resolve()
@@ -114,38 +122,69 @@ def main() -> int:
     if args.dry_run:
         logger.info("[DRY-RUN MODE]")
 
-    total_copied = 0
-    total_skipped = 0
-
+    # Build global list of copy tasks (fw_id, src_report_dir, dest_report_dir)
+    copy_tasks = []
+    total_would_copy = 0
+    total_skipped_pre = 0
     for fw_dir in fw_dirs:
         fw_id = fw_dir.name
-
-        if args.dry_run:
-            # Dry-run: just count what would be copied
-            acv_snaps = fw_dir / "acv_snaps"
-            would_copy = 0
-            if acv_snaps.exists():
-                for pkg_dir in acv_snaps.iterdir():
-                    if not pkg_dir.is_dir() or pkg_dir.name == "pickle_files":
-                        continue
-                    src_report_dir = pkg_dir / ".acv_wd" / "report"
-                    if src_report_dir.exists():
-                        would_copy += 1
-
-            if would_copy > 0:
-                logger.info(f"  {fw_id}: would copy {would_copy} report(s)")
-            total_copied += would_copy
-        else:
-            copied, skipped = collect_reports_for_firmware(fw_dir, args.skip_existing)
-            if copied > 0 or skipped > 0:
-                logger.info(f"  {fw_id}: copied {copied}, skipped {skipped}")
-            total_copied += copied
-            total_skipped += skipped
+        acv_snaps = fw_dir / "acv_snaps"
+        acv_reports_root = fw_dir / "acv_reports"
+        if not acv_snaps.exists():
+            continue
+        for pkg_dir in acv_snaps.iterdir():
+            if not pkg_dir.is_dir() or pkg_dir.name == "pickle_files":
+                continue
+            pkg_name = pkg_dir.name
+            src_report_dir = pkg_dir / ".acv_wd" / "report"
+            dest_report_dir = acv_reports_root / pkg_name
+            if not src_report_dir.exists():
+                continue
+            if args.skip_existing and dest_report_dir.exists():
+                total_skipped_pre += 1
+                continue
+            copy_tasks.append((fw_id, src_report_dir, dest_report_dir))
+            total_would_copy += 1
 
     if args.dry_run:
-        logger.info(f"summary: would copy {total_copied} report(s)")
-    else:
-        logger.info(f"summary: copied {total_copied}, skipped {total_skipped}")
+        logger.info(f"summary: would copy {total_would_copy} report(s), skipped pre-existing {total_skipped_pre}")
+        return 0
+
+    total_copied = 0
+    total_skipped = total_skipped_pre
+
+    # Define worker
+    def copy_worker(task):
+        fw_id, src, dest = task
+        acv_reports_root = dest.parent
+        try:
+            acv_reports_root.mkdir(parents=True, exist_ok=True)
+            # If destination exists and looks like it's inside BASE_DIR, remove it to ensure clean copy
+            if dest.exists() and dest.is_dir() and str(BASE_DIR) in dest.resolve().as_posix():
+                shutil.rmtree(dest)
+            shutil.copytree(src, dest, dirs_exist_ok=True)
+            return (True, fw_id, dest)
+        except Exception as e:
+            return (False, fw_id, str(e))
+
+    # Run copy tasks in parallel
+    workers = max(1, args.workers)
+    logger.info(f"Starting copy with {workers} workers for {len(copy_tasks)} task(s)")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
+        future_to_task = {ex.submit(copy_worker, t): t for t in copy_tasks}
+        for fut in concurrent.futures.as_completed(future_to_task):
+            try:
+                ok, fw_id, info = fut.result()
+            except Exception as e:
+                logger.error(f"Unexpected error during copy: {e}")
+                continue
+            if ok:
+                total_copied += 1
+                logger.info(f"  {fw_id}: copied {Path(info).name}")
+            else:
+                logger.error(f"  {fw_id}: copy failed: {info}")
+
+    logger.info(f"summary: copied {total_copied}, skipped {total_skipped}")
 
     return 0
 
