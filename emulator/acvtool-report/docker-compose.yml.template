@@ -1,0 +1,48 @@
+
+services:
+  # Template for running parallel coverage report containers.
+  #
+  # Duplicate and customize the service definitions below for each
+  # firmware/package pair you want to process in parallel.
+  #
+  # Example:
+  #   docker-compose up -d
+  #   docker-compose logs -f
+  #   docker-compose down
+
+  # Firmware 1, Package 1
+  report-fw1-pkg1:
+    image: acvtool-report:2.3.6
+    container_name: acv-report-fw1-pkg1
+    volumes:
+      - ./data/01_journal_extension/emulator_out:/work/input
+    environment:
+      ACV_WD: /work/input/<FIRMWARE_ID_1>/acv_snaps/<PACKAGE_NAME_1>/.acv_wd
+    command: report <PACKAGE_NAME_1>
+    # Optional: resource limits
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2'
+    #       memory: 4G
+
+  # Firmware 1, Package 2
+  report-fw1-pkg2:
+    image: acvtool-report:2.3.6
+    container_name: acv-report-fw1-pkg2
+    volumes:
+      - ./data/01_journal_extension/emulator_out:/work/input
+    environment:
+      ACV_WD: /work/input/<FIRMWARE_ID_1>/acv_snaps/<PACKAGE_NAME_2>/.acv_wd
+    command: report <PACKAGE_NAME_2>
+
+  # Firmware 2, Package 1
+  report-fw2-pkg1:
+    image: acvtool-report:2.3.6
+    container_name: acv-report-fw2-pkg1
+    volumes:
+      - ./data/01_journal_extension/emulator_out:/work/input
+    environment:
+      ACV_WD: /work/input/<FIRMWARE_ID_2>/acv_snaps/<PACKAGE_NAME_1>/.acv_wd
+    command: report <PACKAGE_NAME_1>
+

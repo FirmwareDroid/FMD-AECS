@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+"""Collect ACVTool reports from per-package working directories to firmware-level acv_reports.
+
+Structure:
+  Before:  emulator_out/<firmware>/acv_snaps/<package>/.acv_wd/report/
+  After:   emulator_out/<firmware>/acv_reports/<package>/
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import shutil
+from pathlib import Path
+
+logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+def collect_reports_for_firmware(fw_dir: Path, skip_existing: bool = False) -> tuple[int, int]:
+    """Collect reports from all packages in a firmware folder.
+
+    Args:
+        fw_dir: Firmware directory
+        skip_existing: If True, don't overwrite existing reports in acv_reports
+
+    Returns:
+        (copied_count, skipped_count)
+    """
+    fw_id = fw_dir.name
+    acv_snaps = fw_dir / "acv_snaps"
+    acv_reports_root = fw_dir / "acv_reports"
+
+    if not acv_snaps.exists():
+        return 0, 0
+
+    copied_count = 0
+    skipped_count = 0
+
+    for pkg_dir in acv_snaps.iterdir():
+        if not pkg_dir.is_dir() or pkg_dir.name == "pickle_files":
+            continue
+
+        pkg_name = pkg_dir.name
+        src_report_dir = pkg_dir / ".acv_wd" / "report"
+        dest_report_dir = acv_reports_root / pkg_name
+
+        if not src_report_dir.exists():
+            continue
+
+        if dest_report_dir.exists() and skip_existing:
+            skipped_count += 1
+            continue
+
+        acv_reports_root.mkdir(parents=True, exist_ok=True)
+
+        if dest_report_dir.exists() and dest_report_dir.is_dir() and str(BASE_DIR) in dest_report_dir.resolve().as_posix():
+            try:
+                logger.info(f"Deleting {dest_report_dir}")
+                shutil.rmtree(dest_report_dir)
+            except Exception as e:
+                logger.error(f"Deleting {dest_report_dir} failed: {e}")
+
+        shutil.copytree(src_report_dir, dest_report_dir, dirs_exist_ok=True)
+        copied_count += 1
+
+    return copied_count, skipped_count
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Collect generated reports from .acv_wd/report to acv_reports per firmware"
+    )
+    parser.add_argument(
+        "--emulator-out",
+        default="./data/01_journal_extension/emulator_out",
+        help="Path to emulator_out directory (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--firmware",
+        action="append",
+        default=[],
+        help="Firmware name filter (substring match). Can be repeated.",
+    )
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip packages that already have reports in acv_reports",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be copied without actually copying",
+    )
+    args = parser.parse_args()
+
+    emulator_out = Path(args.emulator_out).resolve()
+    if not emulator_out.exists():
+        logger.error(f"emulator_out not found: {emulator_out}")
+        return 1
+
+    fw_dirs = sorted([p for p in emulator_out.iterdir() if p.is_dir()])
+
+    if args.firmware:
+        needles = [f.strip() for f in args.firmware if f.strip()]
+        fw_dirs = [fw for fw in fw_dirs if any(n in fw.name for n in needles)]
+        logger.info(f"filter: firmware contains one of {args.firmware}")
+
+    if not fw_dirs:
+        logger.info("summary: ok=0 skipped=0 (no firmware matched filters)")
+        return 0
+
+    if args.dry_run:
+        logger.info("[DRY-RUN MODE]")
+
+    total_copied = 0
+    total_skipped = 0
+
+    for fw_dir in fw_dirs:
+        fw_id = fw_dir.name
+
+        if args.dry_run:
+            # Dry-run: just count what would be copied
+            acv_snaps = fw_dir / "acv_snaps"
+            would_copy = 0
+            if acv_snaps.exists():
+                for pkg_dir in acv_snaps.iterdir():
+                    if not pkg_dir.is_dir() or pkg_dir.name == "pickle_files":
+                        continue
+                    src_report_dir = pkg_dir / ".acv_wd" / "report"
+                    if src_report_dir.exists():
+                        would_copy += 1
+
+            if would_copy > 0:
+                logger.info(f"  {fw_id}: would copy {would_copy} report(s)")
+            total_copied += would_copy
+        else:
+            copied, skipped = collect_reports_for_firmware(fw_dir, args.skip_existing)
+            if copied > 0 or skipped > 0:
+                logger.info(f"  {fw_id}: copied {copied}, skipped {skipped}")
+            total_copied += copied
+            total_skipped += skipped
+
+    if args.dry_run:
+        logger.info(f"summary: would copy {total_copied} report(s)")
+    else:
+        logger.info(f"summary: copied {total_copied}, skipped {total_skipped}")
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
