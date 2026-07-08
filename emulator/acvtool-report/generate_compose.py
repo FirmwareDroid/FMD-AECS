@@ -137,7 +137,7 @@ def main():
     parser.add_argument(
         "--max-services",
         type=int,
-        default=500,
+        default=250,
         help="Maximum number of services per docker-compose file (default: %(default)s)"
     )
 
