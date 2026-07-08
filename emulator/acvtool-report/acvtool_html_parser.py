@@ -14,7 +14,7 @@ def parse_acv_report(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             # ACVTool output is HTML-like but not strict XML; use the HTML parser for robustness
-            soup = BeautifulSoup(f, 'lxml')
+            soup = BeautifulSoup(f, 'html.parser')
 
         # 1. Extract Column Headers
         thead = soup.find('thead')
