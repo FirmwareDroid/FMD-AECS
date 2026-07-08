@@ -64,12 +64,12 @@ def filter_firmware_packages(firmware_packages, firmware_filters, samples):
     return dict(items)
 
 
-def generate_compose(firmware_packages, emulator_out_path):
+def generate_compose_from_services(services, emulator_out_path):
     """
-    Generate docker-compose.yml YAML content.
+    Generate docker-compose.yml YAML content from a list of (firmware_id, package_name) tuples.
 
     Args:
-        firmware_packages: dict {firmware_id: [package_names]}
+        services: list of (firmware_id, package_name)
         emulator_out_path: absolute path to emulator_out
 
     Returns:
@@ -80,29 +80,23 @@ def generate_compose(firmware_packages, emulator_out_path):
         ""
     ]
 
-    service_index = 0
-    for firmware_id in sorted(firmware_packages.keys()):
-        packages = firmware_packages[firmware_id]
+    for idx, (firmware_id, package_name) in enumerate(services, start=1):
+        # Generate safe service name: alphanumeric + dash only
+        safename = f"report-{idx}".replace("_", "-")[:32]
 
-        for package_name in sorted(packages):
-            service_index += 1
+        avc_wd = f"/work/input/{firmware_id}/acv_snaps/{package_name}/.acv_wd"
 
-            # Generate safe service name: alphanumeric + dash only
-            safename = f"report-{service_index}".replace("_", "-")[:32]
-
-            avc_wd = f"/work/input/{firmware_id}/acv_snaps/{package_name}/.acv_wd"
-
-            lines.extend([
-                f"  {safename}:",
-                f"    image: acvtool-report:2.3.6",
-                f"    volumes:",
-                f"      - {emulator_out_path}:/work/input",
-                f"    environment:",
-                f"      ACV_WD: {avc_wd}",
-                f"    command: report {package_name}",
-                f"    # restart: on-failure",
-                f"",
-            ])
+        lines.extend([
+            f"  {safename}:",
+            f"    image: acvtool-report:2.3.6",
+            f"    volumes:",
+            f"      - {emulator_out_path}:/work/input",
+            f"    environment:",
+            f"      ACV_WD: {avc_wd}",
+            f"    command: report {package_name}",
+            f"    # restart: on-failure",
+            f"",
+        ])
 
     lines.append("# Optional: Add resource limits")
     lines.append("# deploy:")
@@ -140,6 +134,12 @@ def main():
         default=0,
         help="Limit number of firmware folders (0 = no limit)"
     )
+    parser.add_argument(
+        "--max-services",
+        type=int,
+        default=500,
+        help="Maximum number of services per docker-compose file (default: %(default)s)"
+    )
 
     args = parser.parse_args()
 
@@ -162,14 +162,45 @@ def main():
     total_tasks = sum(len(p) for p in firmware_packages.values())
     logger.info(f"Found {len(firmware_packages)} firmware(s), {total_tasks} package(s)")
 
-    compose_content = generate_compose(firmware_packages, str(emulator_out))
+    # Flatten firmware/package pairs into a stable list
+    services = []
+    for fw in sorted(firmware_packages.keys()):
+        for pkg in sorted(firmware_packages[fw]):
+            services.append((fw, pkg))
 
-    output_path.write_text(compose_content, encoding='utf-8')
-    logger.info(f"Wrote {output_path}")
-    logger.info(f"\nNext steps:")
-    logger.info(f"  docker-compose -f {output_path.name} up -d")
-    logger.info(f"  docker-compose -f {output_path.name} logs -f")
-    logger.info(f"  docker-compose -f {output_path.name} down")
+    max_per_file = args.max_services
+    if max_per_file <= 0:
+        max_per_file = 500
+
+    # Partition into chunks
+    chunks = [services[i:i+max_per_file] for i in range(0, len(services), max_per_file)]
+
+    written_files = []
+    for idx, chunk in enumerate(chunks, start=1):
+        if len(chunks) == 1:
+            out_path = output_path
+        else:
+            out_name = f"{output_path.stem}-{idx}{output_path.suffix}"
+            out_path = output_path.with_name(out_name)
+
+        compose_content = generate_compose_from_services(chunk, str(emulator_out))
+        out_path.write_text(compose_content, encoding='utf-8')
+        written_files.append(out_path)
+        logger.info(f"Wrote {out_path}")
+
+    if len(written_files) == 1:
+        logger.info(f"\nNext steps:")
+        logger.info(f"  docker-compose -f {written_files[0].name} up -d")
+        logger.info(f"  docker-compose -f {written_files[0].name} logs -f")
+        logger.info(f"  docker-compose -f {written_files[0].name} down")
+    else:
+        logger.info("\nWrote multiple compose files:")
+        for p in written_files:
+            logger.info(f"  {p.name}")
+        logger.info("\nNext steps (example):")
+        logger.info(f"  docker-compose -f {written_files[0].name} up -d")
+        logger.info(f"  docker-compose -f {written_files[0].name} logs -f")
+        logger.info(f"  docker-compose -f {written_files[0].name} down")
 
     return 0
 
