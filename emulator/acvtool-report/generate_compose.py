@@ -170,8 +170,7 @@ def main():
             has_files = False
             if ec_dir.exists():
                 try:
-                    # any() will be True if directory has at least one entry
-                    has_files = any(ec_dir.iterdir())
+                    has_files = bool(next(ec_dir.glob(".ec"), None))
                 except Exception:
                     has_files = False
             if not has_files:
