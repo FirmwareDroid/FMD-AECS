@@ -193,6 +193,24 @@ def process_directory(base_folder, out_dir='./out'):
             logging.debug('Skipping file (no table found or parse error): %s', file)
             continue
 
+        # Attempt to infer firmware id from path (look for acv_reports or acv_snaps parent)
+        firmware_id = ''
+        try:
+            parts = Path(file).parts
+            if 'acv_reports' in parts:
+                idx = parts.index('acv_reports')
+                if idx > 0:
+                    firmware_id = parts[idx - 1]
+            elif 'acv_snaps' in parts:
+                idx = parts.index('acv_snaps')
+                if idx > 0:
+                    firmware_id = parts[idx - 1]
+        except Exception:
+            firmware_id = ''
+
+        # attach firmware id column
+        report_df['Firmware_ID'] = firmware_id
+
         # Determine CSV filename using package name when available
         if package_name:
             # sanitize package name for filename
@@ -280,6 +298,26 @@ def process_collected_reports(emulator_out, out_dir='./out', workers=8):
         if df is None:
             logging.debug('Skipping (no dataframe): %s', file_path)
             return None
+
+        # infer firmware id from file path relative to root
+        firmware_id = ''
+        try:
+            rel = file_path.relative_to(root)
+            if len(rel.parts) > 0:
+                firmware_id = rel.parts[0]
+        except Exception:
+            # fallback: try to locate 'acv_reports' segment
+            try:
+                parts = file_path.parts
+                if 'acv_reports' in parts:
+                    idx = parts.index('acv_reports')
+                    if idx > 0:
+                        firmware_id = parts[idx - 1]
+            except Exception:
+                firmware_id = ''
+
+        # attach firmware id column
+        df['Firmware_ID'] = firmware_id
 
         # Build CSV filename
         if package_name:
