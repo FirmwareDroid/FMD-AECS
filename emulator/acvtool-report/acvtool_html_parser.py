@@ -214,10 +214,28 @@ def process_directory(base_folder, out_dir='./out'):
         # attach firmware id column
         report_df['Firmware_ID'] = firmware_id
 
+        # Infer package name from filesystem path if parser didn't find one
+        pkg_from_path = ''
+        try:
+            parts = Path(file).parts
+            if 'acv_reports' in parts:
+                idxp = parts.index('acv_reports')
+                if idxp + 1 < len(parts):
+                    pkg_from_path = parts[idxp + 1]
+            elif 'acv_snaps' in parts:
+                idxp = parts.index('acv_snaps')
+                if idxp + 1 < len(parts):
+                    pkg_from_path = parts[idxp + 1]
+        except Exception:
+            pkg_from_path = ''
+
+        final_package = package_name or pkg_from_path or ''
+        report_df['Package'] = final_package
+
         # Determine CSV filename using package name when available
-        if package_name:
+        if final_package:
             # sanitize package name for filename
-            pkg_safe = re.sub(r'[^A-Za-z0-9_.-]+', '_', package_name)
+            pkg_safe = re.sub(r'[^A-Za-z0-9_.-]+', '_', final_package)
             base_csv_name = f"{pkg_safe}.csv"
         else:
             # Fallback to path-based name
@@ -322,9 +340,30 @@ def process_collected_reports(emulator_out, out_dir='./out', workers=8):
         # attach firmware id column
         df['Firmware_ID'] = firmware_id
 
+        # infer package name from file path relative to root if parser didn't find it
+        pkg_from_path = ''
+        try:
+            rel = file_path.relative_to(root)
+            parts = rel.parts
+            # expected layout: <fw>/acv_reports/<pkg>/...
+            if len(parts) >= 3 and parts[1] == 'acv_reports':
+                pkg_from_path = parts[2]
+        except Exception:
+            try:
+                parts_all = file_path.parts
+                if 'acv_reports' in parts_all:
+                    idxp = parts_all.index('acv_reports')
+                    if idxp + 1 < len(parts_all):
+                        pkg_from_path = parts_all[idxp + 1]
+            except Exception:
+                pkg_from_path = ''
+
+        final_package = package_name or pkg_from_path or ''
+        df['Package'] = final_package
+
         # Build CSV filename
-        if package_name:
-            pkg_safe = re.sub(r'[^A-Za-z0-9_.-]+', '_', package_name)
+        if final_package:
+            pkg_safe = re.sub(r'[^A-Za-z0-9_.-]+', '_', final_package)
             base_csv_name = f"{pkg_safe}.csv"
         else:
             # fallback to path-based
