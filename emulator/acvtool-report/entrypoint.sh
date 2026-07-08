@@ -32,7 +32,7 @@ case "$1" in
     #   - ec/: execution coverage (.ec) files
     #   - report/: output reports
     mkdir -p "$wd/pickles"
-    mkdir -p "$wd/ec"
+    mkdir -p "$wd/ec_files"
 
     # If a previous run left a covered_pickles or report folder, clean them so
     # we start from a fresh state. Remove and recreate to handle any leftover
@@ -54,7 +54,7 @@ case "$1" in
     ec_staged=0
     if [ -d "$ec_src_dir" ]; then
       while IFS= read -r -d '' ec_file; do
-        cp -f "$ec_file" "$wd/ec/"
+        cp -f "$ec_file" "$wd/ec_files/"
         ec_staged=$((ec_staged + 1))
       done < <(find "$ec_src_dir" -maxdepth 1 -type f -name '*.ec' -print0)
     fi
@@ -80,7 +80,7 @@ case "$1" in
     echo "[*] ACVTool Working Directory Structure:"
     echo "    Root: $wd"
     echo "    ├── pickles/ ($(ls -1 "$wd/pickles" 2>/dev/null | wc -l) files)"
-    echo "    ├── ec/ ($(ls -1 "$wd/ec" 2>/dev/null | wc -l) files)"
+    echo "    ├── ec_files/ ($(ls -1 "$wd/ec_files" 2>/dev/null | wc -l) files)"
     echo "    └── report/ (output)"
     echo "    Staged EC files this run: $ec_staged"
     echo "    Staged pickle files this run: $pickle_staged"
