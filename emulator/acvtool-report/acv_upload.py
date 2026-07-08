@@ -91,7 +91,7 @@ def upload_image_as_raw(repo_url, username, password, file_path, filename):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Zip and upload acv_snaps from emulator output.")
+    parser = argparse.ArgumentParser(description="Zip and upload target folders from emulator output.")
     parser.add_argument('--input-path', default='./emulator_out',
                         help="Path to emulator output directory (default: ./emulator_out)")
     parser.add_argument('--url', required=True, help="Repository destination URL")
@@ -99,6 +99,10 @@ def main():
     parser.add_argument('--password', required=True, help="Repository password")
     parser.add_argument('--output-file', default='uploaded_urls.txt',
                         help="File to write successful target URLs to (default: uploaded_urls.txt)")
+    parser.add_argument('--target-folder', default='acv_snaps',
+                        help="The folder name inside the firmware directory to zip up (default: acv_snaps)")
+    parser.add_argument('--prefix', default='acvtool_snaps_',
+                        help="Prefix for the uploaded zip filename (default: acvtool_snaps_)")
 
     args = parser.parse_args()
 
@@ -108,22 +112,22 @@ def main():
 
     successful_urls = []
 
-    # Walk through the structure: input_path/<firmware_id>/acv_snaps
+    # Walk through the structure: input_path/<firmware_id>/<target_folder>
     for firmware_id in os.listdir(args.input_path):
         firmware_dir = os.path.join(args.input_path, firmware_id)
 
         if os.path.isdir(firmware_dir):
-            snaps_dir = os.path.join(firmware_dir, 'acv_snaps')
+            target_dir = os.path.join(firmware_dir, args.target_folder)
 
-            if os.path.isdir(snaps_dir):
-                zip_filename = f"acvtool_snaps_{firmware_id}.zip"
-                logging.info(f"Processing snaps for firmware: {firmware_id}")
+            if os.path.isdir(target_dir):
+                zip_filename = f"{args.prefix}{firmware_id}.zip"
+                logging.info(f"Processing '{args.target_folder}' for firmware: {firmware_id}")
 
                 with tempfile.TemporaryDirectory() as tmpdir:
-                    zip_base_path = os.path.join(tmpdir, f"acvtool_snaps_{firmware_id}")
+                    zip_base_path = os.path.join(tmpdir, f"{args.prefix}{firmware_id}")
 
-                    logging.info(f"Zipping {snaps_dir}...")
-                    archive_path = shutil.make_archive(zip_base_path, 'zip', snaps_dir)
+                    logging.info(f"Zipping {target_dir}...")
+                    archive_path = shutil.make_archive(zip_base_path, 'zip', target_dir)
 
                     success, target_url = upload_image_as_raw(
                         repo_url=args.url,
