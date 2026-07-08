@@ -174,7 +174,8 @@ def process_directory(base_folder, out_dir='./out'):
 
     # Recursively find all files named 'main_index.html'
     files = list(path_root.rglob("main_index.html"))
-    logging.info('Found %d report files. Processing...', len(files))
+    total = len(files)
+    logging.info('Found %d report files. Processing...', total)
     logging.debug('Files found: %s', files)
 
     # Ensure output directory exists
@@ -183,7 +184,9 @@ def process_directory(base_folder, out_dir='./out'):
     except Exception:
         logging.exception('Failed to create output directory: %s', out_dir)
 
-    for file in files:
+    for idx, file in enumerate(files, start=1):
+        if idx % 50 == 0 or idx == total:
+            logging.info(f"Processing reports: {idx}/{total}")
         report_res = parse_acv_report(file)
         if not report_res:
             logging.debug('Skipping file (no table found or parse error): %s', file)
@@ -198,13 +201,13 @@ def process_directory(base_folder, out_dir='./out'):
         try:
             parts = Path(file).parts
             if 'acv_reports' in parts:
-                idx = parts.index('acv_reports')
-                if idx > 0:
-                    firmware_id = parts[idx - 1]
+                idx2 = parts.index('acv_reports')
+                if idx2 > 0:
+                    firmware_id = parts[idx2 - 1]
             elif 'acv_snaps' in parts:
-                idx = parts.index('acv_snaps')
-                if idx > 0:
-                    firmware_id = parts[idx - 1]
+                idx2 = parts.index('acv_snaps')
+                if idx2 > 0:
+                    firmware_id = parts[idx2 - 1]
         except Exception:
             firmware_id = ''
 
@@ -354,11 +357,15 @@ def process_collected_reports(emulator_out, out_dir='./out', workers=8):
 
         return df
 
-    # Parallel execution
+    # Parallel execution with progress logging
     results = []
+    total = len(tasks)
+    logging.info('Starting parsing with %d worker(s) for %d task(s)', workers, total)
+    processed = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
         futures = [ex.submit(worker, p) for p in tasks]
         for fut in concurrent.futures.as_completed(futures):
+            processed += 1
             try:
                 r = fut.result()
             except Exception:
@@ -366,6 +373,8 @@ def process_collected_reports(emulator_out, out_dir='./out', workers=8):
                 r = None
             if r is not None:
                 all_dfs.append(r)
+            if processed % 50 == 0 or processed == total:
+                logging.info(f"Parsing progress: {processed}/{total} completed")
 
     if not all_dfs:
         logging.warning('No data parsed from collected reports under %s', emulator_out)

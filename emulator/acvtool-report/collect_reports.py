@@ -126,11 +126,16 @@ def main() -> int:
     copy_tasks = []
     total_would_copy = 0
     total_skipped_pre = 0
+    total_fw = len(fw_dirs)
+    fw_processed = 0
     for fw_dir in fw_dirs:
+        fw_processed += 1
         fw_id = fw_dir.name
         acv_snaps = fw_dir / "acv_snaps"
         acv_reports_root = fw_dir / "acv_reports"
         if not acv_snaps.exists():
+            if fw_processed % 50 == 0 or fw_processed == total_fw:
+                logger.info(f"Scanned firmware: {fw_processed}/{total_fw}")
             continue
         for pkg_dir in acv_snaps.iterdir():
             if not pkg_dir.is_dir() or pkg_dir.name == "pickle_files":
@@ -145,6 +150,11 @@ def main() -> int:
                 continue
             copy_tasks.append((fw_id, src_report_dir, dest_report_dir))
             total_would_copy += 1
+        # Log scan progress periodically
+        if fw_processed % 50 == 0 or fw_processed == total_fw:
+            logger.info(f"Scanned firmware: {fw_processed}/{total_fw} (tasks so far: {len(copy_tasks)})")
+
+    logger.info(f"Built copy task list: {len(copy_tasks)} tasks, pre-existing skipped {total_skipped_pre}")
 
     if args.dry_run:
         logger.info(f"summary: would copy {total_would_copy} report(s), skipped pre-existing {total_skipped_pre}")
@@ -169,7 +179,9 @@ def main() -> int:
 
     # Run copy tasks in parallel
     workers = max(1, args.workers)
-    logger.info(f"Starting copy with {workers} workers for {len(copy_tasks)} task(s)")
+    total = len(copy_tasks)
+    processed = 0
+    logger.info(f"Starting copy with {workers} workers for {total} task(s)")
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
         future_to_task = {ex.submit(copy_worker, t): t for t in copy_tasks}
         for fut in concurrent.futures.as_completed(future_to_task):
@@ -177,12 +189,19 @@ def main() -> int:
                 ok, fw_id, info = fut.result()
             except Exception as e:
                 logger.error(f"Unexpected error during copy: {e}")
+                processed += 1
+                if processed % 20 == 0 or processed == total:
+                    logger.info(f"Copy progress: {processed}/{total} completed")
                 continue
+            processed += 1
             if ok:
                 total_copied += 1
-                logger.info(f"  {fw_id}: copied {Path(info).name}")
+                logger.info(f"Copy progress: {processed}/{total} - {fw_id}: copied {Path(info).name}")
             else:
-                logger.error(f"  {fw_id}: copy failed: {info}")
+                logger.error(f"Copy progress: {processed}/{total} - {fw_id}: copy failed: {info}")
+
+            if processed % 50 == 0 or processed == total:
+                logger.info(f"Copy progress: {processed}/{total} completed")
 
     logger.info(f"summary: copied {total_copied}, skipped {total_skipped}")
 
