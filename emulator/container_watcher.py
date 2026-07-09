@@ -104,8 +104,6 @@ def main():
                     logging.exception('Error while stopping container for existing file: %s', full)
 
     logging.info('--- Monitoring started on: %s ---', os.path.abspath(args.path))
-    logging.info('Press Ctrl+C to stop.')
-
     observer.start()
     observer.stop()
     print("\nStopping monitor...")
