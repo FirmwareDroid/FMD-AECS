@@ -232,7 +232,8 @@ def _create_and_upload_archive(firmware_id, firmware_folder, base_path_acv, vers
     _clean_firmware_folder_for_archive(firmware_folder, delete_instrumented_apks)
 
     # Format tags and filenames
-    tag_part = f"_{re.sub(r'\W+', '_', tag)}" if tag else ""
+    cleaned_tag = re.sub(r'\W+', '_', tag) if tag else ""
+    tag_part = f"_{cleaned_tag}" if cleaned_tag else ""
     emulator_filename = f"{firmware_id}_v{version or ''}_{lunch_target or ''}{tag_part}.zip".replace('-', '_')
     archive_base = os.path.join(base_path_acv, f"acvtool_{emulator_filename}".replace('.zip', ''))
 
