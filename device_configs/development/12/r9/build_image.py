@@ -909,6 +909,7 @@ def run_script_to_file(partition):
               stdout=f,
               stderr=subprocess.STDOUT,
               env=current_env,
+              cwd="/home/ubuntu/FMD-AECS/",
             )
             print("Success! Output successfully written to {0}".format(output_filename))
         except subprocess.CalledProcessError as e:

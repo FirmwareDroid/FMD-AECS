@@ -98,7 +98,7 @@ def has_extracted_partitions(all_files_dir_path):
     otherwise returns False. Logs the existence of each directory.
     """
     # Removed leading slashes so os.path.join works as intended
-    target_dirs = ['vendor', 'system', 'product', 'system_ext']
+    target_dirs = ['vendor', 'system', 'product']
 
     all_exist = True
 
