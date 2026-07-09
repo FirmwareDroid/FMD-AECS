@@ -107,12 +107,8 @@ def main():
     logging.info('Press Ctrl+C to stop.')
 
     observer.start()
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        observer.stop()
-        print("\nStopping monitor...")
+    observer.stop()
+    print("\nStopping monitor...")
     observer.join()
 
 
