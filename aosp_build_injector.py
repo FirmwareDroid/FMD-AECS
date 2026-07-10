@@ -233,6 +233,7 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             included_package_statistics["main_build_duration"] = round(build_end_time - build_start_time, 2)
             logging.info(f"AOSP main build completed successfully. Continuing with post-build injection.")
             logging.info(f"Summary Pre-Injector: {included_package_statistics}")
+            delete_image_files(aosp_path, lunch_target)
             package_build_artefacts_command = get_aosp_repo_build_command(aosp_path, lunch_target, aosp_version)
             package_start_time = time.time()
             execute_build_command(aosp_path, firmware_id, package_build_artefacts_command, aosp_path, log_name="packaging")
@@ -243,6 +244,27 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
             logging.error(err)
             retry_attempts -= 1
     return is_successful
+
+
+def delete_image_files(aosp_path, lunch_target):
+    """
+    Delete all *.img files from the build out folder.
+    """
+    cmd = (
+        f"cd {aosp_path} && "
+        f"source build/envsetup.sh && "
+        f"lunch {lunch_target} && "
+        f"cd ${{ANDROID_PRODUCT_OUT:?}} && "
+        f"rm -f *.img"
+    )
+
+    # 3. Explicitly set the executable to /bin/bash
+    process = subprocess.call(cmd, shell=True, executable='/bin/bash')
+
+    if process == 0:
+        logging.info("Deleted all *.img files from the build out folder.")
+    else:
+        logging.error("Failed to delete *.img files. Check if lunch target is correct.")
 
 
 def get_target_out_path(aosp_path, lunch_target):
