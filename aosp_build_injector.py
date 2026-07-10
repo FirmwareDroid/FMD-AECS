@@ -248,21 +248,22 @@ def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, a
 
 def delete_image_files(aosp_path, lunch_target):
     """
-    Delete all *.img files from the build out folder.
+    Delete all *.img files from the build out folder and its PACKAGING subfolder.
     """
     cmd = (
         f"cd {aosp_path} && "
         f"source build/envsetup.sh && "
         f"lunch {lunch_target} && "
         f"cd ${{ANDROID_PRODUCT_OUT:?}} && "
-        f"rm -f *.img"
+        f"rm -f *.img && "
+        f"shopt -s globstar && rm -f obj/PACKAGING/**/*.img"
     )
+    logging.info(f"Deleting all *.img files from the build out folder with command: {cmd}")
 
-    # 3. Explicitly set the executable to /bin/bash
     process = subprocess.call(cmd, shell=True, executable='/bin/bash')
 
     if process == 0:
-        logging.info("Deleted all *.img files from the build out folder.")
+        logging.info("Deleted all *.img files from the build out folder and packaging subdirectories.")
     else:
         logging.error("Failed to delete *.img files. Check if lunch target is correct.")
 
