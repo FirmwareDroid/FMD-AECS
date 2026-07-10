@@ -199,48 +199,72 @@ def count_number_of_extracted_files(source_folder_path):
 
 def build_intermediate_file_index(aosp_path, target_out_path):
     global INTERMEDIATE_MD5_MAP
+    # Path to cached md5 map
+
     try:
-        # Removed redundant str() wrappers
-        intermediate_path_list = [
-            os.path.join(aosp_path, "out/soong/.intermediates/"),
-            os.path.join(aosp_path, "out/target/product/emulator64_arm64/apex/"),
-            os.path.join(aosp_path, "out/target/product/emu64a/apex/"),
-            os.path.join(aosp_path, "out/target/product/emu64a/obj/"),
-            os.path.join(aosp_path, "out/target/product/emulator64_arm64/obj/"),
-        ]
+        # Try to load precomputed INTERMEDIATE_MD5_MAP from disk to avoid expensive rebuild
+        if os.path.exists(FILE_MAP_PATH):
+            try:
+                with open(FILE_MAP_PATH, "r") as f:
+                    loaded = json.load(f)
+                INTERMEDIATE_MD5_MAP = MappingProxyType({k: tuple(v) for k, v in loaded.items()})
+                logging.info(f"Loaded INTERMEDIATE_MD5_MAP from {FILE_MAP_PATH} with {len(INTERMEDIATE_MD5_MAP)} entries")
+            except Exception as e:
+                logging.warning(f"Failed to load INTERMEDIATE_MD5_MAP from {FILE_MAP_PATH}: {e}")
+                # fall through to rebuild if loading fails
+        if INTERMEDIATE_MD5_MAP is None:
+            # Removed redundant str() wrappers
+            intermediate_path_list = [
+                os.path.join(aosp_path, "out/soong/.intermediates/"),
+                os.path.join(aosp_path, "out/target/product/emulator64_arm64/apex/"),
+                os.path.join(aosp_path, "out/target/product/emu64a/apex/"),
+                os.path.join(aosp_path, "out/target/product/emu64a/obj/"),
+                os.path.join(aosp_path, "out/target/product/emulator64_arm64/obj/"),
+            ]
 
-        exclude_list = [
-            os.path.join(aosp_path, "out/soong/.intermediates/prebuilts")
-        ]
+            exclude_list = [
+                os.path.join(aosp_path, "out/soong/.intermediates/prebuilts")
+            ]
 
-        combined_md5_map = defaultdict(list)
+            combined_md5_map = defaultdict(list)
 
-        num_tasks = len(intermediate_path_list)
-        cpu_count = os.cpu_count() or 1
-        optimal_workers = min(num_tasks, cpu_count)
+            num_tasks = len(intermediate_path_list)
+            cpu_count = os.cpu_count() or 1
+            optimal_workers = min(num_tasks, cpu_count)
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=optimal_workers) as executor:
-            # Map futures to their paths for error logging
-            futures = {
-                executor.submit(build_intermediate_md5_map, aosp_path, path, exclude_dirs=exclude_list): path
-                for path in intermediate_path_list
-            }
+            with concurrent.futures.ProcessPoolExecutor(max_workers=optimal_workers) as executor:
+                # Map futures to their paths for error logging
+                futures = {
+                    executor.submit(build_intermediate_md5_map, aosp_path, path, exclude_dirs=exclude_list): path
+                    for path in intermediate_path_list
+                }
 
-            for future in concurrent.futures.as_completed(futures):
-                path = futures[future]
-                try:
-                    partial_map = future.result()
-                    for md5_key, paths_list in partial_map.items():
-                        combined_md5_map[md5_key].extend(paths_list)
-                except Exception as exc:
-                    logging.warning(f"Error processing intermediate path {path}: {exc}")
+                for future in concurrent.futures.as_completed(futures):
+                    path = futures[future]
+                    try:
+                        partial_map = future.result()
+                        for md5_key, paths_list in partial_map.items():
+                            combined_md5_map[md5_key].extend(paths_list)
+                    except Exception as exc:
+                        logging.warning(f"Error processing intermediate path {path}: {exc}")
 
-        INTERMEDIATE_MD5_MAP = MappingProxyType({
-            k: tuple(v) for k, v in combined_md5_map.items()
-        })
-        logging.info(f"Initialized INTERMEDIATE_MD5_MAP with {len(INTERMEDIATE_MD5_MAP)} entries")
+            INTERMEDIATE_MD5_MAP = MappingProxyType({
+                k: tuple(v) for k, v in combined_md5_map.items()
+            })
+            logging.info(f"Initialized INTERMEDIATE_MD5_MAP with {len(INTERMEDIATE_MD5_MAP)} entries")
+
+            # attempt to persist map to disk
+            try:
+                os.makedirs(os.path.dirname(FILE_MAP_PATH), exist_ok=True)
+                tmp_path = f"{FILE_MAP_PATH}.tmp"
+                with open(tmp_path, "w") as f:
+                    json.dump({k: list(v) for k, v in combined_md5_map.items()}, f)
+                os.replace(tmp_path, FILE_MAP_PATH)
+                logging.info(f"Saved INTERMEDIATE_MD5_MAP to {FILE_MAP_PATH}")
+            except Exception as e:
+                logging.warning(f"Failed to save INTERMEDIATE_MD5_MAP to {FILE_MAP_PATH}: {e}")
     except Exception as e:
-        logging.warning(f"Failed to build INTERMEDIATE_MD5_MAP: {e}")
+        logging.warning(f"Failed to build or load INTERMEDIATE_MD5_MAP: {e}")
 
     # 2. DOUBLE-CHECKED LOCKING
     target_obj_path = None
@@ -522,10 +546,6 @@ def inject(aosp_path,
         if "_apex" in error or "_capex" in error:
             error_list.remove(error)
     logging.info(f"============================================================")
-    logging.info(f"============================== ACV ==============================")
-    logging.info(f"============================================================")
-    logging.info(f"acv_result_dict: {acv_result_dict}")
-    logging.info(f"============================================================")
     logging.info(f"============================== Injected by Module Type ==============================")
     logging.info(f"============================================================")
     logging.info(f"\n\nInjected Apps/APEX/Libraries Summary:")
@@ -536,6 +556,7 @@ def inject(aosp_path,
     logging.info(f"Post-Injection Libraries skipped: {skipped_libs_list}\n\n")
     logging.info(f"Post-Injection Apps skipped: {skipped_app_list}\n\n")
     logging.info(f"Post-Injection APEX skipped: {skipped_apex_list}\n\n")
+    logging.info(f"acv_result_dict: {acv_result_dict}")
     logging.info(f"============================================================")
     logging.info(f"============================== GROUPED ERRORS ==============================")
     logging.info(f"============================================================")
@@ -646,6 +667,7 @@ def process_partitions(aosp_path,
             )
             acv_end_time = time.time()
             execution_time = acv_end_time - start_time
+            execution_time = execution_time / 60
             acv_result_dict["execution_time"] = execution_time
 
         error_list, inj_obj_list, inj_partition_list = process_partition_files(aosp_path,
@@ -720,7 +742,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                         and any(keyword in filename for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_MERGE_KEYWORD_LIST"]) \
                         and "ALL_FILES/system/" in file_path \
                         and allow_merge:
-                        logging.info(f"Handle APEX file: {file_path} with module type: {module_type}")
+                        logging.debug(f"Handle APEX file: {file_path} with module type: {module_type}")
                         try:
                             is_merge_success, log_message, apex_merge_file_path_list = handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aosp_version)
                         except Exception as e:
@@ -762,7 +784,7 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 if not error_message:
                     inj_obj, inj_partition = search_and_inject(partition_name, module_type, file_path, target_out_path, aosp_path, lunch_target, aosp_version, apex_merge_file_path_list)
                 else:
-                    logging.info(f"File not further processed: {file_path} | {error_message}")
+                    logging.debug(f"File not further processed: {file_path} | {error_message}")
     except Exception as e:
         error_message = f"{e}:{traceback.format_exc()}"
     finally:
@@ -783,7 +805,7 @@ def rename_file(file_path, new_name):
         directory = os.path.dirname(file_path)
         new_file_path = os.path.join(directory, new_name)
         os.rename(file_path, new_file_path)
-        logging.info(f"File renamed to: {new_file_path}")
+        logging.debug(f"File renamed to: {new_file_path}")
         return new_file_path
     except Exception as e:
         logging.error(f"Error renaming file {file_path} to {new_name}: {e}")
@@ -795,13 +817,13 @@ def rename_file(file_path, new_name):
 
 
 def replace_capex_with_apex(file_path):
-    logging.info(f"APEX file is capex: {file_path}")
+    logging.debug(f"APEX file is capex: {file_path}")
     input_folder_path = os.path.dirname(file_path)
     capex_filename = os.path.basename(file_path)
     extracted_apex_file_path = prepare_capex(file_path, input_folder_path,
                                              capex_filename.replace(".capex", ".apex"))
     if extracted_apex_file_path:
-        logging.info(f"APEX file extracted from CAPEX: {extracted_apex_file_path}")
+        logging.debug(f"APEX file extracted from CAPEX: {extracted_apex_file_path}")
         new_filename = f"{capex_filename}.original_capex"
         rename_file(file_path, new_filename)
         file_path = extracted_apex_file_path
@@ -811,7 +833,7 @@ def replace_capex_with_apex(file_path):
 def overwrite_existing_file(target_file_injection_path, file_path):
     try:
         os.remove(target_file_injection_path)
-        logging.info(f"Removed file before indirect injection: {target_file_injection_path}")
+        logging.debug(f"Removed file before indirect injection: {target_file_injection_path}")
         try:
             target_dir = str(os.path.dirname(target_file_injection_path))
             target_filename = str(os.path.basename(target_file_injection_path))
@@ -820,7 +842,7 @@ def overwrite_existing_file(target_file_injection_path, file_path):
                 os.makedirs(target_dir, exist_ok=True)
                 schedule_copy(file_path, exact_destination_path)
                 #shutil.copy2(file_path, exact_destination_path)
-                logging.info(
+                logging.debug(
                     f"Successfully injected file preserving original name: src:{file_path} -> dst:{exact_destination_path}")
             except Exception as e:
                 logging.error(f"Critical error during delete_intermediate_cached_files copy phase: {e}")
@@ -836,11 +858,11 @@ def delete_intermediate_cached_files(target_file_injection_path, file_path):
         overwrite_existing_file(target_file_injection_path, file_path)
     else:
         target_no_vendor_path = remove_vendor_name_from_path(target_file_injection_path)
-        logging.info(f"Removed file before indirect injection (no vendor substring trial): {target_no_vendor_path}")
+        logging.debug(f"Removed file before indirect injection (no vendor substring trial): {target_no_vendor_path}")
         if os.path.exists(target_no_vendor_path):
             overwrite_existing_file(target_no_vendor_path, file_path)
         else:
-            logging.info(f"No existing intermediate file found to remove: {target_file_injection_path}")
+            logging.debug(f"No existing intermediate file found to remove: {target_file_injection_path}")
 
 
 
@@ -864,7 +886,7 @@ def find_intermediate_file(aosp_path, md5_original_file):
     if INTERMEDIATE_MD5_MAP:
         try:
             matched = INTERMEDIATE_MD5_MAP.get(target_md5, ())
-            logging.info(f"Found intermediate candidates with same md5 hash: {matched}")
+            logging.debug(f"Found intermediate candidates with same md5 hash: {matched}")
             # record timing for the map lookup
             if MEASURE_LOOKUP_PERFORMANCE and ENABLE_INJECTION_PERFORMANCE_LOG:
                 try:
@@ -884,8 +906,8 @@ def find_intermediate_file(aosp_path, md5_original_file):
         except Exception:
             logging.warning("Error while using INTERMEDIATE_MD5_MAP, falling back to on-the-fly search")
 
-    logging.info("Using fallback intermediate file overwrite")
-    # Fallback: walk and compute md5s as before
+    logging.debug("Using fallback intermediate file overwrite")
+
     intermediates_path = str(os.path.join(aosp_path, "out/soong/.intermediates/"))
     matching_intermediate_file_list = []
     if not os.path.exists(intermediates_path):
@@ -916,7 +938,7 @@ def find_intermediate_file(aosp_path, md5_original_file):
     #                 if not md5sum:
     #                     continue
     #                 if md5sum.strip().lower() == target_md5:
-    #                     logging.info(f"Matched intermediate by md5: {file_path}")
+    #                     logging.debug(f"Matched intermediate by md5: {file_path}")
     #                     matching_intermediate_file_list.append(file_path)
     #         except Exception as e:
     #             logging.warning(f"Error while checking intermediate file {fname} in {root}: {e}")
@@ -960,7 +982,7 @@ def build_intermediate_md5_map(aosp_path, intermediates_path, exclude_dirs=None)
         logging.debug(f"Intermediates path does not exist (build map): {intermediates_path}")
         return {}
 
-    logging.info(f"Building intermediate md5 map from: {intermediates_path}")
+    logging.debug(f"Building intermediate md5 map from: {intermediates_path}")
 
     try:
         cpu = os.cpu_count() or 1
@@ -1073,11 +1095,11 @@ def build_intermediate_md5_map(aosp_path, intermediates_path, exclude_dirs=None)
 
 def is_inject_if_not_exist(target_file_injection_path, file_path):
     if os.path.exists(target_file_injection_path):
-        logging.info(f"Skipped indirect injection for shared library file: {file_path} as "
+        logging.debug(f"Skipped indirect injection for shared library file: {file_path} as "
                      f"ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS is set.")
         return False
     else:
-        logging.info(f"Allow indirect injection for shared library file: {file_path}")
+        logging.debug(f"Allow indirect injection for shared library file: {file_path}")
         return True
 
 def indirect_injection(target_file_injection_path,
@@ -1094,7 +1116,7 @@ def indirect_injection(target_file_injection_path,
 
     file_ext = os.path.splitext(file_name)[1]
     if file_ext in POST_INJECTOR_CONFIG["SKIPPED_FILE_EXTENSION_LIST_INDIRECT_INJECTION"]:
-        logging.info(f"Skipped indirect injection for file: {file_path} with extension: {file_ext}")
+        logging.debug(f"Skipped indirect injection for file: {file_path} with extension: {file_ext}")
         return None, inj_partition, False
 
     if not (file_name in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS"]
@@ -1111,17 +1133,17 @@ def indirect_injection(target_file_injection_path,
 
     delete_intermediate_cached_files(target_file_injection_path, file_path)
 
-    logging.info(f"File exists in target path: {target_file_injection_path}. Continue with indirect injection of {file_path}.")
+    logging.debug(f"File exists in target path: {target_file_injection_path}. Continue with indirect injection of {file_path}.")
     inj_obj = None
     original_file_path = None
     # Indirect Injection
     if file_name in POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"].keys():
-        logging.info(f"Indirect injection for file with manual mapping: {file_path}")
+        logging.debug(f"Indirect injection for file with manual mapping: {file_path}")
         if not check_file_compatibility(file_path, target_file_injection_path, module_type):
             logging.debug(f"Incompatible file for indirect injection: {file_path} | {file_name} | {module_type} | {target_file_injection_path}")
         else:
             file_map_entry = POST_INJECTOR_CONFIG["INDIRECT_INJECTION_FILE_MAPPING"][file_name]
-            logging.info(f"Found mapping entry for file: {file_path} | {file_name} | {module_type} | {target_file_injection_path} | mapping: {file_map_entry}")
+            logging.debug(f"Found mapping entry for file: {file_path} | {file_name} | {module_type} | {target_file_injection_path} | mapping: {file_map_entry}")
             if file_map_entry["injection_path"] in file_path:
                 original_file_path = os.path.join(target_out_path, file_map_entry["original_path"])
     else:
@@ -1143,17 +1165,17 @@ def indirect_injection(target_file_injection_path,
     is_injected = False
     if original_file_path:
         try:
-            logging.info(f"Original file path type: {type(original_file_path).__name__}: {original_file_path}")
+            logging.debug(f"Original file path type: {type(original_file_path).__name__}: {original_file_path}")
         except Exception:
             logging.debug("Could not determine original_file_path type")
         if isinstance(original_file_path, list):
             original_file_path_list = original_file_path
-            logging.info(f"Indirect injection with multiples files: {original_file_path_list} | {file_path} | {file_name}")
+            logging.debug(f"Indirect injection with multiples files: {original_file_path_list} | {file_path} | {file_name}")
             for overwrite_path in original_file_path_list:
                 is_injected = inject_file_into_obj(file_path, overwrite_path, module_type, aosp_path, partition_name, lunch_target, aosp_version)
                 inj_obj = (file_path, overwrite_path, module_type)
         else:
-            logging.info(f"Indirect injection with singles file: {original_file_path} | {file_path} | {file_name} ")
+            logging.debug(f"Indirect injection with singles file: {original_file_path} | {file_path} | {file_name} ")
             is_injected = inject_file_into_obj(file_path, original_file_path, module_type, aosp_path, partition_name, lunch_target, aosp_version)
             inj_obj = (file_path, original_file_path, module_type)
     else:
@@ -1178,7 +1200,7 @@ def indirect_injection(target_file_injection_path,
         except Exception:
             logging.debug('Could not write indirect_injection timing to log')
 
-    logging.info(f"Indirect injection result for file: {file_path} | injected: {is_injected} | target_file: {target_file_injection_path}")
+    logging.debug(f"Indirect injection result for file: {file_path} | injected: {is_injected} | target_file: {target_file_injection_path}")
     return inj_obj, inj_partition, is_injected
 
 
@@ -1201,9 +1223,9 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
             target_path, is_injected = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
             inj_partition = (file_path, target_path, module_type)
             if is_injected:
-                logging.info(f"Direct injection complete for: {file_path}")
+                logging.debug(f"Direct injection complete for: {file_path}")
             else:
-                logging.info(f"Direct injection did not inject for: {file_path}")
+                logging.debug(f"Direct injection did not inject for: {file_path}")
         else:
             # Indirect Injection for Merged APEX Files
             inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
@@ -1218,22 +1240,22 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
         target_path, is_injected = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
         inj_partition = (file_path, target_path, module_type)
         if is_injected:
-            logging.info(f"Direct injection complete for: {file_path}")
+            logging.debug(f"Direct injection complete for: {file_path}")
         else:
             logging.warning(f"Direct injection did not inject file, not fallback to indirect injection: {file_path}")
     else:
         inj_obj, inj_partition, is_injected = indirect_injection(target_file_injection_path, file_name, target_out_path,
                                                     partition_name, module_type, file_path, inj_partition, aosp_path, lunch_target, aosp_version)
         if is_injected:
-            logging.info(f"Indirect injection complete for file: {file_path}")
+            logging.debug(f"Indirect injection complete for file: {file_path}")
 
         if not is_injected and is_injected is not None:
-            logging.info(f"Fallback to Direct injection: {file_path}")
+            logging.debug(f"Fallback to Direct injection: {file_path}")
             # Fallback to Direct Injection
             target_path, is_injected = inject_file_into_partition(file_path, target_file_injection_path, aosp_path, partition_name, lunch_target, aosp_version)
             inj_partition = (file_path, target_path, module_type)
             if is_injected:
-                logging.info(f"Direct injection complete for file: {file_path}")
+                logging.debug(f"Direct injection complete for file: {file_path}")
             else:
                 logging.warning(f"Direct+Indirect injection complete for file but file not injected: {file_path}")
 
@@ -1247,29 +1269,29 @@ def search_and_inject(partition_name, module_type, file_path, target_out_path, a
                 try:
                     with open(dst_path, "w") as f:
                         f.write(test_data)
-                    logging.info(f"COPY_TO_SPECIFIC_PATH: {file_path} to {dst_path}")
+                    logging.debug(f"COPY_TO_SPECIFIC_PATH: {file_path} to {dst_path}")
                 except Exception as e:
                     logging.error(f"Error copying file for COPY_TO_SPECIFIC_PATH: {file_path} to {dst_path} | {e}")
             else:
                 schedule_copy(file_path, dst_path)
         else:
-            logging.info(f"SKIPPED COPY_TO_SPECIFIC_PATH: {file_path}|{dst_path} already exists")
+            logging.debug(f"SKIPPED COPY_TO_SPECIFIC_PATH: {file_path}|{dst_path} already exists")
 
     # Try to avoid linking errors
     if file_extension in [".so"] and "/apex/lib64/" in file_path:
         dst_path = os.path.join(target_partition_path, "lib64", os.path.basename(file_path))
-        logging.info(f"Matched outside Library: {file_path}: {dst_path}")
+        logging.debug(f"Matched outside Library: {file_path}: {dst_path}")
         if not os.path.exists(dst_path):
-            logging.info(f"COPY_OUTSIDE_LIB_TO_LIB64: {file_path} to {dst_path}")
+            logging.debug(f"COPY_OUTSIDE_LIB_TO_LIB64: {file_path} to {dst_path}")
             schedule_copy(file_path, dst_path)
 
             if "android.hardware.light-V1-ndk_platform.so" in file_path:
                 dst_path2 = dst_path.replace("/system_ext/", "/vendor/")
                 if not os.path.exists(dst_path2):
-                    logging.info(f"COPY android.hardware.light-V1-ndk_platform.so: {file_path} to {dst_path2}")
+                    logging.debug(f"COPY android.hardware.light-V1-ndk_platform.so: {file_path} to {dst_path2}")
                     schedule_copy(file_path, dst_path2)
         else:
-            logging.info(f"Outside Lib match SKIPPED (file already exists): {file_path}|{dst_path}")
+            logging.debug(f"Outside Lib match SKIPPED (file already exists): {file_path}|{dst_path}")
 
     if target_path:
         try:
@@ -1289,16 +1311,16 @@ def inject_apex_intermediate_files(apex_file_name, file_path, apex_merge_file_pa
     tag = "apex_intermediata_matching"
     for apex_sub_file_path in apex_merge_file_path_list:
         if "/lib/" in apex_sub_file_path:
-            logging.info(f"{tag}: Skipping apex intermediate file indirect injection because of /lib/ (32-bit) in path: {apex_sub_file_path}")
+            logging.debug(f"{tag}: Skipping apex intermediate file indirect injection because of /lib/ (32-bit) in path: {apex_sub_file_path}")
             continue
         is_injected = False
         md5 = get_md5_from_file(apex_sub_file_path)
-        logging.info(f"{tag}: Injecting apex intermediate file: {apex_sub_file_path}:{md5}|{apex_file_name}")
+        logging.debug(f"{tag}: Injecting apex intermediate file: {apex_sub_file_path}:{md5}|{apex_file_name}")
         try:
             module_type = "MISC"
             sub_file_name = os.path.basename(apex_sub_file_path)
             apex_filename_no_ext = str(os.path.splitext(apex_file_name)[0])
-            logging.info(f"{tag}: Injecting apex intermediate file: {apex_sub_file_path}")
+            logging.debug(f"{tag}: Injecting apex intermediate file: {apex_sub_file_path}")
 
             original_file_path = search_original_file_in_obj(partition_name,
                                                              module_type,
@@ -1309,7 +1331,7 @@ def inject_apex_intermediate_files(apex_file_name, file_path, apex_merge_file_pa
                                                              must_contain=apex_filename_no_ext)
 
             if original_file_path is None:
-                logging.info(
+                logging.debug(
                     f"{tag}: Did not find original file path for apex intermediate file: {apex_sub_file_path}|{original_file_path}|{apex_file_name}. Searching without vendor sub-strings.")
                 apex_sub_file_path_vendor_replaced = remove_vendor_name_from_path(apex_sub_file_path)
                 file_name_vendor_replaced = os.path.basename(apex_sub_file_path_vendor_replaced)
@@ -1322,13 +1344,13 @@ def inject_apex_intermediate_files(apex_file_name, file_path, apex_merge_file_pa
                                                                  must_contain=apex_filename_no_ext)
 
             if original_file_path:
-                logging.info(
+                logging.debug(
                     f"{tag}: Found original file path for apex intermediate file: {apex_sub_file_path}|{original_file_path}|{apex_file_name}")
 
                 if isinstance(original_file_path, list):
                     any_candidate_succeeded = False
                     for file_path_candidate in original_file_path:
-                        logging.info(
+                        logging.debug(
                             f"Found candidate file path for apex intermediate file: {apex_sub_file_path}|{file_path_candidate}|{apex_file_name}")
 
                         success = inject_file_into_obj(apex_sub_file_path,
@@ -1342,7 +1364,7 @@ def inject_apex_intermediate_files(apex_file_name, file_path, apex_merge_file_pa
                             any_candidate_succeeded = True
                     is_injected = any_candidate_succeeded
                 else:
-                    logging.info(
+                    logging.debug(
                         f"{tag}: Inject file path for apex intermediate file: {apex_sub_file_path}|{original_file_path}|{apex_file_name}")
                     is_injected = inject_file_into_obj(apex_sub_file_path,
                                                        original_file_path,
@@ -1355,7 +1377,7 @@ def inject_apex_intermediate_files(apex_file_name, file_path, apex_merge_file_pa
                 is_injected = False
 
             if is_injected:
-                logging.info(
+                logging.debug(
                     f"{tag}: Injected apex intermediate file Indirect: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
             else:
                 logging.warning(f"{tag}: APEX Intermediate: Indirect injection failed for file: {original_file_path}|{is_injected}|{apex_sub_file_path}|{file_path}|{apex_filename_no_ext}")
@@ -1371,14 +1393,14 @@ def cleanup_files(directory):
 
     :param directory: str - path to the directory to clean up.
     """
-    logging.info(f"Cleaning up all .lock files in {directory}")
+    logging.debug(f"Cleaning up all .lock files in {directory}")
     for root, _, files in os.walk(directory):
         for file in files:
             if file.endswith('.fmd-aecs-lock') or file.endswith('.fmd-aecs-processed'):
                 file_path = os.path.join(root, file)
                 try:
                     os.remove(file_path)
-                    #logging.info(f"Removed file: {file_path}")
+                    #logging.debug(f"Removed file: {file_path}")
                 except Exception as e:
                     logging.error(f"Error removing file {file_path}: {e}")
 
@@ -1449,17 +1471,17 @@ def process_partition_files(aosp_path, folder_path, target_out_path, executor, l
             progress_bar.update(1)
 
     if POST_INJECTOR_CONFIG["ENABLE_SEMANTIC_INJECTOR"]:
-        logging.info(f"ENABLE_SEMANTIC_INJECTOR is activated: {SEMANTIC_INJECTOR_LOG_FILE_PATH}")
+        logging.debug(f"ENABLE_SEMANTIC_INJECTOR is activated: {SEMANTIC_INJECTOR_LOG_FILE_PATH}")
         if POST_INJECTOR_CONFIG["ENABLE_VINTF_MERGE"]:
             if vintf_path_list and len(inj_obj_list) > 0:
-                logging.info(f"Starting VINTF Merge")
+                logging.debug(f"Starting VINTF Merge")
                 try:
                     handle_vintf_merge(aosp_path, aosp_version, str(partition_name), vintf_path_list)
                 except Exception as e:
                     logging.error(e)
 
         if POST_INJECTOR_CONFIG["ENABLE_SELINUX_MERGER"]:
-            logging.info(f"Starting SELinux Policy Merging for partition: {partition_name}")
+            logging.debug(f"Starting SELinux Policy Merging for partition: {partition_name}")
             if partition_name == "system":
                 try:
                     handle_seplicy_merging(aosp_version, aosp_path, partition_path)
@@ -1661,7 +1683,7 @@ def search_original_file_in_obj(partition_name,
                     if not check_file_compatibility(file_path, matching_file, module_type):
                         logging.debug("File Matcher: File not compatible: %s|%s", file_path, matching_file)
                         matches.remove(matching_file)
-                logging.info("File Matcher: Found exact matches for %s: %s", file_name, matches)
+                logging.debug("File Matcher: Found exact matches for %s: %s", file_name, matches)
                 file_path_list = matches
             else:
                 file_extension = os.path.splitext(file_name)[1]
@@ -1895,7 +1917,7 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
                 and "/lib" in source_file_path
                 and check_shared_object_architecture(source_file_path) == "64-bit"
                 and filename in POST_INJECTOR_CONFIG["ISOLATED_NAMESPACE_NATIVE_LIBRARY_LIST"]):
-            logging.info(f"File uses isolated namespace: {filename}|{source_file_path}")
+            logging.debug(f"File uses isolated namespace: {filename}|{source_file_path}")
             target_dir_injection_path = os.path.join(target_partition_path, "fmd")
         else:
             target_dir_injection_path = target_partition_path + str(os.path.join(*subfolder_list))
@@ -1937,7 +1959,7 @@ def run_build_property_merger(source_file_path, target_file_injection_path):
         if os.path.exists(merged_prop_file_path) and os.path.getsize(merged_prop_file_path) > 0:
             schedule_copy(merged_prop_file_path, target_file_injection_path)
             #shutil.copyfile(merged_prop_file_path, target_file_injection_path)
-            logging.info(f"Success: Updated {target_file_injection_path} with {merged_prop_file_path}")
+            logging.debug(f"Success: Updated {target_file_injection_path} with {merged_prop_file_path}")
     except Exception as e:
         logging.error(f"An error occurred during merging build properties: {e}")
     return target_file_injection_path
@@ -1956,7 +1978,7 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
 
     if POST_INJECTOR_CONFIG["ENABLE_BUILD_PROPERTY_MERGER"] and filename.endswith(".prop"):
         if "build.prop" in filename:
-            logging.info(f"File {source_file_path} is a property file and will be merged with the existing file instead of "
+            logging.debug(f"File {source_file_path} is a property file and will be merged with the existing file instead of "
                          f"overwriting: {target_file_injection_path} directly")
             run_build_property_merger(source_file_path, target_file_injection_path)
 
@@ -1965,12 +1987,12 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
         target_file_injection_path = os.path.join(aosp_build_out_path,
                                                   POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"][filename]
                                                   )
-        logging.info(f"Direct Injection via specific target path overwrite "
+        logging.debug(f"Direct Injection via specific target path overwrite "
                      f"for file: {filename} into {target_file_injection_path}")
 
     if (filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"] or source_file_path in
             POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]):
-        logging.info(
+        logging.debug(
             f"Direct Injection via APEX symlink file: {filename} with path {source_file_path} into {target_file_injection_path}")
         is_injected = inject_apex_symlink_file(filename=filename,
                                                source_file_path=source_file_path,
@@ -1987,13 +2009,13 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
             try:
                 shutil.copy2(source_file_path, target_file_injection_path, follow_symlinks=False)
                 is_injected = True
-                logging.info(f"File link overwrite: {source_file_path} into {target_file_injection_path}")
+                logging.debug(f"File link overwrite: {source_file_path} into {target_file_injection_path}")
             except Exception as e:
                 logging.error(f"Error copying file link: {source_file_path} -> {target_file_injection_path} | {e}")
         else:
             # Fîle should not already exist, but if it does, we overwrite it, but it is not recommended.
             is_injected = True
-            logging.info(f"Direct Injection File overwrite: {source_file_path} into {target_file_injection_path}. ")
+            logging.debug(f"Direct Injection File overwrite: {source_file_path} into {target_file_injection_path}. ")
             schedule_copy(str(source_file_path), str(target_file_injection_path))
             #shutil.copy2(str(source_file_path), str(target_file_injection_path), follow_symlinks=False)
     else:
@@ -2046,20 +2068,20 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
 def handle_special_matching(source_file_injection_path):
     if source_file_injection_path.endswith("app_process32"):
         source_file_injection_path = source_file_injection_path.replace("app_process32", "app_process64")
-        logging.info(f"Special matching app_process32 replace with app_process64: {source_file_injection_path}")
+        logging.debug(f"Special matching app_process32 replace with app_process64: {source_file_injection_path}")
 
     if source_file_injection_path.endswith("mediaserver") and "64" not in source_file_injection_path:
         if os.path.exists(source_file_injection_path.replace("mediaserver", "mediaserver64")):
             source_file_injection_path = source_file_injection_path.replace("mediaserver", "mediaserver64")
-            logging.info(f"Special matching mediaserver replace with mediaserver64: {source_file_injection_path}")
+            logging.debug(f"Special matching mediaserver replace with mediaserver64: {source_file_injection_path}")
     return source_file_injection_path
 
 def inject_apex_symlink_file(filename, source_file_path, original_file_path, aosp_path, partition_name, lunch_target, aosp_version):
     # Special case for isolated namespace binaries - Replacing Binary with symlink to apex binary
     target_path = f"/apex/com.android.fmd.{filename}.apex/bin/{filename}"
-    logging.info(f"Add new dangling symlink script: {original_file_path} -> {target_path}")
+    logging.debug(f"Add new dangling symlink script: {original_file_path} -> {target_path}")
     root_path = get_path_up_to_first_term(source_file_path, partition_name)
-    logging.info(f"{source_file_path} - Root path: {root_path}")
+    logging.debug(f"{source_file_path} - Root path: {root_path}")
     relative_source_path = source_file_path.replace(root_path, "")
     aosp_build_out_path = get_aosp_build_out_dir(aosp_path, aosp_version)
     abs_source_path = os.path.join(aosp_build_out_path, relative_source_path)
@@ -2070,14 +2092,14 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
     is_injected = True
     if enable_isolated_namespace:
         if os.path.exists(build_image_file_path):
-            logging.info(f"Injecting file from Goldfish for {target_path}: {build_image_file_path}")
+            logging.debug(f"Injecting file from Goldfish for {target_path}: {build_image_file_path}")
         try:
             with open(build_image_file_path, "r") as f:
                 lines = f.readlines()
 
             with open(build_image_file_path, "w") as f:
                 for line in lines:
-                    logging.info(f"Processing line: {line.strip()}")
+                    logging.debug(f"Processing line: {line.strip()}")
                     if injection_marker in line:
                         logging.debug(f"Injection marker found in {build_image_file_path}, injecting commands.")
                         f.write(f"{injection_marker}\n")
@@ -2085,9 +2107,9 @@ def inject_apex_symlink_file(filename, source_file_path, original_file_path, aos
                             logging.debug(f"Injecting command to goldfish: {command}")
                             f.write(f"    {command}\n")
                         is_injected = True
-                        logging.info(f"Injected file as simlink: {source_file_path} -> {target_path}")
+                        logging.debug(f"Injected file as simlink: {source_file_path} -> {target_path}")
                     else:
-                        logging.info(f"Write line to goldfish: {line.strip()}")
+                        logging.debug(f"Write line to goldfish: {line.strip()}")
                         f.write(line)
         except Exception as e:
             logging.error(f"Error injecting file into Goldfish: {build_image_file_path} | {e}")
@@ -2102,10 +2124,9 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
     filename = os.path.basename(source_file_path)
     matching_intermediate_file_list = []
     try:
-        inj_md5 = get_md5_from_file(source_file_path)
         org_md5 = get_md5_from_file(original_file_path)
         matching_intermediate_file_list = find_intermediate_file(aosp_path, org_md5)
-        logging.info(f"Overwriting Obj file: {source_file_path}:{inj_md5} into {original_file_path}:{org_md5}")
+        logging.debug(f"Overwriting Obj file: {source_file_path} into {original_file_path}:{org_md5}")
     except Exception as e:
         logging.error(f"Error injecting file: {source_file_path} | {e}")
 
@@ -2121,7 +2142,7 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
             try:
                 # Skip file, if path contains specific keyword
                 if any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST"]):
-                    logging.info(f"Skipping {file_path} because it was a keyword in SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST that matched the file_path")
+                    logging.debug(f"Skipping {file_path} because it was a keyword in SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST that matched the file_path")
                     continue
                 schedule_copy(source_file_path, file_path)
                 logging.debug(f"Scheduled indirect injection of .intermediate file: {file_path} with {source_file_path}")
