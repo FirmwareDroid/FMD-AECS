@@ -442,8 +442,6 @@ def inject(aosp_path,
            aosp_version,
            partition_list,
            tag):
-    start_time = time.time()
-    logging.info(f"Injection started at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
 
     folder_path_list = get_folders(source_folder_path, partition_list)
     logging.info(f"Folder path list: {folder_path_list}")
@@ -457,7 +455,8 @@ def inject(aosp_path,
         logging.info(f"Preprocessing completed in {pre_execution_time_minutes:.2f} minutes")
 
 
-
+    start_time = time.time()
+    logging.info(f"Injection started at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
     error_list, inj_obj_list, inj_partition_list, acv_result_dict = process_partitions(aosp_path,
                        target_out_path,
                        executor,
@@ -556,7 +555,6 @@ def inject(aosp_path,
     logging.info(f"Post-Injection Libraries skipped: {skipped_libs_list}\n\n")
     logging.info(f"Post-Injection Apps skipped: {skipped_app_list}\n\n")
     logging.info(f"Post-Injection APEX skipped: {skipped_apex_list}\n\n")
-    logging.info(f"acv_result_dict: {acv_result_dict}")
     logging.info(f"============================================================")
     logging.info(f"============================== GROUPED ERRORS ==============================")
     logging.info(f"============================================================")
@@ -578,6 +576,7 @@ def inject(aosp_path,
     logging.info(f"============================== INJ-METRICS ==============================")
     logging.info(f"============================================================")
     logging.info(f"Pre-Processing time: {pre_execution_time_minutes} minutes")
+    logging.info(f"acv_result_dict: {acv_result_dict}")
     logging.info(f"Execution time: {execution_time_minutes} minutes")
     number_of_files = count_number_of_extracted_files(source_folder_path)
     logging.info(f"Number of File in ALL_FILES: {number_of_files}")

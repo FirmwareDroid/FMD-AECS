@@ -323,7 +323,7 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id,
     firmware_folder_abs = os.path.abspath(firmware_folder)
     worker_args = [(apk, firmware_folder, acv_executable, firmware_folder_abs) for apk in apk_path_list]
 
-    max_workers = max_workers or (os.cpu_count() * 3 if os.cpu_count() else 4)
+    max_workers = max_workers or (os.cpu_count() * 10 if os.cpu_count() else 4)
     logging.info(f"Starting instrumentation with {max_workers} worker(s)")
 
     per_file_times = {}
