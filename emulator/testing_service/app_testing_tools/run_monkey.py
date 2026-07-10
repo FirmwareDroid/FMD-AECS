@@ -716,7 +716,7 @@ def main():
     parser.add_argument('-m', '--monkey-events', dest='monkey_events', type=int, default=1, help='Number of monkey events to send when attempting monkey launch (default 1)')
 
     # Monkey configuration options
-    parser.add_argument('--monkey-seed', dest='monkey_seed', type=int, help='Random seed for monkey (-s)')
+    parser.add_argument('--monkey-seed', dest='monkey_seed', type=int, help='Random seed for monkey (-s). Default(12345)', default=12345)
     parser.add_argument('--monkey-throttle', dest='monkey_throttle', type=int, help='Monkey --throttle in milliseconds')
     parser.add_argument('--monkey-randomize-throttle', dest='monkey_randomize_throttle', action='store_true', help='Use --randomize-throttle with monkey')
     parser.add_argument('--monkey-ignore-crashes', dest='monkey_ignore_crashes', action='store_true', help='Use --ignore-crashes with monkey')

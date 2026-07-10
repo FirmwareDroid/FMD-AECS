@@ -830,36 +830,44 @@ def GlobalDictFromImageProp(image_prop, mount_point):
 
 def run_script_to_file(partition):
   script_path = "/home/ubuntu/FMD-AECS/aosp_post_build_injector.py"
-  output_filename = f"post_injector_out_{partition}.log"
-  output_path = os.path.join("/tmp/fmd/out/", output_filename)
+  outdir = "/tmp/fmd/out"
+  os.makedirs(outdir, exist_ok=True)
+  first_marker = os.path.join(outdir, f".post_injector_first_{partition}")
+  ran_marker = os.path.join(outdir, f".post_injector_ran_{partition}")
+  output_path = os.path.join(outdir, f"post_injector_out_{partition}.log")
   python_path = "/home/ubuntu/FMD-AECS/venv/bin/python3"
-
-  # 1. Copy the current system environment safely
   current_env = os.environ.copy()
-  with open(output_path, "w", encoding="utf-8") as f:
-    try:
-      command = [
-        python_path,
-        script_path,
-        "--use-file-config",
-        "--partition-list",
-        partition,
-      ]
-      subprocess.run(
-        command,
-        stdout=f,
-        stderr=subprocess.STDOUT,
-        check=True,
-        env=current_env,
-        cwd="/home/ubuntu/FMD-AECS/"
-      )
-      print(
-        f"Success! Output successfully written to {output_path}"
-      )
-    except subprocess.CalledProcessError as e:
-      f.write(f"{str(e)}")
-      print(f"Script failed with exit code {e.returncode}. Check {output_path}")
-      sys.exit(1)
+
+  # Already ran previously -> skip
+  if os.path.exists(ran_marker):
+    print(f"Skipping post-injector for {partition}; ran marker exists")
+    return
+
+  # Second call detected -> execute and create ran marker
+  if os.path.exists(first_marker):
+    with open(output_path, "w", encoding="utf-8") as f:
+      try:
+        cmd = [python_path, script_path, "--use-file-config", "--partition-list", partition]
+        subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, check=True, env=current_env)
+        # mark as executed
+        with open(ran_marker, "w", encoding="utf-8") as m:
+          m.write(f"ran:")
+        try:
+          os.remove(first_marker)
+        except OSError:
+          pass
+        print(f"Success! Output written to {output_path}")
+      except subprocess.CalledProcessError as e:
+        f.write(str(e))
+        print(f"Script failed with exit code {e.returncode}. Check {output_path}")
+        sys.exit(1)
+    return
+
+  # First call -> create first marker and skip execution
+  with open(first_marker, "w", encoding="utf-8") as m:
+    m.write(f"first-called\n")
+  print(f"Recorded first call for {partition}; will run on next invocation.")
+
 
 def BuildVBMeta(in_dir, glob_dict, output_path):
   """Creates a VBMeta image.
