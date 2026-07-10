@@ -5,6 +5,13 @@ import traceback
 
 def execute_shell_command(command, aosp_root_path, lunch_target=None):
     env_copy = os.environ.copy()
+
+    isolated_tmp = "/tmp/fmd/out/soong/"
+    os.makedirs(isolated_tmp, exist_ok=True)
+    env_copy["TMPDIR"] = isolated_tmp
+    env_copy["TEMP"] = isolated_tmp
+    env_copy["TMP"] = isolated_tmp
+
     if "ANDROID_HOST_OUT" not in env_copy and lunch_target:
         final_command = f"source build/envsetup.sh && lunch {lunch_target} && {command}"
         logging.info(f"execute_shell_command: {final_command}")

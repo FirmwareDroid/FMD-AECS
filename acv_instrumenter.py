@@ -392,8 +392,7 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id,
 
     if acv_error_entries:
         try:
-            for entry in acv_error_entries:
-                write_json_nd_output(entry, PATH_BUILD_ACV_ERROR_LOG)
+            write_json_nd_output(acv_error_entries, PATH_BUILD_ACV_ERROR_LOG)
             logging.info(f"Wrote ACVTool errors to {PATH_BUILD_ACV_ERROR_LOG} (entries={len(acv_error_entries)})")
         except Exception as err:
             logging.exception(f"Failed to write ACVTool error log: {err}")

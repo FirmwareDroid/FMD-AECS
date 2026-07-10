@@ -751,7 +751,6 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
 
                         if not is_merge_success:
                             error_message = f"Error handling merge APEX file: {file_path}|{log_message}"
-                            raise Exception(error_message)
                         else:
                             error_message = None
                     else:
@@ -764,7 +763,6 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                                 error_message = None
                         except Exception as e:
                             error_message = f"Exception occurred: {e}:{traceback.format_exc()}\n{traceback.print_stack()}"
-                            raise e
                 elif module_type == "EXECUTABLES" and is_elf_binary(file_path):
                     if filename in POST_INJECTOR_CONFIG["APEX_BINARY_ISOLATED_NAMESPACE_LIST"]:
                         try:

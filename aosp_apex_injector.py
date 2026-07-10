@@ -64,13 +64,13 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aos
     if not POST_INJECTOR_CONFIG:
         raise Exception("No POST_INJECTOR_CONFIG found")
     os.makedirs("/tmp/fmd/out/temp", exist_ok=True)
-    logging.info(f"Handling APEX merge modules: {file_path} | {aosp_path} | {lunch_target} | {target_out_path}")
+    logging.debug(f"Handling APEX merge modules: {file_path} | {aosp_path} | {lunch_target} | {target_out_path}")
     is_merge_success = False
     apex_out_file, org_apex_file = backup_original_apex_file(file_path)
     try:
         apex_emulator_folder = find_emulator_apex_folder(target_out_path, file_path, aosp_version, aosp_path)
         if apex_emulator_folder and os.path.exists(apex_emulator_folder):
-            logging.info(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
+            logging.debug(f"Emulator APEX folder found for: {file_path} and {apex_emulator_folder}")
             is_merge_success, log_message, apex_merge_file_path_list = merge_apex_files(apex_emulator_folder, file_path, apex_out_file, lunch_target, aosp_path, target_out_path, aosp_version)
             if os.path.exists(apex_out_file):
                 try:
@@ -82,7 +82,7 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aos
                 logging.warning(f"APEX output file does not exist. Restoring original APEX: {org_apex_file}")
                 is_merge_success = False
                 shutil.copyfile(org_apex_file, file_path)
-            logging.info(
+            logging.debug(
                 f"Merging APEX file complete: {apex_out_file} overwrites {file_path} | merge success: {is_merge_success} | {log_message}")
         else:
             log_message = f"Error merging APEX file: {file_path}. No emulator folder found in: {target_out_path}"
@@ -96,11 +96,11 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aos
 def backup_original_apex_file(file_path):
     org_apex_file = f"{file_path}.original_apex"
     if os.path.exists(org_apex_file):
-        logging.info(f"Original APEX file found - restoring: {org_apex_file}")
+        logging.debug(f"Original APEX file found - restoring: {org_apex_file}")
         restore_original_apex(file_path, org_apex_file)
     else:
         shutil.copyfile(file_path, org_apex_file)
-        logging.info(f"Original APEX file not found, creating new one: {org_apex_file}")
+        logging.debug(f"Original APEX file not found, creating new one: {org_apex_file}")
 
     apex_out_file = prepare_apex_out_file(file_path)
     if os.path.exists(apex_out_file):
@@ -111,7 +111,7 @@ def replace_org_apex_file(file_path, apex_out_file):
     os.remove(file_path)
     shutil.copyfile(apex_out_file, file_path)
     os.remove(apex_out_file)
-    logging.info(f"Replaced original APEX with new APEX file: org: {file_path} overwrite by: {apex_out_file}")
+    logging.debug(f"Replaced original APEX with new APEX file: org: {file_path} overwrite by: {apex_out_file}")
 
 
 def rename_file(file_path, new_name):
@@ -135,14 +135,14 @@ def prepare_capex(file_path, output_dir, output_filename):
     """
     Unzips the capex file into a temporary directory, then copies the apex file to the output directory.
     """
-    logging.info(f"Unzipping capex file: {file_path}")
+    logging.debug(f"Unzipping capex file: {file_path}")
     try:
         with tempfile.TemporaryDirectory(dir="/tmp/fmd/out/temp/") as temp_dir:
             with zipfile.ZipFile(file_path, 'r') as zip_ref:
                 zip_ref.extractall(temp_dir)
             apex_file = os.path.join(temp_dir, "original_apex")
             if os.path.exists(apex_file):
-                logging.info(f"APEX file extracted: {apex_file}")
+                logging.debug(f"APEX file extracted: {apex_file}")
                 out_file = str(os.path.join(output_dir, output_filename))
                 shutil.copy(apex_file, out_file)
                 return out_file
@@ -171,7 +171,7 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version):
     os.makedirs("/tmp/fmd/out/temp", exist_ok=True)
 
     filename = str(os.path.basename(apex_file_path)).replace(".apex", "").replace(".capex", "")
-    logging.info(f"Repackaging APEX file: {apex_file_path}")
+    logging.debug(f"Repackaging APEX file: {apex_file_path}")
     is_success = False
 
     apex_out_file, org_apex_file = backup_original_apex_file(apex_file_path)
@@ -180,13 +180,13 @@ def repackage_apex_file(aosp_path, apex_file_path, lunch_target, aosp_version):
         apex_extract_dir_path = tempfile.mkdtemp(dir=apex_root_path, suffix=f"_{filename}_extract")
         extract_success, log_message = extract_apex_file(aosp_path, apex_file_path, apex_extract_dir_path, lunch_target, aosp_version)
         if extract_success:
-            logging.info(f"APEX extracted: {apex_file_path} to {apex_extract_dir_path}")
+            logging.debug(f"APEX extracted: {apex_file_path} to {apex_extract_dir_path}")
             with tempfile.NamedTemporaryFile(delete=False, dir=apex_root_path) as canned_fs_config:
                 generate_canned_fs_config(apex_extract_dir_path, canned_fs_config.name, allow_filtering=False)
-            logging.info(f"Canned FS config file: {canned_fs_config.name}")
+            logging.debug(f"Canned FS config file: {canned_fs_config.name}")
             apex_file_name = str(os.path.basename(apex_file_path))
             is_manifest_found, apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path, apex_file_name, aosp_path, lunch_target)
-            logging.info(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
+            logging.debug(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
 
             if apex_manifest_path and os.path.exists(apex_manifest_path):
                 is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path = create_and_sign_apex_repack_container(
@@ -269,7 +269,7 @@ def find_lib64_folders(root_dir, folder_name="lib64", include_subfolders=True):
                             subfolder_path = os.path.join(subdir_root, subdir)
                             lib64_paths.append(subfolder_path)
             else:
-                logging.info(f"Skipped vndk lib64 folder: {lib64_dir}")
+                logging.debug(f"Skipped vndk lib64 folder: {lib64_dir}")
     return lib64_paths
 
 
@@ -284,7 +284,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     if not POST_INJECTOR_CONFIG:
         raise Exception("No POST_INJECTOR_CONFIG found")
 
-    logging.info(f"Adding new APEX file. Target Binary: {binary_file_path} | {aosp_path} | {lunch_target}")
+    logging.debug(f"Adding new APEX file. Target Binary: {binary_file_path} | {aosp_path} | {lunch_target}")
     filename = str(os.path.basename(binary_file_path))
     apex_file_name = f"com.android.fmd.{filename}.apex"
 
@@ -295,7 +295,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     apex_in_file = str(os.path.join(tempdir.name, apex_file_name))
     try:
         shutil.copyfile(apex_template_file, apex_in_file)
-        logging.info(f"Copied APEX template file: {apex_template_file} to {apex_in_file}")
+        logging.debug(f"Copied APEX template file: {apex_template_file} to {apex_in_file}")
     except Exception as e:
         logging.error(f"Error copying APEX template file: {e}")
         return False, f"Error copying APEX template file: {e}"
@@ -305,7 +305,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     apex_extract_dir_path = tempfile.mkdtemp(dir=apex_root_path, suffix=f"_{filename}_extract")
     extract_success, log_message = extract_apex_file(aosp_path, apex_in_file, apex_extract_dir_path, lunch_target, aosp_version)
     if os.path.exists(apex_in_file):
-        logging.info(f"APEX file {apex_in_file} still exists after extraction. Removing it.")
+        logging.debug(f"APEX file {apex_in_file} still exists after extraction. Removing it.")
         os.remove(apex_in_file)
 
     if not extract_success:
@@ -319,14 +319,14 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     try:
         shutil.copyfile(binary_file_path, dst_file_path)
         os.chmod(dst_file_path, 0o700)
-        logging.info(f"Copied binary file {binary_file_path} to APEX: {dst_file_path}")
+        logging.debug(f"Copied binary file {binary_file_path} to APEX: {dst_file_path}")
     except Exception as e:
         logging.error(f"Error copying binary file {binary_file_path} to APEX {apex_file_name}: {e}")
         return False, f"Error copying binary file: {e}"
 
     # Run lddtree on the binary file to collect all necessary native libraries
     partition_root = get_path_up_to_first_term(binary_file_path, partition_name)
-    logging.info(f"Partition root {apex_file_name}: {partition_root}")
+    logging.debug(f"Partition root {apex_file_name}: {partition_root}")
     if not os.path.exists(partition_root):
         logging.error(f"Partition root not found: {partition_root}. Cannot proceed with APEX creation for {apex_file_name}.")
         return False, f"Partition root not found: {partition_root}"
@@ -336,7 +336,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     extra_paths = []
     if lib64_path_list:
         extra_paths.extend(lib64_path_list)
-        logging.info(f"Extra paths for lddtree: {extra_paths} for APEX {apex_file_name}")
+        logging.debug(f"Extra paths for lddtree: {extra_paths} for APEX {apex_file_name}")
     else:
         logging.warning(f"No 'lib64' folders found in partition root: {partition_root}. Using default paths. {apex_file_name}")
 
@@ -344,8 +344,8 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
 
     try:
         libs, libs_not_found = run_lddtree(binary_file_path, extra_env=env)
-        logging.info(f"Collected libraries from lddtree - {apex_file_name} libs found: {libs}")
-        logging.info(f"Collected libraries from lddtree - {apex_file_name} libs_not_found: {libs_not_found}")
+        logging.debug(f"Collected libraries from lddtree - {apex_file_name} libs found: {libs}")
+        logging.debug(f"Collected libraries from lddtree - {apex_file_name} libs_not_found: {libs_not_found}")
 
     except Exception as e:
         logging.error(f"Error running lddtree on {binary_file_path} - {apex_file_name}: {e}")
@@ -366,12 +366,12 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     for lib_path in libs:
         lib_name = os.path.basename(lib_path)
         if lib_name in exclude_list or any(keyword in lib_path for keyword in exclude_keyword):
-            logging.info(f"Skipping excluded library {lib_name} for APEX {apex_file_name}")
+            logging.debug(f"Skipping excluded library {lib_name} for APEX {apex_file_name}")
             continue
-        logging.info(f"Adding APEX lib path - {apex_file_name}: {lib_path}")
+        logging.debug(f"Adding APEX lib path - {apex_file_name}: {lib_path}")
         dst_lib_path = os.path.join(apex_lib64_path, os.path.basename(lib_path))
         try:
-            logging.info(f"Copying library {lib_path} to {dst_lib_path} : APEX {apex_file_name}")
+            logging.debug(f"Copying library {lib_path} to {dst_lib_path} : APEX {apex_file_name}")
             shutil.copyfile(lib_path, dst_lib_path)
         except Exception as e:
             logging.error(f"Error copying library {lib_path} to APEX {apex_file_name}: {e}")
@@ -380,30 +380,30 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     # Search for the native libraries in the AOSP source tree and copy them to the APEX directory if found
     for lib_name in libs_not_found:
         if lib_name in exclude_list or any(keyword in lib_name for keyword in exclude_keyword):
-            logging.info(f"Skipping excluded library {lib_name} for APEX {apex_file_name}")
+            logging.debug(f"Skipping excluded library {lib_name} for APEX {apex_file_name}")
             continue
-        logging.info(f"Searching for library {lib_name} in partition root: {partition_root} for APEX {apex_file_name}")
+        logging.debug(f"Searching for library {lib_name} in partition root: {partition_root} for APEX {apex_file_name}")
         for root, dirs, files in os.walk(partition_root):
             if lib_name in files:
                 src_lib_path = os.path.join(root, lib_name)
                 if "com_android_vndk_current_apex" in src_lib_path:
-                    logging.info(f"Skipping VNDK library {lib_name} in {src_lib_path} for APEX {apex_file_name}")
+                    logging.debug(f"Skipping VNDK library {lib_name} in {src_lib_path} for APEX {apex_file_name}")
                     continue
                 if any(keyword in src_lib_path for keyword in exclude_keyword):
-                    logging.info(f"Skipping excluded library {lib_name} for APEX {apex_file_name}")
+                    logging.debug(f"Skipping excluded library {lib_name} for APEX {apex_file_name}")
                     continue
                 if os.path.exists(src_lib_path):
                     if check_shared_object_architecture(src_lib_path) == "64-bit":
                         dst_lib_path = os.path.join(apex_lib64_path, lib_name)
                         try:
                             shutil.copyfile(src_lib_path, dst_lib_path)
-                            logging.info(f"Copied 64-bit library {lib_name} from {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
+                            logging.debug(f"Copied 64-bit library {lib_name} from {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
                             break  # Stop searching after finding the 64-bit version
                         except Exception as e:
                             logging.error(f"Error copying library {lib_name} from {src_lib_path} to {dst_lib_path} for {apex_file_name}: {e}")
                             return False, f"Error copying library {lib_name}: {e}"
                     else:
-                        logging.info(f"Found 32-bit library {lib_name} in {src_lib_path}, skipping. {apex_file_name}")
+                        logging.debug(f"Found 32-bit library {lib_name} in {src_lib_path}, skipping. {apex_file_name}")
                 else:
                     logging.error(f"Library {lib_name} not found in {partition_root}. Skipping. {apex_file_name}")
 
@@ -414,24 +414,24 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
                 for root, dirs, files in os.walk(lib64_path):
                     for file in files:
                         if file in exclude_list:
-                            logging.info(f"Skipping excluded library {file} for APEX {apex_file_name}")
+                            logging.debug(f"Skipping excluded library {file} for APEX {apex_file_name}")
                             continue
                         if file.endswith(".so"):
                             src_lib_path = os.path.join(root, file)
                             pre_path = get_path_up_to_first_term(root, "lib64")
                             post_path = str(src_lib_path.replace(pre_path, ""))
-                            logging.info(f"Pre-path: {pre_path}, Post-path: {post_path} for "
+                            logging.debug(f"Pre-path: {pre_path}, Post-path: {post_path} for "
                                          f"lib64 {file} in APEX {apex_file_name}, src_lib_path: {src_lib_path}")
                             dst_lib_path = os.path.join(apex_extract_dir_path, "lib64", post_path)
                             if check_shared_object_architecture(src_lib_path) == "64-bit":
                                 if os.path.exists(dst_lib_path):
-                                    logging.info(
+                                    logging.debug(
                                         f"Library {src_lib_path} already exists in APEX {apex_file_name}, skipping copy.")
                                     continue
                                 try:
                                     os.makedirs(os.path.dirname(dst_lib_path), exist_ok=True)
                                     shutil.copyfile(src_lib_path, dst_lib_path)
-                                    logging.info(f"Copied library {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
+                                    logging.debug(f"Copied library {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
                                 except Exception as e:
                                     logging.error(f"Error copying library {src_lib_path} to APEX {apex_file_name}: {e}")
                                     return False, f"Error copying library {src_lib_path}: {e}"
@@ -441,39 +441,39 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
         for lib64_path in lib64_path_list:
             if not "vndk" in lib64_path: # "apex" in lib64_path and
                 if "apex" in lib64_path and ("adbd" in lib64_path or "art" in lib64_path or "runtime" in lib64_path):
-                    logging.info(f"Copying all libraries from {lib64_path} to APEX {apex_file_name}")
+                    logging.debug(f"Copying all libraries from {lib64_path} to APEX {apex_file_name}")
                     for root, dirs, files in os.walk(lib64_path):
                         for file in files:
                             if file in exclude_list:
-                                logging.info(f"Skipping excluded library {file} for APEX {apex_file_name}")
+                                logging.debug(f"Skipping excluded library {file} for APEX {apex_file_name}")
                                 continue
                             if file.endswith(".so"):
                                 src_lib_path = os.path.join(root, file)
                                 pre_path = get_path_up_to_first_term(root, "lib64")
                                 post_path = str(src_lib_path.replace(pre_path, ""))
-                                logging.info(f"Pre-path: {pre_path}, Post-path: {post_path} for "
+                                logging.debug(f"Pre-path: {pre_path}, Post-path: {post_path} for "
                                              f"lib64 {file} in APEX {apex_file_name}, src_lib_path: {src_lib_path}")
                                 dst_lib_path = os.path.join(apex_extract_dir_path, "lib64", post_path)
                                 if check_shared_object_architecture(src_lib_path) == "64-bit":
                                     if os.path.exists(dst_lib_path):
-                                        logging.info(f"Library {src_lib_path} already exists in APEX {apex_file_name}, skipping copy.")
+                                        logging.debug(f"Library {src_lib_path} already exists in APEX {apex_file_name}, skipping copy.")
                                         continue
                                     try:
                                         os.makedirs(os.path.dirname(dst_lib_path), exist_ok=True)
                                         shutil.copyfile(src_lib_path, dst_lib_path)
-                                        logging.info(f"Copied APEX library {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
+                                        logging.debug(f"Copied APEX library {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
                                     except Exception as e:
                                         logging.error(f"Error copying library {src_lib_path} to APEX {apex_file_name}: {e}")
                                         return False, f"Error copying library {src_lib_path}: {e}"
 
     javalib_folder_list = find_lib64_folders(partition_root, "javalib")
 
-    logging.info(f"Javalib folders found: {javalib_folder_list} for APEX {apex_file_name}")
+    logging.debug(f"Javalib folders found: {javalib_folder_list} for APEX {apex_file_name}")
     add_javalibs = False
     if add_javalibs:
         for javalib_path in javalib_folder_list:
             if not "vndk" in javalib_path and "apex" in javalib_path and "art" in javalib_path:
-                logging.info(f"Copying all javalib libraries from {javalib_path} to APEX {apex_file_name}")
+                logging.debug(f"Copying all javalib libraries from {javalib_path} to APEX {apex_file_name}")
                 for root, dirs, files in os.walk(javalib_path):
                     for file in files:
                         if file.endswith(".fmd-aecs-lock") or file.endswith(".fmd-aecs-processed"):
@@ -481,15 +481,15 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
                         src_lib_path = os.path.join(root, file)
                         pre_path = get_path_up_to_first_term(root, "javalib")
                         post_path = str(src_lib_path.replace(pre_path, ""))
-                        logging.info(f"Pre-path: {pre_path}, Post-path: {post_path} for javalib {file} in APEX {apex_file_name}, src_lib_path: {src_lib_path}")
+                        logging.debug(f"Pre-path: {pre_path}, Post-path: {post_path} for javalib {file} in APEX {apex_file_name}, src_lib_path: {src_lib_path}")
                         dst_lib_path = os.path.join(apex_extract_dir_path, "javalib", post_path)
                         if os.path.exists(dst_lib_path):
-                            logging.info(f"Javalib {src_lib_path} already exists in APEX {apex_file_name}, skipping copy.")
+                            logging.debug(f"Javalib {src_lib_path} already exists in APEX {apex_file_name}, skipping copy.")
                             continue
                         try:
                             os.makedirs(os.path.dirname(dst_lib_path), exist_ok=True)
                             shutil.copyfile(src_lib_path, dst_lib_path)
-                            logging.info(f"Copied javalib {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
+                            logging.debug(f"Copied javalib {src_lib_path} to {dst_lib_path}: APEX {apex_file_name}")
                         except Exception as e:
                             logging.error(f"Error copying javalib {src_lib_path} to APEX {apex_file_name}: {e}")
                             return False, f"Error copying javalib {src_lib_path}: {e}"
@@ -509,25 +509,25 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
     apex_manifest = f"{{\n\t\"name\": \"{apex_file_name}\",\n\t\"version\": {apex_version}\n}}\n"
     with open(apex_manifest_path, "w") as apex_manifest_file:
         apex_manifest_file.write(apex_manifest)
-    logging.info(f"Created apex_manifest: {apex_manifest_path} with content: {apex_manifest} for APEX file {apex_file_name}")
+    logging.debug(f"Created apex_manifest: {apex_manifest_path} with content: {apex_manifest} for APEX file {apex_file_name}")
 
     # Remove the old manifest file if it exists
     is_manifest_found, old_apex_manifest_path = move_apex_manifest_file(apex_extract_dir_path, apex_root_path, apex_file_name, aosp_path, lunch_target)
-    logging.info(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
+    logging.debug(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
     if os.path.exists(old_apex_manifest_path):
-        logging.info(f"Removing existing APEX manifest Protobuf file: {old_apex_manifest_path}")
+        logging.debug(f"Removing existing APEX manifest Protobuf file: {old_apex_manifest_path}")
         os.remove(old_apex_manifest_path)
 
     #Create new Manifest file
     apex_manifest_name_pb = "apex_manifest.pb"
     apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
-    logging.info(f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
+    logging.debug(f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
     convert_manifest_from_json(apex_manifest_path=apex_manifest_path, out_file_path=apex_manifest_path_pb, aosp_path=aosp_path, lunch_target=lunch_target)
     if not os.path.exists(apex_manifest_path_pb):
         logging.error(f"APEX manifest Protobuf file not created: {apex_manifest_path_pb} for APEX file {apex_file_name}")
         return False, f"APEX manifest Protobuf file not created: {apex_manifest_path_pb}"
     else:
-        logging.info(f"APEX manifest Protobuf file created: {apex_manifest_path_pb} for APEX file {apex_file_name}. "
+        logging.debug(f"APEX manifest Protobuf file created: {apex_manifest_path_pb} for APEX file {apex_file_name}. "
                      f"Removing old manifest file: {old_apex_manifest_path}")
         os.remove(apex_manifest_path)
 
@@ -535,7 +535,7 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
         ## Create SELinux File Contexts for the new APEX file
         file_context_source_path = os.path.join(template_folder_abs_path, "file_contexts")
         file_context_dst_path = os.path.join(aosp_path, "system", "sepolicy", "apex", f"com.android.fmd.{filename}-file_contexts")
-        logging.info(f"Copying {file_context_source_path} to {file_context_dst_path} for APEX file {apex_file_name}")
+        logging.debug(f"Copying {file_context_source_path} to {file_context_dst_path} for APEX file {apex_file_name}")
         shutil.copyfile(file_context_source_path, file_context_dst_path)
         with open(file_context_dst_path, 'a') as file_contexts_file:
             # TODO Add SELinux context for the binary file dynamically
@@ -572,13 +572,13 @@ def add_new_apex_file(aosp_path, binary_file_path, lunch_target, partition_name,
         logging.error(f"Error creating APEX container file {apex_file_name}: {log_message}")
         return False, log_message
 
-    logging.info(f"APEX container file {apex_file_name} successfully created to: {apex_out_file}")
+    logging.debug(f"APEX container file {apex_file_name} successfully created to: {apex_out_file}")
 
     return is_success, log_message
 
 
 def clean_json_file(input_path, output_path):
-    logging.info(f"Cleaning JSON file: {input_path} and saving to: {output_path}")
+    logging.debug(f"Cleaning JSON file: {input_path} and saving to: {output_path}")
     try:
         with open(input_path, 'r') as f:
             lines = f.readlines()
@@ -647,7 +647,7 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
         return is_success, error_msg
 
     info = f"APEX: conv_apex_manifest tool path: {converter_path}|{cleaned_manifest}|{out_file_path}|{lunch_target}"
-    logging.info(info)
+    logging.debug(info)
     attempt = 0
     is_success = False
     log = ""
@@ -659,7 +659,7 @@ def convert_manifest_from_json(apex_manifest_path, out_file_path, aosp_path, lun
         if not is_success:
             logging.error(f"APEX: conv_apex_manifest conversion command failed. Trying again: {command} | {is_success} | {log}")
             is_success, log = execute_shell_command(command, aosp_path, lunch_target)
-        logging.info(f"APEX: conv_apex_manifest extraction command: {command} | {is_success} | {log}")
+        logging.debug(f"APEX: conv_apex_manifest extraction command: {command} | {is_success} | {log}")
 
     return is_success, {f"ERROR: {log}| More infos: {info}"}
 
@@ -677,7 +677,7 @@ def create_apex_build_module(aosp_path, apex_file_path, avb_pub_key_path, priv_p
                 logging.error(f"Key file not copied: {key_path} to {module_out_folder_path}")
                 is_success = False
             else:
-                logging.info(f"APEX Key file copied: {key_path} to {module_out_folder_path}")
+                logging.debug(f"APEX Key file copied: {key_path} to {module_out_folder_path}")
     else:
         log_message = f"Error injecting Android.bp file: {module_out_folder_path}"
 
@@ -693,10 +693,10 @@ def create_apex_manifest(output_dir, apex_name):
 
 
 def inject_apex_keys_module(input_apex, out_folder_path, key_id):
-    logging.info(f"Add Android.bp file for APEX: {input_apex}")
+    logging.debug(f"Add Android.bp file for APEX: {input_apex}")
     os.makedirs(out_folder_path, exist_ok=True)
     android_bp_file = os.path.join(out_folder_path, "Android.bp")
-    logging.info(f"Creating Android.bp file for APEX: {android_bp_file}")
+    logging.debug(f"Creating Android.bp file for APEX: {android_bp_file}")
     log_message = ""
     with open(android_bp_file, 'w') as android_bp:
         content = f'\n\napex_key {{\n    name: \"{key_id}.key\",\n    public_key: \"{key_id}.avbpubkey\",\n    private_key: \"{key_id}.pem\", \n    installable: true\n}}'
@@ -716,10 +716,10 @@ def copy_keys_to_apex_folder(input_apex, apex_main_folder, avb_pub_key_path):
     public_key_name = f"{apex_name}_pubkey.pem"
     public_key_out = os.path.join(apex_main_folder, public_key_name)
     shutil.copy2(avb_pub_key_path, public_key_out, follow_symlinks=False)
-    logging.info(f"AVB public key copied to APEX build module: {public_key_out}")
+    logging.debug(f"AVB public key copied to APEX build module: {public_key_out}")
     if os.path.exists(public_key_out):
         is_success = True
-        logging.info(f"AVB public key copied to APEX build module: {public_key_out}")
+        logging.debug(f"AVB public key copied to APEX build module: {public_key_out}")
     else:
         log_message = f"AVB public key not found in APEX build module: {public_key_out}"
     return is_success, log_message, public_key_name
@@ -738,9 +738,9 @@ def copy_keys_to_apex_folder(input_apex, apex_main_folder, avb_pub_key_path):
 #             if isinstance(POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key], list):
 #                 for folder_name in POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key]:
 #                     if os.path.exists(os.path.join(apex_emulator_folder_root, folder_name)):
-#                         logging.info(f"Found APEX default path for {filename_no_vendor}: {folder_name}")
+#                         logging.debug(f"Found APEX default path for {filename_no_vendor}: {folder_name}")
 #                         return folder_name
-#             logging.info(f"Found APEX default path for {filename_no_vendor}: {POST_INJECTOR_CONFIG['APEX_DEFAULT_EMULATOR_PATHS_DICT'][key]}")
+#             logging.debug(f"Found APEX default path for {filename_no_vendor}: {POST_INJECTOR_CONFIG['APEX_DEFAULT_EMULATOR_PATHS_DICT'][key]}")
 #             return POST_INJECTOR_CONFIG["APEX_DEFAULT_EMULATOR_PATHS_DICT"][key]
 #     return None
 
@@ -765,11 +765,11 @@ def get_match_existing_emulator_folders(filename_no_vendor, apex_emulator_folder
         for folder_name in folder_names:
             full_path = os.path.join(apex_emulator_folder_root, folder_name)
             if os.path.exists(full_path):
-                logging.info(f"Found APEX default path for {filename_no_vendor}: {folder_name}")
+                logging.debug(f"Found APEX default path for {filename_no_vendor}: {folder_name}")
                 return folder_name
 
         # Fallback return if no folder path physically exists but key matches
-        logging.info(f"Found APEX default path for {filename_no_vendor}: {val}")
+        logging.debug(f"Found APEX default path for {filename_no_vendor}: {val}")
         return val
 
     return None
@@ -788,24 +788,24 @@ def find_emulator_apex_folder(target_out_path, file_path, aosp_version, aosp_pat
     # 1. Search in Build Intermediate Folder
     apex_emulator_folder_root_list = [str(os.path.join(target_out_path, "apex")), str(os.path.join(target_out_path, "symbols", "apex"))]
     for apex_emulator_folder_root in apex_emulator_folder_root_list:
-        logging.info(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
+        logging.debug(f"Searching for APEX module folder: {filename_no_vendor} in {apex_emulator_folder_root} for apex file {file_path}")
         folder_name = get_match_existing_emulator_folders(filename_no_vendor, apex_emulator_folder_root)
         if folder_name:
             apex_module_folder = os.path.join(apex_emulator_folder_root, folder_name)
             if os.path.exists(apex_module_folder):
-                logging.info(f"APEX module folder found: {apex_module_folder} for apex {file_path}")
+                logging.debug(f"APEX module folder found: {apex_module_folder} for apex {file_path}")
                 return apex_module_folder
 
     # 2. Fallback: Search in Host Linux Directory
     host_path = get_host_linux_path(aosp_path)
-    logging.info(
+    logging.debug(
         f"Searching for APEX module folder in host directory: {filename_no_vendor} in {host_path} for apex file {file_path}")
 
     folder_name = get_match_existing_emulator_folders(filename_no_vendor, host_path)
     if folder_name:
         apex_module_folder = os.path.join(host_path, folder_name)
         if os.path.exists(apex_module_folder):
-            logging.info(f"APEX module folder found: {apex_module_folder} for apex {file_path}")
+            logging.debug(f"APEX module folder found: {apex_module_folder} for apex {file_path}")
             return apex_module_folder
 
     # 3. Not Found
@@ -837,7 +837,7 @@ def get_vndk_version(file_path):
                     logging.debug(f"Found VNDK string: {version_string}")
                     version = get_last_two_as_int(version_string)
                     if version != 0:
-                        logging.info(f"Extracted VNDK version: {version}")
+                        logging.debug(f"Extracted VNDK version: {version}")
                         return int(version)
     except Exception as e:
         logging.error(f"Error reading file {file_path}: {e}")
@@ -850,7 +850,7 @@ def allow_vndk_merge(apex_path, apex_filename):
             logging.error(f"APEX: Vendor VNDK version not found in {apex_path}. Cannot merge APEX files.")
             return False
         if POST_INJECTOR_CONFIG['EMULATOR_VNDK_VERSION'] > vendor_vndk_version:
-            logging.info(f"APEX: Emulator VNDK version {POST_INJECTOR_CONFIG['EMULATOR_VNDK_VERSION']} "
+            logging.debug(f"APEX: Emulator VNDK version {POST_INJECTOR_CONFIG['EMULATOR_VNDK_VERSION']} "
                          f"is higher than vendor VNDK version {vendor_vndk_version}.")
             return False
     return True
@@ -868,9 +868,9 @@ def get_matching_apex_key(filename, config):
 
 def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_path, filename_input, aosp_path, apex_root_path, lunch_target):
     apex_manifest_path_pb = os.path.join(apex_emulator_folder, "apex_manifest.pb")
-    logging.info(f"Checking for existing APEX manifest in emulator APEX: {apex_manifest_path_pb}")
+    logging.debug(f"Checking for existing APEX manifest in emulator APEX: {apex_manifest_path_pb}")
     if os.path.exists(apex_manifest_path_pb):
-        logging.info(f"Copy manifest from original APEX: {apex_manifest_path_pb}")
+        logging.debug(f"Copy manifest from original APEX: {apex_manifest_path_pb}")
         shutil.copy2(apex_manifest_path_pb, merged_apex_extract_dir_path)
         if not os.path.exists(merged_apex_extract_dir_path):
             logging.error(f"ERROR: APEX Manifest was not copied to: {merged_apex_extract_dir_path}. EXIT PROGRAM!")
@@ -878,7 +878,7 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
             time.sleep(5)
             exit(-1)
     else:
-        logging.info(f"Load Manifest from AOSP source tree for APEX: {filename_input}")
+        logging.debug(f"Load Manifest from AOSP source tree for APEX: {filename_input}")
         apex_manifest_name_pb = "apex_manifest.pb"
         apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
         apex_keyword = get_matching_apex_key(filename_input, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"])
@@ -887,7 +887,7 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
             traceback.print_stack()
             time.sleep(5)
             exit(-1)
-        logging.info(f"APEX Keyword: {apex_keyword} found for apex: {filename_input}")
+        logging.debug(f"APEX Keyword: {apex_keyword} found for apex: {filename_input}")
         apex_module_path = str(os.path.join(aosp_path, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"][apex_keyword]))
 
         candidate_file_names = ["apex_manifest.json", "manifest.json", "manifest-art.json"]
@@ -904,9 +904,9 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
             time.sleep(5)
             exit(-1)
 
-        logging.info(f"APEX manifest path used: {apex_manifest_path}")
+        logging.debug(f"APEX manifest path used: {apex_manifest_path}")
         if os.path.exists(apex_manifest_path):
-            logging.info(
+            logging.debug(
                 f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
             is_success, log_message = convert_manifest_from_json(apex_manifest_path=apex_manifest_path, out_file_path=apex_manifest_path_pb, aosp_path=aosp_path, lunch_target=lunch_target)
             if not os.path.exists(apex_manifest_path_pb):
@@ -916,9 +916,9 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
                 time.sleep(5)
                 exit(-1)
             else:
-                logging.info(f"APEX manifest Protobuf file created: {apex_manifest_path_pb}")
+                logging.debug(f"APEX manifest Protobuf file created: {apex_manifest_path_pb}")
                 shutil.copy2(apex_manifest_path_pb, merged_apex_extract_dir_path)
-                logging.info(f"APEX manifest Protobuf file copied {apex_manifest_path_pb} to: {merged_apex_extract_dir_path}")
+                logging.debug(f"APEX manifest Protobuf file copied {apex_manifest_path_pb} to: {merged_apex_extract_dir_path}")
         else:
             logging.error("APEX Manifest path is invalid. EXIT PROGRAM!")
             traceback.print_stack()
@@ -943,14 +943,14 @@ def replace_emulator_apex_folder(input_apex, aosp_path, aosp_version, apex_merge
                                             "apex/",
                                             apex_filename_no_ext)
         shutil.rmtree(apex_folder_path)
-        logging.info(f"Removed apex emulator intermediate files: {apex_folder_path}")
+        logging.debug(f"Removed apex emulator intermediate files: {apex_folder_path}")
     except Exception as e:
         logging.warning(f"Could not remove apex emulator intermediate files: {apex_folder_path} | {e}")
         return False, f"Error deleting emulator APEX folder: {e}"
 
     try:
         shutil.copytree(apex_merge_folder_path, apex_folder_path)
-        logging.info(f"Replaced emulator APEX folder with merged APEX folder: {apex_merge_folder_path} to {apex_folder_path}")
+        logging.debug(f"Replaced emulator APEX folder with merged APEX folder: {apex_merge_folder_path} to {apex_folder_path}")
     except Exception as e:
         logging.error(f"Error replacing emulator APEX folder with merged APEX folder: {apex_merge_folder_path} to {apex_folder_path} | {e}")
         return False, f"Error replacing emulator APEX folder: {e}"
@@ -972,7 +972,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
         if not allow_vndk_merge(input_apex, filename_input):
             return False, "APEX: Emulator VNDK version is higher than vendor VNDK version. Merging not allowed."
 
-    logging.info(f"Merging APEX files: {apex_emulator_folder} and {input_apex}")
+    logging.debug(f"Merging APEX files: {apex_emulator_folder} and {input_apex}")
     is_success, log_message = False, None
     apex_root_path = tempfile.mkdtemp(suffix=f"_{filename_input}_merged", dir="/tmp/fmd/out/temp/")
     merged_apex_extract_dir_path = tempfile.mkdtemp(suffix=f"extract", dir=apex_root_path)
@@ -980,9 +980,9 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
     extract_success, log_message = extract_apex_file(aosp_path, input_apex, apex_vendor_extract_dir_path, lunch_target, aosp_version)
     if extract_success:
         if POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_FILES"] and any(keyword in filename_input for keyword in POST_INJECTOR_CONFIG["ALLOW_MIXED_APEX_KEYWORD_LIST"]):
-            logging.info(f"APEX: CREATING MIXED APEX: {apex_emulator_folder} and vendor APEX: {input_apex}")
+            logging.debug(f"APEX: CREATING MIXED APEX: {apex_emulator_folder} and vendor APEX: {input_apex}")
             shutil.copytree(apex_emulator_folder, merged_apex_extract_dir_path, dirs_exist_ok=True)
-            logging.info(f"Copied emulator APEX folder: {apex_emulator_folder} to {merged_apex_extract_dir_path}")
+            logging.debug(f"Copied emulator APEX folder: {apex_emulator_folder} to {merged_apex_extract_dir_path}")
             log_files_in_dir(merged_apex_extract_dir_path)
         else:
             load_apex_manifest_from_aosp(apex_emulator_folder,
@@ -994,16 +994,16 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
 
         apk_name_list = []
         if POST_INJECTOR_CONFIG["INJECT_APEX_VENDOR_FILES"]:
-            logging.info(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
+            logging.debug(f"Injecting APEX vendor files: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
             inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder, aosp_path)
         else:
-            logging.info("Injecting APEX vendor files is disabled.")
+            logging.debug("Injecting APEX vendor files is disabled.")
 
         if POST_INJECTOR_CONFIG["INJECT_APEX_VENDOR_APPS"]:
-            logging.info(f"Injecting APEX vendor app: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
+            logging.debug(f"Injecting APEX vendor app: {apex_vendor_extract_dir_path} into {merged_apex_extract_dir_path}")
             apk_name_list = inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder)
         else:
-            logging.info("Injecting APEX vendor apps is disabled.")
+            logging.debug("Injecting APEX vendor apps is disabled.")
 
         with tempfile.NamedTemporaryFile(delete=False, dir="/tmp/fmd/out/temp/") as canned_fs_config:
             generate_canned_fs_config(merged_apex_extract_dir_path, canned_fs_config.name, apk_name_list)
@@ -1014,11 +1014,11 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                         filename_input,
                                                                         aosp_path,
                                                                         lunch_target)
-        logging.info(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
+        logging.debug(f"APEX manifest: {apex_manifest_path}|{is_manifest_found}")
         if is_manifest_found and os.path.exists(apex_manifest_path):
             if apex_manifest_path:
                 copy_android_prebuilt_jar(aosp_path, apex_root_path)
-                logging.info(f"APEX manifest file found: {apex_manifest_path}...start container creation")
+                logging.debug(f"APEX manifest file found: {apex_manifest_path}...start container creation")
                 is_success, log_message, avb_pub_key_path, priv_pem_file_path, private_key_path, cert_apex_apk_path = create_apex_container(apex_manifest_path=apex_manifest_path,
                                                                                   apex_extract_dir_path=merged_apex_extract_dir_path,
                                                                                   apex_root_path=apex_root_path,
@@ -1035,12 +1035,12 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                                                                private_key_path,
                                                                cert_apex_apk_path,
                                                                lunch_target)
-                    logging.info(f"Completed APEX merge successfully: {apex_out_file}")
+                    logging.debug(f"Completed APEX merge successfully: {apex_out_file}")
 
                     apex_merge_file_path_list = [str(file) for file in Path(merged_apex_extract_dir_path).rglob('*') if file.is_file()]
 
                     if POST_INJECTOR_CONFIG["REPLACE_AVB_KEYS"]:
-                        logging.info(f"Overwriting AVB keys for APEX: {apex_out_file}")
+                        logging.debug(f"Overwriting AVB keys for APEX: {apex_out_file}")
                         is_success, log_message = inject_apex_avb_public_key(input_apex,
                                                                              avb_pub_key_path,
                                                                              target_out_path)
@@ -1049,7 +1049,7 @@ def merge_apex_files(apex_emulator_folder, input_apex, apex_out_file, lunch_targ
                     log_message = f"APEX container creation failed. {log_message}"
         else:
             log_message = f"APEX manifest file not found. {input_apex} | apex_manifest_path: {apex_manifest_path}"
-    logging.info(f"APEX merge_apex_files success: {is_success} | {log_message} | out: {apex_out_file}")
+    logging.debug(f"APEX merge_apex_files success: {is_success} | {log_message} | out: {apex_out_file}")
     return is_success, log_message, apex_merge_file_path_list
 
 
@@ -1072,33 +1072,33 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                                  + file)
                 parent_dir = os.path.dirname(dst_file_path)
                 if "@" in parent_dir:
-                    logging.info(f"Found TAG in APEX vendor app path: {dst_file_path}. Removing TAG.")
+                    logging.debug(f"Found TAG in APEX vendor app path: {dst_file_path}. Removing TAG.")
                     get_after_split = parent_dir.split('@', 1)[1]
                     dst_file_path = (merged_apex_extract_dir_path
                                      + extract_dir
                                      + file)
                     dst_file_path = dst_file_path.replace(get_after_split, "").replace("@", "")
-                    logging.info(f"APEX extract dir after TAG removal: {extract_dir} | {dst_file_path}")
+                    logging.debug(f"APEX extract dir after TAG removal: {extract_dir} | {dst_file_path}")
                 current_username = os.getlogin()
                 command = (f'mkdir -p "$(dirname {dst_file_path})" 2>/dev/null '
                            f'&& cp {file_path} {dst_file_path} '
                            #f'&& chown {current_username}:{current_username} {dst_file_path} '
                            f'&& chmod 0755 {dst_file_path}')
-                logging.info(f"Copy APEX vendor app: {file_path} into {dst_file_path} with command: {command}")
+                logging.debug(f"Copy APEX vendor app: {file_path} into {dst_file_path} with command: {command}")
                 result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
                 if result.returncode != 0:
                     logging.error(
                         f"Error copying file in APEX container (when injecting APKs): {file_path} with {dst_file_path} | {result.stderr}")
                 if os.path.exists(dst_file_path):
                     md5sum = get_md5_from_file(dst_file_path)
-                    logging.info(f"Copied APK {file}:{md5sum} into APEX: {file_path} with {dst_file_path}")
+                    logging.debug(f"Copied APK {file}:{md5sum} into APEX: {file_path} with {dst_file_path}")
                     copy_file_to_intermediate_emulator_folder(str(apex_emulator_folder),
                                                               str(file_path),
                                                               merged_apex_extract_dir_path)
                     files_coped_list.append(file)
                 else:
                     logging.error(f"APK file does not exist after coping in APEX")
-    logging.info(f"APEX: APK Files copied into container: {files_coped_list};\n")
+    logging.debug(f"APEX: APK Files copied into container: {files_coped_list};\n")
     return files_coped_list
 
 
@@ -1147,7 +1147,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 command = (f'cp -a {file_path} {dst_file_path} '
                            #f'&& chown -R {current_username}:{current_username} {dst_file_path} '
                            f'&& chmod -R 0755 {dst_file_path}')
-                logging.info(f"Copying symlink in APEX container: {file_path} into {dst_file_path} with command: {command}")
+                logging.debug(f"Copying symlink in APEX container: {file_path} into {dst_file_path} with command: {command}")
                 result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
                 if result.returncode != 0:
                     try:
@@ -1159,7 +1159,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                             logging.error(f"Error copying symlink in APEX container: "
                                           f"{file_path} with {dst_file_path} | {result.stderr}")
                 if os.path.exists(dst_file_path):
-                    logging.info(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
+                    logging.debug(f"Copied symlink in APEX container: {file_path} with {dst_file_path}")
                     files_coped_list.append(dst_file_path)
             else:
                 #file_path_no_vendor = str(file_path.replace(".Google", "").replace(".google", ""))
@@ -1170,7 +1170,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                 try:
                     if os.path.isfile(dst_file_path):
                         directory_path = os.path.dirname(dst_file_path)
-                        logging.info(f"Creating directory for APEX container: {directory_path}")
+                        logging.debug(f"Creating directory for APEX container: {directory_path}")
                         command = (f'mkdir -p {directory_path} '
                                    #f'&& chown -R {current_username}:{current_username} {directory_path} '
                                    f'&& chmod -R 0755 {directory_path}')
@@ -1213,7 +1213,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                         continue
 
                 try:
-                    logging.info(f"APEX Vendor: {merged_apex_extract_dir_path} | dst: {dst_file_path}")
+                    logging.debug(f"APEX Vendor: {merged_apex_extract_dir_path} | dst: {dst_file_path}")
                     if (os.path.exists(file_path)
                             and os.path.isfile(file_path)
                             and dst_file_path.startswith(merged_apex_extract_dir_path)):
@@ -1222,14 +1222,14 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                                    f'&& cp -f {file_path} {dst_file_path} '
                                    #f'&& chown -R {current_username}:{current_username} {dst_file_path} '
                                    f'&& chmod -R 0755 {dst_file_path}')
-                        logging.info(f"Run APEX copy command: {command}")
+                        logging.debug(f"Run APEX copy command: {command}")
                         result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
                         if result.returncode != 0:
                             logging.error(
                                 f"Error copying file in APEX container: statuscode: {result.returncode}: "
                                 f"{file_path} with {dst_file_path} | stderr: {result.stderr} | stdout: {result.stdout}")
                         else:
-                            logging.info(f"Copied file into APEX container: {file_path} with {dst_file_path}")
+                            logging.debug(f"Copied file into APEX container: {file_path} with {dst_file_path}")
                             copy_file_to_intermediate_emulator_folder(str(apex_emulator_folder), file_path, apex_vendor_extract_dir_path)
 
                             if file_ext in [".so"]:
@@ -1243,7 +1243,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     logging.error(f"APEX: Permission denied: {e.filename} | {e}")
                 except Exception as e:
                     logging.error(f"APEX: Error copying file: {file_path} | {dst_file_path} | {e}")
-        logging.info(f"APEX: Files copied into container: {files_coped_list};\n")
+        logging.debug(f"APEX: Files copied into container: {files_coped_list};\n")
 
 
 def get_relative_injection_path(file_path: PathType, apex_vendor_extract_dir_path: PathType) -> str:
@@ -1275,9 +1275,9 @@ def _safe_copy_with_logging(file_path: PathType, target_root_folder: PathType, r
     dst_dir_path = os.path.dirname(dst_file_path)
     os.makedirs(dst_dir_path, exist_ok=True)
     try:
-        logging.info(f"{tag}: APEX Intermediate: Created directory: {dst_dir_path} | Rel: {relative_path}")
+        logging.debug(f"{tag}: APEX Intermediate: Created directory: {dst_dir_path} | Rel: {relative_path}")
         shutil.copy2(file_path, dst_file_path)
-        logging.info(f"{tag}: APEX Intermediate: Copied file to: {dst_file_path}")
+        logging.debug(f"{tag}: APEX Intermediate: Copied file to: {dst_file_path}")
     except Exception as e:
         logging.error(f"Error copying file into emulator directory: src: {file_path}|dst: {dst_file_path}| Error: {e}")
 
@@ -1333,7 +1333,7 @@ def change_file_permission(file_path, permission):
         # sudo
         command = ['chmod', permission, file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True, env=os.environ.copy())
-        logging.info("Permissions for %s changed to %s", file_path, permission)
+        logging.debug("Permissions for %s changed to %s", file_path, permission)
     except subprocess.CalledProcessError as e:
         logging.error("Error changing permissions for %s: %s", file_path, e.stderr)
 
@@ -1343,7 +1343,7 @@ def change_file_ownership(file_path):
         # sudo'sudo',
         command = ['chown', current_user, file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True, env=os.environ.copy())
-        logging.info("Ownership of %s changed to %s", file_path, current_user)
+        logging.debug("Ownership of %s changed to %s", file_path, current_user)
     except subprocess.CalledProcessError as e:
         logging.error("Error changing ownership of %s: %s", file_path, e.stderr)
 
@@ -1380,7 +1380,7 @@ def get_apex_default_keys(aosp_path, apex_file_name):
     apex_split_name_list = apex_file_name.split(".")
     apex_split_name_list = remove_apex_build_strings(apex_split_name_list)
     apex_file_name_no_extension = ""
-    logging.info(f"APEX: Getting default keys for: {apex_split_name_list}")
+    logging.debug(f"APEX: Getting default keys for: {apex_split_name_list}")
     for key, value in POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"].items():
         if key.lower() in [s.lower() for s in apex_split_name_list]:
             package_name_list = get_apex_file_mapping(key)
@@ -1410,7 +1410,7 @@ def get_apex_default_keys(aosp_path, apex_file_name):
                     and os.path.exists(priv_pem_file_path)
                     and os.path.exists(avb_pub_key_path)
                     and os.path.exists(cert_apex_apk_path)):
-                logging.info(f"APEX: Default keys found: {priv_key_file_path} "
+                logging.debug(f"APEX: Default keys found: {priv_key_file_path} "
                              f"| {priv_pem_file_path} "
                              f"| {avb_pub_key_path} "
                              f"| {apex_file_name_no_extension}")
@@ -1443,7 +1443,7 @@ def get_existing_file_context(apex_file_name, aosp_path):
             file_context_name = get_aosp_file_context_file_name(key)
             file_contexts_path = os.path.join(aosp_path, "system/sepolicy/apex", file_context_name)
             if os.path.exists(file_contexts_path):
-                logging.info(f"APEX: File contexts found: {file_contexts_path}")
+                logging.debug(f"APEX: File contexts found: {file_contexts_path}")
                 return file_contexts_path
             else:
                 logging.warning(f"APEX: File contexts not found: {file_contexts_path} using generic file context template for APEX: {apex_file_name}. This might fail during runtime.")
@@ -1463,30 +1463,30 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
     apexer_bin_path = next((p for p in apexer_bin_candidates if os.path.exists(p)), None)
     if not apexer_bin_path:
         message = "APEX create_apex_container failed: Apexer tool not found in any known location."
-        logging.info(message)
+        logging.debug(message)
         return False, f"{message}", None, None, None, None
 
     apex_file_name = os.path.basename(output_file_path)
     info = f"APEX: Apexer tool path: {apexer_bin_path}|{lunch_target}|{apex_manifest_path}|{apex_extract_dir_path}|{output_file_path}|{canned_fs_config.name}|{FILE_CONTEXT_TEMPLATE_PATH}"
-    logging.info(info)
+    logging.debug(info)
 
     if not is_repack:
-        logging.info(f"Using default AVB keys for APEX: {apex_file_name}")
+        logging.debug(f"Using default AVB keys for APEX: {apex_file_name}")
         private_key_path, priv_pem_file_path, avb_pub_key_path, cert_apex_apk_path = get_apex_default_keys(aosp_path, apex_file_name)
         if not file_contexts_path:
             file_contexts_path = get_existing_file_context(apex_file_name, aosp_path)
-            logging.info(f"Using default file contexts for APEX: {apex_file_name}|{file_contexts_path}")
+            logging.debug(f"Using default file contexts for APEX: {apex_file_name}|{file_contexts_path}")
     else:
-        logging.info(f"Creating key material for APEX: {apex_file_name}")
+        logging.debug(f"Creating key material for APEX: {apex_file_name}")
         is_success, log_message, temp_keys_dir, private_key_path, priv_pem_file_path, pub_key_path, avb_pub_key_path, \
                             cert_apex_apk_path = generate_apex_keys(aosp_path, apex_file_name)
-        logging.info(f"Key material created for APEX: {temp_keys_dir}, "
+        logging.debug(f"Key material created for APEX: {temp_keys_dir}, "
                      f"{private_key_path},"
                      f"{priv_pem_file_path}, {pub_key_path}, {avb_pub_key_path}, {cert_apex_apk_path}")
 
         if not file_contexts_path:
             file_contexts_path = FILE_CONTEXT_TEMPLATE_PATH
-            logging.info(f"Using default file contexts for APEX: {apex_file_name}|{file_contexts_path}")
+            logging.debug(f"Using default file contexts for APEX: {apex_file_name}|{file_contexts_path}")
 
         if not is_success:
             logging.error(f"Error generating APEX keys: {log_message}")
@@ -1513,10 +1513,10 @@ def create_apex_container(apex_manifest_path, apex_extract_dir_path, apex_root_p
         and os.path.exists(file_contexts_path) \
         and os.path.exists(avb_pub_key_path) \
         and os.path.exists(priv_pem_file_path):
-        log_files_in_dir(apex_root_path)
+        #log_files_in_dir(apex_root_path)
         is_success, log_message = execute_shell_command(command, aosp_path, lunch_target)
         if is_success and os.path.exists(output_file_path):
-            logging.info(f"APEX create_apex_container success: {output_file_path}. Command-Log: {log_message}")
+            logging.debug(f"APEX create_apex_container success: {output_file_path}. Command-Log: {log_message}")
             success = True
         else:
             log_message = f"APEX create_apex_container failed. Error-Info: {log_message} | Debug INFO: {info} | Command {command}"
@@ -1543,7 +1543,7 @@ def log_files_in_dir(dir_path):
             files_and_dirs.append(os.path.join(root, file))
         for dir_name in dirs:
             files_and_dirs.append(os.path.join(root, dir_name))
-    logging.info(f"APEX: Files and directories in {dir_path}: {files_and_dirs}")
+    logging.debug(f"APEX: Files and directories in {dir_path}: {files_and_dirs}")
 
 
 def sign_apex_file(file_path, aosp_path, priv_key_apex_apk_path, apex_apk_certificate_path, lunch_target):
@@ -1551,10 +1551,10 @@ def sign_apex_file(file_path, aosp_path, priv_key_apex_apk_path, apex_apk_certif
     #signing_key_path = get_signing_key_path(aosp_path, "platform")
     use_apksigner = False
     if use_apksigner:
-        logging.info(f"Signing APEX using apksigner: {file_path}")
+        logging.debug(f"Signing APEX using apksigner: {file_path}")
         is_success, log_message = sign_apex_container_apksigner(file_path, priv_key_apex_apk_path, apex_apk_certificate_path, aosp_path)
     else:
-        logging.info(f"Signing APEX using signapk: {file_path}")
+        logging.debug(f"Signing APEX using signapk: {file_path}")
         is_success, log_message = sign_apex_container_signapk(file_path,
                         priv_key_apex_apk_path,
                         apex_apk_certificate_path,
@@ -1562,9 +1562,9 @@ def sign_apex_file(file_path, aosp_path, priv_key_apex_apk_path, apex_apk_certif
                         lunch_target)
 
     if is_success:
-        logging.info(f"APEX file signed: {file_path} with key: {priv_key_apex_apk_path}")
+        logging.debug(f"APEX file signed: {file_path} with key: {priv_key_apex_apk_path}")
         success, log_message = verify_apk_file(file_path, aosp_path)
-        logging.info(f"APEX file verified: {file_path} | {success} | {log_message}")
+        logging.debug(f"APEX file verified: {file_path} | {success} | {log_message}")
     else:
         error_message = f"Error signing APEX file: {file_path}|{priv_key_apex_apk_path}|{log_message}"
     #else:
@@ -1635,7 +1635,7 @@ def generate_apex_keys(aosp_path, apex_file_name):
             logging.error(log_message)
             continue
         else:
-            logging.info(f"PEM keys generated successfully via bssl: {priv_pem_file_path}")
+            logging.debug(f"PEM keys generated successfully via bssl: {priv_pem_file_path}")
             log_message = "PEM key generated."
 
         # Convert private key from PEM to PK8 (DER) format using python cryptography
@@ -1654,7 +1654,7 @@ def generate_apex_keys(aosp_path, apex_file_name):
             with open(priv_key_path, "wb") as f:
                 f.write(pk8_data)
 
-            logging.info(f"PK8 key generated successfully via serialization: {priv_key_path}")
+            logging.debug(f"PK8 key generated successfully via serialization: {priv_key_path}")
             log_message += "\nPK8 conversion successful."
         except Exception as e:
             log_message += f"\nError converting PEM to PK8 via cryptography: {str(e)}"
@@ -1668,7 +1668,7 @@ def generate_apex_keys(aosp_path, apex_file_name):
             logging.error(log_message)
             continue
         else:
-            logging.info(f"x509 certificate generated successfully: {apex_apk_cert}")
+            logging.debug(f"x509 certificate generated successfully: {apex_apk_cert}")
             is_success = True
 
         if is_success:
@@ -1678,7 +1678,7 @@ def generate_apex_keys(aosp_path, apex_file_name):
                 log_message += f"\nError extracting AVB public key for APEX: {apex_file_name}. Private key file: {priv_key_path} to {avb_pub_key_path}"
                 logging.error(log_message)
             else:
-                logging.info(f"AVB public key extracted successfully: {avb_pub_key_path}")
+                logging.debug(f"AVB public key extracted successfully: {avb_pub_key_path}")
                 break
 
     return is_success, log_message, temp_keys_dir, priv_key_path, priv_pem_file_path, pub_key_path, avb_pub_key_path, apex_apk_cert
@@ -1721,7 +1721,7 @@ def generate_apex_keys_p12(private_key_path, public_key_path, p12_path, aosp_pat
             logging.error(log_message)
             continue
 
-        logging.info(f"Keys generated successfully: {private_key_path}, {public_key_path}")
+        logging.debug(f"Keys generated successfully: {private_key_path}, {public_key_path}")
         log_message = "Keypair established."
 
         # Step 3: Bundle to PKCS12 archive (.p12) using python serialization logic
@@ -1840,7 +1840,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file, apk_name_list=
                 #         logging.error(f"Error deleting file from canned_fs: {file_path} | {e}")
                 #     continue
                 # else:
-                #     logging.info(f"APEX: Adding file to canned_fs: {file_path}")
+                #     logging.debug(f"APEX: Adding file to canned_fs: {file_path}")
                 if allow_filtering:
                     is_apk = file_path.endswith(".apk")
                     if is_apk and not any(apk_name in file_path for apk_name in apk_name_list):
@@ -1852,7 +1852,7 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file, apk_name_list=
                         continue
 
                 if "apex_pubkey" in file_name:
-                    logging.info(f"APEX: SKIPPED apex_pubkey file. File not included: {file_path}")
+                    logging.debug(f"APEX: SKIPPED apex_pubkey file. File not included: {file_path}")
                     os.remove(file_path)
 
                 relative_file_path = os.path.relpath(file_path, apex_extract_dir_path)
@@ -1868,20 +1868,20 @@ def generate_canned_fs_config(apex_extract_dir_path, output_file, apk_name_list=
                 #     parent_dir = os.path.dirname(file_path)
                 #     grandparent_dir = os.path.dirname(parent_dir)
                 #     copy_dst = os.path.join(grandparent_dir, file_name)
-                #     logging.info(f"APEX Copying boot.art javalib: {file_path}:{copy_dst}")
+                #     logging.debug(f"APEX Copying boot.art javalib: {file_path}:{copy_dst}")
                 #     shutil.copyfile(file_path, copy_dst)
                 #     relative_file_path = os.path.relpath(copy_dst, apex_extract_dir_path)
-                #     logging.info(f"APEX Write new boot.art path: {relative_file_path}:{copy_dst}:{parent_dir}")
+                #     logging.debug(f"APEX Write new boot.art path: {relative_file_path}:{copy_dst}:{parent_dir}")
                 #     out_file.write(f"/{relative_file_path} {user_id} {group_id} {mode}\n")
                 #     file_inserted_entries.append(f"/{relative_file_path} {user_id} {group_id} {mode}")
-    logging.info(f"APEX: Canned FS Config file created: {output_file} | {file_inserted_entries}")
+    logging.debug(f"APEX: Canned FS Config file created: {output_file} | {file_inserted_entries}")
 
 
 def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target, aosp_version):
     """
     Extracts the APEX file using deapexer.
     """
-    logging.info(f"Extracting APEX file: {apex_file_path}")
+    logging.debug(f"Extracting APEX file: {apex_file_path}")
     deapexer_candidates = [
         os.path.join(aosp_path, "out/soong/host/linux-x86/bin/deapexer"),
         os.path.join(aosp_path, "out/host/linux-x86/bin/deapexer"),
@@ -1890,7 +1890,7 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target, 
     deapexer_tool_path = next((p for p in deapexer_candidates if os.path.exists(p)), None)
     if not deapexer_tool_path:
         message = "APEX extract_apex_file failed: Deapexer tool not found in any known location."
-        logging.info(message)
+        logging.debug(message)
         return False, {f"{message}"}
 
     # Determine the debugfs path by looking in the same 'bin' directory as deapexer
@@ -1902,7 +1902,7 @@ def extract_apex_file(aosp_path, apex_file_path, output_dir_path, lunch_target, 
         debugfs_path = os.path.join(bin_dir, "debugfs_static")
 
     info = f"APEX: Deapexer tool path: {deapexer_tool_path}|{lunch_target}|{apex_file_path}|{output_dir_path}"
-    logging.info(info)
+    logging.debug(info)
 
     # Inject the --debugfs_path flag into the command
     command = f"{deapexer_tool_path} --debugfs_path {debugfs_path} extract {apex_file_path} {output_dir_path}"
@@ -1947,11 +1947,11 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
     try:
         for root, dirs, files in os.walk(apex_extract_dir_path):
             for file in files:
-                logging.info(f"Scanning for APEX manifest file: {file}")
+                logging.debug(f"Scanning for APEX manifest file: {file}")
                 if file == "apex_manifest.pb":
                     file_path = str(os.path.join(root, file))
                     if os.path.exists(file_path):
-                        logging.info(f"Found APEX manifest file: {file_path} to delete")
+                        logging.debug(f"Found APEX manifest file: {file_path} to delete")
                         shutil.move(file_path, manifest_dst)
                     else:
                         logging.error(f"No APEX manifest found in {apex_extract_dir_path} | {file_path}. EXITING!")
@@ -1959,10 +1959,10 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
                         exit(1)
                     #manifest_json_file_path = get_apex_manifest_from_aosp(aosp_path, apex_file_name)
                     #convert_apex_manifest_json_to_pb(manifest_json_file_path, manifest_dst)
-                    logging.info(f"Copied APEX manifest file: {file_path} to {manifest_dst}.")
+                    logging.debug(f"Copied APEX manifest file: {file_path} to {manifest_dst}.")
                     if os.path.exists(manifest_dst):
                         is_apex_manifest_file_found = True
-                        logging.info(f"APEX manifest file found: {manifest_dst}")
+                        logging.debug(f"APEX manifest file found: {manifest_dst}")
                     break
     except Exception as ex:
         logging.error(f"Failed to move APEX manifest file: {ex}")
@@ -1982,7 +1982,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
                                          encoding='utf-8') as temp_manifest_file:
             temp_manifest_file.write(manifest_json_str)
             temp_manifest_path = temp_manifest_file.name
-            logging.info(f"APEX manifest file created from template: {temp_manifest_path}:{manifest_json_str}")
+            logging.debug(f"APEX manifest file created from template: {temp_manifest_path}:{manifest_json_str}")
 
         try:
             is_success, error_msg = convert_manifest_from_json(
@@ -1996,7 +1996,7 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
 
             if os.path.exists(manifest_dst):
                 is_apex_manifest_file_found = True
-                logging.info(f"APEX manifest file created from template: {manifest_dst}")
+                logging.debug(f"APEX manifest file created from template: {manifest_dst}")
         except Exception as ex:
             logging.error(f"Failed to convert APEX manifest file: {ex}")
 
@@ -2005,9 +2005,9 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
 def convert_apex_manifest_json_to_pb(apex_manifest_path, output_file_path):
     command = f"export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python && python3 ./conv_apex_manifest.py proto {apex_manifest_path} -o {output_file_path}"
     result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
-    logging.info(f"Converting APEX manifest file to pb: {command}")
+    logging.debug(f"Converting APEX manifest file to pb: {command}")
     if result.returncode == 0:
-        logging.info(f"APEX: APEX manifest file converted to pb: {output_file_path}")
+        logging.debug(f"APEX: APEX manifest file converted to pb: {output_file_path}")
     else:
         raise ValueError(f"APEX: Error converting APEX manifest file to pb: {result.stderr}")
 
@@ -2020,7 +2020,7 @@ def search_string_in_apk(apk_file, search_string):
                     try:
                         content = android_manifest_file.read().decode('utf-8', errors='ignore')
                         if search_string in content:
-                            logging.info(f"Found string in APK: {apk_file}")
+                            logging.debug(f"Found string in APK: {apk_file}")
                             is_user_id_found = True
                             break
                     except UnicodeDecodeError:
@@ -2059,7 +2059,7 @@ def resign_apex_apk_files(aosp_path, apex_extract_dir_path, aosp_version):
     :param apex_extract_dir_path: str - path to the APEX extract directory.
 
     """
-    logging.info(f"Resigning APK files in APEX.")
+    logging.debug(f"Resigning APK files in APEX.")
     for root, dirs, files in os.walk(apex_extract_dir_path):
         for file in files:
             if file.endswith(".apk"):
@@ -2067,19 +2067,19 @@ def resign_apex_apk_files(aosp_path, apex_extract_dir_path, aosp_version):
                 signing_key = get_signing_key_from_manifest(apk_file_path)
                 if signing_key is None:
                     signing_key = get_signing_key_from_filename(apk_file_path, aosp_version)
-                    logging.info(f"Signing key not found in APK manifest. Using filename to determine key: {apk_file_path} | {signing_key}")
+                    logging.debug(f"Signing key not found in APK manifest. Using filename to determine key: {apk_file_path} | {signing_key}")
                 else:
-                    logging.info(f"Signing key found in APK manifest: {apk_file_path}. Using manifest to determine key: {signing_key}")
+                    logging.debug(f"Signing key found in APK manifest: {apk_file_path}. Using manifest to determine key: {signing_key}")
 
                 signing_key_path = get_signing_key_path(aosp_path, signing_key)
                 success, log_message = sign_apk_file(apk_file_path, signing_key_path, aosp_path, v4_signing_enabled=False)
                 if success:
-                    logging.info(f"APEX: Success resigning APK file: {file}|{apk_file_path} with key {signing_key_path} ")
+                    logging.debug(f"APEX: Success resigning APK file: {file}|{apk_file_path} with key {signing_key_path} ")
                     is_signature_verified, log_message = verify_apk_file(apk_file_path, aosp_path)
-                    logging.info(f"APEX: APK file verified: {apk_file_path} | {is_signature_verified} | {log_message}")
+                    logging.debug(f"APEX: APK file verified: {apk_file_path} | {is_signature_verified} | {log_message}")
                 else:
                     logging.error(f"APEX: Error resigning APK file: {file}|{apk_file_path} with key {signing_key_path} | {log_message}")
-    logging.info(f"Resigning APK files in APEX complete.")
+    logging.debug(f"Resigning APK files in APEX complete.")
 
 
 def copy_android_prebuilt_jar(aosp_path, apex_root_path):
@@ -2091,7 +2091,7 @@ def copy_android_prebuilt_jar(aosp_path, apex_root_path):
     if not os.path.exists(android_jar_file_path):
         logging.error(f"Android jar file not found: {android_jar_file_path}")
     else:
-        logging.info(f"Copying Android jar file: {android_jar_file_path} to {extract_android_jar_file_path}")
+        logging.debug(f"Copying Android jar file: {android_jar_file_path} to {extract_android_jar_file_path}")
         shutil.copy2(android_jar_file_path, extract_android_jar_file_path, follow_symlinks=False)
 
 
@@ -2121,7 +2121,7 @@ def create_key_paths(apex_file_name):
 #             log_message = f"Error generating PEM keys: {result_pem.stderr}|{result_pem.stdout}"
 #             logging.error(log_message)
 #         else:
-#             logging.info(f"PEM keys generated successfully: {priv_pem_file_path}")
+#             logging.debug(f"PEM keys generated successfully: {priv_pem_file_path}")
 #             log_message = result_pem.stdout
 #
 #         # Convert private key from PEM to PK8 format
@@ -2133,7 +2133,7 @@ def create_key_paths(apex_file_name):
 #             log_message += f"\nError converting PEM to PK8: {result_pk8.stderr}|{result_pem.stdout}"
 #             logging.error(log_message)
 #         else:
-#             logging.info(f"PK8 key generated successfully: {priv_key_path}")
+#             logging.debug(f"PK8 key generated successfully: {priv_key_path}")
 #             log_message += result_pk8.stdout
 #
 #         # Generate x509 certificate using the private key in PEM format
@@ -2146,7 +2146,7 @@ def create_key_paths(apex_file_name):
 #             log_message += f"\nError generating x509 certificate: {result_x509.stderr}|{result_pem.stdout}"
 #             logging.error(log_message)
 #         else:
-#             logging.info(f"x509 certificate generated successfully: {apex_apk_cert}")
+#             logging.debug(f"x509 certificate generated successfully: {apex_apk_cert}")
 #             log_message += result_x509.stdout
 #             is_success = True
 #
@@ -2156,7 +2156,7 @@ def create_key_paths(apex_file_name):
 #                 log_message += f"\nError extracting AVB public key for APEX: {apex_file_name}. Private key file: {priv_key_path} to {avb_pub_key_path}"
 #                 logging.error(log_message)
 #             else:
-#                 logging.info(f"AVB public key extracted successfully: {avb_pub_key_path}")
+#                 logging.debug(f"AVB public key extracted successfully: {avb_pub_key_path}")
 #                 break
 #
 #     return is_success, log_message, temp_keys_dir, priv_key_path, priv_pem_file_path, pub_key_path, avb_pub_key_path, apex_apk_cert
@@ -2187,7 +2187,7 @@ def create_key_paths(apex_file_name):
 #             log_message = f"Error generating keys: {result.stderr}"
 #             logging.error(log_message)
 #         else:
-#             logging.info(f"Keys generated successfully: {private_key_path}, {public_key_path}")
+#             logging.debug(f"Keys generated successfully: {private_key_path}, {public_key_path}")
 #             log_message = result.stdout
 #
 #             # Convert keys to .p12
@@ -2195,7 +2195,7 @@ def create_key_paths(apex_file_name):
 #             result = subprocess.run(command, shell=True, capture_output=True, text=True, env=os.environ.copy())
 #             if result.returncode == 0:
 #                 log_message = result.stdout
-#                 logging.info(f".p12 file generated successfully: {p12_path}")
+#                 logging.debug(f".p12 file generated successfully: {p12_path}")
 #                 is_success = True
 #                 break
 #             else:
@@ -2219,7 +2219,7 @@ def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
         avbtool_path = os.path.join(aosp_path, "out/host/linux-x86/bin/avbtool")
         avb_extract_command = [avbtool_path, 'extract_public_key', "--key", key, "--output", avb_pub_out_path]
         subprocess.run(avb_extract_command, check=True, env=os.environ.copy())
-        logging.info(f"AVB public key extracted at: {avb_pub_out_path}")
+        logging.debug(f"AVB public key extracted at: {avb_pub_out_path}")
     except Exception as e:
         logging.error(f"Error extracting AVB public key: {e}")
         is_success = False
@@ -2229,7 +2229,7 @@ def extract_avb_public_key(aosp_path, key, avb_pub_out_path):
 def inject_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path):
     is_success, log_message = replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_path)
     if is_success:
-        logging.info(f"APEX: AVB public key replaced: {apex_file_path}")
+        logging.debug(f"APEX: AVB public key replaced: {apex_file_path}")
     else:
         log_message = f"APEX: AVB public key replacement failed. {log_message}"
     return is_success, log_message
@@ -2254,16 +2254,16 @@ def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_pat
                                              f"apex_pubkey.{apex_filename_no_ext}_intermediates"))
     apex_pub_file_path = os.path.join(apex_pub_key_obj_path, "apex_pubkey")
     log_message = None
-    logging.info(f"APEX public key file path: {apex_pub_file_path} | {apex_file_path}")
+    logging.debug(f"APEX public key file path: {apex_pub_file_path} | {apex_file_path}")
     if not os.path.exists(apex_pub_file_path):
-        logging.info(f"AVB public key file to replace not found: {apex_pub_file_path}")
+        logging.debug(f"AVB public key file to replace not found: {apex_pub_file_path}")
         log_message = f"AVB public key file to replace not found: {apex_pub_file_path}"
     elif not os.path.exists(avb_pub_key_path):
-        logging.info(f"AVB public key file not found: {avb_pub_key_path}")
+        logging.debug(f"AVB public key file not found: {avb_pub_key_path}")
         log_message = f"AVB public key file not found: {avb_pub_key_path}"
     else:
         is_success = True
         md5 = hashlib.md5(open(avb_pub_key_path, 'rb').read()).hexdigest()
-        logging.info(f"Replacing AVB public key: src: {avb_pub_key_path}:{md5}, dst: {apex_pub_file_path}")
+        logging.debug(f"Replacing AVB public key: src: {avb_pub_key_path}:{md5}, dst: {apex_pub_file_path}")
         shutil.copy2(avb_pub_key_path, apex_pub_file_path, follow_symlinks=False)
     return is_success, log_message
