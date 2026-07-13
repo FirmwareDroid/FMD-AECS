@@ -12,7 +12,7 @@
  */
 
 export const DEFAULT_BACKOFF_BASE_MS = 5_000;   // 5 s initial back-off
-export const DEFAULT_BACKOFF_MAX_MS  = 300_000;  // cap at 5 minutes
+export const DEFAULT_BACKOFF_MAX_MS  = 30_000;  // cap at 30 secs
 
 /**
  * Return the number of milliseconds that must still elapse before the device

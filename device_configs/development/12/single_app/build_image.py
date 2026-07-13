@@ -856,44 +856,6 @@ def LoadGlobalDict(filename):
   return d
 
 
-def run_script_to_file(partition):
-  script_path = "/home/ubuntu/FMD-AECS/aosp_post_build_injector.py"
-  python_path = "/home/ubuntu/FMD-AECS/venv/bin/python3"
-
-  # Backward-compatible string formatting instead of f-strings
-  output_filename = (
-    "/tmp/fmd/out/post_injector_out_{}.log".format(partition)
-  )
-
-  # 1. Copy the current system environment safely
-  current_env = os.environ.copy()
-
-  with open(output_filename, "w") as f:
-    try:
-      command = [
-        python_path,
-        script_path,
-        "--use-file-config",
-        "--partition-list",
-        partition,
-      ]
-      subprocess.check_call(
-        command,
-        stdout=f,
-        stderr=subprocess.STDOUT,
-        env=current_env,
-        cwd="/home/ubuntu/FMD-AECS/",
-      )
-      print("Success! Output successfully written to {0}".format(output_filename))
-    except subprocess.CalledProcessError as e:
-      f.write(str(e))
-      print(
-        "Script failed with exit code {0}. Check {1}".format(
-          e.returncode, output_filename
-        )
-      )
-      sys.exit(1)
-
 def GlobalDictFromImageProp(image_prop, mount_point):
   d = {}
   def copy_prop(src_p, dest_p):
@@ -919,6 +881,53 @@ def GlobalDictFromImageProp(image_prop, mount_point):
   elif mount_point == "system_ext":
     copy_prop("partition_size", "system_ext_size")
   return d
+
+
+def run_script_to_file(partition):
+  script_path = "/home/ubuntu/FMD-AECS/aosp_post_build_injector.py"
+  outdir = "/tmp/fmd/out"
+  first_marker = os.path.join(outdir, ".post_injector_first_{0}".format(partition))
+  ran_marker = os.path.join(outdir, ".post_injector_ran_{0}".format(partition))
+  output_path = os.path.join(outdir, "post_injector_out_{0}.log".format(partition))
+
+  python_path = "/home/ubuntu/FMD-AECS/venv/bin/python3"
+  current_env = os.environ.copy()
+
+  # Already ran previously -> skip
+  if os.path.exists(ran_marker):
+    print("Skipping post-injector for {0}; ran marker exists".format(partition))
+    return
+
+  # Second call detected -> execute and create ran marker
+  if os.path.exists(first_marker):
+    with open(output_path, "w") as f:
+      try:
+        cmd = [
+          python_path,
+          script_path,
+          "--use-file-config",
+          "--partition-list",
+          partition
+        ]
+        subprocess.check_call(
+          cmd,
+          stdout=f,
+          stderr=subprocess.STDOUT,
+          env=current_env,
+          cwd="/home/ubuntu/FMD-AECS/"
+        )
+        with open(ran_marker, "w") as m:
+          m.write("ran:")
+        print("Success! Output written to {0}".format(output_path))
+      except subprocess.CalledProcessError as e:
+        f.write(str(e))
+        print("Script failed with exit code {0}. Check {1}".format(e.returncode, output_path))
+        sys.exit(1)
+    return
+  # First call -> create first marker and skip execution
+  with open(first_marker, "w") as m:
+    m.write("first-called\n")
+  print("Recorded first call for {0}; will run on next invocation.".format(partition))
 
 
 def main(argv):
@@ -990,4 +999,3 @@ if __name__ == '__main__':
     main(sys.argv[1:])
   finally:
     common.Cleanup()
-
