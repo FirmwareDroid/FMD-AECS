@@ -226,7 +226,7 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
                 logging.info(f"Skipping {source_file_path}: extension '{file_extension}' in SKIPPED_MISC_EXTENSION_LIST")
             module_type = "SKIPPED"
 
-    if file_extension in [".apk"] and (file_name in POST_INJECTOR_CONFIG["ALLOW_APP_INJECT_ALWAYS"] or any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST"])):
+    if module_type == "APPS" and (file_name in POST_INJECTOR_CONFIG["ALLOW_APP_INJECT_ALWAYS"] or any(keyword in file_name for keyword in POST_INJECTOR_CONFIG["ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST"])):
         logging.info(
             f"File {source_file_path}|{tmp_module_type} is allowed to be injected regardless of its type. ALLOW_FILE_INJECT_ALWAYS / ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST")
         module_type = tmp_module_type
