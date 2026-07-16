@@ -15,7 +15,7 @@
     "networkstack": ["android.networkstack", "android.uid.networkstack"],
     "bluetooth": ["android.bluetooth", "android.uid.bluetooth"]
   },
-  "DISALLOW_APP_INJECTION": false,
+  "DISALLOW_APP_INJECTION": true,
   "INJECT_APEX_VENDOR_APPS": false,
   "REPLACE_AVB_KEYS": false,
   "INJECT_APEX_VENDOR_FILES": false,
