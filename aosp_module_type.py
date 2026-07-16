@@ -194,7 +194,7 @@ def get_module_type(source_file_path, pre_injector_package_list=None, post_injec
                        for keyword in POST_INJECTOR_CONFIG["ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST"]):
         module_type = "ETC"
 
-    if module_type == "APPS" and POST_INJECTOR_CONFIG["DISALLOW_APP_INJECTION"]:
+    if (module_type == "APPS" or file_extension in [".apk"]) and POST_INJECTOR_CONFIG["DISALLOW_APP_INJECTION"]:
         logging.info(f"Post-Build App injection is disallowed by configuration: {source_file_path}")
         module_type = "SKIPPED"
 
