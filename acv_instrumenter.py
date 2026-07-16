@@ -218,8 +218,9 @@ def _clean_firmware_folder_for_archive(firmware_folder, delete_instrumented_apks
                         shutil.rmtree(full_dpath)
                         apktool_removed += 1
                     except Exception as e:
-                        logging.exception(f"Failed to remove apktool directory {full_dpath}: {e}")
-
+                        logging.warning(f"Failed to remove apktool directory {full_dpath}: {e}")
+                        rm_process = subprocess.run(['rm', '-rf', full_dpath], check=True)
+                        rm_process.check_returncode()
         if apktool_removed:
             logging.info(f"Removed {apktool_removed} apktool directory(ies) from ACV output folder before archiving")
     except Exception as e:
