@@ -13,17 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 #
-# SettingsProvider \
-# CtsShimPrebuilt \
-# CtsShimPrivPrebuilt \
 
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \
     abx \
     adbd_system_api \
     am \
+    SettingsProvider \
+	CtsShimPrebuilt \
+	CtsShimPrivPrebuilt \
     android.hidl.allocator@1.0-service \
     android.hidl.base-V1.0-java \
     android.hidl.manager-V1.0-java \

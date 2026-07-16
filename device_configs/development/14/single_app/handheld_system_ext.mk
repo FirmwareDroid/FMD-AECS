@@ -20,16 +20,17 @@
 # does, use base_system_ext.mk).
 $(call inherit-product, $(SRC_TARGET_DIR)/product/media_system_ext.mk)
 
-#AccessibilityMenu \
-# Launcher3QuickStep \
-#     Provision \
-#     Settings \
-#     StorageManager \
-#     SystemUI \
-#     WallpaperCropper \
+
 
 # /system_ext packages
 PRODUCT_PACKAGES += \
+	 AccessibilityMenu \
+	 Launcher3QuickStep \
+     Provision \
+     Settings \
+     StorageManager \
+     SystemUI \
+     WallpaperCropper \
 {% for line in package_name_list -%}{{ line }}{%- endfor %}
 
 # Base modules when shipping api level is less than or equal to 34

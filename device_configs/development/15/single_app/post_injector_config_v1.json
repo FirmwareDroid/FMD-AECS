@@ -46,12 +46,20 @@
   "NEVERALLOW_FILE_INJECT_KEYWORD_LIST": [
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
+    "MIUIThemeManagerGlobal.apk",
+    "DownloadProviderUi.apk"
   ],
   "ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST": [
+    "MIUIThemeManagerGlobal",
+    "DownloadProviderUi"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
+    "MIUIThemeManagerGlobal",
+    "DownloadProviderUi"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
+    "MIUIThemeManagerGlobal.apk",
+    "DownloadProviderUi.apk"
   ],
   "SKIPPED_APP_LIST": [],
   "ALLOW_ONLY_EXTENSION_LIST": [],

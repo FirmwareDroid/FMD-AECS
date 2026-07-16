@@ -33,24 +33,25 @@ $(call inherit-product-if-exists, frameworks/base/data/keyboards/keyboards.mk)
 $(call inherit-product-if-exists, frameworks/webview/chromium/chromium.mk)
 
 # Disabled Packages:
-    #BasicDreams \
-    #BlockedNumberProvider \
-    #BluetoothMidiService \
-    #BookmarkProvider \
-    #BuiltInPrintService \
-    #CalendarProvider \
-    #CaptivePortalLogin \
-    #DocumentsUI \
-    #DownloadProviderUi \
-    #EasterEgg \
-    #ExternalStorageProvider \
-    #ManagedProvisioning \
-    #MusicFX \
-    #PacProcessor \
-    #PrintRecommendationService \
-    #PrintSpooler \
+
 
 PRODUCT_PACKAGES += \
+    BasicDreams \
+    BlockedNumberProvider \
+    BluetoothMidiService \
+    BookmarkProvider \
+    BuiltInPrintService \
+    CalendarProvider \
+    CaptivePortalLogin \
+    DocumentsUI \
+    DownloadProviderUi \
+    EasterEgg \
+    ExternalStorageProvider \
+    ManagedProvisioning \
+    MusicFX \
+    PacProcessor \
+    PrintRecommendationService \
+    PrintSpooler \
     cameraserver \
     CameraExtensionsProxy \
     CertInstaller \
