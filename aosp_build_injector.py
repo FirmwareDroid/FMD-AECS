@@ -256,7 +256,7 @@ def delete_image_files(aosp_path, lunch_target):
         f"lunch {lunch_target} && "
         f"cd ${{ANDROID_PRODUCT_OUT:?}} && "
         f"rm -f *.img && "
-        f"shopt -s globstar && rm -f obj/PACKAGING/**/*.img"
+        f"shopt -s globstar && rm -f obj/PACKAGING/**/*.img emulator/arm64-v8a/*.img"
     )
     logging.info(f"Deleting all *.img files from the build out folder with command: {cmd}")
 
