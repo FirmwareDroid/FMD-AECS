@@ -881,6 +881,10 @@ def get_aosp_build_command(lunch_target, aosp_version, aosp_root):
                   f"&& lunch {lunch_target} " \
                   "&& m " \
                   "&& m sdk'"
+    elif aosp_version in ["15", "16"]:
+        command = f"bash -c 'export BUILD_BROKEN_INCORRECT_PARTITION_IMAGES=true && cd {aosp_root} && source {aosp_root}/build/envsetup.sh " \
+                  f"&& lunch {lunch_target} " \
+                  "&& m '"
     else:
         command = f"bash -c 'cd {aosp_root} && source {aosp_root}/build/envsetup.sh " \
                   f"&& lunch {lunch_target} " \
