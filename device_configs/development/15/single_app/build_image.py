@@ -1076,12 +1076,12 @@ def main(argv):
     if "vbmeta" != mount_point:
       image_properties = ImagePropFromGlobalDict(glob_dict, mount_point)
 
-  if args.input_directory_filter_file and not os.environ.get("BUILD_BROKEN_INCORRECT_PARTITION_IMAGES"):
-    with tempfile.TemporaryDirectory(dir=os.path.dirname(args.input_directory)) as new_input_directory:
-      CopyInputDirectory(args.input_directory, new_input_directory, args.input_directory_filter_file)
-      BuildImageOrVBMeta(new_input_directory, args.target_out, glob_dict, image_properties, args.out_file)
-  else:
-    BuildImageOrVBMeta(args.input_directory, args.target_out, glob_dict, image_properties, args.out_file)
+  #if args.input_directory_filter_file and not os.environ.get("BUILD_BROKEN_INCORRECT_PARTITION_IMAGES"):
+  #  with tempfile.TemporaryDirectory(dir=os.path.dirname(args.input_directory)) as new_input_directory:
+  #    CopyInputDirectory(args.input_directory, new_input_directory, args.input_directory_filter_file)
+  #    BuildImageOrVBMeta(new_input_directory, args.target_out, glob_dict, image_properties, args.out_file)
+  #else:
+  BuildImageOrVBMeta(args.input_directory, args.target_out, glob_dict, image_properties, args.out_file)
 
 
 if __name__ == '__main__':
