@@ -15,11 +15,12 @@
 #
 
 # Base modules and settings for the system partition.
-# SettingsProvider \
+#
 # CtsShimPrebuilt \
 # CtsShimPrivPrebuilt \
 
 PRODUCT_PACKAGES += \
+	SettingsProvider \
     abx \
     aconfigd-system \
     adbd_system_api \
