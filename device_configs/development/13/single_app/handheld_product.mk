@@ -21,9 +21,9 @@
 $(call inherit-product, $(SRC_TARGET_DIR)/product/media_product.mk)
 
 # /product packages
-# Camera2
 PRODUCT_PACKAGES += \
     Browser2 \
+    Camera2 \
     Calendar \
     Contacts \
     DeskClock \

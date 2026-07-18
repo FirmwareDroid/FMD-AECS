@@ -14,15 +14,17 @@
 # limitations under the License.
 # Disabled Packages
 #
-# PackageInstaller \
+
 #
-# SettingsProvider \
-# CtsShimPrebuilt \
-# CtsShimPrivPrebuilt \
-# libcamera2ndk \
+
 
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \
+	SettingsProvider \
+	CtsShimPrebuilt \
+	CtsShimPrivPrebuilt \
+	libcamera2ndk \
+	PackageInstaller \
     abx \
     adbd_system_api \
     am \
