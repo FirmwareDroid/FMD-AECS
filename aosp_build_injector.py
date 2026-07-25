@@ -1091,6 +1091,8 @@ def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder,
     logging.debug(f"Process firmware: {firmware_id}")
     is_successful = False
     max_attempts = 5
+    tmp_path = None
+    zip_file_path = None
     while not is_successful and max_attempts > 0:
         try:
             max_attempts -= 1
@@ -1101,12 +1103,23 @@ def fetch_build_files(firmware_id, cookies, fmd_url, extract_destination_folder,
                                                           auth_username=auth_username,
                                                           auth_password=auth_password)
             tmp_path = os.path.join(BUILD_OUT_PATH, PACKAGE_EXTRACTION_DIR_NAME)
-            os.makedirs(tmp_path, exist_ok=True)
-            extract_zip(zip_file_path, tmp_path)
-            os.remove(zip_file_path)
-            is_successful = True
         except Exception as err:
             logging.error(f"Error fetching firmware build files: {err}")
+
+        try:
+            if tmp_path and zip_file_path:
+                os.makedirs(tmp_path, exist_ok=True)
+                extract_zip(zip_file_path, tmp_path)
+        except Exception as err:
+            logging.error(f"Error extracting firmware build files: {err}")
+
+        try:
+            if zip_file_path and isinstance(zip_file_path, str) and os.path.exists(zip_file_path):
+                os.remove(zip_file_path)
+                is_successful = True
+        except Exception as err:
+            logging.error(f"Error deleting ZIP File:{zip_file_path} {err}")
+
     logging.debug(f"Completed firmware build file download to {extract_destination_folder}")
     return is_successful
 
