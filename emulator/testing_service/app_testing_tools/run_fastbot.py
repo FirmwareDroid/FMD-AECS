@@ -115,7 +115,7 @@ def run_fastbot(package, running_minutes=60, throttle=500, serial=None):
            '--agent', 'reuseq',
            '--running-minutes', str(running_minutes),
            '--throttle', str(throttle),
-           "--seed", "12345",
+           "-s", "12345",
            '-v',
            '-v']
     )
