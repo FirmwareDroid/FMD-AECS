@@ -107,7 +107,7 @@
     "product/framework"
   ],
   "ALLOW_APP_INJECT_ALWAYS_KEYWORD_LIST": [
-     "PixelLiveWallpaper",
+    "PixelLiveWallpaper",
     "WallpapersBReel",
     "TetheringGoogle",
     "MediaProvider",
@@ -193,7 +193,7 @@
     "Telephony"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
-   "Drive.apk",
+    "Drive.apk",
     "GoogleOneTimeInitializer.apk",
     "GoogleExtServices.apk",
     "GoogleExtShared.apk",

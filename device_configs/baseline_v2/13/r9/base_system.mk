@@ -15,14 +15,18 @@
 # Disabled Packages
 #
 # PackageInstaller \
-# NetworkStack \
+#
 # SettingsProvider \
+# CtsShimPrebuilt \
+# CtsShimPrivPrebuilt \
+# libcamera2ndk \
 
 # Base modules and settings for the system partition.
 PRODUCT_PACKAGES += \
     abx \
     adbd_system_api \
     am \
+    NetworkStack \
     android.hidl.allocator@1.0-service \
     android.hidl.base-V1.0-java \
     android.hidl.manager-V1.0-java \
@@ -78,8 +82,6 @@ PRODUCT_PACKAGES += \
     com.android.wifi \
     ContactsProvider \
     content \
-    CtsShimPrebuilt \
-    CtsShimPrivPrebuilt \
     debuggerd\
     device_config \
     dmctl \
@@ -144,7 +146,6 @@ PRODUCT_PACKAGES += \
     libbinder_ndk \
     libbinder_rpc_unstable \
     libc.bootstrap \
-    libcamera2ndk \
     libcutils \
     libdl.bootstrap \
     libdl_android.bootstrap \
@@ -289,6 +290,7 @@ PRODUCT_PACKAGES += \
     wifi.rc \
     wm \
     PlatformProperties \
+    mediatuner \
 {% for line in package_name_list -%}{{ line }}{%- endfor %}
 
 # VINTF data for system image

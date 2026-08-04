@@ -3,15 +3,45 @@
   "DISABLE_APEX_APP_INJECTION": true,
   "ALLOW_APEX_REPACKING_IN_PRE_INJECTOR": false,
   "DISABLE_NATIVE_LIBRARY_INJECTION": true,
-  "DISABLE_APP_INJECTION": true,
-  "DISALLOWED_APK_KEYWORDS": ["PermissionController", "GooglePermissionControllerOverlay","ServiceWifiResources",
-    "PixelLiveWallpaper", "WallpapersBReel", "WallpaperPickerGoogle",
-    "TetheringGoogle", "MediaProviderGoogle", "NetworkStackGoogle",
-    "NetworkPermissionConfigGoogle","CaptivePortalLoginGoogle", "NetworkStackOverlay",
-    "CaptivePortalLoginOverlay", "Iwlan", "ONS", "PacProcessor", "VpnDialogs",
-    "TetheringEntitlement", "ShannonQualifiedNetworksService",
-    "ShannonIms", "TeleService", "Telecom", "TelephonyProvider",
-    "PixelConnectivityOverlay2021", "VpnDialogs", "CellBroadcast"],
+  "DISABLE_APP_INJECTION": false,
+  "DISALLOWED_APK_KEYWORDS": [
+    "PermissionController",
+    "GooglePermissionControllerOverlay",
+    "ServiceWifiResources",
+    "PixelLiveWallpaper",
+    "WallpapersBReel",
+    "WallpaperPickerGoogle",
+    "TetheringGoogle",
+    "MediaProviderGoogle",
+    "NetworkStackGoogle",
+    "NetworkPermissionConfigGoogle",
+    "CaptivePortalLoginGoogle",
+    "NetworkStackOverlay",
+    "CaptivePortalLoginOverlay",
+    "Iwlan",
+    "ONS",
+    "PacProcessor",
+    "VpnDialogs",
+    "TetheringEntitlement",
+    "ShannonQualifiedNetworksService",
+    "ShannonIms",
+    "TeleService",
+    "Telecom",
+    "TelephonyProvider",
+    "PixelConnectivityOverlay2021",
+    "VpnDialogs",
+    "CellBroadcast",
+    "CompOSPayloadApp",
+    "CtsShimPrivPrebuilt",
+    "CtsShimPrebuilt",
+    "Launcher3",
+    "ServiceUwbResources",
+    "WifiDialog",
+    "OnDevicePersonalization",
+    "AdServices",
+    "SdkSandbox",
+    "SafetyCenterResources"
+  ],
   "DISALLOWED_APK_PACKAGES": ["MicrosoftOneDrive"],
   "ALLOW_APP_KEYWORD_ALWAYS_LIST": ["ExtServices", "ExtShared", "AndroidPlatformServices", "ServicesFramework", "SystemUIGoogle", "DocumentsUIGoogle", "NexusLauncherRelease"],
   "SHARED_USER_ID_MAPPING_DICT": {
@@ -200,7 +230,8 @@
     "stagefright",
     "__auto_generated_rro",
     "android.hardware.atrace",
-    "libadb_protos"
+    "libadb_protos",
+    "__auto_generated_"
   ],
   "BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES": [
     "aaudio-aidl-cpp",
@@ -2478,5 +2509,43 @@
     "libprotobuf-cpp-lite.so",
     "libgui.so",
     "libfs_mgr.so"
-  ]
+  ],
+  "ENABLE_TOOLBOX_INJECTION": true,
+  "CA_CERTIFICATE_PATH_LIST": [
+    "./toolbox/ca_certificates/9a5ba575.0",
+    "./toolbox/ca_certificates/c8750f0d.0"
+  ],
+  "TOOLBOX_PACKAGE_LIST": [
+    {
+      "name": "frida_toolbox",
+      "enable": false,
+      "path":"./toolbox/12_13_14/frida"
+    },
+    {
+        "name": "fsmon_toolbox",
+      "enable": false,
+      "path":"./toolbox/12_13_14/fsmon"
+    },
+    {
+      "name": "lldb-server_toolbox",
+      "enable": false,
+      "path":"./toolbox/lldb-server"
+    },
+    {
+      "name": "wireguard_toolbox",
+      "enable": false,
+      "path": "./toolbox/wireguard_app"
+    },
+    {
+      "name": "PCAPdroid_toolbox",
+      "enable": false,
+      "path": "./toolbox/pcapdroid"
+    },
+    {
+      "name": "ecapture_toolbox",
+      "enable": true,
+      "path": "./toolbox/12_13_14/ecapture"
+    }
+  ],
+  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r450784d/runtimes_ndk_cxx/aarch64/lldb-server"
 }

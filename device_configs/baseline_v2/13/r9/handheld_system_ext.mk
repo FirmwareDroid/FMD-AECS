@@ -21,12 +21,12 @@
 $(call inherit-product, $(SRC_TARGET_DIR)/product/media_system_ext.mk)
 
 # Provision \
+# Launcher3QuickStep \
+#    Settings \
+#    StorageManager \
+#    SystemUI \
+#   WallpaperCropper \
 
 # /system_ext packages
 PRODUCT_PACKAGES += \
-    Launcher3QuickStep \
-    Settings \
-    StorageManager \
-    SystemUI \
-    WallpaperCropper \
 {% for line in package_name_list -%}{{ line }}{%- endfor %}
