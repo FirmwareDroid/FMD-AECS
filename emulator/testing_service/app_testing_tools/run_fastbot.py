@@ -119,9 +119,10 @@ def run_fastbot(package, running_minutes=60, throttle=500, serial=None):
            '-v',
            '-v']
     )
+    cmd = [str(a) for a in cmd]
     logger.info(
-        "Running Fastbot2.0 on package: %s (minutes=%d, throttle=%dms)",
-        package, running_minutes, throttle,
+        "Running Fastbot2.0 on package: %s (minutes=%d, throttle=%dms): CMD: %s",
+        package, running_minutes, throttle, cmd
     )
     return subprocess.run(cmd, text=True).returncode
 

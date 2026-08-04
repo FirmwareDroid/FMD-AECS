@@ -16,6 +16,7 @@ Examples:
 import argparse
 import logging
 import os
+import shlex
 import subprocess
 import sys
 import time
@@ -90,7 +91,7 @@ def start_package(package, serial=None, wait_seconds=2):
         return False
 
 
-def run_ape(package, running_minutes=60, strategy='sata', serial=None):
+def run_ape(package, running_minutes=300, strategy='sata', serial=None):
     """Execute Ape on the device and return its exit code."""
     adb = _adb(serial)
     cmd = (
@@ -108,8 +109,9 @@ def run_ape(package, running_minutes=60, strategy='sata', serial=None):
            '--ignore-security-exceptions',
            "--seed", "12345"]
     )
-    logger.info("Running Ape on package: %s (strategy=%s, minutes=%d)", package, strategy, running_minutes)
+    logger.info("Running Ape on package: %s (strategy=%s, minutes=%d). CMD: %s", package, strategy, running_minutes, cmd)
     # Start Ape (monkey) as a subprocess so we can monitor foreground package
+    cmd = [str(a) for a in cmd]
     proc = subprocess.Popen(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     stop_watcher = threading.Event()
