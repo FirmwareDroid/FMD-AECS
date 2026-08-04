@@ -129,9 +129,9 @@ def main():
 	parser = argparse.ArgumentParser(description='Connectivity test for Android emulator/device')
 	parser.add_argument('-s', '--serial', help='ADB device serial to target')
 	parser.add_argument('--url', default='https://www.google.com', help='URL to fetch using curl on device')
-	parser.add_argument('--retries', type=int, default=3, help='Number of retries')
+	parser.add_argument('--retries', type=int, default=60, help='Number of retries')
 	parser.add_argument('--timeout', type=int, default=10, help='Per-attempt timeout in seconds')
-	parser.add_argument('--delay', type=int, default=5, help='Delay between retries in seconds')
+	parser.add_argument('--delay', type=int, default=10, help='Delay between retries in seconds')
 	parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
 	args = parser.parse_args()
 
