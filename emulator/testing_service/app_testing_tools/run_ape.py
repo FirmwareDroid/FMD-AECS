@@ -106,7 +106,7 @@ def run_ape(package, running_minutes=60, strategy='sata', serial=None):
            '--ignore-crashes',
            '--ignore-timeouts',
            '--ignore-security-exceptions',
-           "--seed", 12345]
+           "--seed", "12345"]
     )
     logger.info("Running Ape on package: %s (strategy=%s, minutes=%d)", package, strategy, running_minutes)
     # Start Ape (monkey) as a subprocess so we can monitor foreground package

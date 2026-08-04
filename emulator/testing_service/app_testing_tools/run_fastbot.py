@@ -115,8 +115,9 @@ def run_fastbot(package, running_minutes=60, throttle=500, serial=None):
            '--agent', 'reuseq',
            '--running-minutes', str(running_minutes),
            '--throttle', str(throttle),
-           "--seed", 12345,
-           '-v', '-v']
+           "--seed", "12345",
+           '-v',
+           '-v']
     )
     logger.info(
         "Running Fastbot2.0 on package: %s (minutes=%d, throttle=%dms)",
