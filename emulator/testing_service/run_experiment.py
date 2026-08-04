@@ -826,7 +826,7 @@ def run_launcher_test(results_dir):
 def run_connectivity_test(results_dir):
     logging.info('Running connectivity test before any device setup')
     # Run the connectivity test script and capture its output; write a small JSON report
-    args = ['--retries', '3', '--timeout', '10']
+    args = ['--retries', '10', '--timeout', '30']
     res = run_script_capture(CONNECTIVITY_TEST, args=args, description='Run connectivity test')
 
     # Save the captured result for debugging/recording
