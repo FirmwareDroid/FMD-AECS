@@ -26,8 +26,11 @@ from shutil import which
 from typing import Dict, Any, List, Optional, Set
 import os
 
+from testing_service.app_testing_tools.test_results import append_run
+
 # Default output directory for start_apps summaries
 DEFAULT_OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -801,6 +804,12 @@ def main():
                                            blacklist=blacklist_set,
                                            output_path=args.output
                                            )
+        try:
+            out_dir = os.path.join(BASE_DIR, 'out')
+            append_run('monkey', summary, failures, out_dir=out_dir)
+        except Exception:
+            logging.exception('Failed to write monkey summary')
+
         if args.pretty:
             pretty_print_summary(summary, failures)
     except RuntimeError as e:
