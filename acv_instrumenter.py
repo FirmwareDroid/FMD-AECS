@@ -44,38 +44,84 @@ def _acv_instrument_worker(params):
         os.makedirs(out_folder, exist_ok=True)
         os.chdir(safe_cwd)
 
-        cmd = [acv_executable, "instrument", "-f", apk_path, "--wd", out_folder]
-        start = time.time()
-
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
-
+        # Determine retry attempts from configuration (best-effort). Default to 1 (no retry).
         try:
-            out, _ = proc.communicate(timeout=700)
-            elapsed = round(time.time() - start, 2)
-            out_decoded = out.decode(errors='ignore') if out else ""
+            max_attempts = int(PRE_INJECTOR_CONFIG.get('ACV_INSTRUMENT_RETRY_ATTEMPTS', 1) or 3)
+        except Exception:
+            max_attempts = 1
+        if max_attempts < 1:
+            max_attempts = 1
 
-            if proc.returncode != 0:
-                return (filename, elapsed, "failed", out_decoded, os.path.basename(out_folder))
-            return (filename, elapsed, "success", "", os.path.basename(out_folder))
+        last_out_decoded = ""
+        for attempt in range(1, max_attempts + 1):
+            attempt_out = out_folder if attempt == 1 else f"{out_folder}_retry{attempt}"
+            # Prepare a fresh workspace for this attempt
+            if os.path.exists(attempt_out):
+                try:
+                    shutil.rmtree(attempt_out)
+                except Exception:
+                    pass
+            os.makedirs(attempt_out, exist_ok=True)
 
-        except subprocess.TimeoutExpired:
-            elapsed = round(time.time() - start, 2)
-            _kill_process_group(proc)
+            cmd = [acv_executable, "instrument", "-f", apk_path, "--wd", attempt_out]
+            start = time.time()
 
-            # Allow a short grace period to collect output
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+
             try:
-                out, _ = proc.communicate(timeout=5)
-            except Exception:
-                out = None
+                out, _ = proc.communicate(timeout=700)
+                elapsed = round(time.time() - start, 2)
+                out_decoded = out.decode(errors='ignore') if out else ""
 
-            # Ensure death
-            try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except Exception:
-                pass
+                if proc.returncode == 0:
+                    # success
+                    return (filename, elapsed, "success", "", os.path.basename(attempt_out))
 
-            out_decoded = out.decode(errors='ignore') if out else ""
-            return (filename, elapsed, "failed", f"TimeoutExpired: {out_decoded}", os.path.basename(out_folder))
+                # failed attempt
+                last_out_decoded = out_decoded
+                logging.warning("ACVTool instrumentation attempt %d/%d failed for %s (returncode=%s).", attempt, max_attempts, filename, proc.returncode)
+
+            except subprocess.TimeoutExpired:
+                logging.error("ACVTool instrumentation for %s timed out after 700 seconds on attempt %d/%d. Attempting to terminate process group.", filename, attempt, max_attempts)
+                elapsed = round(time.time() - start, 2)
+                _kill_process_group(proc)
+
+                # Allow a short grace period to collect output
+                try:
+                    out, _ = proc.communicate(timeout=5)
+                except Exception:
+                    out = None
+
+                # Ensure death
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except Exception:
+                    pass
+
+                out_decoded = out.decode(errors='ignore') if out else ""
+                last_out_decoded = f"TimeoutExpired: {out_decoded}"
+                logging.warning("ACVTool attempt %d/%d for %s timed out.", attempt, max_attempts, filename)
+
+            except Exception as e:
+                # Capture any unexpected exception and continue retrying if attempts remain
+                elapsed = round(time.time() - start, 2) if start else 0.0
+                try:
+                    out, _ = proc.communicate(timeout=1)
+                    out_decoded = out.decode(errors='ignore') if out else ""
+                except Exception:
+                    out_decoded = ""
+                last_out_decoded = f"Exception: {e} {out_decoded}"
+                logging.exception("ACVTool instrumentation attempt %d/%d raised exception for %s", attempt, max_attempts, filename)
+
+            # If we have more attempts left, back off a bit and retry
+            if attempt < max_attempts:
+                backoff = min(5 * attempt, 30)
+                logging.info("Retrying instrumentation for %s after %ds backoff (attempt %d/%d)", filename, backoff, attempt + 1, max_attempts)
+                time.sleep(backoff)
+            else:
+                # final failure
+                elapsed = round((time.time() - start) if start else 0.0, 2)
+                return (filename, elapsed, "failed", last_out_decoded, os.path.basename(attempt_out))
 
     except Exception as e:
         elapsed = round((time.time() - start) if start else 0.0, 2)
