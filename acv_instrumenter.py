@@ -66,7 +66,12 @@ def _acv_instrument_worker(params):
             cmd = [acv_executable, "instrument", "-f", apk_path, "--wd", attempt_out]
             start = time.time()
 
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+            proc = subprocess.Popen(cmd,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT,
+                                    start_new_session=True,
+                                    cwd="/tmp/"
+                                    )
 
             try:
                 out, _ = proc.communicate(timeout=700)
