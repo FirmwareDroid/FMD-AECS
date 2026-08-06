@@ -219,7 +219,8 @@
     "stagefright",
     "__auto_generated_rro",
     "android.hardware.atrace",
-    "libadb_protos"
+    "libadb_protos",
+    "__auto_generated_"
   ],
   "BLACKLISTED_ANDROID_12_EMULATOR_SHARED_LIBRARIES": [
     "aaudio-aidl-cpp",
@@ -2535,14 +2536,5 @@
       "path": "./toolbox/12_13_14/ecapture"
     }
   ],
-  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r416183b/runtimes_ndk_cxx/aarch64/lldb-server",
-  "ACVTOOL_SKIP_APK_KEYWORDS": [
-    "CarrierConfig",
-    "SystemUI",
-    "Launcher",
-    "Media",
-    "Phone",
-    "Print"
-  ],
-  "ENABLE_ACVTOOL_INSTRUMENTATION": true
+  "LLDB_BINARY_PATH": "prebuilts/clang/host/linux-x86/clang-r416183b/runtimes_ndk_cxx/aarch64/lldb-server"
 }
