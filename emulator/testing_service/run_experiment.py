@@ -1551,7 +1551,7 @@ def do_preflight(results_dir):
     Raises RuntimeError on any preflight failure.
     """
     # Wait for boot animation to finish (or sys.boot_completed)
-    is_running, last_value, last_error = wait_for_boot_completed(max_wait_seconds=600, sleep_seconds=10)
+    is_running, last_value, last_error = wait_for_boot_completed(max_wait_seconds=400, sleep_seconds=5)
     bootanim_val = ''
     boot_completed_val = ''
     try:
