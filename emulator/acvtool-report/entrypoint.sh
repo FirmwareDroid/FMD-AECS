@@ -66,10 +66,11 @@ case "$1" in
     if [ -d "$pickle_src_root" ]; then
       while IFS= read -r -d '' pfile; do
         stem="$(basename "$pfile" .pickle)"
+        #normalized="$stem"
+        #if [[ "$stem" =~ _[0-9]+$ ]]; then
+        #  normalized="${stem%_*}"
+        #fi
         normalized="$stem"
-        if [[ "$stem" =~ _[0-9]+$ ]]; then
-          normalized="${stem%_*}"
-        fi
         if [ "$normalized" = "$pkg" ]; then
           cp -f "$pfile" "$wd/pickles/"
           pickle_staged=$((pickle_staged + 1))
