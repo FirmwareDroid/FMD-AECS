@@ -297,13 +297,14 @@ def _create_and_upload_archive(firmware_id, firmware_folder, base_path_acv, vers
         return
 
     # Upload process
-    repo_base = globals().get('DOCKER_REPO_URL_GLOBAL')
-    repo_user = globals().get('DOCKER_REPO_USERNAME_GLOBAL')
-    repo_pass = globals().get('DOCKER_REPO_PASSWORD_GLOBAL')
+    repo_base = globals().get('DOCKER_REPO_URL')
+    repo_user = globals().get('DOCKER_REPO_USERNAME')
+    repo_pass = globals().get('DOCKER_REPO_PASSWORD')
 
     if not repo_pass or not repo_user:
-        logging.error(
-            f"Repository credentials not fully provided (user: {repo_user}, pass: {'***' if repo_pass else 'None'}). Skipping upload.")
+        error_msg = f"Repository credentials not fully provided (user: {repo_user}, pass: {'***' if repo_pass else 'None'}). Skipping upload."
+        logging.error(error_msg)
+        raise RuntimeError(error_msg)
     elif repo_base:
         try:
             tmp = repo_base if '://' in repo_base else f"https://{repo_base}"
@@ -327,7 +328,7 @@ def _create_and_upload_archive(firmware_id, firmware_folder, base_path_acv, vers
             logging.exception(f"Error while uploading ACVTool archive to raw_files: {e}")
             raise e
     else:
-        logging.debug("No repository base provided; skipping upload of ACVTool archive")
+        logging.error("No repository base provided; skipping upload of ACVTool archive")
 
     # Cleanup intermediate output folder on success
     if archive_path and os.path.exists(archive_path):
