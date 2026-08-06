@@ -7,7 +7,7 @@
   "ENABLE_VINTF_MERGE": false,
   "ENABLE_SELINUX_MERGER": false,
   "DISABLE_MISC_INJECTION": true,
-  "ENABLE_BUILD_PROPERTY_MERGER": true,
+  "ENABLE_BUILD_PROPERTY_MERGER": false,
   "ENABLE_APEX_INTERMEDIATE_OVERWRITE": false,
   "SHARED_USER_ID_MAPPING_DICT":{
     "media": ["android.media", "android.uid.media"],

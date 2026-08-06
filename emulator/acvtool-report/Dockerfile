@@ -27,7 +27,7 @@ WORKDIR /opt/acvtool
 COPY requirements.txt ./requirements.txt
 RUN python -m pip install --upgrade "pip<25" setuptools wheel && \
     python -m pip install -r requirements.txt && \
-    python -m pip install acvtool==2.3.5 && \
+    python -m pip install acvtool==2.3.6 && \
     python -c "import json,pathlib,acvtool; s=pathlib.Path(acvtool.__file__).parent/'smiler'; c=s/'config.json'; c.exists() or c.write_text(json.dumps({'ADB':'/usr/bin/adb','AAPT':'/usr/bin/aapt','ACVPATCHER':'/usr/local/bin/acvpatcher'}, indent=2)+'\\n', encoding='utf-8')" && \
     python -c "import acvtool.smiler.acv"
 
