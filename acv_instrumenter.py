@@ -297,9 +297,9 @@ def _create_and_upload_archive(firmware_id, firmware_folder, base_path_acv, vers
         return
 
     # Upload process
-    repo_base = globals().get('DOCKER_REPO_URL')
-    repo_user = globals().get('DOCKER_REPO_USERNAME')
-    repo_pass = globals().get('DOCKER_REPO_PASSWORD')
+    repo_base = globals().get('DOCKER_REPO_URL') or os.getenv('DOCKER_REPO_URL')
+    repo_user = globals().get('DOCKER_REPO_USERNAME') or os.getenv('DOCKER_REPO_USERNAME')
+    repo_pass = globals().get('DOCKER_REPO_PASSWORD') or os.getenv('DOCKER_REPO_PASSWORD')
 
     if not repo_pass or not repo_user:
         error_msg = f"Repository credentials not fully provided (user: {repo_user}, pass: {'***' if repo_pass else 'None'}). Skipping upload."
