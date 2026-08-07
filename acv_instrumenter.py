@@ -83,12 +83,14 @@ def _acv_instrument_worker(params):
                     # success
                     return (filename, elapsed, "success", "", os.path.basename(attempt_out))
 
-                # failed attempt — try fallback once using method-level instrumentation
+                # failed attempt — try fallback instrumentation strategies
                 last_out_decoded = out_decoded
                 logging.warning("ACVTool instrumentation attempt %d/%d failed for %s (returncode=%s).", attempt, max_attempts, filename, proc.returncode)
 
-                if not fallback_tried:
+                # try method-level fallback first, then class-level fallback if that fails
+                if not tried_method:
                     logging.info("Attempting fallback ACVTool instrumentation using method group for %s", filename)
+                    tried_method = True
                     fb_cmd = [acv_executable, "instrument", "-g", "method", "-f", apk_path, "--wd", attempt_out]
                     fb_start = time.time()
                     try:
@@ -105,13 +107,16 @@ def _acv_instrument_worker(params):
                             logging.info("Fallback method instrumentation succeeded for %s", filename)
                             return (filename, fb_elapsed, "success", "", os.path.basename(attempt_out))
 
-                        # fallback failed - include its output in the last_out_decoded
-                        last_out_decoded = f"Primary: {last_out_decoded}\nFallback: {fb_out_decoded}"
-                        logging.warning("Fallback ACVTool instrumentation failed for %s (returncode=%s).", filename, fb_proc.returncode)
+                        # method fallback failed - include its output
+                        last_out_decoded = f"Primary: {last_out_decoded}\nFallback(method): {fb_out_decoded}"
+                        logging.warning("Fallback ACVTool instrumentation (method) failed for %s (returncode=%s).", filename, fb_proc.returncode)
 
                     except subprocess.TimeoutExpired:
-                        logging.error("Fallback ACVTool instrumentation for %s timed out after 700 seconds. Attempting to terminate process group.", filename)
-                        _kill_process_group(fb_proc)
+                        logging.error("Fallback ACVTool instrumentation (method) for %s timed out after 700 seconds. Attempting to terminate process group.", filename)
+                        try:
+                            _kill_process_group(fb_proc)
+                        except Exception:
+                            pass
                         try:
                             fb_out, _ = fb_proc.communicate(timeout=5)
                         except Exception:
@@ -121,8 +126,8 @@ def _acv_instrument_worker(params):
                         except Exception:
                             pass
                         fb_out_decoded = fb_out.decode(errors='ignore') if fb_out else ""
-                        last_out_decoded = f"Primary: {last_out_decoded}\nFallbackTimeout: {fb_out_decoded}"
-                        logging.warning("Fallback attempt for %s timed out.", filename)
+                        last_out_decoded = f"Primary: {last_out_decoded}\nFallbackTimeout(method): {fb_out_decoded}"
+                        logging.warning("Fallback(method) attempt for %s timed out.", filename)
 
                     except Exception as e:
                         try:
@@ -130,11 +135,59 @@ def _acv_instrument_worker(params):
                             fb_out_decoded = fb_out.decode(errors='ignore') if fb_out else ""
                         except Exception:
                             fb_out_decoded = ""
-                        last_out_decoded = f"Primary: {last_out_decoded}\nFallbackException: {e} {fb_out_decoded}"
-                        logging.exception("Fallback ACVTool instrumentation raised exception for %s", filename)
+                        last_out_decoded = f"Primary: {last_out_decoded}\nFallbackException(method): {e} {fb_out_decoded}"
+                        logging.exception("Fallback ACVTool instrumentation (method) raised exception for %s", filename)
 
-                    finally:
-                        fallback_tried = True
+                # If method fallback did not succeed, try class-level fallback once
+                if not tried_class and tried_method:
+                    logging.info("Attempting fallback ACVTool instrumentation using class group for %s", filename)
+                    tried_class = True
+                    cls_cmd = [acv_executable, "instrument", "-g", "class", "-f", apk_path, "--wd", attempt_out]
+                    cls_start = time.time()
+                    try:
+                        cls_proc = subprocess.Popen(cls_cmd,
+                                                    stdout=subprocess.PIPE,
+                                                    stderr=subprocess.STDOUT,
+                                                    start_new_session=True,
+                                                    cwd="/tmp/")
+                        cls_out, _ = cls_proc.communicate(timeout=700)
+                        cls_elapsed = round(time.time() - cls_start, 2)
+                        cls_out_decoded = cls_out.decode(errors='ignore') if cls_out else ""
+
+                        if cls_proc.returncode == 0:
+                            logging.info("Fallback class instrumentation succeeded for %s", filename)
+                            return (filename, cls_elapsed, "success", "", os.path.basename(attempt_out))
+
+                        # class fallback failed - include its output
+                        last_out_decoded = f"{last_out_decoded}\nFallback(class): {cls_out_decoded}"
+                        logging.warning("Fallback ACVTool instrumentation (class) failed for %s (returncode=%s).", filename, cls_proc.returncode)
+
+                    except subprocess.TimeoutExpired:
+                        logging.error("Fallback ACVTool instrumentation (class) for %s timed out after 700 seconds. Attempting to terminate process group.", filename)
+                        try:
+                            _kill_process_group(cls_proc)
+                        except Exception:
+                            pass
+                        try:
+                            cls_out, _ = cls_proc.communicate(timeout=5)
+                        except Exception:
+                            cls_out = None
+                        try:
+                            os.killpg(cls_proc.pid, signal.SIGKILL)
+                        except Exception:
+                            pass
+                        cls_out_decoded = cls_out.decode(errors='ignore') if cls_out else ""
+                        last_out_decoded = f"{last_out_decoded}\nFallbackTimeout(class): {cls_out_decoded}"
+                        logging.warning("Fallback(class) attempt for %s timed out.", filename)
+
+                    except Exception as e:
+                        try:
+                            cls_out, _ = cls_proc.communicate(timeout=1)
+                            cls_out_decoded = cls_out.decode(errors='ignore') if cls_out else ""
+                        except Exception:
+                            cls_out_decoded = ""
+                        last_out_decoded = f"{last_out_decoded}\nFallbackException(class): {e} {cls_out_decoded}"
+                        logging.exception("Fallback ACVTool instrumentation (class) raised exception for %s", filename)
 
             except subprocess.TimeoutExpired:
                 logging.error("ACVTool instrumentation for %s timed out after 700 seconds on attempt %d/%d. Attempting to terminate process group.", filename, attempt, max_attempts)
