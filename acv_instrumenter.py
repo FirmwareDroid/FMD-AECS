@@ -53,6 +53,7 @@ def _acv_instrument_worker(params):
             max_attempts = 1
 
         last_out_decoded = ""
+        fallback_tried = False
         for attempt in range(1, max_attempts + 1):
             attempt_out = out_folder if attempt == 1 else f"{out_folder}_retry{attempt}"
             # Prepare a fresh workspace for this attempt
@@ -82,9 +83,58 @@ def _acv_instrument_worker(params):
                     # success
                     return (filename, elapsed, "success", "", os.path.basename(attempt_out))
 
-                # failed attempt
+                # failed attempt — try fallback once using method-level instrumentation
                 last_out_decoded = out_decoded
                 logging.warning("ACVTool instrumentation attempt %d/%d failed for %s (returncode=%s).", attempt, max_attempts, filename, proc.returncode)
+
+                if not fallback_tried:
+                    logging.info("Attempting fallback ACVTool instrumentation using method group for %s", filename)
+                    fb_cmd = [acv_executable, "instrument", "-g", "method", "-f", apk_path, "--wd", attempt_out]
+                    fb_start = time.time()
+                    try:
+                        fb_proc = subprocess.Popen(fb_cmd,
+                                                   stdout=subprocess.PIPE,
+                                                   stderr=subprocess.STDOUT,
+                                                   start_new_session=True,
+                                                   cwd="/tmp/")
+                        fb_out, _ = fb_proc.communicate(timeout=700)
+                        fb_elapsed = round(time.time() - fb_start, 2)
+                        fb_out_decoded = fb_out.decode(errors='ignore') if fb_out else ""
+
+                        if fb_proc.returncode == 0:
+                            logging.info("Fallback method instrumentation succeeded for %s", filename)
+                            return (filename, fb_elapsed, "success", "", os.path.basename(attempt_out))
+
+                        # fallback failed - include its output in the last_out_decoded
+                        last_out_decoded = f"Primary: {last_out_decoded}\nFallback: {fb_out_decoded}"
+                        logging.warning("Fallback ACVTool instrumentation failed for %s (returncode=%s).", filename, fb_proc.returncode)
+
+                    except subprocess.TimeoutExpired:
+                        logging.error("Fallback ACVTool instrumentation for %s timed out after 700 seconds. Attempting to terminate process group.", filename)
+                        _kill_process_group(fb_proc)
+                        try:
+                            fb_out, _ = fb_proc.communicate(timeout=5)
+                        except Exception:
+                            fb_out = None
+                        try:
+                            os.killpg(fb_proc.pid, signal.SIGKILL)
+                        except Exception:
+                            pass
+                        fb_out_decoded = fb_out.decode(errors='ignore') if fb_out else ""
+                        last_out_decoded = f"Primary: {last_out_decoded}\nFallbackTimeout: {fb_out_decoded}"
+                        logging.warning("Fallback attempt for %s timed out.", filename)
+
+                    except Exception as e:
+                        try:
+                            fb_out, _ = fb_proc.communicate(timeout=1)
+                            fb_out_decoded = fb_out.decode(errors='ignore') if fb_out else ""
+                        except Exception:
+                            fb_out_decoded = ""
+                        last_out_decoded = f"Primary: {last_out_decoded}\nFallbackException: {e} {fb_out_decoded}"
+                        logging.exception("Fallback ACVTool instrumentation raised exception for %s", filename)
+
+                    finally:
+                        fallback_tried = True
 
             except subprocess.TimeoutExpired:
                 logging.error("ACVTool instrumentation for %s timed out after 700 seconds on attempt %d/%d. Attempting to terminate process group.", filename, attempt, max_attempts)
