@@ -101,9 +101,11 @@ def fetch_one(
     pickle_root = acv_snaps / "pickle_files"
 
     if not acv_snaps.exists():
+        logger.warning(f"[{fw_id}] no acv_snaps folder found")
         return "skip", f"skip {fw_id}: no acv_snaps"
 
     if has_pickles(pickle_root) and not overwrite:
+        logger.warning(f"[{fw_id}] already have pickle files")
         return "skip", f"skip {fw_id}: pickle_files already populated"
 
     url = f"{base_url.rstrip('/')}/acvtool_{fw_id}.zip"
