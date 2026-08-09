@@ -576,7 +576,8 @@
     "Launcher",
     "Media",
     "Phone",
-    "Print"
+    "Print",
+    "Bluetooth"
   ],
   "ACV_INSTRUMENT_RETRY_ATTEMPTS": 2
 }
