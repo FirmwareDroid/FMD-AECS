@@ -5,6 +5,7 @@ import argparse
 import logging
 from urllib.parse import urlparse
 import requests
+import zipfile
 
 # Assuming this comes from your existing configuration setup
 # Replace this with your actual import if config.py is in the same directory:
@@ -127,7 +128,35 @@ def main():
                     zip_base_path = os.path.join(tmpdir, f"{args.prefix}{firmware_id}")
 
                     logging.info(f"Zipping {target_dir}...")
-                    archive_path = shutil.make_archive(zip_base_path, 'zip', target_dir)
+                    archive_path = None
+                    for attempt in range(1, 3):
+                        try:
+                            archive_path = shutil.make_archive(zip_base_path, 'zip', target_dir)
+                        except Exception as e:
+                            logging.warning(f"Attempt {attempt} failed to create archive: {e}")
+                            archive_path = None
+
+                        # verify
+                        try:
+                            if (archive_path and os.path.isfile(archive_path) and os.path.getsize(archive_path) > 0
+                                    and zipfile.is_zipfile(archive_path)):
+                                with zipfile.ZipFile(archive_path, 'r') as z:
+                                    if z.namelist():
+                                        logging.info(f"Created valid archive: {archive_path}")
+                                        break
+                                    else:
+                                        logging.warning(f"Archive contains no files (attempt {attempt}): {archive_path}")
+                            else:
+                                logging.warning(f"Archive verification failed (attempt {attempt}): {archive_path}")
+                        except Exception as e:
+                            logging.warning(f"Archive verification exception (attempt {attempt}): {e}")
+
+                        if attempt == 1:
+                            logging.info("Retrying archive creation once...")
+                        else:
+                            logging.error(f"Failed to create valid archive for firmware {firmware_id} after 2 attempts")
+                            archive_path = None
+
 
                     success, target_url = upload_image_as_raw(
                         repo_url=args.url,

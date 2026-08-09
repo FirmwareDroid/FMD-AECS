@@ -1,4 +1,6 @@
 import concurrent
+import zipfile
+
 from common_post_injector import handle_app_modules
 import concurrent.futures
 import glob
@@ -46,7 +48,7 @@ def _acv_instrument_worker(params):
 
         # Determine retry attempts from configuration (best-effort). Default to 1 (no retry).
         try:
-            max_attempts = int(PRE_INJECTOR_CONFIG.get('ACV_INSTRUMENT_RETRY_ATTEMPTS', 1) or 3)
+            max_attempts = int(POST_INJECTOR_CONFIG.get('ACV_INSTRUMENT_RETRY_ATTEMPTS', 1) or 3)
         except Exception:
             max_attempts = 1
         if max_attempts < 1:
@@ -393,10 +395,43 @@ def _create_and_upload_archive(firmware_id, firmware_folder, base_path_acv, vers
     archive_base = os.path.join(base_path_acv, f"acvtool_{emulator_filename}".replace('.zip', ''))
 
     logging.info(f"Creating ACVTool archive {archive_base}.zip from folder: {firmware_folder}")
+    archive_path = None
     try:
-        archive_path = shutil.make_archive(archive_base, 'zip', root_dir=firmware_folder)
+        for attempt in range(1, 3):  # try up to 2 times
+            try:
+                archive_path = shutil.make_archive(archive_base, 'zip', root_dir=firmware_folder)
+            except Exception as e:
+                logging.warning(f"Attempt {attempt} failed to create archive: {e}")
+                archive_path = None
+
+            # verify archive exists, non-zero, valid zip, and contains members
+            try:
+                if (archive_path and os.path.isfile(archive_path) and os.path.getsize(archive_path) > 0
+                        and zipfile.is_zipfile(archive_path)):
+                    with zipfile.ZipFile(archive_path, 'r') as z:
+                        if z.namelist():
+                            logging.info(f"Created valid archive: {archive_path}")
+                            break
+                        else:
+                            logging.warning(f"Archive contains no files (attempt {attempt}): {archive_path}")
+                            continue
+                else:
+                    logging.warning(f"Archive verification failed (attempt {attempt}): {archive_path}")
+            except Exception as e:
+                logging.warning(f"Archive verification exception (attempt {attempt}): {e}")
+
+            if attempt == 1:
+                logging.info("Retrying archive creation once...")
+            else:
+                logging.error(f"Failed to create valid archive for firmware {firmware_id} after 2 attempts")
+                return
+
     except Exception as e:
         logging.error(f"Failed to create ACVTool archive for firmware {firmware_id}: {e}")
+        return
+
+    if not archive_path:
+        logging.error(f"Failed to create ACVTool archive for firmware {firmware_id}")
         return
 
     # Upload process
