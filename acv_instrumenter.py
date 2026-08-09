@@ -17,7 +17,7 @@ from config import (
     PATH_BUILD_ACV_ERROR_LOG,
     PATH_BUILD_ACV_LOG,
     PRE_INJECTOR_CONFIG,
-    BUILD_OUT_PATH
+    BUILD_OUT_PATH, POST_INJECTOR_CONFIG
 )
 from json_writer import write_json_output, write_json_nd_output
 
@@ -269,7 +269,7 @@ def _get_target_apks(target_directory_path):
     apk_path_list = glob.glob(os.path.join(target_directory_path, "**", "*.apk"), recursive=True)
 
     try:
-        skip_keywords = PRE_INJECTOR_CONFIG.get("ACVTOOL_SKIP_APK_KEYWORDS", []) or []
+        skip_keywords = POST_INJECTOR_CONFIG.get("ACVTOOL_SKIP_APK_KEYWORDS", []) or []
         skip_keywords = [k.lower() for k in skip_keywords if isinstance(k, str) and k.strip()]
     except Exception:
         skip_keywords = []
