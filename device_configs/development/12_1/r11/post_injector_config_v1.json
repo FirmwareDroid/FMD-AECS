@@ -541,7 +541,8 @@
     "Media",
     "Phone",
     "Print",
-    "CarrierConfig"
+    "CarrierConfig",
+    "SettingsProvider"
   ],
   "ENABLE_ACVTOOL_INSTRUMENTATION": true
 }

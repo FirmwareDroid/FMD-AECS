@@ -575,6 +575,7 @@
     "Launcher",
     "Media",
     "Phone",
-    "Print"
+    "Print",
+    "SettingsProvider"
   ]
 }
