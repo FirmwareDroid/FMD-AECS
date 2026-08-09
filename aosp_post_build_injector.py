@@ -662,7 +662,8 @@ def process_partitions(aosp_path,
                 version=aosp_version,
                 lunch_target=lunch_target,
                 tag=tag,
-                delete_instrumented_apks=ACVTOOL_DELETE_INSTRUMENTED_APKS
+                delete_instrumented_apks=ACVTOOL_DELETE_INSTRUMENTED_APKS,
+                post_injector_config=POST_INJECTOR_CONFIG
             )
             acv_end_time = time.time()
             execution_time = acv_end_time - start_time

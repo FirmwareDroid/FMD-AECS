@@ -18,11 +18,10 @@ from common import upload_build_artefact
 from config import (
     PATH_BUILD_ACV_ERROR_LOG,
     PATH_BUILD_ACV_LOG,
-    PRE_INJECTOR_CONFIG,
-    BUILD_OUT_PATH, POST_INJECTOR_CONFIG
+    BUILD_OUT_PATH
 )
 from json_writer import write_json_output, write_json_nd_output
-
+POST_INJECTOR_CONFIG = {}
 
 def _acv_instrument_worker(params):
     """Worker called in a separate process to instrument a single APK."""
@@ -488,13 +487,16 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id,
                                                 lunch_target=None,
                                                 tag=None,
                                                 delete_instrumented_apks=False,
-                                                max_workers=None
+                                                max_workers=None,
+                                                post_injector_config=None
                                                 ):
     """
     Parallel version of add_acvtool_instrumentation using multiple processes.
     Processes APKs in parallel using a process pool. Writes a timing JSON (same layout as
     the single-process function) into the firmware folder under BUILD_OUT_PATH.
     """
+    global POST_INJECTOR_CONFIG
+    POST_INJECTOR_CONFIG = post_injector_config
     result_dict = {"success": [], "failed": []}
     acv_executable = _resolve_acv_executable()
 
