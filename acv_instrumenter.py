@@ -77,7 +77,7 @@ def _acv_instrument_worker(params):
                                     )
 
             try:
-                out, _ = proc.communicate(timeout=700)
+                out, _ = proc.communicate(timeout=1400)
                 elapsed = round(time.time() - start, 2)
                 out_decoded = out.decode(errors='ignore') if out else ""
 
@@ -288,7 +288,7 @@ def _get_target_apks(target_directory_path):
 
     logging.info(f"ACVTool instrumentation: skipped {len(skipped)} APK(s) matching skip keywords ({skip_keywords}).")
     if skipped:
-        logging.debug(f"Skipped APKs: {skipped}")
+        logging.info(f"Skipped APKs: {skipped}")
 
     return filtered
 

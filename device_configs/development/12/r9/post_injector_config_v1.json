@@ -576,7 +576,7 @@
     "Launcher",
     "Media",
     "Phone",
-    "Print",
-    "SettingsProvider"
-  ]
+    "Print"
+  ],
+  "ACV_INSTRUMENT_RETRY_ATTEMPTS": 2
 }

@@ -542,8 +542,8 @@
     "Media",
     "Phone",
     "Print",
-    "CarrierConfig",
-    "SettingsProvider"
+    "CarrierConfig"
   ],
+  "ACV_INSTRUMENT_RETRY_ATTEMPTS": 2,
   "ENABLE_ACVTOOL_INSTRUMENTATION": true
 }
