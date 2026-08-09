@@ -189,7 +189,8 @@
     "MI",
     "Audio",
     "Music",
-    "Settings"
+    "Settings",
+    "PackageInstaller"
   ],
   "ALLOW_APP_INJECT_ALWAYS": [
     "GoogleExtServices.apk",
