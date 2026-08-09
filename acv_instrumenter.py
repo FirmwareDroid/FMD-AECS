@@ -55,7 +55,8 @@ def _acv_instrument_worker(params):
             max_attempts = 1
 
         last_out_decoded = ""
-        fallback_tried = False
+        tried_method = False
+        tried_class = False
         for attempt in range(1, max_attempts + 1):
             attempt_out = out_folder if attempt == 1 else f"{out_folder}_retry{attempt}"
             # Prepare a fresh workspace for this attempt
