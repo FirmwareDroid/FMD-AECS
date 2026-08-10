@@ -2315,6 +2315,7 @@ def main():
             fmd_cookies = authenticate_fmd(graphql_url, fmd_username, fmd_password, csrf_cookie)
         except Exception as e:
             logging.error(f"Error occurred while authenticating with FMD: {e}")
+            fmd_cookies = None
     else:
         logging.warning("No FMD username or FMD password provided. APK signing might fail")
         fmd_cookies = None
