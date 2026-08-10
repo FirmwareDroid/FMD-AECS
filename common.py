@@ -274,9 +274,9 @@ def upload_build_artefact(repo_url, username, password, artefact_path, filename)
 
     """
     is_upload_success = False
-    max_attempts = 5
+    max_attempts = 20
     download_url = None
-    retry_delay = 5  # seconds (exponential backoff base)
+    retry_delay = 10  # seconds (exponential backoff base)
     while not is_upload_success and max_attempts > 0:
         logging.debug(f"Uploading image {filename} to repo {repo_url}.")
         try:
