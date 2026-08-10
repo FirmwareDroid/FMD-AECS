@@ -551,6 +551,7 @@ def _create_and_upload_archive(firmware_id, firmware_folder, base_path_acv, vers
 
         is_uploaded = False
         download_url = None
+        local_sha256 = ""
         try:
             is_uploaded, download_url = upload_build_artefact(raw_repo, repo_user, repo_pass, archive_path,
                                                               archive_filename)
