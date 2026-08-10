@@ -7,6 +7,7 @@ from ConfigManager import ConfigManager
 from config import VENDOR_NAMES
 import hashlib
 import subprocess
+import time
 
 from fmd_backend_requests import upload_image_as_raw
 
@@ -275,6 +276,7 @@ def upload_build_artefact(repo_url, username, password, artefact_path, filename)
     is_upload_success = False
     max_attempts = 5
     download_url = None
+    retry_delay = 5  # seconds (exponential backoff base)
     while not is_upload_success and max_attempts > 0:
         logging.debug(f"Uploading image {filename} to repo {repo_url}.")
         try:
@@ -287,7 +289,15 @@ def upload_build_artefact(repo_url, username, password, artefact_path, filename)
             logging.error(f"Error uploading image: {err}")
         max_attempts -= 1
         if not is_upload_success:
-            logging.error(f"Failed to upload image {filename} to repo. Retrying...{max_attempts}")
+            logging.error(f"Failed to upload image {filename} to repo. Retrying... attempts left={max_attempts}")
+            if max_attempts > 0:
+                logging.info(f"Waiting {retry_delay}s before next upload attempt")
+                try:
+                    time.sleep(retry_delay)
+                except Exception:
+                    pass
+                # exponential backoff with cap
+                retry_delay = min(retry_delay * 2, 60)
         else:
             logging.info(f"Successfully uploaded image {filename} to repo {repo_url}.")
     return is_upload_success, download_url
