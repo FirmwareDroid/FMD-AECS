@@ -627,6 +627,7 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id,
     partition_path = str(os.path.join(base_path_acv, firmware_id, partition_name))
     shutil.rmtree(partition_path, ignore_errors=True)
     os.makedirs(firmware_folder, exist_ok=True)
+    os.makedirs(partition_path, exist_ok=True)
     logging.info(f"Deleted and recreated ACVTool instrumentation folder: {partition_path}")
 
     subfolder_abs = os.path.abspath(partition_path)
