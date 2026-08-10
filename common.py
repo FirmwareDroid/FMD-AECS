@@ -288,4 +288,6 @@ def upload_build_artefact(repo_url, username, password, artefact_path, filename)
         max_attempts -= 1
         if not is_upload_success:
             logging.error(f"Failed to upload image {filename} to repo. Retrying...{max_attempts}")
+        else:
+            logging.info(f"Successfully uploaded image {filename} to repo {repo_url}.")
     return is_upload_success, download_url

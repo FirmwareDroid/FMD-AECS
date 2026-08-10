@@ -56,182 +56,235 @@ def _acv_instrument_worker(params):
         last_out_decoded = ""
         tried_method = False
         tried_class = False
-        for attempt in range(1, max_attempts + 1):
-            attempt_out = out_folder if attempt == 1 else f"{out_folder}_retry{attempt}"
-            # Prepare a fresh workspace for this attempt
-            if os.path.exists(attempt_out):
-                try:
-                    shutil.rmtree(attempt_out)
-                except Exception:
-                    pass
-            os.makedirs(attempt_out, exist_ok=True)
+        backup_path = None
 
-            cmd = [acv_executable, "instrument", "-f", apk_path, "--wd", attempt_out]
-            start = time.time()
-
-            proc = subprocess.Popen(cmd,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT,
-                                    start_new_session=True,
-                                    cwd="/tmp/"
-                                    )
-
+        # Single attempt: primary instrumentation, then method fallback, then class fallback
+        attempt_out = out_folder
+        # Prepare workspace
+        if os.path.exists(attempt_out):
             try:
-                out, _ = proc.communicate(timeout=1400)
-                elapsed = round(time.time() - start, 2)
-                out_decoded = out.decode(errors='ignore') if out else ""
+                shutil.rmtree(attempt_out)
+            except Exception:
+                pass
+        os.makedirs(attempt_out, exist_ok=True)
 
-                if proc.returncode == 0:
-                    # success
-                    return (filename, elapsed, "success", "", os.path.basename(attempt_out))
+        # Backup original APK before attempting instrumentation
+        try:
+            backup_path = f"{apk_path}.acvbackup"
+            shutil.copy2(apk_path, backup_path)
+            logging.info("Backed up APK %s to %s before instrumentation", apk_path, backup_path)
+        except Exception as e:
+            logging.error("Failed to backup APK %s before instrumentation: %s", apk_path, e)
+            return (filename, 0.0, "failed", f"BackupFailed: {e}", os.path.basename(attempt_out))
 
-                # failed attempt — try fallback instrumentation strategies
-                last_out_decoded = out_decoded
-                logging.warning("ACVTool instrumentation attempt %d/%d failed for %s (returncode=%s).", attempt, max_attempts, filename, proc.returncode)
+        # Primary instrumentation
+        cmd = [acv_executable, "instrument", "-f", apk_path, "--wd", attempt_out]
+        start = time.time()
+        proc = subprocess.Popen(cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                start_new_session=True,
+                                cwd="/tmp/"
+                                )
+        try:
+            out, _ = proc.communicate(timeout=700)
+            elapsed = round(time.time() - start, 2)
+            out_decoded = out.decode(errors='ignore') if out else ""
 
-                # try method-level fallback first, then class-level fallback if that fails
-                if not tried_method:
-                    logging.info("Attempting fallback ACVTool instrumentation using method group for %s", filename)
-                    tried_method = True
-                    fb_cmd = [acv_executable, "instrument", "-g", "method", "-f", apk_path, "--wd", attempt_out]
-                    fb_start = time.time()
-                    try:
-                        fb_proc = subprocess.Popen(fb_cmd,
-                                                   stdout=subprocess.PIPE,
-                                                   stderr=subprocess.STDOUT,
-                                                   start_new_session=True,
-                                                   cwd="/tmp/")
-                        fb_out, _ = fb_proc.communicate(timeout=700)
-                        fb_elapsed = round(time.time() - fb_start, 2)
-                        fb_out_decoded = fb_out.decode(errors='ignore') if fb_out else ""
-
-                        if fb_proc.returncode == 0:
-                            logging.info("Fallback method instrumentation succeeded for %s", filename)
-                            return (filename, fb_elapsed, "success", "", os.path.basename(attempt_out))
-
-                        # method fallback failed - include its output
-                        last_out_decoded = f"Primary: {last_out_decoded}\nFallback(method): {fb_out_decoded}"
-                        logging.warning("Fallback ACVTool instrumentation (method) failed for %s (returncode=%s).", filename, fb_proc.returncode)
-
-                    except subprocess.TimeoutExpired:
-                        logging.error("Fallback ACVTool instrumentation (method) for %s timed out after 700 seconds. Attempting to terminate process group.", filename)
-                        try:
-                            _kill_process_group(fb_proc)
-                        except Exception:
-                            pass
-                        try:
-                            fb_out, _ = fb_proc.communicate(timeout=5)
-                        except Exception:
-                            fb_out = None
-                        try:
-                            os.killpg(fb_proc.pid, signal.SIGKILL)
-                        except Exception:
-                            pass
-                        fb_out_decoded = fb_out.decode(errors='ignore') if fb_out else ""
-                        last_out_decoded = f"Primary: {last_out_decoded}\nFallbackTimeout(method): {fb_out_decoded}"
-                        logging.warning("Fallback(method) attempt for %s timed out.", filename)
-
-                    except Exception as e:
-                        try:
-                            fb_out, _ = fb_proc.communicate(timeout=1)
-                            fb_out_decoded = fb_out.decode(errors='ignore') if fb_out else ""
-                        except Exception:
-                            fb_out_decoded = ""
-                        last_out_decoded = f"Primary: {last_out_decoded}\nFallbackException(method): {e} {fb_out_decoded}"
-                        logging.exception("Fallback ACVTool instrumentation (method) raised exception for %s", filename)
-
-                # If method fallback did not succeed, try class-level fallback once
-                if not tried_class and tried_method:
-                    logging.info("Attempting fallback ACVTool instrumentation using class group for %s", filename)
-                    tried_class = True
-                    cls_cmd = [acv_executable, "instrument", "-g", "class", "-f", apk_path, "--wd", attempt_out]
-                    cls_start = time.time()
-                    try:
-                        cls_proc = subprocess.Popen(cls_cmd,
-                                                    stdout=subprocess.PIPE,
-                                                    stderr=subprocess.STDOUT,
-                                                    start_new_session=True,
-                                                    cwd="/tmp/")
-                        cls_out, _ = cls_proc.communicate(timeout=700)
-                        cls_elapsed = round(time.time() - cls_start, 2)
-                        cls_out_decoded = cls_out.decode(errors='ignore') if cls_out else ""
-
-                        if cls_proc.returncode == 0:
-                            logging.info("Fallback class instrumentation succeeded for %s", filename)
-                            return (filename, cls_elapsed, "success", "", os.path.basename(attempt_out))
-
-                        # class fallback failed - include its output
-                        last_out_decoded = f"{last_out_decoded}\nFallback(class): {cls_out_decoded}"
-                        logging.warning("Fallback ACVTool instrumentation (class) failed for %s (returncode=%s).", filename, cls_proc.returncode)
-
-                    except subprocess.TimeoutExpired:
-                        logging.error("Fallback ACVTool instrumentation (class) for %s timed out after 700 seconds. Attempting to terminate process group.", filename)
-                        try:
-                            _kill_process_group(cls_proc)
-                        except Exception:
-                            pass
-                        try:
-                            cls_out, _ = cls_proc.communicate(timeout=5)
-                        except Exception:
-                            cls_out = None
-                        try:
-                            os.killpg(cls_proc.pid, signal.SIGKILL)
-                        except Exception:
-                            pass
-                        cls_out_decoded = cls_out.decode(errors='ignore') if cls_out else ""
-                        last_out_decoded = f"{last_out_decoded}\nFallbackTimeout(class): {cls_out_decoded}"
-                        logging.warning("Fallback(class) attempt for %s timed out.", filename)
-
-                    except Exception as e:
-                        try:
-                            cls_out, _ = cls_proc.communicate(timeout=1)
-                            cls_out_decoded = cls_out.decode(errors='ignore') if cls_out else ""
-                        except Exception:
-                            cls_out_decoded = ""
-                        last_out_decoded = f"{last_out_decoded}\nFallbackException(class): {e} {cls_out_decoded}"
-                        logging.exception("Fallback ACVTool instrumentation (class) raised exception for %s", filename)
-
-            except subprocess.TimeoutExpired:
-                logging.error("ACVTool instrumentation for %s timed out after 700 seconds on attempt %d/%d. Attempting to terminate process group.", filename, attempt, max_attempts)
-                elapsed = round(time.time() - start, 2)
-                _kill_process_group(proc)
-
-                # Allow a short grace period to collect output
+            if proc.returncode == 0:
+                # success - remove backup if present
                 try:
-                    out, _ = proc.communicate(timeout=5)
-                except Exception:
-                    out = None
-
-                # Ensure death
-                try:
-                    os.killpg(proc.pid, signal.SIGKILL)
+                    if backup_path and os.path.exists(backup_path):
+                        os.remove(backup_path)
+                        logging.info("Removed APK backup %s after successful instrumentation", backup_path)
                 except Exception:
                     pass
+                return (filename, elapsed, "success", "", os.path.basename(attempt_out))
 
-                out_decoded = out.decode(errors='ignore') if out else ""
-                last_out_decoded = f"TimeoutExpired: {out_decoded}"
-                logging.warning("ACVTool attempt %d/%d for %s timed out.", attempt, max_attempts, filename)
+            # failed attempt — proceed to fallbacks
+            last_out_decoded = out_decoded
+            logging.warning("ACVTool instrumentation failed for %s (returncode=%s).", filename, proc.returncode)
 
+        except subprocess.TimeoutExpired:
+            logging.error("ACVTool instrumentation for %s timed out after 700 seconds. Attempting to terminate process group.", filename)
+            elapsed = round(time.time() - start, 2)
+            _kill_process_group(proc)
+
+            # Allow a short grace period to collect output
+            try:
+                out, _ = proc.communicate(timeout=5)
+            except Exception:
+                out = None
+
+            # Ensure death
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except Exception:
+                pass
+
+            out_decoded = out.decode(errors='ignore') if out else ""
+            last_out_decoded = f"TimeoutExpired: {out_decoded}"
+
+            # Restore APK from backup if present
+            try:
+                if backup_path and os.path.exists(backup_path):
+                    shutil.copy2(backup_path, apk_path)
+                    logging.info("Restored APK %s from backup %s after timeout", apk_path, backup_path)
+                    try:
+                        os.remove(backup_path)
+                    except Exception:
+                        pass
             except Exception as e:
-                # Capture any unexpected exception and continue retrying if attempts remain
-                elapsed = round(time.time() - start, 2) if start else 0.0
-                try:
-                    out, _ = proc.communicate(timeout=1)
-                    out_decoded = out.decode(errors='ignore') if out else ""
-                except Exception:
-                    out_decoded = ""
-                last_out_decoded = f"Exception: {e} {out_decoded}"
-                logging.exception("ACVTool instrumentation attempt %d/%d raised exception for %s", attempt, max_attempts, filename)
+                logging.error("Failed to restore APK from backup after timeout: %s", e)
 
-            # If we have more attempts left, back off a bit and retry
-            if attempt < max_attempts:
-                backoff = min(5 * attempt, 30)
-                logging.info("Retrying instrumentation for %s after %ds backoff (attempt %d/%d)", filename, backoff, attempt + 1, max_attempts)
-                time.sleep(backoff)
-            else:
-                # final failure
-                elapsed = round((time.time() - start) if start else 0.0, 2)
-                return (filename, elapsed, "failed", last_out_decoded, os.path.basename(attempt_out))
+            return (filename, elapsed, "failed", last_out_decoded, os.path.basename(attempt_out))
+
+        except Exception as e:
+            # Capture any unexpected exception and fail
+            elapsed = round(time.time() - start, 2) if start else 0.0
+            try:
+                out, _ = proc.communicate(timeout=1)
+                out_decoded = out.decode(errors='ignore') if out else ""
+            except Exception:
+                out_decoded = ""
+            last_out_decoded = f"Exception: {e} {out_decoded}"
+
+            # Restore APK from backup if present
+            try:
+                if backup_path and os.path.exists(backup_path):
+                    shutil.copy2(backup_path, apk_path)
+                    logging.info("Restored APK %s from backup %s after exception", apk_path, backup_path)
+                    try:
+                        os.remove(backup_path)
+                    except Exception:
+                        pass
+            except Exception as re:
+                logging.error("Failed to restore APK from backup after exception: %s", re)
+
+            logging.exception("ACVTool instrumentation raised exception for %s", filename)
+            return (filename, elapsed, "failed", last_out_decoded, os.path.basename(attempt_out))
+
+        # Method-level fallback
+        logging.info("Attempting fallback ACVTool instrumentation using method group for %s", filename)
+        fb_cmd = [acv_executable, "instrument", "-g", "method", "-f", apk_path, "--wd", attempt_out]
+        fb_start = time.time()
+        try:
+            fb_proc = subprocess.Popen(fb_cmd,
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT,
+                                       start_new_session=True,
+                                       cwd="/tmp/")
+            fb_out, _ = fb_proc.communicate(timeout=700)
+            fb_elapsed = round(time.time() - fb_start, 2)
+            fb_out_decoded = fb_out.decode(errors='ignore') if fb_out else ""
+
+            if fb_proc.returncode == 0:
+                logging.info("Fallback method instrumentation succeeded for %s", filename)
+                try:
+                    if backup_path and os.path.exists(backup_path):
+                        os.remove(backup_path)
+                except Exception:
+                    pass
+                return (filename, fb_elapsed, "success", "", os.path.basename(attempt_out))
+
+            last_out_decoded = f"Primary: {last_out_decoded}\nFallback(method): {fb_out_decoded}"
+            logging.warning("Fallback ACVTool instrumentation (method) failed for %s (returncode=%s).", filename, fb_proc.returncode)
+
+        except subprocess.TimeoutExpired:
+            logging.error("Fallback ACVTool instrumentation (method) for %s timed out after 700 seconds. Attempting to terminate process group.", filename)
+            try:
+                _kill_process_group(fb_proc)
+            except Exception:
+                pass
+            try:
+                fb_out, _ = fb_proc.communicate(timeout=5)
+            except Exception:
+                fb_out = None
+            try:
+                os.killpg(fb_proc.pid, signal.SIGKILL)
+            except Exception:
+                pass
+            fb_out_decoded = fb_out.decode(errors='ignore') if fb_out else ""
+            last_out_decoded = f"Primary: {last_out_decoded}\nFallbackTimeout(method): {fb_out_decoded}"
+            logging.warning("Fallback(method) attempt for %s timed out.", filename)
+
+        except Exception as e:
+            try:
+                fb_out, _ = fb_proc.communicate(timeout=1)
+                fb_out_decoded = fb_out.decode(errors='ignore') if fb_out else ""
+            except Exception:
+                fb_out_decoded = ""
+            last_out_decoded = f"Primary: {last_out_decoded}\nFallbackException(method): {e} {fb_out_decoded}"
+            logging.exception("Fallback ACVTool instrumentation (method) raised exception for %s", filename)
+
+        # Class-level fallback
+        logging.info("Attempting fallback ACVTool instrumentation using class group for %s", filename)
+        cls_cmd = [acv_executable, "instrument", "-g", "class", "-f", apk_path, "--wd", attempt_out]
+        cls_start = time.time()
+        try:
+            cls_proc = subprocess.Popen(cls_cmd,
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.STDOUT,
+                                        start_new_session=True,
+                                        cwd="/tmp/")
+            cls_out, _ = cls_proc.communicate(timeout=700)
+            cls_elapsed = round(time.time() - cls_start, 2)
+            cls_out_decoded = cls_out.decode(errors='ignore') if cls_out else ""
+
+            if cls_proc.returncode == 0:
+                logging.info("Fallback class instrumentation succeeded for %s", filename)
+                try:
+                    if backup_path and os.path.exists(backup_path):
+                        os.remove(backup_path)
+                except Exception:
+                    pass
+                return (filename, cls_elapsed, "success", "", os.path.basename(attempt_out))
+
+            last_out_decoded = f"{last_out_decoded}\nFallback(class): {cls_out_decoded}"
+            logging.warning("Fallback ACVTool instrumentation (class) failed for %s (returncode=%s).", filename, cls_proc.returncode)
+
+        except subprocess.TimeoutExpired:
+            logging.error("Fallback ACVTool instrumentation (class) for %s timed out after 700 seconds. Attempting to terminate process group.", filename)
+            try:
+                _kill_process_group(cls_proc)
+            except Exception:
+                pass
+            try:
+                cls_out, _ = cls_proc.communicate(timeout=5)
+            except Exception:
+                cls_out = None
+            try:
+                os.killpg(cls_proc.pid, signal.SIGKILL)
+            except Exception:
+                pass
+            cls_out_decoded = cls_out.decode(errors='ignore') if cls_out else ""
+            last_out_decoded = f"{last_out_decoded}\nFallbackTimeout(class): {cls_out_decoded}"
+            logging.warning("Fallback(class) attempt for %s timed out.", filename)
+
+        except Exception as e:
+            try:
+                cls_out, _ = cls_proc.communicate(timeout=1)
+                cls_out_decoded = cls_out.decode(errors='ignore') if cls_out else ""
+            except Exception:
+                cls_out_decoded = ""
+            last_out_decoded = f"{last_out_decoded}\nFallbackException(class): {e} {cls_out_decoded}"
+            logging.exception("Fallback ACVTool instrumentation (class) raised exception for %s", filename)
+
+        # final failure after all approaches
+        elapsed = round((time.time() - start) if start else 0.0, 2)
+        # Restore APK from backup if present
+        try:
+            if backup_path and os.path.exists(backup_path):
+                shutil.copy2(backup_path, apk_path)
+                logging.info("Restored APK %s from backup %s after final failure", apk_path, backup_path)
+                try:
+                    os.remove(backup_path)
+                except Exception:
+                    pass
+        except Exception as e:
+            logging.error("Failed to restore APK from backup after final failure: %s", e)
+
+        return (filename, elapsed, "failed", last_out_decoded, os.path.basename(attempt_out))
 
     except Exception as e:
         elapsed = round((time.time() - start) if start else 0.0, 2)
@@ -374,9 +427,12 @@ def _clean_firmware_folder_for_archive(firmware_folder, delete_instrumented_apks
                         shutil.rmtree(full_dpath)
                         apktool_removed += 1
                     except Exception as e:
-                        logging.warning(f"Failed to remove apktool directory {full_dpath}: {e}")
-                        rm_process = subprocess.run(['rm', '-rf', full_dpath], check=True)
-                        rm_process.check_returncode()
+                        logging.debug(f"Failed to remove apktool with shutil. Using rm -rf. directory {full_dpath}: {e}")
+                        try:
+                            subprocess.run(['rm', '-rf', full_dpath], check=True)
+                            logging.info(f"Remove apktool folder: {full_dpath}")
+                        except subprocess.CalledProcessError as e:
+                            logging.error(f"Failed to remove apktool. Error: {e}")
         if apktool_removed:
             logging.info(f"Removed {apktool_removed} apktool directory(ies) from ACV output folder before archiving")
     except Exception as e:
