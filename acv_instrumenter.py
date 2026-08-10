@@ -600,7 +600,8 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id,
                                                 tag=None,
                                                 delete_instrumented_apks=False,
                                                 max_workers=None,
-                                                post_injector_config=None
+                                                post_injector_config=None,
+                                                upload_data=False
                                                 ):
     """
     Parallel version of add_acvtool_instrumentation using multiple processes.
@@ -622,7 +623,7 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id,
 
     base_path_acv = str(os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation"))
     firmware_folder = str(os.path.join(base_path_acv, firmware_id))
-    shutil.rmtree(firmware_folder, ignore_errors=True)
+    #shutil.rmtree(firmware_folder, ignore_errors=True)
     os.makedirs(firmware_folder, exist_ok=True)
     logging.info(f"Deleted and recreated ACVTool instrumentation folder: {firmware_folder}")
 
@@ -706,14 +707,15 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id,
 
     logging.info(f"ACVTool instrumentation parallel result: {result_dict}")
 
-    _create_and_upload_archive(
-        firmware_id,
-        firmware_folder,
-        base_path_acv,
-        version,
-        lunch_target,
-        tag,
-        delete_instrumented_apks
-    )
+    if upload_data:
+        _create_and_upload_archive(
+            firmware_id,
+            firmware_folder,
+            base_path_acv,
+            version,
+            lunch_target,
+            tag,
+            delete_instrumented_apks
+        )
     result_len = {"success": len(result_dict["success"]), "failed": len(result_dict['failed'])}
     return result_len
