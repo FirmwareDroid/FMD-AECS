@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 import logging
 import subprocess
@@ -43,9 +44,39 @@ def process_emulator_job(job, static_ip, ports):
     host_base_dir = os.path.abspath(f"./emulator/emulator_out/{image_name}")
     host_tools_dir = os.path.abspath(f"./emulator/emulator_out/{image_name}/app_testing_tools/out")
 
-    # Ensure the directories exist on the host before mounting
+    # Ensure the base directory exists on the host before mounting and is empty
     os.makedirs(host_base_dir, exist_ok=True)
+    try:
+        for entry in os.listdir(host_base_dir):
+            entry_path = os.path.join(host_base_dir, entry)
+            try:
+                if os.path.islink(entry_path) or os.path.isfile(entry_path):
+                    os.remove(entry_path)
+                elif os.path.isdir(entry_path):
+                    shutil.rmtree(entry_path)
+            except Exception as e:
+                logging.error(f"[Job {job['id']}] Failed to remove {entry_path} while cleaning host_base_dir: {e}")
+                raise
+    except Exception as e:
+        logging.error(f"[Job {job['id']}] Could not ensure host_base_dir {host_base_dir} is empty: {e}")
+        raise
+
+    # Ensure the tools directory exists and is empty
     os.makedirs(host_tools_dir, exist_ok=True)
+    try:
+        for entry in os.listdir(host_tools_dir):
+            entry_path = os.path.join(host_tools_dir, entry)
+            try:
+                if os.path.islink(entry_path) or os.path.isfile(entry_path):
+                    os.remove(entry_path)
+                elif os.path.isdir(entry_path):
+                    shutil.rmtree(entry_path)
+            except Exception as e:
+                logging.error(f"[Job {job['id']}] Failed to remove {entry_path} while cleaning host_tools_dir: {e}")
+                raise
+    except Exception as e:
+        logging.error(f"[Job {job['id']}] Could not ensure host_tools_dir {host_tools_dir} is empty: {e}")
+        raise
 
     try:
         container = client.containers.create(
