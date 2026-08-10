@@ -2308,10 +2308,13 @@ def main():
     pre_injector_config, post_injector_config = load_configs(pre_injector_config_path, post_injector_config_path)
 
     if fmd_username and fmd_password:
-        fmd_url = post_injector_config["FMD_URL"]
-        graphql_url = post_injector_config["GRAPHQL_API_URL"]
-        csrf_cookie = get_csrf_token(fmd_url)
-        fmd_cookies = authenticate_fmd(graphql_url, fmd_username, fmd_password, csrf_cookie)
+        try:
+            fmd_url = post_injector_config["FMD_URL"]
+            graphql_url = post_injector_config["GRAPHQL_API_URL"]
+            csrf_cookie = get_csrf_token(fmd_url)
+            fmd_cookies = authenticate_fmd(graphql_url, fmd_username, fmd_password, csrf_cookie)
+        except Exception as e:
+            logging.error(f"Error occurred while authenticating with FMD: {e}")
     else:
         logging.warning("No FMD username or FMD password provided. APK signing might fail")
         fmd_cookies = None
