@@ -168,6 +168,7 @@ def _acv_instrument_worker(params):
         logging.info("Attempting fallback ACVTool instrumentation using method group for %s", filename)
         fb_cmd = [acv_executable, "instrument", "-g", "method", "-f", apk_path, "--wd", attempt_out]
         fb_start = time.time()
+        fb_proc = None
         try:
             fb_proc = subprocess.Popen(fb_cmd,
                                        stdout=subprocess.PIPE,
@@ -192,21 +193,22 @@ def _acv_instrument_worker(params):
 
         except subprocess.TimeoutExpired:
             logging.error("Fallback ACVTool instrumentation (method) for %s timed out after 700 seconds. Attempting to terminate process group.", filename)
-            try:
-                _kill_process_group(fb_proc)
-            except Exception:
-                pass
-            try:
-                fb_out, _ = fb_proc.communicate(timeout=5)
-            except Exception:
-                fb_out = None
-            try:
-                os.killpg(fb_proc.pid, signal.SIGKILL)
-            except Exception:
-                pass
-            fb_out_decoded = fb_out.decode(errors='ignore') if fb_out else ""
-            last_out_decoded = f"Primary: {last_out_decoded}\nFallbackTimeout(method): {fb_out_decoded}"
-            logging.warning("Fallback(method) attempt for %s timed out.", filename)
+            if fb_proc:
+                try:
+                    _kill_process_group(fb_proc)
+                except Exception:
+                    pass
+                try:
+                    fb_out, _ = fb_proc.communicate(timeout=5)
+                except Exception:
+                    fb_out = None
+                try:
+                    os.killpg(fb_proc.pid, signal.SIGKILL)
+                except Exception:
+                    pass
+                fb_out_decoded = fb_out.decode(errors='ignore') if fb_out else ""
+                last_out_decoded = f"Primary: {last_out_decoded}\nFallbackTimeout(method): {fb_out_decoded}"
+                logging.warning("Fallback(method) attempt for %s timed out.", filename)
 
         except Exception as e:
             try:
@@ -221,6 +223,7 @@ def _acv_instrument_worker(params):
         logging.info("Attempting fallback ACVTool instrumentation using class group for %s", filename)
         cls_cmd = [acv_executable, "instrument", "-g", "class", "-f", apk_path, "--wd", attempt_out]
         cls_start = time.time()
+        cls_proc = None
         try:
             cls_proc = subprocess.Popen(cls_cmd,
                                         stdout=subprocess.PIPE,
@@ -245,21 +248,22 @@ def _acv_instrument_worker(params):
 
         except subprocess.TimeoutExpired:
             logging.error("Fallback ACVTool instrumentation (class) for %s timed out after 700 seconds. Attempting to terminate process group.", filename)
-            try:
-                _kill_process_group(cls_proc)
-            except Exception:
-                pass
-            try:
-                cls_out, _ = cls_proc.communicate(timeout=5)
-            except Exception:
-                cls_out = None
-            try:
-                os.killpg(cls_proc.pid, signal.SIGKILL)
-            except Exception:
-                pass
-            cls_out_decoded = cls_out.decode(errors='ignore') if cls_out else ""
-            last_out_decoded = f"{last_out_decoded}\nFallbackTimeout(class): {cls_out_decoded}"
-            logging.warning("Fallback(class) attempt for %s timed out.", filename)
+            if cls_proc:
+                try:
+                    _kill_process_group(cls_proc)
+                except Exception:
+                    pass
+                try:
+                    cls_out, _ = cls_proc.communicate(timeout=5)
+                except Exception:
+                    cls_out = None
+                try:
+                    os.killpg(cls_proc.pid, signal.SIGKILL)
+                except Exception:
+                    pass
+                cls_out_decoded = cls_out.decode(errors='ignore') if cls_out else ""
+                last_out_decoded = f"{last_out_decoded}\nFallbackTimeout(class): {cls_out_decoded}"
+                logging.warning("Fallback(class) attempt for %s timed out.", filename)
 
         except Exception as e:
             try:
