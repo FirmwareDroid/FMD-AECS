@@ -621,14 +621,16 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id,
     apk_path_list = _get_target_apks(target_directory_path)
     logging.info(f"Found {len(apk_path_list)} APK files for ACVTool instrumentation (parallel mode).")
 
+    partition_name = str(os.path.basename(target_directory_path))
     base_path_acv = str(os.path.join(BUILD_OUT_PATH, "acvtool_instrumentation"))
     firmware_folder = str(os.path.join(base_path_acv, firmware_id))
-    #shutil.rmtree(firmware_folder, ignore_errors=True)
+    partition_path = str(os.path.join(base_path_acv, firmware_id, partition_name))
+    shutil.rmtree(partition_path, ignore_errors=True)
     os.makedirs(firmware_folder, exist_ok=True)
-    logging.info(f"Deleted and recreated ACVTool instrumentation folder: {firmware_folder}")
+    logging.info(f"Deleted and recreated ACVTool instrumentation folder: {partition_path}")
 
-    firmware_folder_abs = os.path.abspath(firmware_folder)
-    worker_args = [(apk, firmware_folder, acv_executable, firmware_folder_abs) for apk in apk_path_list]
+    subfolder_abs = os.path.abspath(partition_path)
+    worker_args = [(apk, firmware_folder, acv_executable, subfolder_abs) for apk in apk_path_list]
 
     max_workers = min(len(apk_path_list) or 1, max(1, os.cpu_count() * 4 if os.cpu_count() else 4))
 
@@ -656,7 +658,7 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id,
                 if status == "success":
                     result_dict["success"].append(filename)
                     logging.info(f"ACVTool instrumentation succeeded for {filename} in {elapsed}s (parallel)")
-                    inst_apk_path_list = _replace_original_apk_with_instrumented(apk, out_dirname, firmware_folder_abs, filename)
+                    inst_apk_path_list = _replace_original_apk_with_instrumented(apk, out_dirname, subfolder_abs, filename)
                 else:
                     result_dict["failed"].append(filename)
                     acv_error_entries.append({
@@ -708,9 +710,10 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id,
     logging.info(f"ACVTool instrumentation parallel result: {result_dict}")
 
     if upload_data:
+        tag = f"{tag}_{partition_name}"
         _create_and_upload_archive(
             firmware_id,
-            firmware_folder,
+            partition_path,
             base_path_acv,
             version,
             lunch_target,
