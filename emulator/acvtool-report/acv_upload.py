@@ -5,6 +5,7 @@ import argparse
 import logging
 from urllib.parse import urlparse
 import requests
+import hashlib
 import zipfile
 
 # Assuming this comes from your existing configuration setup
@@ -129,6 +130,7 @@ def main():
 
                     logging.info(f"Zipping {target_dir}...")
                     archive_path = None
+                    local_sha256 = None
                     for attempt in range(1, 3):
                         try:
                             archive_path = shutil.make_archive(zip_base_path, 'zip', target_dir)
@@ -136,20 +138,48 @@ def main():
                             logging.warning(f"Attempt {attempt} failed to create archive: {e}")
                             archive_path = None
 
-                        # verify
+                        # verify (including CRC check)
                         try:
                             if (archive_path and os.path.isfile(archive_path) and os.path.getsize(archive_path) > 0
                                     and zipfile.is_zipfile(archive_path)):
                                 with zipfile.ZipFile(archive_path, 'r') as z:
-                                    if z.namelist():
-                                        logging.info(f"Created valid archive: {archive_path}")
-                                        break
-                                    else:
-                                        logging.warning(f"Archive contains no files (attempt {attempt}): {archive_path}")
+                                    bad = z.testzip()
+                                    if bad:
+                                        logging.warning("Archive CRC check failed; bad member: %s", bad)
+                                        archive_path = None
+                                        try:
+                                            os.remove(archive_path)
+                                        except Exception:
+                                            pass
+                                        continue
+                                    if not z.namelist():
+                                        logging.warning("Archive contains no files (attempt %d): %s", attempt, archive_path)
+                                        archive_path = None
+                                        try:
+                                            os.remove(archive_path)
+                                        except Exception:
+                                            pass
+                                        continue
+
                             else:
                                 logging.warning(f"Archive verification failed (attempt {attempt}): {archive_path}")
                         except Exception as e:
                             logging.warning(f"Archive verification exception (attempt {attempt}): {e}")
+                            archive_path = None
+
+                        if archive_path:
+                            # compute sha256
+                            try:
+                                h = hashlib.sha256()
+                                with open(archive_path, 'rb') as f:
+                                    for chunk in iter(lambda: f.read(64 * 1024), b''):
+                                        h.update(chunk)
+                                local_sha256 = h.hexdigest()
+                                logging.info("Created and verified archive: %s (sha256=%s)", archive_path, local_sha256)
+                                break
+                            except Exception as e:
+                                logging.warning("Failed to compute checksum on archive (attempt %d): %s", attempt, e)
+                                archive_path = None
 
                         if attempt == 1:
                             logging.info("Retrying archive creation once...")
@@ -157,6 +187,9 @@ def main():
                             logging.error(f"Failed to create valid archive for firmware {firmware_id} after 2 attempts")
                             archive_path = None
 
+                    if not archive_path:
+                        logging.error(f"Skipping upload for {firmware_id} because archive creation failed")
+                        continue
 
                     success, target_url = upload_image_as_raw(
                         repo_url=args.url,
@@ -165,6 +198,14 @@ def main():
                         file_path=archive_path,
                         filename=zip_filename
                     )
+                    if success and local_sha256:
+                        try:
+                            checksum_file = f"{archive_path}.sha256"
+                            with open(checksum_file, 'w', encoding='utf-8') as cf:
+                                cf.write(f"{local_sha256}  {zip_filename}\n")
+                            logging.info("Wrote local checksum to %s", checksum_file)
+                        except Exception:
+                            logging.warning("Failed to write local checksum file for %s", archive_path)
 
                     if success:
                         logging.info(f"Successfully processed and uploaded {zip_filename}")

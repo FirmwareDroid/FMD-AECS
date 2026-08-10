@@ -11,6 +11,8 @@ import shutil
 import signal
 import subprocess
 import time
+import tempfile
+import hashlib
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -456,34 +458,64 @@ def _create_and_upload_archive(firmware_id, firmware_folder, base_path_acv, vers
 
     logging.info(f"Creating ACVTool archive {archive_base}.zip from folder: {firmware_folder}")
     archive_path = None
+    # Create the zip from a stable copy and verify integrity locally before upload.
     try:
-        for attempt in range(1, 3):  # try up to 2 times
+        max_create_attempts = 3
+        for attempt in range(1, max_create_attempts + 1):
+            logging.info("Archive creation attempt %d/%d", attempt, max_create_attempts)
             try:
-                archive_path = shutil.make_archive(archive_base, 'zip', root_dir=firmware_folder)
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    copy_dir = os.path.join(tmpdir, 'acv_copy')
+                    # Copy firmware folder to temporary location to avoid concurrent modifications
+                    shutil.copytree(firmware_folder, copy_dir)
+                    archive_path = shutil.make_archive(archive_base, 'zip', root_dir=copy_dir)
             except Exception as e:
-                logging.warning(f"Attempt {attempt} failed to create archive: {e}")
+                logging.warning(f"Attempt {attempt} failed during make_archive/copy: {e}")
                 archive_path = None
 
-            # verify archive exists, non-zero, valid zip, and contains members
+            # verify archive exists, non-zero, valid zip, and contains members; also run CRC check via testzip
             try:
                 if (archive_path and os.path.isfile(archive_path) and os.path.getsize(archive_path) > 0
                         and zipfile.is_zipfile(archive_path)):
                     with zipfile.ZipFile(archive_path, 'r') as z:
-                        if z.namelist():
-                            logging.info(f"Created valid archive: {archive_path}")
-                            break
-                        else:
-                            logging.warning(f"Archive contains no files (attempt {attempt}): {archive_path}")
+                        bad = z.testzip()
+                        if bad:
+                            logging.warning("Archive CRC check failed; bad member: %s", bad)
+                            archive_path = None
+                            # remove bad archive to avoid accidental upload
+                            try:
+                                os.remove(archive_path)
+                            except Exception:
+                                pass
                             continue
-                else:
-                    logging.warning(f"Archive verification failed (attempt {attempt}): {archive_path}")
-            except Exception as e:
-                logging.warning(f"Archive verification exception (attempt {attempt}): {e}")
+                        if not z.namelist():
+                            logging.warning("Archive contains no files (attempt %d): %s", attempt, archive_path)
+                            archive_path = None
+                            try:
+                                os.remove(archive_path)
+                            except Exception:
+                                pass
+                            continue
 
-            if attempt == 1:
-                logging.info("Retrying archive creation once...")
+                    # compute sha256 checksum for logging / local verification
+                    h = hashlib.sha256()
+                    with open(archive_path, 'rb') as f:
+                        for chunk in iter(lambda: f.read(64 * 1024), b''):
+                            h.update(chunk)
+                    local_sha256 = h.hexdigest()
+                    logging.info("Created and verified archive: %s (sha256=%s, size=%d)", archive_path, local_sha256, os.path.getsize(archive_path))
+                    break
+                else:
+                    logging.warning("Archive verification failed (attempt %d): %s", attempt, archive_path)
+            except Exception as e:
+                logging.warning("Archive verification exception (attempt %d): %s", attempt, e)
+                archive_path = None
+
+            if attempt < max_create_attempts:
+                logging.info("Retrying archive creation...")
+                time.sleep(1)
             else:
-                logging.error(f"Failed to create valid archive for firmware {firmware_id} after 2 attempts")
+                logging.error("Failed to create a valid archive for firmware %s after %d attempts", firmware_id, max_create_attempts)
                 return
 
     except Exception as e:
@@ -498,6 +530,8 @@ def _create_and_upload_archive(firmware_id, firmware_folder, base_path_acv, vers
     repo_base = globals().get('DOCKER_REPO_URL') or os.getenv('DOCKER_REPO_URL')
     repo_user = globals().get('DOCKER_REPO_USERNAME') or os.getenv('DOCKER_REPO_USERNAME')
     repo_pass = globals().get('DOCKER_REPO_PASSWORD') or os.getenv('DOCKER_REPO_PASSWORD')
+    is_uploaded = False
+    download_url = None
 
     if not repo_pass or not repo_user:
         error_msg = f"Repository credentials not fully provided (user: {repo_user}, pass: {'***' if repo_pass else 'None'}). Skipping upload."
@@ -515,11 +549,21 @@ def _create_and_upload_archive(firmware_id, firmware_folder, base_path_acv, vers
         archive_filename = os.path.basename(archive_path)
         logging.info(f"Uploading ACVTool archive {archive_filename} to raw_files repository {raw_repo}")
 
+        is_uploaded = False
+        download_url = None
         try:
             is_uploaded, download_url = upload_build_artefact(raw_repo, repo_user, repo_pass, archive_path,
                                                               archive_filename)
             if is_uploaded:
                 logging.info(f"ACVTool archive uploaded successfully: {download_url}")
+                # Persist checksum locally for traceability
+                try:
+                    checksum_file = f"{archive_path}.sha256"
+                    with open(checksum_file, 'w', encoding='utf-8') as cf:
+                        cf.write(f"{local_sha256}  {archive_filename}\n")
+                    logging.info("Wrote local archive checksum to %s", checksum_file)
+                except Exception as e:
+                    logging.warning("Failed to write local checksum file: %s", e)
             else:
                 logging.error("Failed to upload ACVTool archive to raw_files repository")
         except Exception as e:
@@ -528,15 +572,22 @@ def _create_and_upload_archive(firmware_id, firmware_folder, base_path_acv, vers
     else:
         logging.error("No repository base provided; skipping upload of ACVTool archive")
 
-    # Cleanup intermediate output folder on success
-    if archive_path and os.path.exists(archive_path):
-        try:
-            shutil.rmtree(firmware_folder)
-            logging.info(f"Removed intermediate ACVTool folder after archiving: {firmware_folder}")
-            os.remove(archive_path)
-            logging.info(f"Removed ACV Archive: {archive_path}")
-        except Exception as e:
-            logging.warning(f"Failed to remove intermediate ACVTool folder {firmware_folder}: {e}")
+    # Cleanup intermediate output folder and archive only if upload succeeded
+    if is_uploaded:
+        if archive_path and os.path.exists(archive_path):
+            try:
+                shutil.rmtree(firmware_folder)
+                logging.info(f"Removed intermediate ACVTool folder after archiving: {firmware_folder}")
+                try:
+                    os.remove(archive_path)
+                    logging.info(f"Removed ACV Archive: {archive_path}")
+                except Exception as e:
+                    logging.warning(f"Failed to remove archive file {archive_path}: {e}")
+            except Exception as e:
+                logging.warning(f"Failed to remove intermediate ACVTool folder {firmware_folder}: {e}")
+    else:
+        logging.error("Upload did not succeed; leaving archive and firmware folder for inspection.")
+        raise RuntimeError(f"Failed to upload ACVTool archive to raw_files: {archive_path}")
 
 
 def add_acvtool_instrumentation_multiprocessing(firmware_id,
