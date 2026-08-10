@@ -277,6 +277,16 @@ def upload_build_artefact(repo_url, username, password, artefact_path, filename)
     max_attempts = 20
     download_url = None
     retry_delay = 10  # seconds (exponential backoff base)
+
+    if not os.path.exists(artefact_path):
+        raise FileNotFoundError(f"Artefact not found at {artefact_path}")
+    if not username:
+        raise Exception("Username not provided")
+    if not password:
+        raise Exception("Password not provided")
+    if not repo_url:
+        raise Exception("Repo url not provided")
+
     while not is_upload_success and max_attempts > 0:
         logging.debug(f"Uploading image {filename} to repo {repo_url}.")
         try:
