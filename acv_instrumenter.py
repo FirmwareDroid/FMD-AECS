@@ -631,7 +631,7 @@ def add_acvtool_instrumentation_multiprocessing(firmware_id,
     logging.info(f"Deleted and recreated ACVTool instrumentation folder: {partition_path}")
 
     subfolder_abs = os.path.abspath(partition_path)
-    worker_args = [(apk, firmware_folder, acv_executable, subfolder_abs) for apk in apk_path_list]
+    worker_args = [(apk, partition_path, acv_executable, subfolder_abs) for apk in apk_path_list]
 
     max_workers = min(len(apk_path_list) or 1, max(1, os.cpu_count() * 4 if os.cpu_count() else 4))
 
