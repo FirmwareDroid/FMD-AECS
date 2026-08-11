@@ -18,8 +18,7 @@ from pathlib import Path
 
 import requests
 import re
-from urllib.parse import urljoin, urlparse
-import os
+from urllib.parse import urljoin
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -113,7 +112,9 @@ def fetch_one(
 
     # Discover all matching archive filenames for this firmware
     single_name = f"acvtool_{fw_id}.zip"
-    candidate_names = [single_name]
+    # Try common partition suffixes as candidates (attempt these if listing/API doesn't help)
+    suffixes = ["product", "system", "system_ext", "vendor"]
+    candidate_names = [single_name] + [f"acvtool_{fw_id}_{s}.zip" for s in suffixes]
 
     # Attempt to fetch directory listing to find partitioned archives
     try:
@@ -124,57 +125,12 @@ def fetch_one(
             pattern = re.compile(rf"acvtool_{re.escape(fw_id)}(?:_[\w\-\.]*)?\.zip")
             found = set(pattern.findall(listing_resp.text))
             if found:
+                # prefer server-provided list (sorted)
                 candidate_names = sorted(found)
                 _log(f"[{fw_id}] found {len(candidate_names)} archive(s) on server: {', '.join(candidate_names)}")
     except Exception:
-        # Ignore listing failures and fall back to single archive name
-        candidate_names = [single_name]
-
-    # If listing did not find anything, try Nexus REST API search for this firmware
-    candidate_urls = []
-    if candidate_names == [single_name]:
-        try:
-            parsed = urlparse(base_url)
-            nexus_base = f"{parsed.scheme}://{parsed.netloc}"
-            # Try search endpoint
-            search_url = f"{nexus_base}/service/rest/v1/search?repository=raw_files&query=acvtool_{fw_id}"
-            _log(f"[{fw_id}] attempting Nexus API search: {search_url}")
-            sresp = requests.get(search_url, timeout=timeout)
-            if sresp.status_code == 200:
-                try:
-                    j = sresp.json()
-                    items = j.get('items', []) if isinstance(j, dict) else []
-                    for item in items:
-                        for asset in item.get('assets', []) or []:
-                            durl = asset.get('downloadUrl') or asset.get('url')
-                            if durl:
-                                candidate_urls.append(durl)
-                            else:
-                                fname = asset.get('path') or asset.get('fileName') or asset.get('file') or asset.get('name')
-                                if fname:
-                                    candidate_urls.append(urljoin(base_url.rstrip('/') + '/', os.path.basename(fname)))
-                except Exception:
-                    pass
-            # Try assets search as fallback
-            if not candidate_urls:
-                assets_url = f"{nexus_base}/service/rest/v1/search/assets?repository=raw_files&name=acvtool_{fw_id}"
-                _log(f"[{fw_id}] attempting Nexus assets API: {assets_url}")
-                aresp = requests.get(assets_url, timeout=timeout)
-                if aresp.status_code == 200:
-                    try:
-                        aj = aresp.json()
-                        for asset in aj.get('items', []) or []:
-                            durl = asset.get('downloadUrl') or asset.get('url')
-                            if durl:
-                                candidate_urls.append(durl)
-                            else:
-                                fname = asset.get('path') or asset.get('fileName') or asset.get('file') or asset.get('name')
-                                if fname:
-                                    candidate_urls.append(urljoin(base_url.rstrip('/') + '/', os.path.basename(fname)))
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+        # Ignore listing failures and keep candidate_names with suffixes
+        pass
 
     # Prepare extraction root
     if pickle_root.exists() and overwrite:
@@ -184,14 +140,8 @@ def fetch_one(
     total_extracted = 0
     any_success = False
 
-    # If candidate_urls were discovered by Nexus API, use them; otherwise, use candidate_names
-    if candidate_urls:
-        archives_to_fetch = candidate_urls
-    else:
-        archives_to_fetch = [urljoin(base_url.rstrip('/') + '/', name) for name in candidate_names]
-
-    for url in archives_to_fetch:
-        archive_name = os.path.basename(urlparse(url).path)
+    for archive_name in candidate_names:
+        url = urljoin(base_url.rstrip('/') + '/', archive_name)
         zip_path = acv_snaps / archive_name
 
         if dry_run:
@@ -253,7 +203,7 @@ def fetch_one(
     if count == 0:
         return "fail", f"fail {fw_id}: extracted 0 pickle files"
 
-    return "ok", f"ok {fw_id}: extracted {count} pickles from {len(archives_to_fetch)} archive(s)"
+    return "ok", f"ok {fw_id}: extracted {count} pickles from {len(candidate_names)} archive(s)"
 
 
 def main() -> int:
