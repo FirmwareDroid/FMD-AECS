@@ -148,7 +148,8 @@ def main() -> int:
             if args.skip_existing and dest_report_dir.exists():
                 total_skipped_pre += 1
                 continue
-            copy_tasks.append((fw_id, src_report_dir, dest_report_dir))
+            # Include fw_dir so worker can validate and safely remove existing dest before copying
+            copy_tasks.append((fw_id, src_report_dir, dest_report_dir, fw_dir))
             total_would_copy += 1
         # Log scan progress periodically
         if fw_processed % 50 == 0 or fw_processed == total_fw:
@@ -165,13 +166,28 @@ def main() -> int:
 
     # Define worker
     def copy_worker(task):
-        fw_id, src, dest = task
+        fw_id, src, dest, fw_dir = task
         acv_reports_root = dest.parent
         try:
             acv_reports_root.mkdir(parents=True, exist_ok=True)
-            # If destination exists and looks like it's inside BASE_DIR, remove it to ensure clean copy
-            if dest.exists() and dest.is_dir() and str(BASE_DIR) in dest.resolve().as_posix():
-                shutil.rmtree(dest)
+            # If destination exists, remove it to ensure clean copy (overwrite behavior)
+            if dest.exists() and dest.is_dir():
+                try:
+                    # Ensure dest is under the firmware directory for safety
+                    try:
+                        dest.resolve().relative_to(fw_dir.resolve())
+                        inside_fw = True
+                    except Exception:
+                        inside_fw = False
+
+                    if inside_fw:
+                        logger.info(f"Deleting existing report directory {dest}")
+                        shutil.rmtree(dest)
+                    else:
+                        logger.warning(f"Destination {dest} is outside firmware dir {fw_dir}; not removing. Will merge instead.")
+                except Exception as e:
+                    logger.warning(f"Could not remove existing destination {dest}: {e}")
+
             shutil.copytree(src, dest, dirs_exist_ok=True)
             return (True, fw_id, dest)
         except Exception as e:
