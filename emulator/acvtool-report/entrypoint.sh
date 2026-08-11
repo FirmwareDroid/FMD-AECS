@@ -60,17 +60,19 @@ case "$1" in
     fi
 
     # Stage matching pickle files from <firmware>/acv_snaps/pickle_files.
-    # The notebook normalizes pickle stem by removing a trailing _<digits> suffix.
+    # Pickles may now be organized in partition subfolders (e.g. system/, product/, vendor/).
+    # The notebook normalizes pickle stem by removing a trailing _<digits> suffix to match package name.
     pickle_staged=0
     pickle_src_root="$acv_snaps_dir/pickle_files"
     if [ -d "$pickle_src_root" ]; then
+      # Find recursively in partition subfolders
       while IFS= read -r -d '' pfile; do
         stem="$(basename "$pfile" .pickle)"
         normalized="$stem"
         if [[ "$stem" =~ _[0-9]+$ ]]; then
           normalized="${stem%_*}"
         fi
-        normalized="$stem"
+        # If the normalized stem matches the package name, stage it
         if [ "$normalized" = "$pkg" ]; then
           cp -f "$pfile" "$wd/pickles/"
           pickle_staged=$((pickle_staged + 1))
