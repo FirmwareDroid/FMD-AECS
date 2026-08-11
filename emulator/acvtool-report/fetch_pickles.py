@@ -17,6 +17,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import requests
+import re
+from urllib.parse import urljoin
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -108,45 +110,97 @@ def fetch_one(
         logger.warning(f"[{fw_id}] already have pickle files")
         return "skip", f"skip {fw_id}: pickle_files already populated"
 
-    url = f"{base_url.rstrip('/')}/acvtool_{fw_id}.zip"
-    zip_path = acv_snaps / f"acvtool_{fw_id}.zip"
+    # Discover all matching archive filenames for this firmware
+    single_name = f"acvtool_{fw_id}.zip"
+    candidate_names = [single_name]
 
-    if dry_run:
-        return "ok", f"dry-run {fw_id}: would fetch {url}"
-
+    # Attempt to fetch directory listing to find partitioned archives
     try:
-        _log(f"[{fw_id}] fetching {url}")
-        resp = download_zip_with_progress(
-            url=url,
-            zip_path=zip_path,
-            timeout=timeout,
-            fw_id=fw_id,
-            progress_interval=progress_interval,
-        )
-    except Exception as exc:
-        return "fail", f"fail {fw_id}: request error: {exc}"
+        _log(f"[{fw_id}] listing base url for matching archives")
+        listing_resp = requests.get(base_url, timeout=timeout)
+        if listing_resp.status_code == 200 and listing_resp.text:
+            # Find all filenames that start with acvtool_<fwid> and end with .zip
+            pattern = re.compile(rf"acvtool_{re.escape(fw_id)}(?:_[\w\-\.]*)?\.zip")
+            found = set(pattern.findall(listing_resp.text))
+            if found:
+                candidate_names = sorted(found)
+                _log(f"[{fw_id}] found {len(candidate_names)} archive(s) on server: {', '.join(candidate_names)}")
+    except Exception:
+        # Ignore listing failures and fall back to single archive name
+        candidate_names = [single_name]
 
-    if resp.status_code != 200:
-        return "fail", f"fail {fw_id}: status {resp.status_code} for {url}"
-
+    # Prepare extraction root
     if pickle_root.exists() and overwrite:
         shutil.rmtree(pickle_root)
-
     pickle_root.mkdir(parents=True, exist_ok=True)
 
-    try:
-        shutil.unpack_archive(str(zip_path), str(pickle_root))
-    except Exception as exc:
-        return "fail", f"fail {fw_id}: unzip failed: {exc}"
-    finally:
-        if zip_path.exists():
-            zip_path.unlink()
+    total_extracted = 0
+    any_success = False
+
+    for archive_name in candidate_names:
+        url = urljoin(base_url.rstrip('/') + '/', archive_name)
+        zip_path = acv_snaps / archive_name
+
+        if dry_run:
+            _log(f"[{fw_id}] dry-run: would fetch {url}")
+            continue
+
+        try:
+            _log(f"[{fw_id}] fetching {url}")
+            resp = download_zip_with_progress(
+                url=url,
+                zip_path=zip_path,
+                timeout=timeout,
+                fw_id=fw_id,
+                progress_interval=progress_interval,
+            )
+        except Exception as exc:
+            _log(f"[{fw_id}] request error for {archive_name}: {exc}", logging.WARNING)
+            continue
+
+        if resp.status_code != 200:
+            _log(f"[{fw_id}] skip {archive_name}: status {resp.status_code}", logging.WARNING)
+            continue
+
+        # Determine partition name from filename: acvtool_<fwid>_partition.zip => partition
+        part = 'root'
+        m = re.match(rf"acvtool_{re.escape(fw_id)}(?:_([\w\-\.]+))?\.zip", archive_name)
+        if m and m.group(1):
+            part = m.group(1)
+
+        dest_dir = pickle_root / part
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            shutil.unpack_archive(str(zip_path), str(dest_dir))
+        except Exception as exc:
+            _log(f"[{fw_id}] unzip failed for {archive_name}: {exc}", logging.WARNING)
+            try:
+                if zip_path.exists():
+                    zip_path.unlink()
+            except Exception:
+                pass
+            continue
+        finally:
+            try:
+                if zip_path.exists():
+                    zip_path.unlink()
+            except Exception:
+                pass
+
+        extracted = sum(1 for _ in dest_dir.rglob("*.pickle"))
+        total_extracted += extracted
+        any_success = True
+        _log(f"[{fw_id}] extracted {extracted} pickles into {dest_dir}")
+
+    if not any_success:
+        return "fail", f"fail {fw_id}: no archives fetched"
 
     count = sum(1 for _ in pickle_root.rglob("*.pickle"))
     if count == 0:
         return "fail", f"fail {fw_id}: extracted 0 pickle files"
 
-    return "ok", f"ok {fw_id}: extracted {count} pickles"
+    return "ok", f"ok {fw_id}: extracted {count} pickles from {len(candidate_names)} archive(s)"
 
 
 def main() -> int:
