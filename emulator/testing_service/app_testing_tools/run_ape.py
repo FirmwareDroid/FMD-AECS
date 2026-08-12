@@ -15,6 +15,7 @@ Examples:
 
 import argparse
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import shlex
 import subprocess
@@ -44,9 +45,6 @@ if _PROJECT_ROOT and _PROJECT_ROOT not in sys.path:
 from common import get_adb_cmd
 from test_results import append_run
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 APE_DIR = os.path.join(BASE_DIR, 'tools', 'ape-bin')
 APE_JAR_LOCAL = os.path.join(APE_DIR, 'ape.jar')
@@ -56,6 +54,26 @@ DEVICE_TMP = '/data/local/tmp/'
 DEVICE_APE_JAR = DEVICE_TMP + 'ape.jar'
 DEVICE_APE_SCRIPT = DEVICE_TMP + 'ape'
 
+# Default output directory for start_apps summaries
+DEFAULT_OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+os.makedirs(DEFAULT_OUT_DIR, exist_ok=True)
+log_file_path = os.path.join(DEFAULT_OUT_DIR, 'ape_start.log')
+root_logger = logging.getLogger()
+already_have = False
+for h in list(root_logger.handlers):
+    try:
+        if isinstance(h, logging.FileHandler) and os.path.abspath(getattr(h, 'baseFilename', '')) == os.path.abspath(log_file_path):
+            already_have = True
+            break
+    except Exception:
+        continue
+if not already_have:
+    fh = logging.FileHandler(log_file_path, mode='a', encoding='utf-8')
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    root_logger.addHandler(fh)
+
 
 def _adb(serial=None):
     return get_adb_cmd(serial)
@@ -64,12 +82,12 @@ def _adb(serial=None):
 def push_ape(serial=None):
     """Push ape.jar and ape shell launcher to the device."""
     adb = _adb(serial)
-    logger.info("Pushing ape.jar to device…")
+    logging.info("Pushing ape.jar to device…")
     subprocess.check_call(adb + ['push', APE_JAR_LOCAL, DEVICE_TMP])
-    logger.info("Pushing ape shell script to device…")
+    logging.info("Pushing ape shell script to device…")
     subprocess.check_call(adb + ['push', APE_SCRIPT_LOCAL, DEVICE_TMP])
     subprocess.check_call(adb + ['shell', f'chmod 755 {DEVICE_APE_SCRIPT}'])
-    logger.info("Ape binaries deployed to device.")
+    logging.info("Ape binaries deployed to device.")
 
 
 def start_package(package, serial=None, wait_seconds=2):
@@ -78,16 +96,16 @@ def start_package(package, serial=None, wait_seconds=2):
     Returns True if the start command was invoked successfully, False otherwise.
     """
     adb = _adb(serial)
-    logger.info('Starting package %s on device (bringing to foreground)...', package)
+    logging.info('Starting package %s on device (bringing to foreground)...', package)
     try:
         # Use monkey to launch the LAUNCHER activity for the package (robust across apps)
         subprocess.check_call(adb + ['shell', 'monkey', '-p', package, '-c', 'android.intent.category.LAUNCHER', '1'])
         # give the app a moment to come to foreground
         time.sleep(wait_seconds)
-        logger.info('Start command for %s issued; waited %ss for app to stabilize', package, wait_seconds)
+        logging.info('Start command for %s issued; waited %ss for app to stabilize', package, wait_seconds)
         return True
     except subprocess.CalledProcessError as e:
-        logger.warning('Failed to start package %s via monkey: %s', package, e)
+        logging.warning('Failed to start package %s via monkey: %s', package, e)
         return False
 
 
@@ -109,7 +127,7 @@ def run_ape(package, running_minutes=300, strategy='sata', serial=None):
            '--ignore-security-exceptions',
            "-s", "12345"]
     )
-    logger.info("Running Ape on package: %s (strategy=%s, minutes=%d). CMD: %s", package, strategy, running_minutes, cmd)
+    logging.info("Running Ape on package: %s (strategy=%s, minutes=%d). CMD: %s", package, strategy, running_minutes, cmd)
     # Start Ape (monkey) as a subprocess so we can monitor foreground package
     cmd = [str(a) for a in cmd]
     proc = subprocess.Popen(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -162,18 +180,18 @@ def run_ape(package, running_minutes=300, strategy='sata', serial=None):
                 fg = get_foreground_package()
                 # If the foreground package is different, bring target back
                 if fg and fg != package:
-                    logger.info('Foreground changed to %s; bringing %s back to foreground', fg, package)
+                    logging.info('Foreground changed to %s; bringing %s back to foreground', fg, package)
                     # Try multiple quick relaunch attempts to ensure app returns to foreground
                     for attempt in range(3):
                         try:
                             start_package(package, serial=serial, wait_seconds=1)
                         except Exception:
-                            logger.exception('Failed to restart package %s on attempt %d', package, attempt + 1)
+                            logging.exception('Failed to restart package %s on attempt %d', package, attempt + 1)
                         # re-check foreground and break early if restored
                         try:
                             new_fg = get_foreground_package()
                             if new_fg == package:
-                                logger.info('Package %s restored to foreground on attempt %d', package, attempt + 1)
+                                logging.info('Package %s restored to foreground on attempt %d', package, attempt + 1)
                                 break
                         except Exception:
                             pass
@@ -184,16 +202,16 @@ def run_ape(package, running_minutes=300, strategy='sata', serial=None):
                     pid_res = subprocess.run(adb_cmd, capture_output=True, text=True, timeout=5)
                     if pid_res.returncode != 0 or not (pid_res.stdout or pid_res.stderr).strip():
                         # pidof not found or package not running — try a few quick starts
-                        logger.info('Package %s does not appear to be running (pidof returned %s). Attempting to start.', package, pid_res.returncode)
+                        logging.info('Package %s does not appear to be running (pidof returned %s). Attempting to start.', package, pid_res.returncode)
                         for attempt in range(3):
                             try:
                                 start_package(package, serial=serial, wait_seconds=1)
                             except Exception:
-                                logger.exception('Failed to start package %s on attempt %d', package, attempt + 1)
+                                logging.exception('Failed to start package %s on attempt %d', package, attempt + 1)
                             try:
                                 new_fg = get_foreground_package()
                                 if new_fg == package:
-                                    logger.info('Package %s started and in foreground on attempt %d', package, attempt + 1)
+                                    logging.info('Package %s started and in foreground on attempt %d', package, attempt + 1)
                                     break
                             except Exception:
                                 pass
@@ -204,14 +222,14 @@ def run_ape(package, running_minutes=300, strategy='sata', serial=None):
                         res = subprocess.run(adb_cmd, capture_output=True, text=True, timeout=5)
                         out = (res.stdout or '').strip()
                         if not out:
-                            logger.info('Fallback ps check shows package %s not running; attempting to start', package)
+                            logging.info('Fallback ps check shows package %s not running; attempting to start', package)
                             try:
                                 start_package(package, serial=serial, wait_seconds=1)
                             except Exception:
-                                logger.exception('Failed to start package %s after ps fallback detected it not running', package)
+                                logging.exception('Failed to start package %s after ps fallback detected it not running', package)
                     except Exception:
                         # give up on detection for this iteration
-                        logger.debug('Could not determine running state of %s (pidof/ps checks failed)', package)
+                        logging.debug('Could not determine running state of %s (pidof/ps checks failed)', package)
                 # Screenshot movement detection
                 try:
                     screenshot_counter += 1
@@ -234,19 +252,19 @@ def run_ape(package, running_minutes=300, strategy='sata', serial=None):
                                         unchanged_iterations = 0
                                 # If screen unchanged for threshold, attempt restart
                                 if unchanged_iterations >= no_change_threshold:
-                                    logger.info('No screen movement detected for %ds; restarting package %s', no_change_seconds, package)
+                                    logging.info('No screen movement detected for %ds; restarting package %s', no_change_seconds, package)
                                     try:
                                         start_package(package, serial=serial, wait_seconds=1)
                                     except Exception:
-                                        logger.exception('Failed to restart package %s after no-movement detection', package)
+                                        logging.exception('Failed to restart package %s after no-movement detection', package)
                                     unchanged_iterations = 0
                         except Exception:
-                            logger.debug('Screenshot capture failed; skipping movement detection this iteration')
+                            logging.debug('Screenshot capture failed; skipping movement detection this iteration')
                 except Exception:
-                    logger.debug('Movement detection error', exc_info=True)
+                    logging.debug('Movement detection error', exc_info=True)
                 # if fg is None, we couldn't determine — skip but continue
             except Exception:
-                logger.debug('Foreground watcher exception', exc_info=True)
+                logging.debug('Foreground watcher exception', exc_info=True)
             # If process exited, stop
             if proc.poll() is not None:
                 break
@@ -259,7 +277,7 @@ def run_ape(package, running_minutes=300, strategy='sata', serial=None):
     try:
         for line in proc.stdout:
             if line:
-                logger.info('[APE] %s', line.rstrip())
+                logging.info('[APE] %s', line.rstrip())
         ret = proc.wait()
     finally:
         stop_watcher.set()
@@ -281,7 +299,7 @@ def main():
     args = parser.parse_args()
 
     if not os.path.exists(APE_JAR_LOCAL):
-        logger.error("ape.jar not found at %s. Run install_tools.py first.", APE_JAR_LOCAL)
+        logging.error("ape.jar not found at %s. Run install_tools.py first.", APE_JAR_LOCAL)
         sys.exit(1)
 
     if not args.no_push:
@@ -291,9 +309,9 @@ def main():
     try:
         started = start_package(args.package, serial=args.serial, wait_seconds=2)
         if not started:
-            logger.warning('Proceeding to run Ape even though package %s may not be in foreground', args.package)
+            logging.warning('Proceeding to run Ape even though package %s may not be in foreground', args.package)
     except Exception:
-        logger.exception('Error while attempting to start package %s; continuing to run Ape', args.package)
+        logging.exception('Error while attempting to start package %s; continuing to run Ape', args.package)
 
     ret = run_ape(args.package, args.running_minutes, args.strategy, args.serial)
 
@@ -316,7 +334,7 @@ def main():
         out_dir = os.path.join(BASE_DIR, 'out')
         append_run('ape', summary, failures, out_dir=out_dir)
     except Exception:
-        logger.exception('Failed to write ape summary')
+        logging.exception('Failed to write ape summary')
 
     sys.exit(ret)
 

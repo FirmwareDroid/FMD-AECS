@@ -16,6 +16,7 @@ python3 run_fastbot.py -p com.example.app --serial emulator-5554 --throttle 300
 import argparse
 import glob
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import subprocess
 import sys
@@ -44,8 +45,7 @@ if _PROJECT_ROOT and _PROJECT_ROOT not in sys.path:
 from common import get_adb_cmd, get_first_connected_device
 from test_results import append_run
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FASTBOT_DIR = os.path.join(BASE_DIR, 'tools', 'Fastbot_Android')
@@ -58,6 +58,27 @@ DEVICE_SDCARD = '/sdcard/'
 DEVICE_TMP = '/data/local/tmp/'
 DEVICE_CLASSPATH = '/sdcard/monkeyq.jar:/sdcard/framework.jar:/sdcard/fastbot-thirdpart.jar'
 DEVICE_NATIVE_SO = '/data/local/tmp/arm64-v8a/libfastbot_native.so'
+
+# Default output directory for start_apps summaries
+DEFAULT_OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+os.makedirs(DEFAULT_OUT_DIR, exist_ok=True)
+log_file_path = os.path.join(DEFAULT_OUT_DIR, 'fastbot_start.log')
+root_logger = logging.getLogger()
+already_have = False
+for h in list(root_logger.handlers):
+    try:
+        if isinstance(h, logging.FileHandler) and os.path.abspath(getattr(h, 'baseFilename', '')) == os.path.abspath(log_file_path):
+            already_have = True
+            break
+    except Exception:
+        continue
+if not already_have:
+    fh = RotatingFileHandler(log_file_path, maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    root_logger.addHandler(fh)
 
 
 def _adb(serial=None):

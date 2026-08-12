@@ -16,12 +16,14 @@ Examples:
 
 import argparse
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import shutil
 import subprocess
 import sys
 import os
 import tempfile
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
 def _find_project_root(marker='common.py'):
@@ -43,11 +45,31 @@ if _PROJECT_ROOT and _PROJECT_ROOT not in sys.path:
 from common import get_first_connected_device
 from test_results import append_run
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 KEA2_WORKDIR = os.path.join(BASE_DIR, 'tools', 'kea2')
+
+# Default output directory for start_apps summaries
+DEFAULT_OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+os.makedirs(DEFAULT_OUT_DIR, exist_ok=True)
+log_file_path = os.path.join(DEFAULT_OUT_DIR, 'kea2_start.log')
+root_logger = logging.getLogger()
+already_have = False
+for h in list(root_logger.handlers):
+    try:
+        if isinstance(h, logging.FileHandler) and os.path.abspath(getattr(h, 'baseFilename', '')) == os.path.abspath(log_file_path):
+            already_have = True
+            break
+    except Exception:
+        continue
+if not already_have:
+    fh = RotatingFileHandler(log_file_path, maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    root_logger.addHandler(fh)
 
 
 def run_kea2(package, running_minutes=60, serial=None, output_dir=None, apk_path=None):
