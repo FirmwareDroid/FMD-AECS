@@ -20,7 +20,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 import re
 
-SKIPPED_KEYWORD_LIST = ["overlay", "gpudriver", "__auto_generated"]
+SKIPPED_KEYWORD_LIST = ["overlay", "gpudriver", "__auto_generated", "Launcher", "SystemUI", "grilservice",
+                        "ims.apk", "MultiDisplayProvider.apk", "CACertService.apk",
+                        "NetworkStack", "HbmSVManager.apk", "ConnectivityThermalPowerManager",
+                        "framework-res.apk", "uceShimService.apk", "datastatusnotification.apk",
+                        "SecureElement.apk", "RcsService.apk", "QtiTelephonyService.apk",
+                        "NfcNci.apk", "SSRestartDetector.apk", "CbrsNetworkMonitor.apk",
+                        "secureui.apk", "ONS.apk", "TeleService.apk", "CneApp.apk"]
 
 
 def normalize_install_error(msg: str) -> str:
