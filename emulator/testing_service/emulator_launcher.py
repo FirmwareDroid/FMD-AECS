@@ -178,6 +178,29 @@ def _check_device_responsive(timeout=5):
     return False
 
 
+def is_adb_available(timeout=5):
+    """Return True if the adb executable responds (quick 'adb version' check)."""
+    try:
+        res = subprocess.run(["adb", "version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=timeout)
+        return res.returncode == 0
+    except Exception:
+        return False
+
+
+def wait_for_adb_available(timeout=30, interval=2):
+    logger = logging.getLogger("emulator_launcher")
+    """Wait up to timeout seconds for adb to be usable. Returns True if available."""
+    start = time.time()
+    while True:
+        if is_adb_available():
+            logger.debug("adb available")
+            return True
+        if time.time() - start >= timeout:
+            logger.warning("adb did not become available within %s seconds", timeout)
+            return False
+        time.sleep(interval)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--script", required=True, help="Path to emulator_start.sh wrapper")
@@ -303,6 +326,8 @@ def main():
                         pass
                     break
                 if tail_contains(launcher_log, "segmentation fault") or tail_contains(launcher_log, "segfault"):
+                    if wait_for_adb_available(timeout=30, interval=2):
+                        continue
                     logger.warning("Detected segmentation fault in emulator log; terminating and will restart")
                     try:
                         os.kill(qemu_pid, signal.SIGTERM)

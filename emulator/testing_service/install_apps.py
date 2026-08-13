@@ -280,6 +280,9 @@ def install_apk(apk_path, results, lock, serial=None, stop_event=None):
             combined = (out + '\n' + err).lower()
             # If adb reports 'device offline' we should abort further installs immediately
             if 'device offline' in combined:
+                #
+
+
                 logger.warning('Device reported offline while installing %s (attempt %d/%d). Will retry up to %d times.', apk_path, attempt, attempts, DEVICE_OFFLINE_MAX_RETRIES)
                 # Try to wait for the device to come back online a few times before giving up
                 offline_ok = False
