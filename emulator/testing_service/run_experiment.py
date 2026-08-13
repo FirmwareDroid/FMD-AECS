@@ -1675,7 +1675,7 @@ def main():
 
             # 4) Setup devices and run experiment
             setup_and_run_experiment(args)
-            _check_timeout_and_exit(current_attempt=attempt, total_attempts=attempts)
+            logging.info('Finished app testing.')
 
             # Success: cleanup, write summary and exit
             stop_background_services()
