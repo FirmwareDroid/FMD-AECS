@@ -323,7 +323,8 @@
     "tzdata4",
     "cellbroadcast",
     "telephony",
-    "wifi"
+    "wifi",
+    "resolve"
   ],
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [
     "art",
