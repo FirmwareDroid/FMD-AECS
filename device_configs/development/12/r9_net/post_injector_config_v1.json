@@ -135,7 +135,9 @@
     "/lib64/android.hardware.gatekeeper",
     "/lib64/android.hardware.drm",
     "/lib64/android.hardware.boot",
-    "vendor/etc/init/netmgrd.rc"
+    "/vendor/etc/init/netmgrd.rc",
+    "/lib64/libnetmgr.so",
+    "netmgr"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
