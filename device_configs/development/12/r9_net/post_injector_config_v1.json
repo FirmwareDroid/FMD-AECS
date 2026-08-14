@@ -138,7 +138,8 @@
     "/vendor/etc/init/netmgrd.rc",
     "/lib64/libnetmgr.so",
     "netmgr",
-    "/vendor/etc/init/"
+    "/vendor/etc/init/",
+    "/vendor/etc/"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
