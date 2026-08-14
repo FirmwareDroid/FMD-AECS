@@ -322,7 +322,8 @@
     "tzdata3",
     "tzdata4",
     "cellbroadcast",
-    "telephony"
+    "telephony",
+    "wifi"
   ],
   "ALLOW_APEX_INJECT_ALWAYS_KEYWORD_LIST": [
     "art",
@@ -331,9 +332,7 @@
     "statsd",
     "extservices",
     "sdkext",
-    "primary",
-    "telephony",
-    "resolv"
+    "primary"
   ],
   "SKIPPED_FILE_EXTENSION_LIST_GENERAL": [
     ".rc",
@@ -415,9 +414,9 @@
   ],
   "SKIPPED_APEX_KEYWORD_LIST": [
     "adb",
-    "android.telephony.apex",
-    "android.resolv.apex",
-    "android.wifi.apex"
+    "android.telephony",
+    "android.resolv",
+    "android.wifi"
   ],
   "SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST": [],
   "ALLOWED_FILE_OVERWRITE_EXTENSION_LIST": [
