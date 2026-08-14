@@ -138,7 +138,7 @@
     "/vendor/etc/init/netmgrd.rc",
     "/lib64/libnetmgr.so",
     "netmgr",
-    "android.resolv.apex"
+    "/vendor/etc/init/"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
