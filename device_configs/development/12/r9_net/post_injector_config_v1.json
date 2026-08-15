@@ -139,7 +139,21 @@
     "/lib64/libnetmgr.so",
     "netmgr",
     "/vendor/etc/init/",
-    "/vendor/etc/"
+    "/vendor/etc/",
+    "wifi-hal",
+    "_wifi_",
+    "wifi_ext",
+    "_wifi",
+    "vendor/lib64/android.system.net.netd",
+    "/product/etc/CarrierSettings/",
+    "/vendor/lib/libdsi_netctrl.so",
+    "/vendor/lib64/libnfnetlink.so",
+    "/vendor/lib64/librmnetctl.so",
+    "/vendor/lib64/android.system.net.netd@1.0.so",
+    "/vendor/lib64/libnetfilter_conntrack.so",
+    "/vendor/lib64/libdsi_netctrl.so",
+    "/vendor/lib64/vendor.qti.hardware.wigig.netperftuner@1.0.so",
+    "/vendor/lib64/android.system.net.netd@1.1.so"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
