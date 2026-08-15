@@ -55,6 +55,23 @@ def run_adb_shell(adb_base, shell_cmd, timeout):
 	except Exception:
 		return None
 
+def enable_wifi(adb_base, verbose=False):
+	if verbose:
+		logging.info('Attempting to enable WiFi via adb (svc wifi enable)')
+	proc = run_adb_shell(adb_base, ['svc', 'wifi', 'enable'], timeout=5)
+	if proc is None:
+		if verbose:
+			logging.warning('svc wifi enable timed out or failed')
+			return False
+	if proc and proc.returncode == 0:
+		if verbose:
+			logging.info('svc wifi enable succeeded; waiting 5s for WiFi to come up')
+		time.sleep(5)
+		return True
+	if verbose:
+		logging.warning('svc wifi enable returned=%s stderr=%s', proc.returncode, getattr(proc, 'stderr', None))
+	return False
+
 
 def check_connectivity(adb_base, url, timeout, verbose=False):
 	# First try: curl
@@ -171,6 +188,7 @@ def main():
 		logging.error('No connected adb device found for the given serial (or no devices at all).')
 		sys.exit(1)
 
+	wifi_enable_attempted = False
 	for attempt in range(1, args.retries + 1):
 		if args.verbose:
 			logging.info('Attempt %d/%d...', attempt, args.retries)
@@ -184,6 +202,8 @@ def main():
 				if args.verbose:
 					logging.info('Waiting %d seconds before retry...', args.delay)
 				time.sleep(args.delay)
+		if wifi_enable_attempted is False:
+			wifi_enable_attempted = enable_wifi(adb_base, verbose=True)
 
 	logging.error('Connectivity test failed after retries')
 	sys.exit(2)
