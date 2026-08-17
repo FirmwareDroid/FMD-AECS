@@ -16,8 +16,42 @@ logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
 
+# def find_firmware_packages(emulator_out_dir):
+#     """Scan emulator_out and return {firmware_id: [package_names]}."""
+#     firmware_packages = defaultdict(list)
+#     emulator_path = Path(emulator_out_dir).resolve()
+#
+#     if not emulator_path.exists():
+#         logger.error(f"Directory not found: {emulator_path}")
+#         return firmware_packages
+#
+#     for fw_folder in emulator_path.iterdir():
+#         if not fw_folder.is_dir():
+#             continue
+#
+#         firmware_id = fw_folder.name
+#         acv_snaps = fw_folder / "acv_snaps"
+#
+#         if not acv_snaps.exists():
+#             continue
+#
+#         for pkg_dir in acv_snaps.iterdir():
+#             if pkg_dir.name in ["pickle_files"] or not pkg_dir.is_dir():
+#                 continue
+#
+#             ec_files_dir = pkg_dir / "ec_files"
+#             if not ec_files_dir.exists():
+#                 continue
+#
+#             ec_files = list(ec_files_dir.glob("coverage_*.ec"))
+#             if ec_files:
+#                 firmware_packages[firmware_id].append(pkg_dir.name)
+#
+#     return firmware_packages
+
 def find_firmware_packages(emulator_out_dir):
-    """Scan emulator_out and return {firmware_id: [package_names]}."""
+    from collections import defaultdict
+
     firmware_packages = defaultdict(list)
     emulator_path = Path(emulator_out_dir).resolve()
 
@@ -29,25 +63,42 @@ def find_firmware_packages(emulator_out_dir):
         if not fw_folder.is_dir():
             continue
 
-        firmware_id = fw_folder.name
+        fw = fw_folder.name
         acv_snaps = fw_folder / "acv_snaps"
 
         if not acv_snaps.exists():
             continue
 
+        seen = set()
+
+        # scan pickle_files partitions for package dirs or pickles
+        pf = acv_snaps / "pickle_files"
+        if pf.exists():
+            for part in pf.iterdir():
+                if not part.is_dir():
+                    continue
+
+                for p in part.iterdir():
+                    name = p.stem if p.is_file() else p.name
+                    if name not in seen:
+                        # consider package if it contains any .pickle
+                        if (p.is_dir() and any(p.rglob("*.pickle"))) or (p.is_file() and p.suffix == '.pickle'):
+                            firmware_packages[fw].append(name)
+                            seen.add(name)
+
+        # also include existing package dirs under acv_snaps (backwards compat)
         for pkg_dir in acv_snaps.iterdir():
-            if pkg_dir.name in ["pickle_files"] or not pkg_dir.is_dir():
+            if not pkg_dir.is_dir() or pkg_dir.name == "pickle_files":
                 continue
 
-            ec_files_dir = pkg_dir / "ec_files"
-            if not ec_files_dir.exists():
+            if pkg_dir.name in seen:
                 continue
 
-            ec_files = list(ec_files_dir.glob("coverage_*.ec"))
-            if ec_files:
-                firmware_packages[firmware_id].append(pkg_dir.name)
+            firmware_packages[fw].append(pkg_dir.name)
 
     return firmware_packages
+
+
 
 
 def filter_firmware_packages(firmware_packages, firmware_filters, samples):

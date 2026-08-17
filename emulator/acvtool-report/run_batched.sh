@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Find all docker-compose-*.yml files and sort them numerically (-V)
-files=$(ls docker-compose-*.yml | sort -V)
+# Find docker-compose.yml and all docker-compose-*.yml files, sort them numerically (-V)
+files=$(ls docker-compose.yml docker-compose-*.yml 2>/dev/null | sort -V)
 
 for file in $files; do
     echo "========================================"
@@ -9,7 +9,7 @@ for file in $files; do
     echo "========================================"
 
     # Run the compose file in detached mode
-    docker compose -f "$file" up
+    docker compose -f "$file" up -d
 
     # Check if the command succeeded
     if [ $? -ne 0 ]; then
