@@ -149,7 +149,11 @@
     "/vendor/bin/hw/citadeld",
     "/system/lib64/libnet",
     "/system/lib/libnet",
-    "/system/lib64/libwifi"
+    "/system/lib64/libwifi",
+    "/system/app/CarrierDefaultApp/CarrierDefaultApp.apk",
+    "/system/lib64/android.system.net",
+    "/system/lib64/netd",
+    "/system/lib64/oemnetd_aidl"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
