@@ -517,7 +517,10 @@
     "_capex"
   ],
   "SKIPPED_APEX_KEYWORD_LIST": [
-    "adb"
+    "adb",
+    "android.telephony",
+    "android.resolv",
+    "android.wifi"
   ],
   "SKIPPED_INTERMEDIATE_FILE_OVERWRITE_KEYWORD_LIST": [
     "telephony-common.jar"
