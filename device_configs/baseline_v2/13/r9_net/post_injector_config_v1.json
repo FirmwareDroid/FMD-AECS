@@ -158,7 +158,13 @@
     "android.resolv.apex",
     "android.wifi.apex",
     "android.tethering.apex",
-    "telephony.apex"
+    "telephony.apex",
+    "android.cellbroadcast.apex",
+    "com.samsung.slsi.telephony",
+    "/vendor/lib64/libmodem",
+    "/vendor/lib/vendor.samsung_slsi.telephony",
+    "/vendor/apex/lib64/vendor.google.radioext",
+    "ConnectivityThermalPowerManager.apk"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
