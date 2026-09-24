@@ -156,7 +156,9 @@
     "/system/lib64/oemnetd_aidl",
     "android.telephony.apex",
     "android.resolv.apex",
-    "android.wifi.apex"
+    "android.wifi.apex",
+    "android.tethering.apex",
+    "telephony.apex"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
