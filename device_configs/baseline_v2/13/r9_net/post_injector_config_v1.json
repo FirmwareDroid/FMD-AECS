@@ -133,7 +133,20 @@
     "/vendor/lib64/libnetfilter_conntrack.so",
     "/vendor/lib64/libdsi_netctrl.so",
     "/vendor/lib64/vendor.qti.hardware.wigig.netperftuner@1.0.so",
-    "/vendor/lib64/android.system.net.netd@1.1.so"
+    "/vendor/lib64/android.system.net.netd@1.1.so",
+    "/vendor/firmware/",
+    "/vendor/lib64/libnetfilter_",
+    "/vendor/lib64/libnfnetlink.so",
+    "/vendor/lib64/libnos_citadeld_proxy.so",
+    "/vendor/lib64/vendor.samsung_slsi",
+    "/vendor/lib64/vendor.google.radioext",
+    "/vendor/lib64/libnetfilter",
+    "/vendor/lib64/vendor.google.wifi_ext",
+    "/vendor/lib64/google_wifi",
+    "/vendor/lib64/vendor.google.wireless",
+    "/vendor/bin/hw/vendor.samsung_slsi",
+    "/vendor/bin/hw/init_citadel",
+    "/vendor/bin/hw/citadeld"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
