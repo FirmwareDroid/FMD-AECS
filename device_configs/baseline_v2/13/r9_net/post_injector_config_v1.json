@@ -171,7 +171,9 @@
     "/system/lib64/libandroid_net.so",
     "/system/lib64/libiprouteutil.so",
     "apex@com.android.tethering",
-    "Iwlan.apk"
+    "Iwlan.apk",
+    "/vendor/apex/lib64/",
+    "NetworkStackGoogle.apk"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
