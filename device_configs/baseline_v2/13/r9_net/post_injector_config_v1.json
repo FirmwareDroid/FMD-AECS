@@ -164,7 +164,9 @@
     "/vendor/lib64/libmodem",
     "/vendor/lib/vendor.samsung_slsi.telephony",
     "/vendor/apex/lib64/vendor.google.radioext",
-    "ConnectivityThermalPowerManager.apk"
+    "ConnectivityThermalPowerManager.apk",
+    "/vendor/lib/",
+    "/vendor/lib64/"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
