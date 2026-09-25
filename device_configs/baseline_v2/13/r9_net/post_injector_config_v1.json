@@ -166,7 +166,12 @@
     "/vendor/apex/lib64/vendor.google.radioext",
     "ConnectivityThermalPowerManager.apk",
     "/vendor/lib/",
-    "/vendor/lib64/"
+    "/vendor/lib64/",
+    "OemRilHookService.apk",
+    "/system/lib64/libandroid_net.so",
+    "/system/lib64/libiprouteutil.so",
+    "apex@com.android.tethering",
+    "Iwlan.apk"
   ],
   "ALLOW_FILE_INJECT_ALWAYS": [
     "app_process64",
