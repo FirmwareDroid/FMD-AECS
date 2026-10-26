@@ -39,8 +39,9 @@ RUN set -eux; \
 ################################
 RUN mkdir -p /usr/local/jdk-21
 WORKDIR /usr/local/jdk-21
-RUN wget https://download.oracle.com/java/21/latest/jdk-21_linux-aarch64_bin.tar.gz
-RUN tar --strip-components=1 -xf jdk-21_linux-aarch64_bin.tar.gz
+RUN wget -O jdk-21_linux-aarch64_bin.tar.gz "https://download.oracle.com/java/21/archive/jdk-21.0.8_linux-aarch64_bin.tar.gz" \
+    || wget -O jdk-21_linux-aarch64_bin.tar.gz "https://api.adoptium.net/v3/binary/latest/21/ga/linux/aarch64/jdk/hotspot/normal/eclipse"
+RUN tar --strip-components=1 -xf jdk-21_linux-aarch64_bin.tar.gz && rm -f jdk-21_linux-aarch64_bin.tar.gz
 ENV JAVA_HOME=/usr/local/jdk-21
 ENV PATH=$JAVA_HOME/bin:$PATH
 
