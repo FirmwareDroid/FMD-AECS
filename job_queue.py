@@ -44,10 +44,40 @@ def init_db():
 
 
 def push_job(image_name):
-    """Pushes a new emulator image to the queue."""
+    """Pushes a new emulator image to the queue and returns its job ID."""
     with get_db_connection() as conn:
-        conn.execute("INSERT INTO emulator_jobs (image_name) VALUES (?)", (image_name,))
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO emulator_jobs (image_name) VALUES (?)", (image_name,))
         conn.commit()
+        return cursor.lastrowid
+
+
+def get_active_job_count(job_ids=None):
+    """Returns the count of jobs currently in PENDING or PROCESSING state."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        if job_ids is not None:
+            if not job_ids:
+                return 0
+            placeholders = ",".join("?" for _ in job_ids)
+            cursor.execute(
+                f"SELECT COUNT(*) FROM emulator_jobs WHERE status IN ('PENDING', 'PROCESSING') AND id IN ({placeholders})",
+                tuple(job_ids),
+            )
+        else:
+            cursor.execute(
+                "SELECT COUNT(*) FROM emulator_jobs WHERE status IN ('PENDING', 'PROCESSING')"
+            )
+        row = cursor.fetchone()
+        return row[0] if row else 0
+
+
+def get_queue_status_counts():
+    """Returns a dictionary mapping job status to count."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT status, COUNT(*) as cnt FROM emulator_jobs GROUP BY status")
+        return {row["status"]: row["cnt"] for row in cursor.fetchall()}
 
 
 def fetch_next_job():

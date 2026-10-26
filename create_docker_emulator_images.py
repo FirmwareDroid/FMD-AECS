@@ -145,10 +145,14 @@ def extract_emulator_images_to_image_artefacts(emulator_image_path):
 def process_single_image(task_tuple):
     """Top-level worker to process a single emulator zip.
 
-    task_tuple: (emulator_zip_path, docker_repo_url, repository_username, repository_password, build_local, results_dir)
+    task_tuple: (emulator_zip_path, docker_repo_url, repository_username, repository_password, build_local, results_dir[, delete_zip])
     Returns a result dict.
     """
-    emulator_zip_path, docker_repo_url, repository_username, repository_password, build_local, results_dir = task_tuple
+    if len(task_tuple) == 7:
+        emulator_zip_path, docker_repo_url, repository_username, repository_password, build_local, results_dir, delete_zip = task_tuple
+    else:
+        emulator_zip_path, docker_repo_url, repository_username, repository_password, build_local, results_dir = task_tuple
+        delete_zip = False
     filename = os.path.basename(emulator_zip_path)
     tag = filename.replace('.zip', '')
     result = {
@@ -167,6 +171,12 @@ def process_single_image(task_tuple):
         os.makedirs(extracted_dir, exist_ok=True)
         logging.info(f"[worker] Created extracted dir: {extracted_dir}")
         extract_zip(emulator_zip_path, extracted_dir)
+        if delete_zip and emulator_zip_path and os.path.exists(emulator_zip_path):
+            try:
+                os.remove(emulator_zip_path)
+                logging.info(f"[worker] Deleted downloaded zip archive after extraction: {emulator_zip_path}")
+            except Exception as rm_err:
+                logging.warning(f"[worker] Failed to delete zip archive {emulator_zip_path}: {rm_err}")
         if not os.path.isdir(extracted_dir) and not os.path.exists(extracted_dir):
             raise RuntimeError(f"Directory {extracted_dir} does not exist")
 
@@ -204,6 +214,13 @@ def process_single_image(task_tuple):
                 json.dump(result, of, indent=2)
         except Exception:
             logging.exception(f"Failed to write result for {tag} to {out_file}")
+        # Ensure zip file is deleted if requested and still present
+        try:
+            if delete_zip and emulator_zip_path and os.path.exists(emulator_zip_path):
+                logging.info(f"Deleting zip file {emulator_zip_path}")
+                os.remove(emulator_zip_path)
+        except Exception:
+            logging.debug(f"[worker] Failed to remove zip file {emulator_zip_path}; continuing")
         # cleanup extracted artifacts for this image
         try:
             if extracted_dir and os.path.exists(extracted_dir):
@@ -620,20 +637,134 @@ def parse_arguments():
                              " The file may contain quoted names (CSV style) or multiple rows.")
     parser.add_argument('--skip-push', action='store_true', required=False,
                         help='If set, built images will NOT be pushed to the remote docker registry (useful for testing).')
+    parser.add_argument('-b', '--batch-size',
+                        type=int,
+                        required=False,
+                        default=20,
+                        help='Maximum number of images to download and build per batch (default: 20).')
+    parser.add_argument('--max-active-jobs',
+                        type=int,
+                        required=False,
+                        default=0,
+                        help='Maximum number of active (PENDING + PROCESSING) jobs in job_queue before starting the next batch (default: 0).')
+    parser.add_argument('--min-free-gb',
+                        type=float,
+                        required=False,
+                        default=50.0,
+                        help='Minimum free disk space in GiB required before downloading/building (default: 50.0).')
+    parser.add_argument('--keep-zip',
+                        action='store_true',
+                        required=False,
+                        default=False,
+                        help='If set, keeps downloaded .zip files in --input-dir instead of deleting them after extraction.')
     return parser.parse_args()
 
 
+def get_free_space_gb(paths):
+    """Returns (min_free_gb, min_path) across all existing paths (or their nearest existing parent)."""
+    min_free_gb = None
+    min_path = None
+    for p in paths:
+        if not p:
+            continue
+        check_path = os.path.abspath(p)
+        while check_path and not os.path.exists(check_path):
+            parent = os.path.dirname(check_path)
+            if parent == check_path:
+                break
+            check_path = parent
+        if os.path.exists(check_path):
+            try:
+                usage = shutil.disk_usage(check_path)
+                free_gb = usage.free / (1024 ** 3)
+                if min_free_gb is None or free_gb < min_free_gb:
+                    min_free_gb = free_gb
+                    min_path = check_path
+            except Exception as e:
+                logging.debug(f"Could not check disk usage for {check_path}: {e}")
+    return (min_free_gb if min_free_gb is not None else float('inf')), (min_path or '.')
+
+
+def wait_for_disk_space(paths, min_free_gb, poll_interval=15):
+    """Blocks until free disk space on all checked paths is at least min_free_gb, or no active jobs remain to free space."""
+    if not min_free_gb or min_free_gb <= 0:
+        return
+    pruned_once = False
+    while True:
+        free_gb, min_path = get_free_space_gb(paths)
+        if free_gb >= min_free_gb:
+            return
+        active_jobs = job_queue.get_active_job_count()
+        if active_jobs == 0:
+            if not pruned_once:
+                logging.warning(
+                    f"Free disk space on {min_path} is {free_gb:.2f} GiB (< {min_free_gb:.2f} GiB) with 0 active jobs. Pruning Docker builder cache..."
+                )
+                clear_docker_builder()
+                pruned_once = True
+                free_gb, min_path = get_free_space_gb(paths)
+                if free_gb >= min_free_gb:
+                    return
+            logging.warning(
+                f"Free disk space on {min_path} is {free_gb:.2f} GiB (< {min_free_gb:.2f} GiB), but 0 active jobs remain in queue to free space. Proceeding cautiously."
+            )
+            return
+        logging.info(
+            f"Disk space low on {min_path} ({free_gb:.2f} GiB free < {min_free_gb:.2f} GiB required). "
+            f"Waiting for consumer daemon to finish active jobs ({active_jobs} active)..."
+        )
+        time.sleep(poll_interval)
+
+
+def wait_for_batch_capacity(batch_job_ids, max_active_jobs, paths, min_free_gb, poll_interval=10):
+    """Waits between batches until active jobs in the current batch drop to <= max_active_jobs and disk space is sufficient."""
+    max_active = max(0, int(max_active_jobs or 0))
+    while True:
+        # Check active jobs for this batch specifically (avoids deadlock if stale rows existed from an older dead run,
+        # while still respecting the queue if batch_job_ids is empty).
+        if batch_job_ids is not None:
+            active_count = job_queue.get_active_job_count(batch_job_ids)
+        else:
+            active_count = job_queue.get_active_job_count()
+        status_counts = job_queue.get_queue_status_counts()
+        if active_count <= max_active:
+            break
+        logging.info(
+            f"Waiting for consumer daemon to process current batch: {active_count} batch job(s) still active "
+            f"(threshold <= {max_active} | queue totals: {status_counts})..."
+        )
+        time.sleep(poll_interval)
+
+    logging.info("Batch execution threshold reached. Pruning Docker build cache before next batch...")
+    clear_docker_builder()
+    wait_for_disk_space(paths, min_free_gb, poll_interval=poll_interval)
+
+
+def enqueue_single_image(image_name, output_file=None):
+    """Immediately pushes a single built image to job_queue and appends it to docker_images.txt."""
+    job_queue.init_db()
+    job_id = job_queue.push_job(image_name)
+    logging.info(f"Pushed {image_name} to the job queue (job_id={job_id}).")
+    if output_file:
+        try:
+            with open(output_file, "a", encoding="utf-8") as f:
+                f.write(f"{image_name}\n")
+        except Exception as e:
+            logging.warning(f"Failed to append {image_name} to {output_file}: {e}")
+    return job_id
 
 
 def enqueue_images(successfully_built_images):
     # Initialize the database (safe to call multiple times)
     job_queue.init_db()
+    job_ids = []
 
     for image in successfully_built_images:
         logging.info(f"Pushing {image} to the job queue.")
-        job_queue.push_job(image)
+        job_ids.append(job_queue.push_job(image))
 
     logging.info("All built images have been queued for processing.")
+    return job_ids
 
 
 def write_image_names_to_file():
@@ -659,7 +790,6 @@ def write_image_names_to_file():
 
     print(f"Captured {len(successfully_built_images)} images.")
     return successfully_built_images
-
 
 
 def main():
@@ -692,19 +822,29 @@ def main():
         else:
             file_list = []
         filtered_image_list = get_filtered_emulator_image_list(args.repository_url, file_list)
-        # Download images in parallel and start building each image as soon as its download completes.
+        # Download and build images in batches to prevent filling up disk storage.
         download_failed = []
         download_success = []
-        build_futures = []
         aggregate = []
+        successful_images = []
+        failed_images = []
 
         # Prepare result directory and repository password before downloads/builds
         results_dir = os.path.join(ROOT_PATH, 'results', 'emulator_image_processing')
         os.makedirs(results_dir, exist_ok=True)
 
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        docker_images_file = os.path.join(script_dir, "docker_images.txt")
+        with open(docker_images_file, "w", encoding="utf-8") as f:
+            pass
+
+        job_queue.init_db()
+
         repository_password = None
-        if not args.create_local:
+        if not args.create_local and not args.skip_push:
             repository_password = get_repo_password(args.repository_username)
+            logging.info("Authenticating to docker registry before batch processing")
+            authenticate_docker_registry(args.docker_repo_url, args.repository_username, repository_password)
 
         start_time = time.time()
 
@@ -713,24 +853,30 @@ def main():
             create_base_images()
 
         if filtered_image_list:
-            # Increase download concurrency to improve throughput on high-bandwidth
-            # networks. Allow more I/O-bound download workers than CPU cores.
-            # Allow user-specified download concurrency; otherwise choose an
-            # I/O-optimized default (more threads than CPU cores).
+            batch_size = max(1, int(args.batch_size)) if getattr(args, 'batch_size', None) else 20
+            min_free_gb = float(getattr(args, 'min_free_gb', 50.0) or 0.0)
+            max_active_jobs = max(0, int(getattr(args, 'max_active_jobs', 0) or 0))
+            delete_zip = not getattr(args, 'keep_zip', False)
+            disk_check_paths = [args.input_dir, ROOT_PATH, "/var/lib/docker"]
+
             if args.download_workers and int(args.download_workers) > 0:
-                download_max_workers = min(len(filtered_image_list), int(args.download_workers))
+                download_max_workers = min(batch_size, len(filtered_image_list), int(args.download_workers))
             else:
-                download_max_workers = min(len(filtered_image_list), max(4, multiprocessing.cpu_count() * 4))
-            # Limit concurrent builds to avoid saturating CPU/Docker resources. Use args.workers if provided;
-            # otherwise default to number of CPUs.
-            build_max_workers = min(len(filtered_image_list), max(1, getattr(args, 'workers', multiprocessing.cpu_count())))
+                download_max_workers = min(batch_size, len(filtered_image_list), max(4, multiprocessing.cpu_count() * 4))
 
-            logging.info(f"Downloading {len(filtered_image_list)} images in parallel using {download_max_workers} threads")
-            logging.info(f"Building up to {build_max_workers} images in parallel as downloads finish")
+            configured_workers = args.workers if getattr(args, 'workers', None) else multiprocessing.cpu_count()
+            build_max_workers = min(batch_size, len(filtered_image_list), max(1, int(configured_workers)))
 
-            # Executor for downloads (I/O bound) and builds (CPU / docker bound)
-            # Progress counters and synchronization
             total_downloads = len(filtered_image_list)
+            batches = [filtered_image_list[i:i + batch_size] for i in range(0, total_downloads, batch_size)]
+            total_batches = len(batches)
+
+            logging.info(
+                f"Processing {total_downloads} images in {total_batches} batch(es) of up to {batch_size} "
+                f"(download_workers={download_max_workers}, build_workers={build_max_workers}, "
+                f"min_free_gb={min_free_gb}, max_active_jobs={max_active_jobs}, delete_zip={delete_zip})"
+            )
+
             lock = threading.Lock()
             downloaded_count = 0
             failed_download_count = 0
@@ -738,92 +884,128 @@ def main():
             builds_completed_count = 0
             failed_build_count = 0
 
-            with ThreadPoolExecutor(max_workers=download_max_workers) as dl_ex, \
-                    ThreadPoolExecutor(max_workers=build_max_workers) as build_ex:
+            for batch_idx, batch_assets in enumerate(batches, start=1):
+                logging.info(f"=== Starting Batch {batch_idx}/{total_batches} ({len(batch_assets)} images) ===")
+                wait_for_disk_space(disk_check_paths, min_free_gb)
 
-                def _download_asset(asset):
-                    try:
-                        dest_file = os.path.join(args.input_dir, asset['path'])
-                        os.makedirs(os.path.dirname(dest_file), exist_ok=True)
-                        logging.info(f"Downloading {asset['path']} -> {dest_file}")
-                        # Prefer aria2 multi-connection download when available; pass
-                        # configured number of connections.
-                        download_file(asset['downloadUrl'], dest_file, connections=args.aria2_connections)
-                        return (True, asset['path'], dest_file, None)
-                    except Exception as e:
-                        logging.exception(f"Failed to download {asset.get('path')}: {e}")
-                        return (False, asset.get('path'), None, str(e))
+                batch_build_futures = []
+                batch_job_ids = []
 
-                # Map of download futures -> asset
-                dl_futures = {dl_ex.submit(_download_asset, asset): asset for asset in filtered_image_list}
+                with ThreadPoolExecutor(max_workers=download_max_workers) as dl_ex, \
+                        ThreadPoolExecutor(max_workers=build_max_workers) as build_ex:
 
-                # Periodic reporter thread to summarize progress every N seconds
-                report_interval = 30.0
-                stop_event = threading.Event()
+                    def _download_asset(asset):
+                        try:
+                            wait_for_disk_space(disk_check_paths, min_free_gb)
+                            dest_file = os.path.join(args.input_dir, asset['path'])
+                            os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+                            logging.info(f"[Batch {batch_idx}/{total_batches}] Downloading {asset['path']} -> {dest_file}")
+                            download_file(asset['downloadUrl'], dest_file, connections=args.aria2_connections)
+                            return (True, asset['path'], dest_file, None)
+                        except Exception as e:
+                            logging.exception(f"Failed to download {asset.get('path')}: {e}")
+                            return (False, asset.get('path'), None, str(e))
 
-                def _reporter():
-                    while not stop_event.is_set():
-                        stop_event.wait(report_interval)
+                    dl_futures = {dl_ex.submit(_download_asset, asset): asset for asset in batch_assets}
+
+                    report_interval = 30.0
+                    stop_event = threading.Event()
+
+                    def _reporter():
+                        while not stop_event.is_set():
+                            stop_event.wait(report_interval)
+                            with lock:
+                                pending_downloads = sum(1 for f in dl_futures if not f.done())
+                                pending_builds = sum(1 for b in batch_build_futures if not b.done())
+                                d_done = downloaded_count
+                                d_failed = failed_download_count
+                                b_sub = build_submitted_count
+                                b_done = builds_completed_count
+                                b_failed = failed_build_count
+                            logging.info(
+                                "[Batch %d/%d] Progress summary: downloads completed=%d failed=%d pending=%d | builds submitted=%d completed=%d failed=%d pending=%d",
+                                batch_idx, total_batches, d_done, d_failed, pending_downloads, b_sub, b_done, b_failed, pending_builds
+                            )
+
+                    reporter_thread = threading.Thread(target=_reporter, name=f'emulator-image-reporter-b{batch_idx}', daemon=True)
+                    reporter_thread.start()
+
+                    # As downloads in this batch complete, immediately schedule build tasks
+                    for fut in as_completed(dl_futures):
+                        ok, name, path, err = fut.result()
                         with lock:
-                            pending_downloads = sum(1 for f in dl_futures if not f.done())
-                            pending_builds = sum(1 for b in build_futures if not b.done())
-                            d_done = downloaded_count
-                            d_failed = failed_download_count
-                            b_sub = build_submitted_count
-                            b_done = builds_completed_count
-                            b_failed = failed_build_count
-                        logging.info(
-                            "Progress summary: downloads completed=%d failed=%d pending=%d | builds submitted=%d completed=%d failed=%d pending=%d",
-                            d_done, d_failed, pending_downloads, b_sub, b_done, b_failed, pending_builds
-                        )
-
-                reporter_thread = threading.Thread(target=_reporter, name='emulator-image-reporter', daemon=True)
-                reporter_thread.start()
-
-                # As downloads complete, immediately schedule build tasks (limited by build_ex)
-                for fut in as_completed(dl_futures):
-                    ok, name, path, err = fut.result()
-                    with lock:
+                            if ok:
+                                downloaded_count += 1
+                            else:
+                                failed_download_count += 1
                         if ok:
-                            downloaded_count += 1
+                            download_success.append((name, path))
+                            logging.info(
+                                f"[Batch {batch_idx}/{total_batches}] Download complete for {name}; submitting build task "
+                                f"({downloaded_count}/{total_downloads} total downloads completed, {failed_download_count} failed)"
+                            )
+                            task = (path, args.docker_repo_url, args.repository_username, repository_password, args.create_local, results_dir, delete_zip)
+                            build_fut = build_ex.submit(process_single_image, task)
+                            batch_build_futures.append(build_fut)
+                            with lock:
+                                build_submitted_count += 1
+                            logging.info(
+                                f"[Batch {batch_idx}/{total_batches}] Build queue size: "
+                                f"{sum(1 for b in batch_build_futures if not b.done())} (submitted {build_submitted_count})"
+                            )
                         else:
-                            failed_download_count += 1
-                    if ok:
-                        download_success.append((name, path))
-                        logging.info(f"Download complete for {name}; submitted build task ({downloaded_count}/{total_downloads} downloads completed, {failed_download_count} failed)")
-                        # prepare task tuple for process_single_image
-                        task = (path, args.docker_repo_url, args.repository_username, repository_password, args.create_local, results_dir)
-                        build_fut = build_ex.submit(process_single_image, task)
-                        build_futures.append(build_fut)
-                        with lock:
-                            build_submitted_count += 1
-                        logging.info(f"Build queue size: {sum(1 for b in build_futures if not b.done())} (submitted {build_submitted_count})")
-                    else:
-                        download_failed.append((name, err))
+                            download_failed.append((name, err))
 
-                logging.info(f"All downloads completed. Waiting for {len(build_futures)} build task(s) to finish...")
-                # Wait for all builds to finish and collect their results
-                for bf in as_completed(build_futures):
-                    try:
-                        res = bf.result()
-                        aggregate.append(res)
-                        with lock:
-                            builds_completed_count += 1
-                        logging.info(f"Build completed ({builds_completed_count}/{build_submitted_count}) for {res.get('tag')}.")
-                        if not res.get('success'):
+                    logging.info(
+                        f"[Batch {batch_idx}/{total_batches}] Batch downloads completed. "
+                        f"Waiting for {len(batch_build_futures)} build task(s) in this batch to finish..."
+                    )
+                    for bf in as_completed(batch_build_futures):
+                        try:
+                            res = bf.result()
+                            aggregate.append(res)
+                            with lock:
+                                builds_completed_count += 1
+                            tag = res.get('tag')
+                            logging.info(
+                                f"[Batch {batch_idx}/{total_batches}] Build completed ({builds_completed_count}/{build_submitted_count}) for {tag}."
+                            )
+                            if res.get('success') and tag:
+                                successful_images.append(tag)
+                                # If remote push is enabled, push before enqueuing so consumer.py does not remove the local image first
+                                if not args.create_local and not args.skip_push:
+                                    try:
+                                        push_container_image(args.docker_repo_url, tag)
+                                        logging.info(f"[Batch {batch_idx}/{total_batches}] Pushed image: {tag}")
+                                    except Exception as push_err:
+                                        logging.exception(f"[Batch {batch_idx}/{total_batches}] Failed to push image {tag}: {push_err}")
+                                job_id = enqueue_single_image(tag, output_file=docker_images_file)
+                                batch_job_ids.append(job_id)
+                            else:
+                                with lock:
+                                    failed_build_count += 1
+                                failed_images.append({'image': res.get('image'), 'error': res.get('error')})
+                        except Exception as e:
                             with lock:
                                 failed_build_count += 1
-                    except Exception as e:
-                        with lock:
-                            failed_build_count += 1
-                        logging.exception(f"Build task failed: {e}")
+                            logging.exception(f"Build task failed: {e}")
 
-                # Stop reporter thread and print final summary
-                stop_event.set()
-                try:
-                    reporter_thread.join(timeout=5.0)
-                except Exception:
-                    pass
+                    stop_event.set()
+                    try:
+                        reporter_thread.join(timeout=5.0)
+                    except Exception:
+                        pass
+
+                logging.info(
+                    f"=== Completed Batch {batch_idx}/{total_batches}: queued {len(batch_job_ids)} image(s) for execution ==="
+                )
+                if batch_idx < total_batches:
+                    wait_for_batch_capacity(
+                        batch_job_ids=batch_job_ids,
+                        max_active_jobs=max_active_jobs,
+                        paths=disk_check_paths,
+                        min_free_gb=min_free_gb,
+                    )
 
         logging.info(f"Downloaded {len(download_success)} images, {len(download_failed)} failed downloads")
 
@@ -838,25 +1020,6 @@ def main():
         with open("results_docker_emulator_image_creation.log", "w") as log_file:
             log_file.write(
                 f"Processing images took {elapsed_time_seconds:.2f} seconds ({elapsed_time_minutes:.2f} minutes).\n")
-
-        # Read per-image result JSONs and aggregate
-        results_dir = os.path.join(ROOT_PATH, 'results', 'emulator_image_processing')
-        successful_images = []
-        failed_images = []
-        if os.path.exists(results_dir):
-            for fname in os.listdir(results_dir):
-                if not fname.endswith('.json'):
-                    continue
-                try:
-                    with open(os.path.join(results_dir, fname), 'r', encoding='utf-8') as rf:
-                        data = json.load(rf)
-                        if data.get('success'):
-                            # collect tag (image name without zip extension) for pushing
-                            successful_images.append(data.get('tag'))
-                        else:
-                            failed_images.append({'image': data.get('image'), 'error': data.get('error')})
-                except Exception:
-                    logging.warning(f"Failed to read result file {fname}")
 
         logging.info(f"Finished processing images. Successful images: {successful_images}. Failed images: {failed_images}.")
     else:
@@ -875,32 +1038,6 @@ def main():
         except Exception:
             logging.exception('Failed to log final aggregated summary for local path')
         return
-
-    # If we reached here, we performed downloads and builds in the streaming pipeline.
-    # If pushing to remote repo is requested, perform pushes now based on result JSONs.
-    if not args.create_local and not args.skip_push:
-        # Build list of tags from the per-image result files
-        tags_to_push = successful_images
-        if tags_to_push:
-            # Authenticate once before pushing
-            if not repository_password:
-                raise RuntimeError("Repository password not provided; cannot push")
-            logging.info("Authenticating to docker registry before parallel pushes")
-            authenticate_docker_registry(args.docker_repo_url, args.repository_username, repository_password)
-
-            max_push_workers = min(8, max(1, multiprocessing.cpu_count()))
-            with ThreadPoolExecutor(max_workers=max_push_workers) as push_ex:
-                push_futures = {push_ex.submit(push_container_image, args.docker_repo_url, tag): tag for tag in tags_to_push}
-                for fut in as_completed(push_futures):
-                    tag = push_futures[fut]
-                    try:
-                        fut.result()
-                        logging.info(f"Pushed image: {tag}")
-                    except Exception as e:
-                        logging.exception(f"Failed to push image {tag}: {e}")
-
-    successfully_built_images = write_image_names_to_file()
-    enqueue_images(successfully_built_images)
 
     # Final aggregated summary for the streaming pipeline
     try:

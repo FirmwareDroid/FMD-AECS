@@ -140,23 +140,32 @@ def process_emulator_job(job, static_ip, ports):
                 # Refresh container status
                 container.reload()
 
-                # Block the thread until the container stops natively
-                if container.status != 'exited':
+                # Block the thread until the container stops natively if running
+                if container.status == 'running':
                     logging.info(
                         f"[Job {job['id']}] Monitoring container {container_name}. Waiting for it to stop natively...")
                     container.wait()
                     logging.info(f"[Job {job['id']}] Container {container_name} has stopped natively.")
+                elif container.status != 'exited':
+                    container.stop(timeout=10)
+            except docker.errors.APIError as e:
+                logging.warning(f"[Job {job['id']}] Error while waiting/stopping container {container_name}: {e}")
 
+            try:
                 # Remove the now-stopped container
                 logging.info(f"[Job {job['id']}] Removing stopped container {container_name}")
-                container.remove(v=True)  # v=True removes associated anonymous volumes
-
-                # Remove the image to free space
-                logging.info(f"[Job {job['id']}] Removing image {image_name} to free disk space")
-                client.images.remove(image_name, force=True)
-
+                container.remove(v=True, force=True)  # v=True removes associated anonymous volumes
             except docker.errors.APIError as e:
-                logging.warning(f"[Job {job['id']}] Cleanup error during teardown: {e}")
+                logging.warning(f"[Job {job['id']}] Cleanup error while removing container {container_name}: {e}")
+
+        try:
+            # Always remove the image to free space, even if container creation/removal failed
+            logging.info(f"[Job {job['id']}] Removing image {image_name} to free disk space")
+            client.images.remove(image_name, force=True)
+        except docker.errors.ImageNotFound:
+            logging.debug(f"[Job {job['id']}] Image {image_name} already removed.")
+        except docker.errors.APIError as e:
+            logging.warning(f"[Job {job['id']}] Cleanup error while removing image {image_name}: {e}")
 
         # Mark job as completed in DB
         job_queue.mark_job_completed(job['id'])
