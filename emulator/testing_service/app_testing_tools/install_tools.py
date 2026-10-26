@@ -79,8 +79,11 @@ def pip_install(packages, extra_args=None):
     base_python = venv_python or sys.executable
 
     attempts = []
-    attempts.append([base_python, '-m', 'pip', 'install', '--no-cache-dir'] + extra + packages)
+    uv_bin = shutil.which('uv')
+    if uv_bin:
+        attempts.append([uv_bin, 'pip', 'install', '--no-cache', '--python', base_python] + extra + packages)
     attempts.append([base_python, '-m', 'pip', 'install', '--no-cache-dir', '--prefer-binary'] + extra + packages)
+    attempts.append([base_python, '-m', 'pip', 'install', '--no-cache-dir'] + extra + packages)
     attempts.append([base_python, '-m', 'pip', 'install', '--no-cache-dir', '--disable-pip-version-check'] + extra + packages)
 
     for cmd in attempts:

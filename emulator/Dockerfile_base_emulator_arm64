@@ -165,11 +165,13 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 ################################
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel uv
 COPY ./emulator/testing_service/ /android/testing_service/
 COPY ./emulator/testing_service/requirements.txt /android/testing_service/requirements.txt
 RUN set -eux; \
     if [ -f /android/testing_service/requirements.txt ]; then \
-        python3 -m pip install --no-cache-dir -r /android/testing_service/requirements.txt || python3 -m pip install --no-cache-dir -r /android/testing_service/requirements.txt; \
+        uv pip install --no-cache --python /opt/venv/bin/python3 -r /android/testing_service/requirements.txt \
+        || python3 -m pip install --no-cache-dir --prefer-binary -r /android/testing_service/requirements.txt; \
     fi
 RUN set -eux; python3 /android/testing_service/app_testing_tools/install_tools.py;
 RUN set -eux; python3 /android/testing_service/app_testing_tools/install_acvtool.py

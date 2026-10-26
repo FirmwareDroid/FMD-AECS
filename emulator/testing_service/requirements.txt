@@ -1,17 +1,30 @@
 ## Core Python dependencies used by the emulator testing service and app-testing tools.
-Appium-Python-Client~=5.2.7
-# droidrun: model / runner wrapper used by some app-testing helpers. Use a minimum version to avoid very old releases.
-mobilerun~=0.6.8
+Appium-Python-Client==5.2.7
+# mobilerun and pinned llama-index / genai transitive dependencies to prevent pip resolver backtracking
+mobilerun==0.6.8
+mobilerun-core-cli==0.2.0
+mobilerun-sdk==5.0.0
+llama-index==0.14.4
+llama-index-core==0.14.14
+llama-index-cli==0.5.3
+llama-index-embeddings-openai==0.5.1
+llama-index-indices-managed-llama-cloud==0.9.4
+llama-index-instrumentation==0.5.0
+llama-index-llms-google-genai==0.8.7
+llama-index-llms-ollama==0.9.1
+llama-index-llms-openai==0.6.18
+llama-index-llms-openai-like==0.6.0
+llama-index-llms-openrouter==0.4.4
+llama-index-readers-file==0.5.6
+llama-index-readers-llama-parse==0.5.1
+llama-index-callbacks-arize-phoenix==0.6.1
+llama-index-workflows==2.22.1
+google-genai==1.63.0
+arize-phoenix==12.35.0
+ollama==0.6.1
 # kea2-python: optional toolbox installed by install_tools.py
-kea2-python~=0.1.0
-# uiautomator2: device automation backend used by several tools
-#uiautomator2~=2.26.0
-# Pillow for image handling
-#Pillow~=9.5.0
-# Optional heavy dependencies (only required for specific tools like Humanoid).
-# Install these only when you need the corresponding tools to keep image size small.
-# matplotlib>=3.6.0
-scipy~=1.10.0
-#pyflann-py3~=1.8.4
+Kea2-python==1.2.3
+# scipy>=1.13 is required for compatibility with modern numpy/scikit-learn/arize-phoenix on Python 3.11+
+scipy>=1.13.0
 psutil~=7.2.2
 acvtool==2.3.6
