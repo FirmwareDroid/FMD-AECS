@@ -11,6 +11,7 @@ CHECK_INTERVAL = 120  # 2 minutes in seconds
 LOG_FILE_PATH = "/android/log/adb_monitor.log"
 
 # Setup Logging
+os.makedirs(os.path.dirname(LOG_FILE_PATH), exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",

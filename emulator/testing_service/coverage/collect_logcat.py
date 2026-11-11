@@ -87,10 +87,11 @@ def clear_logcat(device: Optional[str]):
 
 def dump_uid_logcat(uid: Optional[int], device: Optional[str], delimited=False):
     adb_args = ['-s', device] if device else []
+    uid_str = str(uid)
     if delimited:
-        cmd = ['logcat', '-d', '-b', 'all', '-v', 'uid', "--uid", uid, "-D"]
+        cmd = ['logcat', '-d', '-b', 'all', '-v', 'uid', "--uid", uid_str, "-D"]
     else:
-        cmd = ['logcat', '-d', '-b', 'all', '-v', 'uid', "--uid", uid]
+        cmd = ['logcat', '-d', '-b', 'all', '-v', 'uid', "--uid", uid_str]
 
     proc = run_adb((adb_args or []) + cmd)
     if proc.returncode != 0:
@@ -279,12 +280,17 @@ def main():
         uid = get_package_uid(args.device, args.package)
         if uid is not None:
             logging.info('Found UID: %s', uid)
-            full_log = dump_full_logcat(args.device)
-            full_log_delimited = dump_full_logcat(args.device)
+            try:
+                full_log = dump_uid_logcat(uid, args.device, delimited=False)
+                full_log_delimited = dump_uid_logcat(uid, args.device, delimited=True)
+            except Exception as e:
+                logging.warning('UID-filtered logcat failed (%s); falling back to full logcat dump', e)
+                full_log = dump_full_logcat(args.device, delimited=False)
+                full_log_delimited = dump_full_logcat(args.device, delimited=True)
         else:
-            full_log = dump_uid_logcat(uid, args.device)
-            full_log_delimited = dump_uid_logcat(args.device)
             logging.info('UID not found for package; continuing to dump full logcat')
+            full_log = dump_full_logcat(args.device, delimited=False)
+            full_log_delimited = dump_full_logcat(args.device, delimited=True)
         write_json_output(out_path, args.package, uid, full_log)
         out_path_2 = os.path.join(out_path.replace('.json', '_delimited_2.json'))
         write_json_output(out_path_2, args.package, uid, full_log_delimited)

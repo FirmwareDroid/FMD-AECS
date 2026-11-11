@@ -15,10 +15,11 @@ from jinja2 import Environment, FileSystemLoader
 from ConfigManager import ConfigManager
 from aosp_module_type import get_module_type
 from aosp_post_build_app_injector import get_signing_key_path, sign_apk_file, verify_apk_file, \
-    sign_apex_container_apksigner, sign_apex_container_signapk
+    sign_apex_container_apksigner, sign_apex_container_signapk, inspect_apk_manifest_locally, \
+    ensure_apk_has_dex, align_apk_file
 from common import extract_vendor_name, remove_vendor_name_from_filename, check_shared_object_architecture, \
-    get_path_up_to_first_term, get_md5_from_file, remove_vendor_name_from_path
-from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A
+    get_path_up_to_first_term, get_md5_from_file, remove_vendor_name_from_path, get_aosp_build_out_dir
+from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A, get_safe_username
 from parse_lddtree_to_json import run_lddtree
 from shell_command import execute_shell_command
 from config_post_injector import *
@@ -90,6 +91,8 @@ def handle_apex_modules(file_path, aosp_path, lunch_target, target_out_path, aos
     except Exception as e:
         log_message = f"Unexpected error while handling APEX modules: {e}"
         logging.error(log_message)
+        if os.path.exists(org_apex_file):
+            shutil.copyfile(org_apex_file, file_path)
 
     return is_merge_success, log_message, apex_merge_file_path_list
 
@@ -873,20 +876,18 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
         logging.debug(f"Copy manifest from original APEX: {apex_manifest_path_pb}")
         shutil.copy2(apex_manifest_path_pb, merged_apex_extract_dir_path)
         if not os.path.exists(merged_apex_extract_dir_path):
-            logging.error(f"ERROR: APEX Manifest was not copied to: {merged_apex_extract_dir_path}. EXIT PROGRAM!")
-            traceback.print_stack()
-            time.sleep(5)
-            exit(-1)
+            err_msg = f"ERROR: APEX Manifest was not copied to: {merged_apex_extract_dir_path}."
+            logging.error(err_msg)
+            raise RuntimeError(err_msg)
     else:
         logging.debug(f"Load Manifest from AOSP source tree for APEX: {filename_input}")
         apex_manifest_name_pb = "apex_manifest.pb"
         apex_manifest_path_pb = os.path.join(apex_root_path, apex_manifest_name_pb)
         apex_keyword = get_matching_apex_key(filename_input, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"])
         if not apex_keyword:
-            logging.error(f"APEX: No matching keyword found in APEX_DEFAULT_PATHS_DICT for {filename_input}. EXIT PROGRAM!")
-            traceback.print_stack()
-            time.sleep(5)
-            exit(-1)
+            err_msg = f"APEX: No matching keyword found in APEX_DEFAULT_PATHS_DICT for {filename_input}."
+            logging.error(err_msg)
+            raise RuntimeError(err_msg)
         logging.debug(f"APEX Keyword: {apex_keyword} found for apex: {filename_input}")
         apex_module_path = str(os.path.join(aosp_path, POST_INJECTOR_CONFIG["APEX_DEFAULT_PATHS_DICT"][apex_keyword]))
 
@@ -898,11 +899,9 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
                 apex_manifest_path = candidate_path
                 break
         if apex_manifest_path is None:
-            logging.error(
-                f"APEX: No manifest file found in APEX module path: {apex_module_path}. EXIT PROGRAM!")
-            traceback.print_stack()
-            time.sleep(5)
-            exit(-1)
+            err_msg = f"APEX: No manifest file found in APEX module path: {apex_module_path}."
+            logging.error(err_msg)
+            raise RuntimeError(err_msg)
 
         logging.debug(f"APEX manifest path used: {apex_manifest_path}")
         if os.path.exists(apex_manifest_path):
@@ -910,20 +909,17 @@ def load_apex_manifest_from_aosp(apex_emulator_folder, merged_apex_extract_dir_p
                 f"Converting APEX manifest from JSON to Protobuf format: {apex_manifest_path} to {apex_manifest_path_pb}")
             is_success, log_message = convert_manifest_from_json(apex_manifest_path=apex_manifest_path, out_file_path=apex_manifest_path_pb, aosp_path=aosp_path, lunch_target=lunch_target)
             if not os.path.exists(apex_manifest_path_pb):
-                logging.error(f"Failure converting APEX manifest to Protobuf format: {log_message}")
-                logging.error(f"APEX manifest Protobuf file not created: {apex_manifest_path_pb}. EXIT PROGRAM!")
-                traceback.print_stack()
-                time.sleep(5)
-                exit(-1)
+                err_msg = f"Failure converting APEX manifest to Protobuf format ({log_message}): {apex_manifest_path_pb}"
+                logging.error(err_msg)
+                raise RuntimeError(err_msg)
             else:
                 logging.debug(f"APEX manifest Protobuf file created: {apex_manifest_path_pb}")
                 shutil.copy2(apex_manifest_path_pb, merged_apex_extract_dir_path)
                 logging.debug(f"APEX manifest Protobuf file copied {apex_manifest_path_pb} to: {merged_apex_extract_dir_path}")
         else:
-            logging.error("APEX Manifest path is invalid. EXIT PROGRAM!")
-            traceback.print_stack()
-            time.sleep(5)
-            exit(-1)
+            err_msg = f"APEX Manifest path is invalid: {apex_manifest_path}"
+            logging.error(err_msg)
+            raise RuntimeError(err_msg)
     return apex_manifest_path_pb
 
 def replace_emulator_apex_folder(input_apex, aosp_path, aosp_version, apex_merge_folder_path):
@@ -1079,7 +1075,7 @@ def inject_apex_vendor_apps(merged_apex_extract_dir_path, apex_vendor_extract_di
                                      + file)
                     dst_file_path = dst_file_path.replace(get_after_split, "").replace("@", "")
                     logging.debug(f"APEX extract dir after TAG removal: {extract_dir} | {dst_file_path}")
-                current_username = os.getlogin()
+                current_username = get_safe_username()
                 command = (f'mkdir -p "$(dirname {dst_file_path})" 2>/dev/null '
                            f'&& cp {file_path} {dst_file_path} '
                            #f'&& chown {current_username}:{current_username} {dst_file_path} '
@@ -1134,7 +1130,7 @@ def copy_symlink_recreate(src, dst_dir):
 
 def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_dir_path, apex_emulator_folder, aosp_path):
     files_coped_list = []
-    current_username = os.getlogin()
+    current_username = get_safe_username()
     for root, dirs, files in os.walk(apex_vendor_extract_dir_path):
         for file_name in files:
             file_path = str(os.path.join(root, file_name))
@@ -1207,7 +1203,7 @@ def inject_apex_vendor_files(merged_apex_extract_dir_path, apex_vendor_extract_d
                     continue
 
                 if file_ext in [".so"]:
-                    module_type = get_module_type(file_path, post_injector_config=POST_INJECTOR_CONFIG)
+                    module_type, _ = get_module_type(file_path, post_injector_config=POST_INJECTOR_CONFIG)
                     if module_type in ["SKIPPED"]:
                         logging.error(f"SKIPPED APEX File (Keyword Match): {file_path}")
                         continue
@@ -1308,20 +1304,28 @@ def copy_file_to_intermediate_symbols_folder(
 ) -> None:
     """Copies the file into specified target symbols directories within the AOSP tree."""
 
-    intermediate_folder_list = [
-        "out/target/product/emulator64_arm64/symbols/apex/",
-        "out/target/product/emulator64_arm64/obj/PACKAGING/elf_symbol_mapping_intermediates/apex/"
+    candidate_products = [
+        AOSP_BUILD_OUT_SDK_ARM64_x64_PATH,
+        AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A,
     ]
+    intermediate_folder_list = []
+    for prod_rel in candidate_products:
+        prod_abs = os.path.join(aosp_path, prod_rel)
+        if os.path.isdir(prod_abs) or not intermediate_folder_list:
+            intermediate_folder_list.extend([
+                os.path.join(prod_rel, "symbols/apex/"),
+                os.path.join(prod_rel, "obj/PACKAGING/elf_symbol_mapping_intermediates/apex/"),
+            ])
 
     # Dynamically resolve the folder name using the shared logic helper
-    apex_emulator_folder_name = get_resolved_apex_folder_name(apex_emulator_folder)
+    apex_emulator_folder_name = get_resolved_apex_folder_name(apex_emulator_folder).name
     relative_path = get_relative_injection_path(file_path, apex_vendor_extract_dir_path)
 
     for intermediate_folder in intermediate_folder_list:
         target_folder_path = os.path.join(aosp_path, intermediate_folder, apex_emulator_folder_name)
 
         if not os.path.isdir(target_folder_path):
-            logging.error(f"{target_folder_path} does not exist or is not a directory")
+            logging.debug(f"{target_folder_path} does not exist or is not a directory")
             continue
         try:
             _safe_copy_with_logging(file_path, target_folder_path, relative_path)
@@ -1339,7 +1343,7 @@ def change_file_permission(file_path, permission):
 
 def change_file_ownership(file_path):
     try:
-        current_user = os.getlogin()
+        current_user = get_safe_username()
         # sudo'sudo',
         command = ['chown', current_user, file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True, env=os.environ.copy())
@@ -1954,9 +1958,8 @@ def move_apex_manifest_file(apex_extract_dir_path, output_dir_path, apex_filenam
                         logging.debug(f"Found APEX manifest file: {file_path} to delete")
                         shutil.move(file_path, manifest_dst)
                     else:
-                        logging.error(f"No APEX manifest found in {apex_extract_dir_path} | {file_path}. EXITING!")
-                        time.sleep(5)
-                        exit(1)
+                        logging.error(f"No APEX manifest found in {apex_extract_dir_path} | {file_path}.")
+                        break
                     #manifest_json_file_path = get_apex_manifest_from_aosp(aosp_path, apex_file_name)
                     #convert_apex_manifest_json_to_pb(manifest_json_file_path, manifest_dst)
                     logging.debug(f"Copied APEX manifest file: {file_path} to {manifest_dst}.")
@@ -2028,9 +2031,17 @@ def search_string_in_apk(apk_file, search_string):
                 break
     return is_user_id_found
 
-def get_signing_key_from_manifest(apk_file):
+def get_signing_key_from_manifest(apk_file, aosp_path=None):
     signing_key = None
-    for key, shared_uid_list in POST_INJECTOR_CONFIG["SHARED_USER_ID_MAPPING_DICT"].items():
+    mapping = (POST_INJECTOR_CONFIG or {}).get("SHARED_USER_ID_MAPPING_DICT", DEFAULT_SHARED_USER_ID_MAPPING_DICT)
+    manifest_info = inspect_apk_manifest_locally(apk_file, aosp_path=aosp_path)
+    shared_user_id = manifest_info.get("shared_user_id")
+    if shared_user_id:
+        for key, shared_uid_list in mapping.items():
+            if shared_user_id in shared_uid_list:
+                return key
+        return "platform"
+    for key, shared_uid_list in mapping.items():
         for shared_uid in shared_uid_list:
             if search_string_in_apk(apk_file, shared_uid):
                 signing_key = key
@@ -2064,7 +2075,9 @@ def resign_apex_apk_files(aosp_path, apex_extract_dir_path, aosp_version):
         for file in files:
             if file.endswith(".apk"):
                 apk_file_path = os.path.join(root, file)
-                signing_key = get_signing_key_from_manifest(apk_file_path)
+                ensure_apk_has_dex(apk_file_path, aosp_path)
+                align_apk_file(apk_file_path, aosp_path)
+                signing_key = get_signing_key_from_manifest(apk_file_path, aosp_path=aosp_path)
                 if signing_key is None:
                     signing_key = get_signing_key_from_filename(apk_file_path, aosp_version)
                     logging.debug(f"Signing key not found in APK manifest. Using filename to determine key: {apk_file_path} | {signing_key}")
@@ -2248,7 +2261,7 @@ def replace_apex_avb_public_key(apex_file_path, avb_pub_key_path, target_out_pat
 
     # .replace(".google", "").replace("Google", "")
     apex_filename_no_ext = os.path.splitext(apex_filename)[0]
-    remove_vendor_name_from_filename(apex_filename_no_ext)
+    apex_filename_no_ext = remove_vendor_name_from_filename(apex_filename_no_ext)
 
     apex_pub_key_obj_path = str(os.path.join(target_out_path, FOLDER_NAME_OBJECTS, "ETC",
                                              f"apex_pubkey.{apex_filename_no_ext}_intermediates"))

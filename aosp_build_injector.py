@@ -94,24 +94,32 @@ def copy_logs_by_prefix(source_dir: str, output_dir: str, prefix: str) -> None:
 
 def has_extracted_partitions(all_files_dir_path):
     """
-    Returns True if all target directories exist in the root,
-    otherwise returns False. Logs the existence of each directory.
+    Returns True if at least one primary partition directory ('system' or 'super')
+    exists in the extracted firmware root, and logs all discovered vendor/OEM partitions.
     """
-    # Removed leading slashes so os.path.join works as intended
-    target_dirs = ['system']
+    primary_dirs = ['system', 'super']
+    optional_dirs = [
+        'vendor', 'product', 'system_ext', 'odm', 'oem',
+        'my_product', 'my_stock', 'my_heytap', 'my_region', 'my_carrier',
+        'prism', 'optics', 'omr', 'mi_ext', 'cust'
+    ]
 
-    all_exist = True
-
-    for d in target_dirs:
+    has_primary = False
+    for d in primary_dirs:
         full_path = os.path.join(all_files_dir_path, d)
-
         if os.path.isdir(full_path):
-            logging.info(f"FOUND: Directory exists -> {full_path}")
-        else:
-            logging.warning(f"MISSING: Directory not found -> {full_path}")
-            all_exist = False
+            logging.info(f"FOUND primary partition directory -> {full_path}")
+            has_primary = True
 
-    return all_exist
+    if not has_primary:
+        logging.warning(f"MISSING primary partition directory ('system' or 'super') in -> {all_files_dir_path}")
+
+    for d in optional_dirs:
+        full_path = os.path.join(all_files_dir_path, d)
+        if os.path.isdir(full_path):
+            logging.info(f"FOUND OEM/additional partition directory -> {full_path}")
+
+    return has_primary
 
 
 def start_aosp_build(aosp_path, aosp_packages_path, firmware_id, lunch_target, aosp_version, skip_filtering, cookies, tag=None):

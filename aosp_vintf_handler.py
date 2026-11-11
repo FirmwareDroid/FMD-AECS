@@ -268,14 +268,13 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
         if os.path.exists(base_manifest_source):
             primary_manifest_hals = extract_hal_names_from_file(base_manifest_source)
 
-        vendor_hal_signatures = set()
-        for file_name in os.listdir(vendor_stage):
+        # Collect ALL AOSP HAL names across manifest.xml and all AOSP fragments so Goldfish virtual HALs are preserved
+        all_aosp_hals = set(primary_manifest_hals)
+        for file_name in os.listdir(aosp_stage):
             if file_name.endswith(".xml") and "compatibility_matrix" not in file_name:
-                vendor_hal_signatures.update(extract_hal_names_from_file(os.path.join(vendor_stage, file_name)))
+                all_aosp_hals.update(extract_hal_names_from_file(os.path.join(aosp_stage, file_name)))
 
-        global_exclusion_signatures = vendor_hal_signatures.union(primary_manifest_hals)
-
-        # 2. Process AOSP files
+        # 2. Process AOSP files (always preserve AOSP Goldfish HALs; only deduplicate AOSP fragments against AOSP manifest.xml)
         logging.info("Processing baseline AOSP configurations...")
         for file_name in os.listdir(aosp_stage):
             aosp_file_path = os.path.join(aosp_stage, file_name)
@@ -284,16 +283,15 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
             if file_name.endswith(".xml") and "compatibility_matrix" not in file_name:
                 if file_name == "manifest.xml":
                     shutil.copy2(aosp_file_path, dest_file_path)
-                    remove_duplicate_hals_from_file(dest_file_path, vendor_hal_signatures)
                     inject_permissive_attributes(dest_file_path)
                     continue
 
                 aosp_hals = extract_hal_names_from_file(aosp_file_path)
-                if aosp_hals and aosp_hals.issubset(global_exclusion_signatures):
+                if aosp_hals and aosp_hals.issubset(primary_manifest_hals):
                     continue
 
                 shutil.copy2(aosp_file_path, dest_file_path)
-                status = remove_duplicate_hals_from_file(dest_file_path, global_exclusion_signatures)
+                status = remove_duplicate_hals_from_file(dest_file_path, primary_manifest_hals)
                 if status == "EMPTY":
                     os.remove(dest_file_path)
                 else:
@@ -302,7 +300,7 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
                 shutil.copy2(aosp_file_path, dest_file_path)
                 inject_permissive_attributes(dest_file_path)
 
-        # 3. Process Vendor files
+        # 3. Process Vendor files (additive only: strip any vendor HALs that collide with AOSP Goldfish HALs)
         logging.info("Processing Vendor configurations...")
         for file_name in os.listdir(vendor_stage):
             vendor_file_path = os.path.join(vendor_stage, file_name)
@@ -313,12 +311,15 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
                     if os.path.exists(dest_file_path):
                         dest_file_path = os.path.join(manifest_temp, "manifest_vendor_root.xml")
                     shutil.copy2(vendor_file_path, dest_file_path)
-                    remove_duplicate_hals_from_file(dest_file_path, primary_manifest_hals)
-                    inject_permissive_attributes(dest_file_path)
+                    status = remove_duplicate_hals_from_file(dest_file_path, all_aosp_hals)
+                    if status == "EMPTY":
+                        os.remove(dest_file_path)
+                    else:
+                        inject_permissive_attributes(dest_file_path)
                     continue
 
                 vendor_hals = extract_hal_names_from_file(vendor_file_path)
-                if vendor_hals and vendor_hals.issubset(primary_manifest_hals):
+                if vendor_hals and vendor_hals.issubset(all_aosp_hals):
                     continue
 
                 if os.path.exists(dest_file_path):
@@ -326,7 +327,7 @@ def merge_vintf_artifacts(aosp_dir, vendor_dir, host_bin_dir, output_dir):
                     dest_file_path = os.path.join(manifest_temp, f"{name_root}_vendor_override{ext}")
 
                 shutil.copy2(vendor_file_path, dest_file_path)
-                status = remove_duplicate_hals_from_file(dest_file_path, primary_manifest_hals)
+                status = remove_duplicate_hals_from_file(dest_file_path, all_aosp_hals)
                 if status == "EMPTY":
                     os.remove(dest_file_path)
                 else:

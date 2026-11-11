@@ -25,8 +25,16 @@ from collections import Counter, defaultdict
 from shutil import which
 from typing import Dict, Any, List, Optional, Set
 import os
+import sys
 
-from testing_service.app_testing_tools.test_results import append_run
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
+
+try:
+    from test_results import append_run
+except ImportError:
+    from testing_service.app_testing_tools.test_results import append_run
 
 # Default output directory for start_apps summaries
 DEFAULT_OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out')
@@ -57,10 +65,15 @@ if not already_have:
 ADB = which('adb') or 'adb'
 
 
-def run_adb(cmd_args, capture_output=True, text=True):
+def run_adb(cmd_args, capture_output=True, text=True, timeout=120):
     try:
-        result = subprocess.run([ADB] + cmd_args, capture_output=capture_output, text=text)
+        result = subprocess.run([ADB] + cmd_args, capture_output=capture_output, text=text, timeout=timeout)
         return result.returncode, result.stdout or '', result.stderr or ''
+    except subprocess.TimeoutExpired as e:
+        logging.warning('adb command timed out after %ss: %s', timeout, ' '.join(str(a) for a in cmd_args))
+        out = e.stdout.decode('utf-8', errors='replace') if isinstance(e.stdout, bytes) else (e.stdout or '')
+        err = e.stderr.decode('utf-8', errors='replace') if isinstance(e.stderr, bytes) else (e.stderr or 'timeout')
+        return 124, out, err
     except FileNotFoundError:
         raise RuntimeError(f"adb not found. Make sure Android platform-tools are installed and adb is in PATH.")
 
@@ -219,8 +232,10 @@ def monkey_launch(package, serial=None, events=1, monkey_opts: Optional[Dict[str
 
     cmd += monkey_cmd
 
-    logging.debug('Running adb command: %s', ' '.join(cmd))
-    rc, out, err = run_adb(cmd)
+    throttle_ms = int(throttle) if (throttle is not None and str(throttle).isdigit()) else 100
+    monkey_timeout = max(120, int(events_int * (max(throttle_ms, 50) / 1000.0) + 120))
+    logging.debug('Running adb command (timeout=%ss): %s', monkey_timeout, ' '.join(cmd))
+    rc, out, err = run_adb(cmd, timeout=monkey_timeout)
     return rc == 0, out + err
 
 
@@ -476,9 +491,10 @@ def start_packages(serial=None,
             skipped_details.append({'package': pkg, 'apk_path': apk_path})
             continue
 
-        # if already running, consider success
+        # if already running and only doing a 1-event basic launch check, consider success;
+        # when monkey_events > 1 (Monkey fuzzing), proceed to monkey_launch even if already running.
         pid_before = pid_of(pkg, serial)
-        if pid_before:
+        if pid_before and (monkey_events is None or int(monkey_events) <= 1):
             logging.info('Package %s already running (pid=%s).', pkg, pid_before)
             success.append(pkg)
             time.sleep(delay)
@@ -500,8 +516,9 @@ def start_packages(serial=None,
         ok, output = monkey_launch(pkg, serial, events=monkey_events, monkey_opts=monkey_opts)
         time.sleep(delay)
         pid_after = pid_of(pkg, serial)
-        if pid_after:
-            logging.info('Monkey launched %s (pid=%s).', pkg, pid_after)
+        monkey_fuzzed_ok = bool(monkey_events and int(monkey_events) > 1 and (ok or 'Events injected:' in (output or '') or pid_before))
+        if pid_after or monkey_fuzzed_ok:
+            logging.info('Monkey launched/fuzzed %s (pid=%s, events=%s).', pkg, pid_after or pid_before, monkey_events)
             success.append(pkg)
             started_by_script.append(pkg)
             # optionally stop it again

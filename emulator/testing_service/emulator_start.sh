@@ -89,10 +89,15 @@ main() {
   start_adb_nodaemon
 
   # Start emulator
+  EMU_LOG="$LOG_DIR/emulator_${AVD}.log"
+  mkdir -p /var/log 2>/dev/null || true
+  ln -sfn "$EMU_LOG" /var/log/emulator_start.log 2>/dev/null || true
+  ln -sfn "$EMU_LOG" "$LOGFILE" 2>/dev/null || true
   log "EMU_CMD: $(printf '%q ' "${EMU_CMD[@]}")"
-  log "Starting emulator in background (logs -> $LOG_DIR/emulator_${AVD}.log)"
-  "${EMU_CMD[@]}" >"$LOG_DIR/emulator_${AVD}.log" 2>&1 &
+  log "Starting emulator (logs -> $EMU_LOG)"
+  "${EMU_CMD[@]}" >"$EMU_LOG" 2>&1 &
   emulator_pid=$!
+  wait "$emulator_pid"
 }
 
 main "$@"

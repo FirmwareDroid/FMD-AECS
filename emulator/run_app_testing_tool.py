@@ -57,38 +57,64 @@ def list_containers(docker_cli: str, name_filter: str) -> List[str]:
         sys.exit(3)
 
 
-def build_exec_command(docker_cli: str, container: str, mode: str, args) -> List[str]:
-    cmd = [docker_cli, 'exec', '-d', container, 'python3', REMOTE_RUN_SCRIPT, '--mode', mode]
+def _normalize_mode(mode: str) -> str:
+    return 'mobilerun' if mode == 'droidrun' else mode
+
+
+def _build_single_experiment_args(mode: str, args) -> List[str]:
+    norm_mode = _normalize_mode(mode)
+    exp_args = ['python3', REMOTE_RUN_SCRIPT, '--mode', norm_mode]
     if args.test_only_one:
-        cmd.append('--test-only-one')
+        exp_args.append('--test-only-one')
     if args.skip_setup:
-        cmd.append('--skip-setup')
+        exp_args.append('--skip-setup')
+    if getattr(args, 'skip_install', False):
+        exp_args.append('--skip-install')
     if args.pcapdroid:
-        cmd.append('--pcapdroid')
+        exp_args.append('--pcapdroid')
     if args.pcap_http_port is not None:
-        cmd.extend(['--pcap-http-port', str(args.pcap_http_port)])
+        exp_args.extend(['--pcap-http-port', str(args.pcap_http_port)])
     if args.socks5_address:
-        cmd.extend(['--socks5-address', args.socks5_address])
-    # pass through the selection of testing tools as flags if helpful (not strictly required by run_experiment)
-    return cmd
+        exp_args.extend(['--socks5-address', args.socks5_address])
+    return exp_args
+
+
+def build_exec_command(docker_cli: str, container: str, mode_or_modes, args) -> List[str]:
+    if isinstance(mode_or_modes, str):
+        modes = [mode_or_modes]
+    else:
+        modes = list(mode_or_modes)
+
+    if len(modes) == 1:
+        return [docker_cli, 'exec', '-d', container] + _build_single_experiment_args(modes[0], args)
+
+    # Multiple modes requested: run them sequentially inside the container so
+    # they do not collide over ADB, UiAutomation, or log/result files.
+    import shlex
+    chained = ' && '.join(
+        ' '.join(shlex.quote(tok) for tok in _build_single_experiment_args(m, args))
+        for m in modes
+    )
+    return [docker_cli, 'exec', '-d', container, 'sh', '-c', chained]
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run run_experiment.py inside all matching android emulator containers')
     parser.add_argument('--filter', type=str, default=DOCKER_DEFAULT_FILTER, help='Substring to match container names (default: android_emulator)')
-    parser.add_argument('--mode', choices=['basic', 'droidrun', 'single', 'monkey', 'ape', 'fastbot', 'kea2', 'pipeline'], default='basic', help='Mode to run inside containers (ignored if individual tool flags provided)')
+    parser.add_argument('--mode', choices=['basic', 'mobilerun', 'droidrun', 'single', 'monkey', 'ape', 'fastbot', 'kea2', 'pipeline'], default='basic', help='Mode to run inside containers (ignored if individual tool flags provided)')
 
     # Individual tool switches - if any of these are provided they override --mode and the script will
-    # run one invocation per enabled tool.
+    # run the selected tools sequentially inside each container.
     parser.add_argument('--ape', action='store_true', help='Run mode=ape in containers')
     parser.add_argument('--fastbot', action='store_true', help='Run mode=fastbot in containers')
     parser.add_argument('--kea2', action='store_true', help='Run mode=kea2 in containers')
-    parser.add_argument('--droidrun', action='store_true', help='Run mode=droidrun in containers')
+    parser.add_argument('--mobilerun', '--droidrun', dest='droidrun', action='store_true', help='Run mode=mobilerun in containers')
     parser.add_argument('--monkey', action='store_true', help='Run mode=monkey in containers')
 
     # Common flags forwarded to run_experiment.py
     parser.add_argument('--test-only-one', action='store_true', help='If set, only the first app in the list will be tested')
-    parser.add_argument('--skip-setup', action='store_true', help='Skip device setup steps (installing Appium/PCAPdroid/Droidrun)')
+    parser.add_argument('--skip-setup', action='store_true', help='Skip device setup steps (installing Appium/PCAPdroid/Mobilerun)')
+    parser.add_argument('--skip-install', action='store_true', help='Skip installing APKs on devices')
     parser.add_argument('--pcapdroid', action='store_true', help='Enable PCAPdroid setup on connected devices')
     parser.add_argument('--pcap-http-port', type=int, default=54320, help='Port to use for pcap http server (used when --pcapdroid set)')
     parser.add_argument('--socks5-address', type=str, default='127.0.0.1', help='The SOCKS5 proxy address (used when --pcapdroid set)')
@@ -120,36 +146,36 @@ def main():
         if args.kea2:
             modes.append('kea2')
         if args.droidrun:
-            modes.append('droidrun')
+            modes.append('mobilerun')
         if args.monkey:
             modes.append('monkey')
     else:
-        modes = [args.mode]
+        modes = [_normalize_mode(args.mode)]
 
     logging.info('Found %d container(s) matching "%s": %s', len(containers), args.filter, containers)
     logging.info('Will start the following modes in each container: %s', modes)
 
     failures = []
     for c in containers:
-        for m in modes:
-            cmd = build_exec_command(docker_cli, c, m, args)
-            logging.info('Starting mode=%s in container=%s', m, c)
-            logging.debug('Command: %s', ' '.join(cmd))
-            if args.dry_run:
-                logging.info('DRY-RUN: %s', ' '.join(cmd))
-                continue
-            try:
-                res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-                if res.returncode != 0:
-                    logging.error('Failed to start experiment in container %s (mode=%s). Return code: %s', c, m, res.returncode)
-                    logging.error('stdout: %s', res.stdout)
-                    logging.error('stderr: %s', res.stderr)
-                    failures.append((c, m, res.returncode, res.stderr or res.stdout))
-                else:
-                    logging.info('Started container %s (mode=%s) successfully', c, m)
-            except Exception as e:
-                logging.exception('Exception while launching experiment in container %s (mode=%s): %s', c, m, e)
-                failures.append((c, m, 'exception', str(e)))
+        mode_label = ','.join(modes)
+        cmd = build_exec_command(docker_cli, c, modes, args)
+        logging.info('Starting mode(s)=%s in container=%s', mode_label, c)
+        logging.debug('Command: %s', ' '.join(cmd))
+        if args.dry_run:
+            logging.info('DRY-RUN: %s', ' '.join(cmd))
+            continue
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if res.returncode != 0:
+                logging.error('Failed to start experiment in container %s (modes=%s). Return code: %s', c, mode_label, res.returncode)
+                logging.error('stdout: %s', res.stdout)
+                logging.error('stderr: %s', res.stderr)
+                failures.append((c, mode_label, res.returncode, res.stderr or res.stdout))
+            else:
+                logging.info('Started container %s (modes=%s) successfully', c, mode_label)
+        except Exception as e:
+            logging.exception('Exception while launching experiment in container %s (modes=%s): %s', c, mode_label, e)
+            failures.append((c, mode_label, 'exception', str(e)))
 
     if failures:
         logging.error('Completed with %d failure(s)', len(failures))

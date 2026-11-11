@@ -223,7 +223,7 @@ def run_script_capture(script_path, args=None, description=None, logfile_path=No
     """
     if not logfile_path:
         script_name = os.path.basename(script_path)
-        logfile_path = f"/android/testing_service/out/{script_name}.log"
+        logfile_path = os.path.join(OUT_DIR, f"{script_name}.log")
 
     interpreter = VENV_PYTHON or sys.executable
     cmd = [interpreter, script_path]
@@ -243,12 +243,14 @@ def run_script_capture(script_path, args=None, description=None, logfile_path=No
 
     returncode = -1
     duration = 0.0
+    start_offset = 0
 
-    # Open the file to stream stdout and stderr directly to disk
+    # Open the file in append mode so per-package runs preserve full history
     try:
-        with open(logfile_path, 'w', encoding='utf-8') as log_file:
+        with open(logfile_path, 'a', encoding='utf-8') as log_file:
+            start_offset = log_file.tell()
             # Metadata header inside the log file
-            log_file.write(f"=== Command: {' '.join(cmd)} ===\n")
+            log_file.write(f"\n=== Command: {' '.join(cmd)} ===\n")
             log_file.write(f"=== Started: {start} ===\n\n")
             log_file.flush()  # Ensure header is written before process starts
 
@@ -281,9 +283,13 @@ def run_script_capture(script_path, args=None, description=None, logfile_path=No
         end = datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z'
 
     # --- Inspection Phase ---
-    # Read the logfile back from disk to perform regex checks
+    # Read only the newly written slice from this invocation to perform regex checks
     try:
-        with open(logfile_path, 'r', encoding='utf-8') as log_file:
+        with open(logfile_path, 'r', encoding='utf-8', errors='replace') as log_file:
+            try:
+                log_file.seek(start_offset)
+            except Exception:
+                pass
             combined_content = log_file.read()
 
         low = combined_content.lower()
@@ -726,39 +732,57 @@ def wait_for_adb_available(max_wait_seconds=600, sleep_seconds=5):
 def execute_apps_with_coverage(app_package_names, mode):
     for package in app_package_names:
         run_script_capture(ACVTOOL, args=["activate", package],
-                           description="Run ACVTool to create coverage folder.")
+                           description=f"Run ACVTool to create coverage folder for {package}.")
 
-    for package in app_package_names:
         logging.info(f"Starting {package}")
         exec_app_testers(package, mode)
 
-    for package in app_package_names:
         acv_out_dir = os.path.join(OUT_DIR, 'acv_snaps', f"{package}")
         os.makedirs(acv_out_dir, exist_ok=True)
         run_script_capture(ACVTOOL, args=["snap", package, "--wd", acv_out_dir],
-                           description="Run ACVTool to get coverage measurement")
+                           description=f"Run ACVTool to get coverage measurement for {package}")
+
 
 def exec_app_testers(package, mode, skip_install=False):
     logging.info(f"Executing app test with package: {package}, mode: {mode}")
-    if mode == 'mobilerun':
-        run_script_capture(RUN_MOBILERUN, args=["run"], description="Run mobilerun agent to test apps.")
-    elif mode == 'monkey':
-        run_script_capture(RUN_MONKEY, args=["-m", "5000", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package])
-    elif mode == 'ape':
-        run_script_capture(RUN_APE, args=["-p", package], description=f"Run Ape search-based testing for {package}")
-    elif mode == 'fastbot':
-        run_script_capture(RUN_FASTBOT, args=["-p", package], description=f"Run Fastbot2.0 model-based testing for {package}")
-    elif mode == 'kea2':
-        run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
-    elif mode == 'pipeline':
-        logging.info('Running pipeline: Fastbot -> Kea2 -> Ape -> Monkey for %s', package)
-        run_script_capture(RUN_MONKEY, args=["-p", package], description=f"Run basic start/stop test for {package}")
-        run_script_capture(RUN_FASTBOT, args=["-p", package], description=f"Run Fastbot2.0 model-based testing for {package}")
-        run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
-        run_script_capture(RUN_APE, args=["-p", package], description=f"Run Ape search-based testing for {package}")
-        run_script_capture(RUN_MONKEY, args=["-p", package], description=f"Run basic start/stop test for {package}")
-    else:
-        run_script_capture(RUN_MONKEY, args=["-p", package], description=f"Run basic start/stop test for {package}")
+    # Tools that acquire Android's single-client UiAutomation service must not
+    # run concurrently with crash_watcher's `uiautomator dump`.
+    needs_uiautomation = mode in ('ape', 'fastbot', 'kea2', 'pipeline', 'mobilerun')
+    if needs_uiautomation and crash_watcher:
+        try:
+            crash_watcher.stop_crash_watcher()
+            logging.debug('Paused crash_watcher while %s holds UiAutomation', mode)
+        except Exception:
+            pass
+
+    try:
+        if mode == 'mobilerun':
+            run_script_capture(RUN_MOBILERUN, args=["run"], description="Run mobilerun agent to test apps.")
+        elif mode == 'monkey':
+            run_script_capture(RUN_MONKEY, args=["-m", "5000", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package],
+                               description=f"Run Android Monkey fuzzing for {package}")
+        elif mode == 'ape':
+            run_script_capture(RUN_APE, args=["-p", package], description=f"Run Ape search-based testing for {package}")
+        elif mode == 'fastbot':
+            run_script_capture(RUN_FASTBOT, args=["-p", package], description=f"Run Fastbot2.0 model-based testing for {package}")
+        elif mode == 'kea2':
+            run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
+        elif mode == 'pipeline':
+            logging.info('Running pipeline: Basic -> Fastbot -> Kea2 -> Ape -> Monkey for %s', package)
+            run_script_capture(RUN_MONKEY, args=["-p", package], description=f"Run basic start/stop test for {package}")
+            run_script_capture(RUN_FASTBOT, args=["-p", package], description=f"Run Fastbot2.0 model-based testing for {package}")
+            run_script_capture(RUN_KEA2, args=["-p", package], description=f"Run Kea2 property-based testing for {package}")
+            run_script_capture(RUN_APE, args=["-p", package], description=f"Run Ape search-based testing for {package}")
+            run_script_capture(RUN_MONKEY, args=["-m", "5000", "--monkey-seed", "1337", "--monkey-randomize-throttle", "-p", package],
+                               description=f"Run Android Monkey fuzzing for {package}")
+        else:
+            run_script_capture(RUN_MONKEY, args=["-p", package], description=f"Run basic start/stop test for {package}")
+    finally:
+        if needs_uiautomation and crash_watcher:
+            try:
+                crash_watcher.start_crash_watcher(device=None, interval=5.0)
+            except Exception:
+                pass
 
     # run_script_capture(ACVTOOL, args=["cover-pickles", package, "--wd", OUT_DIR],
     #                   description="Run ACVTool to deserialize coverage measurement")
@@ -771,6 +795,9 @@ def start_experiment(mode='single', test_only_one=False, skip_install=False):
     install_output_path = os.path.join(OUT_DIR, 'install_results.json')
     if test_only_one:
         app_package_names = get_testing_apps()
+        if not app_package_names:
+            logging.warning('No testing apps found for --test-only-one')
+            return
         first_pkg = [app_package_names[0]]
         logging.info('Test-only-one enabled; testing only first package: %s', first_pkg)
         if not skip_install:
@@ -784,13 +811,38 @@ def start_experiment(mode='single', test_only_one=False, skip_install=False):
         else:
             logging.info('Skipping installation of apps due to --skip-install')
         app_package_names = get_installed_packages()
-        # TODO Filter apps that have an Activity
-        logging.info('Testing all packages; total count: %d', len(app_package_names))
         if not app_package_names:
             logging.info('No packages found to test')
             return
-        app_package_names.remove("android")
-        execute_apps_with_coverage(app_package_names, mode)
+        if "android" in app_package_names:
+            app_package_names.remove("android")
+
+        filtered_packages = []
+        skipped_packages = []
+        for pkg in app_package_names:
+            low_pkg = pkg.lower()
+            if low_pkg.endswith('.overlay') or '.overlay.' in low_pkg or 'auto_generated_rro' in low_pkg:
+                skipped_packages.append((pkg, 'overlay_package'))
+                continue
+            try:
+                has_act, _ = package_has_activity(pkg)
+                if has_act:
+                    filtered_packages.append(pkg)
+                else:
+                    skipped_packages.append((pkg, 'no_activity'))
+            except Exception as exc:
+                logging.debug('Activity check failed for %s (%s); keeping package', pkg, exc)
+                filtered_packages.append(pkg)
+
+        logging.info(
+            'Filtered installed packages for testing: %d testable with activities, %d skipped (total=%d)',
+            len(filtered_packages), len(skipped_packages), len(app_package_names)
+        )
+        if not filtered_packages:
+            logging.warning('No packages matched activity filter; falling back to unfiltered list (%d packages)', len(app_package_names))
+            filtered_packages = app_package_names
+
+        execute_apps_with_coverage(filtered_packages, mode)
 
     logging.info('Starting logcat collector')
     run_script_capture(LOGCAT_COLLECTOR, args=["--full-dump"], description="Collect all logcat logs")
@@ -1350,6 +1402,20 @@ def _determine_success_from_result(obj):
             return int(obj.get('success_count', 0)) > 0
         except Exception:
             pass
+    if isinstance(obj.get('aggregate'), dict):
+        agg = obj['aggregate']
+        try:
+            total_started = int(agg.get('total_started', 0))
+            total_runs = int(agg.get('total_runs', 0))
+            total_failed = int(agg.get('total_failed', 0))
+            if total_started > 0:
+                return True
+            if total_runs > 0 and total_failed == 0:
+                return True
+            if total_runs > 0:
+                return False
+        except Exception:
+            pass
     return None
 
 
@@ -1441,7 +1507,7 @@ def write_experiment_summary(results_dir, overall_success, attempt=None, attempt
                     entry['raw'] = {}
                     if isinstance(obj, dict):
                         # include a few informative fields but avoid dumping huge blobs
-                        for key_field in ('success', 'returncode', 'error', 'stderr', 'stdout', 'success_count', 'failures_count', 'total_app_count'):
+                        for key_field in ('success', 'returncode', 'error', 'stderr', 'stdout', 'success_count', 'failures_count', 'total_app_count', 'aggregate'):
                             if key_field in obj:
                                 try:
                                     entry['raw'][key_field] = obj.get(key_field)

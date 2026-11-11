@@ -26,24 +26,22 @@ def extract_vendor_name(filename, directory=None):
     :param directory: str - Optional directory path to infer vendor name.
     :return: str - The extracted or inferred vendor name.
     """
-    # Regex to match vendor names in filenames
-    vendor_pattern = re.compile(r"com\.([a-z0-9]+)\.android\..*", re.IGNORECASE)
-    match = vendor_pattern.match(filename)
-
-    if match and match is not None or match == ".":
-        return match.group(1)  # Return the vendor name from the filename
+    base_name = os.path.basename(filename) if filename else ""
+    vendor_name = extract_vendor_name_from_filename(base_name)
+    if vendor_name:
+        return vendor_name
 
     # Fallback: Infer vendor name from directory structure
+    vendor_names_lower = {v.lower() for v in VENDOR_NAMES}
     if directory:
         for part in directory.split(os.sep):
-            if part.lower() in VENDOR_NAMES:
-                if part is not None and part != ".":
-                    logging.info(f"Vendor name inferred from directory: {part}")
-                else:
-                    return part.lower()
+            if part and part != "." and part.lower() in vendor_names_lower:
+                logging.info(f"Vendor name inferred from directory: {part}")
+                return part.lower()
 
     # Fallback: Use a default vendor name
     return ""
+
 
 def extract_vendor_name_from_filename(filename):
     """
@@ -52,12 +50,19 @@ def extract_vendor_name_from_filename(filename):
     :param filename: str - The name of the file.
     :return: str - The extracted or inferred vendor name.
     """
-    # Regex to match vendor names in filenames
+    if not filename:
+        return ""
+    # Regex to match com.<vendor>.android.* or com/vendor.<known_oem>.* in filenames
     vendor_pattern = re.compile(r"com\.([a-z0-9]+)\.android\..*", re.IGNORECASE)
     match = vendor_pattern.match(filename)
+    if match and match.group(1) != ".":
+        return match.group(1).lower()
 
-    if match and match is not None or match == ".":
-        return match.group(1)  # Return the vendor name from the filename
+    vendor_names_Group = "|".join(re.escape(v.lower()) for v in VENDOR_NAMES)
+    oem_pattern = re.compile(rf"(?:^|[._-])({vendor_names_Group})(?:[._-]|$)", re.IGNORECASE)
+    oem_match = oem_pattern.search(filename)
+    if oem_match:
+        return oem_match.group(1).lower()
 
     # Fallback: Use a default vendor name
     return ""
@@ -68,10 +73,9 @@ def get_vendor_words(file_path=None, filename=None):
     Get the vendor name from the file path.
 
     :param file_path: str - The path of the file.
-    :return: str - The vendor name.
+    :return: list[str] - The vendor words to strip.
     """
-
-    vendor_name_list = VENDOR_NAMES
+    vendor_name_list = list(VENDOR_NAMES)
     if file_path:
         directory_path = os.path.dirname(file_path)
         vendor_name = extract_vendor_name(file_path, directory_path)
@@ -80,21 +84,18 @@ def get_vendor_words(file_path=None, filename=None):
     else:
         raise Exception("No file path provided")
 
-    if vendor_name.startswith("."):
-        vendor_name_list.append(f"{vendor_name}")
-    else:
-        vendor_name_list.append(f".{vendor_name}")
+    if vendor_name and vendor_name != ".":
+        vendor_name_list.append(vendor_name.lstrip("."))
 
     vendor_name_list = list(set(vendor_name_list))
 
-
     words_to_replace = []
     for name in vendor_name_list:
-        name = str(name)
-        if name and name != "" and name != "." and name != "..":
-            name.replace("..", ".")
+        name = str(name).replace("..", ".").lstrip(".")
+        if name and name not in ("", ".", ".."):
             words_to_replace.append(f".{name.lower()}")
             words_to_replace.append(f".{name.capitalize()}")
+            words_to_replace.append(f".{name.upper()}")
     logging.debug(f"Vendor words to replace: {'|'.join(words_to_replace)}")
     return words_to_replace
 
@@ -251,7 +252,7 @@ def check_binary_architecture(binary_path):
 
 
 def get_aosp_build_out_dir(aosp_path, aosp_version):
-    if aosp_version and float(aosp_version) in ["12", "12.1", "13"]:
+    if aosp_version and str(aosp_version).strip() in ["12", "12.0", "12.1", "13", "13.0"]:
         abs_source_path = os.path.join(aosp_path, "out/target/product/emulator64_arm64")
     elif aosp_version and float(aosp_version) >= 14:
         abs_source_path = os.path.join(aosp_path, "out/target/product/emu64a")

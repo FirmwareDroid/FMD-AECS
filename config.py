@@ -1,6 +1,18 @@
+import getpass
 import json
 import os
 import logging
+
+
+def get_safe_username():
+    try:
+        return os.getlogin()
+    except Exception:
+        try:
+            return getpass.getuser()
+        except Exception:
+            return os.environ.get("USER", "root")
+
 
 ROOT_PATH = os.path.dirname(os.path.realpath(__file__))
 AOSP_PACKAGES_APPS_PATH = "packages/apps/"
@@ -45,8 +57,8 @@ AOSP_BUILD_OUT_SDK_ARM64_PATH = "out/target/product/emulator_arm64/"
 AOSP_BUILD_OUT_SDK_ARM64_x64_PATH = "out/target/product/emulator64_arm64/"
 AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A = "out/target/product/emu64a/"
 AOSP_BUILD_OUT_SDK_x86_64_PATH = "out/target/product/emulator_x86_64/"
-AOSP_EMU_ZIP_FILENAME_A11 = f"sdk_phone_arm64-img-eng.{os.getlogin()}.zip"
-AOSP_EMU_ZIP_FILENAME_A12_A13 = f"sdk-repo-linux-system-images-eng.{os.getlogin()}.zip"
+AOSP_EMU_ZIP_FILENAME_A11 = f"sdk_phone_arm64-img-eng.{get_safe_username()}.zip"
+AOSP_EMU_ZIP_FILENAME_A12_A13 = f"sdk-repo-linux-system-images-eng.{get_safe_username()}.zip"
 AOSP_EMU_ZIP_FILENAME = f"sdk-repo-linux-system-images.zip"
 NEXUS_SERVICE_ENDPOINT = "service/extdirect"
 NEXUS_EMULATOR_REPOSITORY = "repository/emulator-images/"
@@ -111,7 +123,10 @@ VENDOR_NAMES = [
     "Realme", "Sony", "LG", "Nokia", "Motorola", "Asus", "Lenovo", "ZTE", "HTC",
     "Honor", "Meizu", "BlackBerry", "Alcatel", "Micromax", "Infinix", "Tecno",
     "Lava", "Coolpad", "Panasonic", "Sharp", "LeEco", "Gionee", "Itel", "Karbonn",
-    "Blu", "Wiko", "Fairphone", "Essential", "Pixel", "Miui"
+    "Blu", "Wiko", "Fairphone", "Essential", "Pixel", "Miui",
+    "Oplus", "Coloros", "Heytap", "Hyperos", "Oneui", "Sec", "Sem",
+    "Qti", "Qcom", "Mtk", "Mediatek", "Exynos", "Slsi", "Sprd", "Unisoc",
+    "Somc", "Lge", "Moto"
 ]
 SKIPPED_MODULE_NAMES = []
 PRE_INJECTOR_CONFIG = {}

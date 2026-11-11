@@ -256,6 +256,29 @@ def verify_property_contexts(sepolicy_analyze_bin, compiled_sepolicy_path, prope
         return False
 
 
+def get_extra_partition_cil_files(all_files_path: str):
+    """
+    Discovers optional CIL policies from system_ext, product, and odm partitions.
+    """
+    extra_cils = []
+    candidate_map = [
+        ("system_ext", "system_ext_sepolicy.cil"),
+        ("product", "product_sepolicy.cil"),
+        ("odm", "odm_sepolicy.cil"),
+        ("vendor", "odm_sepolicy.cil"),
+    ]
+    for part_name, cil_name in candidate_map:
+        part_dir = os.path.join(all_files_path, part_name)
+        if not os.path.isdir(part_dir):
+            continue
+        for root, _, files in os.walk(part_dir):
+            if root.endswith(os.path.join("etc", "selinux")) and cil_name in files:
+                cil_path = os.path.abspath(os.path.join(root, cil_name))
+                if cil_path not in extra_cils:
+                    extra_cils.append(cil_path)
+    return extra_cils
+
+
 def handle_seplicy_merging(aosp_version, aosp_path, partition_path_system):
     temp_folder = tempfile.mkdtemp()
     out_dir = os.path.join(temp_folder, "semerger")
@@ -268,12 +291,13 @@ def handle_seplicy_merging(aosp_version, aosp_path, partition_path_system):
 
     plat_cil, plat_mapping, policy_version = get_policy_files(aosp_path, aosp_version)
     vendor_cil, vendor_pub, vendor_property_contexts = get_vendor_policy_files(vendor_partition_path)
+    extra_cil_files = get_extra_partition_cil_files(all_files_path)
     secilc_path = find_secil_binary(aosp_path)
 
     # Deriving the path to sepolicy-analyze situated right next to secilc
     sepolicy_analyze_path = os.path.join(os.path.dirname(secilc_path), "sepolicy-analyze")
 
-    logger.info(f"Starting sepolicy merging with secilc: {secilc_path}, plat_cil: {plat_cil}, vendor_cil: {vendor_cil}")
+    logger.info(f"Starting sepolicy merging with secilc: {secilc_path}, plat_cil: {plat_cil}, vendor_cil: {vendor_cil}, extra_cils: {extra_cil_files}")
 
     # 1. Compile the unified candidate database
     compilation_success = merge_sepolicy_pipeline(
@@ -283,7 +307,9 @@ def handle_seplicy_merging(aosp_version, aosp_path, partition_path_system):
         vendor_cil=vendor_cil,
         vendor_pub_versioned=vendor_pub,
         out_dir=out_dir,
-        policy_version=policy_version
+        policy_version=policy_version,
+        extra_cil_files=extra_cil_files,
+        context_files=[vendor_property_contexts] if vendor_property_contexts else None
     )
 
     if not compilation_success:

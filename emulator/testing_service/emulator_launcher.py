@@ -93,12 +93,19 @@ def is_process_zombie(pid):
         return False
 
 
-def tail_contains(path, needle):
-    try:
-        out = subprocess.check_output(["tail", "-n", "200", path], text=True, stderr=subprocess.DEVNULL)
-        return needle.lower() in out.lower()
-    except Exception:
-        return False
+def tail_contains(paths, needle):
+    if isinstance(paths, str):
+        paths = [paths]
+    for path in paths:
+        if not path or not os.path.exists(path):
+            continue
+        try:
+            out = subprocess.check_output(["tail", "-n", "200", path], text=True, stderr=subprocess.DEVNULL)
+            if needle.lower() in out.lower():
+                return True
+        except Exception:
+            continue
+    return False
 
 
 def _check_device_responsive(timeout=5):
@@ -269,22 +276,12 @@ def main():
     signal.signal(signal.SIGINT, on_term)
     signal.signal(signal.SIGTERM, on_term)
 
-    def _reap_children(signum, frame):
-        try:
-            while True:
-                pid, status = os.waitpid(-1, os.WNOHANG)
-                if pid == 0:
-                    break
-                logger.debug(f"Reaped child pid={pid} status={status}")
-        except ChildProcessError:
-            pass
-        except Exception as e:
-            logger.exception(f"Exception while reaping children: {e}")
-
-    try:
-        signal.signal(signal.SIGCHLD, _reap_children)
-    except AttributeError:
-        pass
+    candidate_logs = [
+        launcher_log,
+        os.path.join(script_dir, "out", "logs", "emulator_Arm64.log"),
+        os.path.join(script_dir, "out", "logs", "emulator_x86_64.log"),
+        os.path.join(script_dir, "out", "logs", "emulator_start.log"),
+    ]
 
     while True:
         if restart_count >= max_restarts:
@@ -314,7 +311,7 @@ def main():
                     except Exception:
                         pass
                     break
-                if tail_contains(launcher_log, "kvm run failed"):
+                if tail_contains(candidate_logs, "kvm run failed"):
                     logger.warning("Detected 'kvm run failed' in emulator log; terminating and will restart")
                     try:
                         os.kill(qemu_pid, signal.SIGTERM)
@@ -325,7 +322,7 @@ def main():
                     except Exception:
                         pass
                     break
-                if tail_contains(launcher_log, "segmentation fault") or tail_contains(launcher_log, "segfault"):
+                if tail_contains(candidate_logs, "segmentation fault") or tail_contains(candidate_logs, "segfault"):
                     if wait_for_adb_available(timeout=30, interval=2):
                         continue
                     logger.warning("Detected segmentation fault in emulator log; terminating and will restart")

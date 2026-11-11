@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 import os
 import json
 import datetime
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
-def append_run(tool_name: str, summary: dict, failures: list, out_dir: str | None = None):
+def append_run(tool_name: str, summary: dict, failures: list, out_dir: Optional[str] = None):
     """Append a run entry to a tool-specific summary file.
 
     The file format mirrors app_start_summary.json used by start_apps: a top-level

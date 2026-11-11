@@ -52,6 +52,11 @@ TROUBLESOME_PROPERTIES = {
     "ro.hardware.gatekeeper",
     "ro.hardware.fingerprint",
     "ro.hardware.keystore",  # Ties keystore to a physical hardware backed enclave (TEE/StrongBox)
+    "ro.hardware.kmsetkey",
+    "ro.hardware.vulkan",
+    "ro.hardware.sensors",
+    "ro.hardware.audio.primary",
+    "ro.control_privapp_permissions",  # Prevent missing OEM privapp-permissions from crashing SystemServer
     "sys.usb.config",
 }
 
@@ -65,6 +70,8 @@ TROUBLESOME_PREFIXES = (
     "ro.vendor.gfx.",  # Overrides for physical graphics pipelines
     "persist.bluetooth.",  # Hardware-bound Bluetooth controller adjustments
     "persist.vendor.fingerprint.",  # Proprietary biometric modules
+    "ro.crypto.",  # Hardware-backed FBE/FDE storage encryption parameters
+    "ro.frp.pst",  # Factory reset protection physical partition block path
 )
 
 
@@ -118,8 +125,7 @@ def categorize_property(key):
         return 'PRODUCT_SYSTEM_PROPERTIES'
 
 
-def filter_prop(prop_key):
-    allow_filter = False
+def filter_prop(prop_key, allow_filter=True):
     is_filtered = False
     # Check against absolute blacklisted keys
     if allow_filter:
@@ -137,19 +143,22 @@ def merge_properties(aosp_props, vendor_props, aosp_structure, vendor_structure)
     merged_output_lines = []
     conflict_props = {}
 
-    # 1. Map out final desired pairs (AOSP overrides Vendor)
+    # 1. Map out final desired pairs (AOSP overrides Vendor; only Vendor properties are filtered)
     temp_final_values = {}
     for key, value in vendor_props.items():
         if filter_prop(key):
+            if key in aosp_props:
+                conflict_props[key] = (aosp_props[key], value)
             continue
         temp_final_values[key] = value
 
     for key, value in aosp_props.items():
-        if filter_prop(key):
-            continue
-        if key in temp_final_values:
-            conflict_props[key] = (value, temp_final_values[key])
+        if key in vendor_props:
+            conflict_props[key] = (value, vendor_props[key])
             logging.info(f"[CONFLICT] Key '{key}' exists in both. Using AOSP value: '{value}'")
+        # Enforce log-only mode for privapp permissions so injected vendor priv-apps without XML whitelists don't crash boot
+        if key == "ro.control_privapp_permissions" and value == "enforce":
+            value = "log"
         temp_final_values[key] = value
 
     # Keep a tracker of keys that successfully found a home in the AOSP layout
@@ -217,6 +226,8 @@ def generate_makefile_string(properties):
         'PRODUCT_ODM_PROPERTIES': []
     }
     for key, value in properties.items():
+        if filter_prop(key):
+            continue
         target_var = categorize_property(key)
         grouped_props[target_var].append(f"    {key}={value}")
 

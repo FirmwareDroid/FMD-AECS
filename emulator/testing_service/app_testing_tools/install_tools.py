@@ -430,18 +430,18 @@ def install_fastbot():
                     pass
                 # Ensure cmake and basic build tools are present before running build script
                 ok_build_tools = ensure_cmake_and_build_tools()
-                # Attempt to detect Android NDK automatically if env vars not set
+                # Attempt to detect Android NDK automatically if env vars not set or invalid
                 ndk_root = os.environ.get('NDK_ROOT') or os.environ.get('ANDROID_NDK_HOME') or os.environ.get('ANDROID_NDK_ROOT')
-                if not ndk_root:
-                    ndk_root = detect_android_ndk()
-                    if ndk_root:
+                toolchain_path = os.path.join(ndk_root, 'build', 'cmake', 'android.toolchain.cmake') if ndk_root else None
+                if not ndk_root or not toolchain_path or not os.path.exists(toolchain_path):
+                    detected_ndk = detect_android_ndk()
+                    if detected_ndk:
+                        ndk_root = detected_ndk
                         logger.info('Auto-detected Android NDK at: %s', ndk_root)
                         os.environ['NDK_ROOT'] = ndk_root
+                        os.environ['ANDROID_NDK_HOME'] = ndk_root
+                        toolchain_path = os.path.join(ndk_root, 'build', 'cmake', 'android.toolchain.cmake')
 
-                # Verify the expected CMake toolchain file exists
-                toolchain_path = None
-                if ndk_root:
-                    toolchain_path = os.path.join(ndk_root, 'build', 'cmake', 'android.toolchain.cmake')
                 if not ndk_root or not toolchain_path or not os.path.exists(toolchain_path):
                     logger.warning('Android toolchain not found at expected location: %s. Native build will be skipped.', toolchain_path)
                     build_ran = True
@@ -522,8 +522,13 @@ def install_kea2():
 
     kea2_workdir = os.path.join(TOOLS_DIR, 'kea2')
     os.makedirs(kea2_workdir, exist_ok=True)
+    kea2_bin = shutil.which('kea2')
+    if not kea2_bin:
+        venv_kea2 = os.path.join(TOOLS_DIR, 'venv', 'bin', 'kea2')
+        if os.path.isfile(venv_kea2) and os.access(venv_kea2, os.X_OK):
+            kea2_bin = venv_kea2
     try:
-        run_cmd(['kea2', 'init'], cwd=kea2_workdir)
+        run_cmd([kea2_bin or 'kea2', 'init'], cwd=kea2_workdir)
         logger.info("✓ Kea2 initialized in %s.", kea2_workdir)
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
         logger.warning("Kea2 init failed (non-fatal): %s", exc)

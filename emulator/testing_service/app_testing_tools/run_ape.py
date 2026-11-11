@@ -24,23 +24,8 @@ import time
 import threading
 import hashlib
 _HERE = os.path.dirname(os.path.abspath(__file__))
-
-# Robustly locate the project root by searching upward for a marker file (common.py)
-def _find_project_root(marker='common.py'):
-    p = _HERE
-    while True:
-        candidate = os.path.join(p, marker)
-        if os.path.exists(candidate):
-            return p
-        parent = os.path.dirname(p)
-        if parent == p:
-            break
-        p = parent
-    return None
-
-_PROJECT_ROOT = _find_project_root() or os.path.normpath(os.path.join(_HERE, '..', '..', '..'))
-if _PROJECT_ROOT and _PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, _PROJECT_ROOT)
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
 
 from common import get_adb_cmd
 from test_results import append_run
@@ -90,23 +75,54 @@ def push_ape(serial=None):
     logging.info("Ape binaries deployed to device.")
 
 
-def start_package(package, serial=None, wait_seconds=2):
-    """Start the package on device (bring to foreground) using monkey launcher.
+def start_package(package, serial=None, wait_seconds=2, use_monkey=False):
+    """Start the package on device (bring to foreground).
 
-    Returns True if the start command was invoked successfully, False otherwise.
+    Uses `am start` with the resolved main activity first so it does not collide
+    with Ape's active UiAutomation connection while Ape is running. Only falls
+    back to `monkey` when `use_monkey=True` (before Ape starts).
     """
     adb = _adb(serial)
     logging.info('Starting package %s on device (bringing to foreground)...', package)
     try:
-        # Use monkey to launch the LAUNCHER activity for the package (robust across apps)
-        subprocess.check_call(adb + ['shell', 'monkey', '-p', package, '-c', 'android.intent.category.LAUNCHER', '1'])
-        # give the app a moment to come to foreground
-        time.sleep(wait_seconds)
-        logging.info('Start command for %s issued; waited %ss for app to stabilize', package, wait_seconds)
-        return True
-    except subprocess.CalledProcessError as e:
-        logging.warning('Failed to start package %s via monkey: %s', package, e)
-        return False
+        res = subprocess.run(
+            adb + ['shell', 'cmd', 'package', 'resolve-activity', '--brief', package],
+            capture_output=True, text=True, timeout=10
+        )
+        if res.returncode == 0 and res.stdout:
+            lines = [ln.strip() for ln in res.stdout.splitlines() if ln.strip() and '/' in ln]
+            if lines:
+                comp = lines[-1].split()[0]
+                am_res = subprocess.run(
+                    adb + ['shell', 'am', 'start', '-n', comp],
+                    capture_output=True, text=True, timeout=10
+                )
+                if am_res.returncode == 0 and 'Error:' not in (am_res.stdout or '') and 'Exception' not in (am_res.stderr or ''):
+                    time.sleep(wait_seconds)
+                    return True
+        # Fallback: generic MAIN/LAUNCHER intent via am start
+        am_generic = subprocess.run(
+            adb + ['shell', 'am', 'start', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.LAUNCHER', package],
+            capture_output=True, text=True, timeout=10
+        )
+        if am_generic.returncode == 0 and 'Error:' not in (am_generic.stdout or ''):
+            time.sleep(wait_seconds)
+            return True
+    except Exception as e:
+        logging.debug('am start resolution failed for %s: %s', package, e)
+
+    if use_monkey:
+        try:
+            subprocess.check_call(
+                adb + ['shell', 'monkey', '-p', package, '-c', 'android.intent.category.LAUNCHER', '1'],
+                timeout=15
+            )
+            time.sleep(wait_seconds)
+            logging.info('Start command for %s issued via monkey; waited %ss for app to stabilize', package, wait_seconds)
+            return True
+        except Exception as e:
+            logging.warning('Failed to start package %s via monkey: %s', package, e)
+    return False
 
 
 def run_ape(package, running_minutes=300, strategy='sata', serial=None):
@@ -166,6 +182,8 @@ def run_ape(package, running_minutes=300, strategy='sata', serial=None):
     def foreground_watcher():
         """Ensure the target package stays in foreground while proc is running."""
         check_interval = 1.0
+        start_wall = time.time()
+        max_wall_seconds = max(120, int(running_minutes) * 60 + 90)
         # Screenshot-based movement detection: take a screenshot every N checks and
         # compare hashes. If the screen does not change for more than
         # no_change_seconds, treat as frozen/closed and attempt restart.
@@ -176,6 +194,13 @@ def run_ape(package, running_minutes=300, strategy='sata', serial=None):
         last_screen_hash = None
         unchanged_iterations = 0
         while not stop_watcher.is_set():
+            if time.time() - start_wall > max_wall_seconds:
+                logging.warning('Ape process exceeded max wall time (%ds); terminating subprocess.', max_wall_seconds)
+                try:
+                    proc.terminate()
+                except Exception:
+                    pass
+                break
             try:
                 fg = get_foreground_package()
                 # If the foreground package is different, bring target back
@@ -303,11 +328,24 @@ def main():
         sys.exit(1)
 
     if not args.no_push:
-        push_ape(args.serial)
+        try:
+            push_ape(args.serial)
+        except Exception as e:
+            logging.exception('Failed to push Ape binaries to device: %s', e)
+            summary = {
+                'total_packages': 1, 'started': 0, 'failed': 1, 'skipped': 0,
+                'started_by_script': 0, 'started_packages': [], 'failed_packages': [args.package],
+            }
+            failures = [{'package': args.package, 'reason': 'ape_push_failed', 'detail': str(e)}]
+            try:
+                append_run('ape', summary, failures, out_dir=os.path.join(BASE_DIR, 'out'))
+            except Exception:
+                pass
+            sys.exit(2)
 
     # Ensure the package is started and in foreground before running Ape
     try:
-        started = start_package(args.package, serial=args.serial, wait_seconds=2)
+        started = start_package(args.package, serial=args.serial, wait_seconds=2, use_monkey=True)
         if not started:
             logging.warning('Proceeding to run Ape even though package %s may not be in foreground', args.package)
     except Exception:

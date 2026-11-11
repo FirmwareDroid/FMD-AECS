@@ -103,10 +103,10 @@ def handle_crash_dialog(device: Optional[str] = None) -> bool:
             if rc3 == 0:
                 xml = o3
     if not xml:
-        # Unable to get UI dump; fallback to sending BACK key to try dismissing
-        logging.debug('No UI dump available; sending BACK as fallback')
-        _run_adb(['shell', 'input', 'keyevent', '4'], device=device)
-        return True
+        # Unable to get UI dump (for example, when a UI testing tool already holds
+        # the exclusive UiAutomation connection); do NOT send random BACK keys.
+        logging.debug('No UI dump available; skipping crash dialog check')
+        return False
 
     # Simple search for ANR/crash indicator strings
     lower = xml.lower()
@@ -129,20 +129,9 @@ def handle_crash_dialog(device: Optional[str] = None) -> bool:
                 _tap_center(b, device=device)
                 return True
 
-    # If no labeled button found, try generic clickable node parsing
-    pattern2 = re.compile(r'clickable=\"(true)\".*?bounds=\"(\[.*?\])\"', re.IGNORECASE | re.DOTALL)
-    for m in pattern2.finditer(xml):
-        bounds_str = m.group(2)
-        b = _parse_bounds(bounds_str)
-        if b:
-            _tap_center(b, device=device)
-            return True
-
-    # As a last resort, press BACK and HOME
-    logging.info('No dialog button found; sending BACK then HOME to dismiss')
+    # As a last resort when crash indicator text is confirmed on screen, press BACK
+    logging.info('No matching crash dialog button found; sending BACK to dismiss')
     _run_adb(['shell', 'input', 'keyevent', '4'], device=device)
-    time.sleep(0.3)
-    _run_adb(['shell', 'input', 'keyevent', '3'], device=device)
     return True
 
 

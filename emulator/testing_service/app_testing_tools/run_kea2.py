@@ -25,6 +25,8 @@ import os
 import tempfile
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
 
 def _find_project_root(marker='common.py'):
     p = _HERE
@@ -40,7 +42,7 @@ def _find_project_root(marker='common.py'):
 
 _PROJECT_ROOT = _find_project_root() or os.path.normpath(os.path.join(_HERE, '..', '..', '..'))
 if _PROJECT_ROOT and _PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, _PROJECT_ROOT)
+    sys.path.append(_PROJECT_ROOT)
 
 from common import get_first_connected_device
 from test_results import append_run
@@ -72,6 +74,41 @@ if not already_have:
     root_logger.addHandler(fh)
 
 
+def _find_kea2_bin() -> str:
+    """Resolve the kea2 executable from PATH or the local tools venv."""
+    kea2_bin = shutil.which('kea2')
+    if kea2_bin:
+        return kea2_bin
+    venv_kea2 = os.path.join(BASE_DIR, 'tools', 'venv', 'bin', 'kea2')
+    if os.path.isfile(venv_kea2) and os.access(venv_kea2, os.X_OK):
+        return venv_kea2
+    return None
+
+
+def _record_kea2_summary(package, success: bool, ret: int, reason: str = None, detail: str = None):
+    summary = {
+        'total_packages': 1,
+        'started': 1 if success else 0,
+        'failed': 0 if success else 1,
+        'skipped': 0,
+        'started_by_script': 1 if success else 0,
+        'started_packages': [package] if success else [],
+        'failed_packages': [] if success else [package],
+        'kea2_exit_code': ret,
+    }
+    failures = []
+    if not success:
+        failures.append({
+            'package': package,
+            'reason': reason or 'kea2_failed',
+            'detail': detail or f'return_code={ret}',
+        })
+    try:
+        append_run('kea2', summary, failures, out_dir=os.path.join(BASE_DIR, 'out'))
+    except Exception:
+        logger.exception('Failed to write kea2 summary')
+
+
 def run_kea2(package, running_minutes=60, serial=None, output_dir=None, apk_path=None):
     """Run Kea2 on the given package and return the exit code.
 
@@ -81,8 +118,10 @@ def run_kea2(package, running_minutes=60, serial=None, output_dir=None, apk_path
     - Set ANDROID_SERIAL in the environment for the run
     - Write a small run summary via test_results.append_run
     """
-    if not shutil.which('kea2'):
-        logger.error("kea2 not found in PATH. Install with: pip install kea2-python")
+    kea2_bin = _find_kea2_bin()
+    if not kea2_bin:
+        logger.error("kea2 not found in PATH or tools/venv. Install with: pip install kea2-python")
+        _record_kea2_summary(package, False, 1, reason='kea2_not_installed', detail='kea2 binary not found')
         return 1
 
     os.makedirs(KEA2_WORKDIR, exist_ok=True)
@@ -98,130 +137,130 @@ def run_kea2(package, running_minutes=60, serial=None, output_dir=None, apk_path
             serial = first
             logger.info('Using first connected adb device: %s', serial)
 
-    # If user passed a package name (not an apk path) and requested to use an
-    # APK (or didn't provide one), try to pull the installed APK from device so
-    # it is available locally (some workflows expect a local APK artifact).
+    if not serial:
+        logger.error('No adb devices connected; provide --serial or connect a device')
+        _record_kea2_summary(package, False, 2, reason='no_device', detail='No adb device connected')
+        return 2
+
+    # Best-effort: try to pull the installed APK from device so it is available
+    # locally if needed, but do NOT abort the Kea2 run if pulling fails (e.g., on
+    # split APKs or protected vendor partitions) since `kea2 run -p <package>`
+    # operates directly on the installed package on the device.
     apk_local = apk_path
     try:
         looks_like_apk = False
         try:
-            looks_like_apk = str(package).lower().endswith('.apk') or (apk_path and os.path.exists(apk_path))
+            looks_like_apk = str(package).lower().endswith('.apk') or bool(apk_path and os.path.exists(apk_path))
         except Exception:
             looks_like_apk = False
 
         if not apk_local and not looks_like_apk:
-            if not serial:
-                logger.error('No adb devices connected; provide --serial or connect a device')
-                return 2
-
             pm_cmd = ['adb', '-s', serial, 'shell', 'pm', 'path', package]
             logger.info('Querying device for apk path: %s', ' '.join(pm_cmd))
-            res = subprocess.run(pm_cmd, capture_output=True, text=True)
-            if res.returncode != 0 or not res.stdout:
-                logger.error('Could not determine apk path for package %s: %s', package, (res.stderr or res.stdout).strip())
-                return 4
-            first_line = res.stdout.strip().splitlines()[0]
-            if first_line.startswith('package:'):
-                device_apk_path = first_line.split(':', 1)[1].strip()
+            res = subprocess.run(pm_cmd, capture_output=True, text=True, timeout=30)
+            if res.returncode == 0 and res.stdout:
+                first_line = res.stdout.strip().splitlines()[0]
+                device_apk_path = first_line.split(':', 1)[1].strip() if first_line.startswith('package:') else first_line.strip()
+                if device_apk_path:
+                    tmpdir = os.path.join(KEA2_WORKDIR, 'tmp', f'kea2_apk_{package}')
+                    os.makedirs(tmpdir, exist_ok=True)
+                    local_apk = os.path.join(tmpdir, os.path.basename(device_apk_path))
+                    pull_cmd = ['adb', '-s', serial, 'pull', device_apk_path, local_apk]
+                    logger.info('Pulling apk from device: %s', ' '.join(pull_cmd))
+                    res2 = subprocess.run(pull_cmd, capture_output=True, text=True, timeout=60)
+                    if res2.returncode == 0:
+                        apk_local = local_apk
+                    else:
+                        logger.warning('Could not pull apk for %s (continuing without local apk): %s', package, (res2.stderr or res2.stdout).strip())
+                        shutil.rmtree(tmpdir, ignore_errors=True)
+                        tmpdir = None
             else:
-                device_apk_path = first_line.strip()
-
-            if not device_apk_path:
-                logger.error('pm path returned no apk path for %s', package)
-                return 4
-
-            tmpdir = os.path.join(KEA2_WORKDIR, 'tmp', f'kea2_apk_{package}')
-            os.makedirs(tmpdir, exist_ok=True)
-            local_apk = os.path.join(tmpdir, os.path.basename(device_apk_path))
-            pull_cmd = ['adb', '-s', serial, 'pull', device_apk_path, local_apk]
-            logger.info('Pulling apk from device: %s', ' '.join(pull_cmd))
-            res2 = subprocess.run(pull_cmd, capture_output=True, text=True)
-            if res2.returncode != 0:
-                logger.error('Failed to pull apk from device for %s: %s', package, (res2.stderr or res2.stdout).strip())
-                shutil.rmtree(tmpdir, ignore_errors=True)
-                return 5
-            apk_local = local_apk
+                logger.warning('pm path did not return an APK path for %s (continuing with package name): %s', package, (res.stderr or res.stdout).strip())
 
         # Build the kea2 command. Kea2 primarily accepts -p <package>; keep other
-        # options such as running-minutes. We don't pass the local APK to kea2
-        # here because the kea2 CLI expects the package name; however keeping the
-        # APK locally is useful for downstream inspection.
-        cmd = ['kea2', 'run', '-p', package, '--running-minutes', str(running_minutes)]
+        # options such as running-minutes.
+        cmd = [kea2_bin, 'run', '-p', package, '--running-minutes', str(running_minutes)]
         if serial:
             cmd += ['-s', serial]
 
         env = os.environ.copy()
+        venv_bin = os.path.dirname(kea2_bin)
+        if venv_bin and venv_bin not in env.get('PATH', ''):
+            env['PATH'] = f"{venv_bin}:{env.get('PATH', '')}"
         if serial:
             env['ANDROID_SERIAL'] = serial
 
-        # Ensure the kea2 project is initialized in the workdir. Some container
-        # images or fresh checkouts may not have run `kea2 init` yet and the
-        # kea2 CLI will fail with "kea2 project not initialized". We attempt
-        # to run `kea2 init` proactively and also retry once if the run fails
-        # with that specific message.
         def ensure_kea2_initialized(cwd, max_attempts=2):
             for attempt in range(1, max_attempts + 1):
                 logger.info('Ensuring kea2 project initialized (attempt %d/%d)', attempt, max_attempts)
                 try:
-                    p = subprocess.run(['kea2', 'init'], cwd=cwd, text=True, capture_output=True, timeout=60)
+                    p = subprocess.run([kea2_bin, 'init'], cwd=cwd, env=env, text=True, capture_output=True, timeout=60)
                 except Exception:
                     logger.exception('Failed to invoke `kea2 init`')
                     return False
-                out = (p.stdout or '') + '\n' + (p.stderr or '')
+                init_out = (p.stdout or '') + '\n' + (p.stderr or '')
                 if p.returncode == 0:
                     logger.info('kea2 init succeeded')
                     return True
-                # Some kea2 versions may return non-zero but indicate already
-                # initialized; treat that as success.
-                low = out.lower()
+                low = init_out.lower()
                 if 'already initialized' in low or 'already exists' in low or 'project already initialized' in low:
-                    logger.info('kea2 already initialized: %s', out.splitlines()[0] if out else '')
+                    logger.info('kea2 already initialized: %s', init_out.splitlines()[0] if init_out else '')
                     return True
-                logger.warning('kea2 init returned non-zero: %s', out.strip())
+                logger.warning('kea2 init returned non-zero: %s', init_out.strip())
             return False
 
-        # Try to initialize kea2 proactively (best-effort)
         try:
             ensure_kea2_initialized(KEA2_WORKDIR, max_attempts=2)
         except Exception:
             logger.exception('Unexpected error while ensuring kea2 init')
 
         logger.info('Running Kea2 on package: %s (minutes=%d)', package, running_minutes)
-        # Capture stdout/stderr so we can detect initialization errors and retry
-        res = subprocess.run(cmd, cwd=KEA2_WORKDIR, env=env, text=True, capture_output=True)
-        ret = res.returncode
+        kea2_timeout = max(120, int(running_minutes) * 60 + 120)
+        timed_out = False
+        try:
+            res = subprocess.run(cmd, cwd=KEA2_WORKDIR, env=env, text=True, capture_output=True, timeout=kea2_timeout)
+            ret = res.returncode
+            combined = (res.stdout or '') + '\n' + (res.stderr or '')
+        except subprocess.TimeoutExpired as exc:
+            logger.warning('Kea2 timed out after %ds on %s; treating as completed run', kea2_timeout, package)
+            timed_out = True
+            ret = 0
+            combined = (exc.stdout or '') + '\n' + (exc.stderr or '') if isinstance(exc.stdout, str) else ''
 
         # If kea2 reports an explicit "not initialized" error, attempt init and retry once
-        combined = (res.stdout or '') + '\n' + (res.stderr or '')
-        if ret != 0 and 'kea2 project not initialized' in combined.lower():
+        if not timed_out and ret != 0 and 'kea2 project not initialized' in combined.lower():
             logger.warning('kea2 reported not-initialized; attempting `kea2 init` and retrying run')
             if ensure_kea2_initialized(KEA2_WORKDIR, max_attempts=2):
                 logger.info('Retrying kea2 run after init...')
-                res2 = subprocess.run(cmd, cwd=KEA2_WORKDIR, env=env, text=True, capture_output=True)
-                ret = res2.returncode
-                combined = (res2.stdout or '') + '\n' + (res2.stderr or '')
+                try:
+                    res2 = subprocess.run(cmd, cwd=KEA2_WORKDIR, env=env, text=True, capture_output=True, timeout=kea2_timeout)
+                    ret = res2.returncode
+                    combined = (res2.stdout or '') + '\n' + (res2.stderr or '')
+                except subprocess.TimeoutExpired:
+                    logger.warning('Kea2 retry timed out after %ds on %s', kea2_timeout, package)
+                    ret = 0
             else:
                 logger.error('kea2 init attempts failed; not retrying run')
 
-        # create a tool summary similar to app_start_summary.json
-        summary = {
-            'total_packages': 1,
-            'started': 1 if ret == 0 else 0,
-            'failed': 0 if ret == 0 else 1,
-            'skipped': 0,
-            'started_by_script': 1 if ret == 0 else 0,
-            'started_packages': [package] if ret == 0 else [],
-            'failed_packages': [] if ret == 0 else [package],
-        }
-        failures = []
-        if ret != 0:
-            failures.append({'package': package, 'reason': 'kea2_failed', 'detail': f'return_code={ret}'})
-        try:
-            append_run('kea2', summary, failures, out_dir=os.path.join(BASE_DIR, 'out'))
-        except Exception:
-            logger.exception('Failed to write kea2 summary')
+        if combined.strip():
+            logger.info('Kea2 output for %s (exit=%d):\n%s', package, ret, combined[-2000:])
 
-        return ret
+        # Kea2 exit codes:
+        # 0 = completed with no bugs found
+        # 1 = completed and found property violation
+        # 2 = completed and found crash/ANR
+        # 3 = completed and found both property violation and crash/ANR
+        # >=4 or <0 = runtime / execution error
+        kea2_completed = ret in (0, 1, 2, 3)
+        _record_kea2_summary(
+            package,
+            success=kea2_completed,
+            ret=ret,
+            reason=None if kea2_completed else 'kea2_failed',
+            detail=f'return_code={ret}',
+        )
+
+        return 0 if kea2_completed else ret
     finally:
         # Clean up any temporary apk we pulled from the device
         if tmpdir:

@@ -4,6 +4,7 @@ before it is packaged into a firmware image. The script is used to inject blobs 
 the replacement of the original blobs (from AOSP) with the vendor flavoured blobs.
 """
 import argparse
+import glob
 import hashlib
 import re
 import shutil
@@ -16,6 +17,7 @@ import json
 import os
 import stat
 import traceback
+import xml.etree.ElementTree as ET
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor as Executor, as_completed
 from http import cookies
@@ -32,10 +34,25 @@ from aosp_rc_merger import run_rc_merger
 from common import extract_vendor_name, remove_vendor_name_from_path, load_configs, is_elf_binary, \
     check_shared_object_architecture, get_path_up_to_first_term, get_md5_from_file, check_binary_architecture, \
     get_aosp_build_out_dir
-from common_post_injector import handle_app_modules
+from common_post_injector import (
+    handle_app_modules,
+    handle_jar_module,
+    ensure_archive_has_dex,
+    build_aosp_apk_index,
+    reconcile_and_deduplicate_vendor_apk,
+    generate_privapp_permissions_allowlist,
+)
 from config import AOSP_BUILD_OUT_SDK_ARM64_x64_PATH_EMU64A, AOSP_BUILD_OUT_SDK_ARM64_x64_PATH, \
     MEASURE_LOOKUP_PERFORMANCE, EXTRACTION_ALL_FILES_PATH
 from config_post_injector import *
+try:
+    from elftools.elf.elffile import ELFFile
+    from elftools.elf.dynamic import DynamicSection
+    from elftools.elf.sections import SymbolTableSection
+except ImportError:
+    ELFFile = None
+    DynamicSection = None
+    SymbolTableSection = None
 from fmd_backend_requests import get_csrf_token, authenticate_fmd
 from json_writer import write_json_nd_output, write_json_output
 from setup_logger import setup_logger
@@ -57,6 +74,560 @@ INTERMEDIATE_MD5_MAP = None
 # Cache of file indexes: target_obj_path -> { basename -> [fullpaths] }
 FILE_INDEX_CACHE = {}
 FILE_INDEX_LOCK = threading.Lock()
+AOSP_APK_INDEX = None
+AOSP_APK_INDEX_LOCK = threading.Lock()
+
+
+def snapshot_aosp_core_groups(target_out_path, backup_root_dir=None):
+    """
+    Snapshots original AOSP files for COUPLED_CORE_GROUPS (both partition files and
+    matching target_out_path/obj/ files) before post-build injection overwrites them.
+    Returns { group_name: { rel_path: { "target": abs_path, "backup": backup_path, "md5": md5, "obj_backups": [(obj_path, backup_obj_path), ...] } } }.
+    """
+    if backup_root_dir is None:
+        backup_root_dir = tempfile.mkdtemp(prefix="fmd_core_backups_")
+    os.makedirs(backup_root_dir, exist_ok=True)
+
+    snapshots = {}
+    obj_root = os.path.join(target_out_path, FOLDER_NAME_OBJECTS) if target_out_path else ""
+    for group_name, rel_paths in COUPLED_CORE_GROUPS.items():
+        group_snap = {}
+        for rel_path in rel_paths:
+            abs_target = os.path.join(target_out_path, rel_path)
+            if not os.path.exists(abs_target) or os.path.islink(abs_target):
+                continue
+            backup_path = os.path.join(backup_root_dir, group_name, rel_path)
+            os.makedirs(os.path.dirname(backup_path), exist_ok=True)
+            shutil.copy2(abs_target, backup_path)
+            md5 = get_md5_from_file(abs_target)
+
+            obj_backups = []
+            if os.path.isdir(obj_root):
+                fname = os.path.basename(rel_path)
+                for root, _, files in scandir_walk(obj_root):
+                    if fname in files:
+                        obj_cand = os.path.join(root, fname)
+                        if os.path.isfile(obj_cand) and not os.path.islink(obj_cand):
+                            rel_obj = os.path.relpath(obj_cand, target_out_path)
+                            b_obj = os.path.join(backup_root_dir, group_name, "_obj", rel_obj)
+                            os.makedirs(os.path.dirname(b_obj), exist_ok=True)
+                            shutil.copy2(obj_cand, b_obj)
+                            obj_backups.append((obj_cand, b_obj))
+
+            group_snap[rel_path] = {
+                "target": abs_target,
+                "backup": backup_path,
+                "md5": md5,
+                "obj_backups": obj_backups,
+            }
+        snapshots[group_name] = group_snap
+    return snapshots
+
+
+def _extract_elf_info(elf_path):
+    """
+    Returns (elfclass_bits: int, needed_libs: list[str], undef_symbols: set[str], defined_symbols: set[str])
+    or None if elf_path is not a valid ELF file.
+    """
+    if not elf_path or not os.path.isfile(elf_path):
+        return None
+    try:
+        with open(elf_path, "rb") as f:
+            ident = f.read(16)
+            if len(ident) < 5 or ident[:4] != b"\x7fELF":
+                return None
+            if ELFFile is None:
+                bits = 64 if ident[4] == 2 else 32
+                needed = []
+                readelf_bin = shutil.which("readelf") or shutil.which("llvm-readelf")
+                if readelf_bin:
+                    res = subprocess.run([readelf_bin, "-d", "-W", elf_path], capture_output=True, text=True)
+                    if res.returncode == 0:
+                        for line in res.stdout.splitlines():
+                            if "(NEEDED)" in line:
+                                m = re.search(r"\[([^\]]+)\]", line)
+                                if m:
+                                    needed.append(m.group(1))
+                return bits, needed, set(), set()
+            f.seek(0)
+            elf = ELFFile(f)
+            bits = elf.elfclass
+            needed = []
+            undef_syms = set()
+            def_syms = set()
+            for sec in elf.iter_sections():
+                if isinstance(sec, DynamicSection):
+                    for tag in sec.iter_tags():
+                        if tag.entry.d_tag == "DT_NEEDED":
+                            needed.append(tag.needed)
+                elif isinstance(sec, SymbolTableSection) and sec.name == ".dynsym":
+                    for sym in sec.iter_symbols():
+                        name = sym.name
+                        if not name:
+                            continue
+                        bind = sym["st_info"]["bind"]
+                        stype = sym["st_info"]["type"]
+                        shndx = sym["st_shndx"]
+                        if shndx == "SHN_UNDEF":
+                            if bind == "STB_GLOBAL" and stype in ("STT_FUNC", "STT_OBJECT"):
+                                undef_syms.add(name)
+                        else:
+                            def_syms.add(name)
+            return bits, needed, undef_syms, def_syms
+    except Exception as e:
+        logging.debug(f"Could not parse ELF {elf_path}: {e}")
+        return None
+
+
+def resolve_and_validate_elf_dependencies(elf_path, source_folder_path, target_out_path):
+    """
+    Recursively inspects DT_NEEDED entries of elf_path using pyelftools.
+    If any required DT_NEEDED library is missing from target_out_path, searches
+    source_folder_path for a matching-architecture vendor .so and auto-injects it.
+    Also verifies that undefined global dynamic symbols of elf_path are satisfied.
+    Returns (is_valid: bool, missing_libs: list[str], missing_symbols: list[str]).
+    """
+    root_info = _extract_elf_info(elf_path)
+    if root_info is None:
+        return False, [f"Invalid ELF: {elf_path}"], []
+
+    bits, root_needed, root_undef_syms, _ = root_info
+    lib_dir_name = "lib64" if bits == 64 else "lib"
+
+    search_dirs = [
+        os.path.join(target_out_path, "system", lib_dir_name),
+        os.path.join(target_out_path, "system", "fmd"),
+        os.path.join(target_out_path, "system_ext", lib_dir_name),
+        os.path.join(target_out_path, "product", lib_dir_name),
+        os.path.join(target_out_path, "vendor", lib_dir_name),
+    ]
+    for apex_base in (os.path.join(target_out_path, "apex"), os.path.join(target_out_path, "system", "apex")):
+        if os.path.isdir(apex_base):
+            for entry in os.listdir(apex_base):
+                cand_lib = os.path.join(apex_base, entry, lib_dir_name)
+                if os.path.isdir(cand_lib):
+                    search_dirs.append(cand_lib)
+
+    # Index vendor source .so files lazily if needed
+    vendor_so_index = None
+
+    def _find_in_target(soname):
+        for sdir in search_dirs:
+            cand = os.path.join(sdir, soname)
+            if os.path.isfile(cand):
+                return cand
+        return None
+
+    def _find_and_pull_from_vendor(soname):
+        nonlocal vendor_so_index
+        if not source_folder_path or not os.path.isdir(source_folder_path):
+            return None
+        if vendor_so_index is None:
+            vendor_so_index = defaultdict(list)
+            for root, _, files in scandir_walk(source_folder_path):
+                for fn in files:
+                    if fn.endswith(".so"):
+                        vendor_so_index[fn].append(os.path.join(root, fn))
+
+        for cand_src in vendor_so_index.get(soname, []):
+            cand_info = _extract_elf_info(cand_src)
+            if cand_info and cand_info[0] == bits:
+                # Determine appropriate destination partition directory
+                dst_part = "vendor" if "/vendor/" in cand_src else (
+                    "system_ext" if "/system_ext/" in cand_src else (
+                        "product" if "/product/" in cand_src else "system"
+                    )
+                )
+                dst_dir = os.path.join(target_out_path, dst_part, lib_dir_name)
+                os.makedirs(dst_dir, exist_ok=True)
+                dst_path = os.path.join(dst_dir, soname)
+                shutil.copy2(cand_src, dst_path)
+                set_executable_permission(dst_path)
+                logging.info(f"Auto-pulled missing DT_NEEDED dependency {soname} from {cand_src} -> {dst_path}")
+                return dst_path
+        return None
+
+    # Core APEX libraries that may reside inside compressed/mounted APEX containers at runtime
+    apex_provided_sonames = {
+        "libc.so", "libdl.so", "libdl_android.so", "libm.so",
+        "libart.so", "libartbase.so", "libdexfile.so", "libnativehelper.so",
+        "libnativebridge.so", "libnativeloader.so", "libsigchain.so",
+        "libicuuc.so", "libicui18n.so", "libandroidicu.so", "libpac.so",
+        "libstatssocket.so", "libstatspull.so",
+    }
+
+    visited = {}
+    queue = list(root_needed)
+    missing_libs = []
+    exported_symbols = set()
+    unmounted_apex_lib_encountered = False
+
+    while queue:
+        soname = queue.pop(0)
+        if soname in visited:
+            continue
+        target_lib_path = _find_in_target(soname)
+        if not target_lib_path:
+            target_lib_path = _find_and_pull_from_vendor(soname)
+
+        if not target_lib_path:
+            if soname in apex_provided_sonames:
+                unmounted_apex_lib_encountered = True
+                visited[soname] = True
+                continue
+            missing_libs.append(soname)
+            visited[soname] = False
+            continue
+
+        visited[soname] = True
+        dep_info = _extract_elf_info(target_lib_path)
+        if dep_info is None:
+            missing_libs.append(soname)
+            continue
+        _, dep_needed, _, dep_defined = dep_info
+        exported_symbols.update(dep_defined)
+        for nxt in dep_needed:
+            if nxt not in visited:
+                queue.append(nxt)
+
+    missing_symbols = []
+    if not missing_libs and not unmounted_apex_lib_encountered and exported_symbols:
+        for sym in sorted(root_undef_syms):
+            if sym not in exported_symbols:
+                missing_symbols.append(sym)
+
+    is_valid = len(missing_libs) == 0 and len(missing_symbols) == 0
+    return is_valid, missing_libs, missing_symbols
+
+
+def _restore_core_group_snapshot(group_name, group_snap):
+    for rel_path, entry in group_snap.items():
+        if os.path.exists(entry["backup"]):
+            os.makedirs(os.path.dirname(entry["target"]), exist_ok=True)
+            shutil.copy2(entry["backup"], entry["target"])
+            set_executable_permission(entry["target"])
+        for obj_target, obj_backup in entry.get("obj_backups", []):
+            if os.path.exists(obj_backup):
+                shutil.copy2(obj_backup, obj_target)
+                set_executable_permission(obj_target)
+    logging.warning(f"Atomically rolled back coupled core group '{group_name}' to AOSP baseline.")
+
+
+def validate_and_reconcile_coupled_core_groups(snapshots, source_folder_path, target_out_path, aosp_path=None):
+    """
+    Validates each coupled core group (zygote, system_server) after injection:
+    1. Ensures Java (.jar) and JNI (.so) pairs are coupled (not half-vendor/half-AOSP).
+    2. Ensures all .jar members contain valid classes.dex.
+    3. Ensures all ELF (.so / binary) members pass transitive DT_NEEDED & symbol checks.
+    If any check fails for a group, atomically rolls back the entire group to AOSP.
+    Returns dict of { group_name: {"status": "kept_vendor"|"rolled_back"|"unchanged", "reason": str} }.
+    """
+    report = {}
+    required_pairs = {
+        "zygote": ("system/framework/framework.jar", "system/lib64/libandroid_runtime.so"),
+        "system_server": ("system/framework/services.jar", "system/lib64/libandroid_servers.so"),
+    }
+
+    for group_name, group_snap in (snapshots or {}).items():
+        if not group_snap:
+            report[group_name] = {"status": "unchanged", "reason": "No baseline files tracked"}
+            continue
+
+        modified_members = []
+        for rel_path, entry in group_snap.items():
+            curr_md5 = get_md5_from_file(entry["target"]) if os.path.exists(entry["target"]) else None
+            if curr_md5 != entry["md5"]:
+                modified_members.append(rel_path)
+
+        if not modified_members:
+            report[group_name] = {"status": "unchanged", "reason": "No members modified"}
+            continue
+
+        failure_reasons = []
+        # 1. Check primary Java + JNI pair coupling
+        pair = required_pairs.get(group_name)
+        if pair and pair[0] in group_snap and pair[1] in group_snap:
+            jar_mod = pair[0] in modified_members
+            so_mod = pair[1] in modified_members
+            if jar_mod != so_mod:
+                failure_reasons.append(
+                    f"Uncoupled Java/JNI modification: {pair[0]} (modified={jar_mod}) vs {pair[1]} (modified={so_mod})"
+                )
+
+        # 2. Validate every existing/modified member in the group
+        for rel_path, entry in group_snap.items():
+            target_file = entry["target"]
+            if not os.path.exists(target_file):
+                failure_reasons.append(f"Missing core file: {rel_path}")
+                continue
+            if rel_path.endswith(".jar"):
+                has_dex, dex_err = ensure_archive_has_dex(
+                    target_file, aosp_path=aosp_path, source_root_path=source_folder_path, require_dex=True
+                )
+                if not has_dex:
+                    failure_reasons.append(f"Invalid JAR {rel_path}: {dex_err}")
+            elif is_elf_binary(target_file):
+                elf_ok, missing_libs, missing_syms = resolve_and_validate_elf_dependencies(
+                    target_file, source_folder_path, target_out_path
+                )
+                if not elf_ok:
+                    failure_reasons.append(
+                        f"ELF dependency/symbol failure in {rel_path}: missing_libs={missing_libs}, "
+                        f"missing_symbols={missing_syms[:10]}"
+                    )
+
+        if failure_reasons:
+            reason_str = "; ".join(failure_reasons)
+            logging.warning(f"Coupled group '{group_name}' failed validation ({reason_str}). Rolling back to AOSP.")
+            _restore_core_group_snapshot(group_name, group_snap)
+            report[group_name] = {"status": "rolled_back", "reason": reason_str}
+        else:
+            logging.info(f"Coupled group '{group_name}' passed validation (modified={modified_members}).")
+            report[group_name] = {"status": "kept_vendor", "reason": f"Validated {modified_members}"}
+
+    return report
+
+
+def clean_stale_precompiled_art_artifacts(target_out_path):
+    """
+    Removes stale precompiled AOSP boot images (boot*.art, boot*.oat, boot*.vdex) and
+    framework oat/ directories so ART compiles fresh boot images matching injected .jar files.
+    Returns list of removed paths.
+    """
+    removed = []
+    if not target_out_path or not os.path.isdir(target_out_path):
+        return removed
+
+    for part in ("system", "system_ext", "product", "vendor"):
+        fw_dir = os.path.join(target_out_path, part, "framework")
+        if not os.path.isdir(fw_dir):
+            continue
+        # Remove <fw_dir>/oat/
+        oat_dir = os.path.join(fw_dir, "oat")
+        if os.path.isdir(oat_dir):
+            try:
+                shutil.rmtree(oat_dir)
+                removed.append(oat_dir)
+            except Exception as e:
+                logging.warning(f"Failed to remove stale oat dir {oat_dir}: {e}")
+
+        # Remove <fw_dir>/<arch>/boot* and <fw_dir>/boot*
+        for pattern in (
+            os.path.join(fw_dir, "*", "boot*"),
+            os.path.join(fw_dir, "boot*.art"),
+            os.path.join(fw_dir, "boot*.oat"),
+            os.path.join(fw_dir, "boot*.vdex"),
+        ):
+            for match in glob.glob(pattern):
+                if os.path.isfile(match) or os.path.islink(match):
+                    try:
+                        os.remove(match)
+                        removed.append(match)
+                    except Exception:
+                        pass
+
+    if removed:
+        logging.info(f"Cleaned {len(removed)} stale precompiled ART boot/oat artifact(s) under {target_out_path}")
+    return removed
+
+
+def reconcile_init_environ_classpaths(source_folder_path, target_out_path, aosp_path=None):
+    """
+    Parses vendor init.environ.rc for BOOTCLASSPATH, DEX2OATBOOTCLASSPATH, and
+    SYSTEMSERVERCLASSPATH entries. For any vendor .jar that exists in target_out_path
+    and contains valid classes.dex, appends it to AOSP's init.environ.rc without
+    removing AOSP's /apex/ classpath entries. Also removes any unrecoverable stripped
+    .jar stubs from target_out_path/framework directories.
+    Returns list of updated init.environ.rc paths.
+    """
+    updated_rc_files = []
+    if not target_out_path or not os.path.isdir(target_out_path):
+        return updated_rc_files
+
+    # 1. Sweep framework directories in target_out_path for any stripped .jar stubs missing classes.dex
+    for part in ("system", "system_ext", "product", "vendor"):
+        fw_dir = os.path.join(target_out_path, part, "framework")
+        if not os.path.isdir(fw_dir):
+            continue
+        for jar_file in glob.glob(os.path.join(fw_dir, "*.jar")):
+            has_dex, _ = ensure_archive_has_dex(
+                jar_file, aosp_path=aosp_path, source_root_path=source_folder_path, require_dex=True
+            )
+            if not has_dex:
+                logging.warning(f"Removing unrecoverable stripped JAR stub from target image: {jar_file}")
+                try:
+                    os.remove(jar_file)
+                except Exception:
+                    pass
+
+    if not source_folder_path or not os.path.isdir(source_folder_path):
+        return updated_rc_files
+
+    vendor_rc_candidates = [
+        os.path.join(source_folder_path, "system", "etc", "init", "hw", "init.environ.rc"),
+        os.path.join(source_folder_path, "system", "init.environ.rc"),
+        os.path.join(source_folder_path, "system", "system", "etc", "init", "hw", "init.environ.rc"),
+        os.path.join(source_folder_path, "init.environ.rc"),
+    ]
+    vendor_rc = next((p for p in vendor_rc_candidates if os.path.isfile(p)), None)
+    if not vendor_rc:
+        return updated_rc_files
+
+    target_rc_candidates = [
+        os.path.join(target_out_path, "system", "etc", "init", "hw", "init.environ.rc"),
+        os.path.join(target_out_path, "root", "init.environ.rc"),
+        os.path.join(target_out_path, "system", "init.environ.rc"),
+    ]
+    target_rcs = [p for p in target_rc_candidates if os.path.isfile(p)]
+    if not target_rcs:
+        return updated_rc_files
+
+    classpath_vars = ("BOOTCLASSPATH", "DEX2OATBOOTCLASSPATH", "SYSTEMSERVERCLASSPATH")
+    vendor_cp_entries = defaultdict(list)
+
+    try:
+        with open(vendor_rc, "r", encoding="utf-8", errors="ignore") as vf:
+            for line in vf:
+                m = re.match(r"^\s*export\s+(BOOTCLASSPATH|DEX2OATBOOTCLASSPATH|SYSTEMSERVERCLASSPATH)\s+(.+)$", line.strip())
+                if m:
+                    var_name, raw_val = m.group(1), m.group(2).strip()
+                    for entry in raw_val.split(":"):
+                        entry = entry.strip()
+                        if entry and not entry.startswith("/apex/") and entry.endswith(".jar"):
+                            if entry not in vendor_cp_entries[var_name]:
+                                vendor_cp_entries[var_name].append(entry)
+    except Exception as e:
+        logging.warning(f"Failed to parse vendor init.environ.rc ({vendor_rc}): {e}")
+        return updated_rc_files
+
+    # Filter vendor_cp_entries to only JARs that actually exist and contain classes.dex in target_out_path
+    verified_cp_entries = defaultdict(list)
+    for var_name, entries in vendor_cp_entries.items():
+        for dev_path in entries:
+            rel_path = dev_path.lstrip("/")
+            host_path = os.path.join(target_out_path, rel_path)
+            if os.path.isfile(host_path):
+                has_dex, _ = ensure_archive_has_dex(
+                    host_path, aosp_path=aosp_path, source_root_path=source_folder_path, require_dex=True
+                )
+                if has_dex:
+                    verified_cp_entries[var_name].append(dev_path)
+
+    if not any(verified_cp_entries.values()):
+        return updated_rc_files
+
+    for trc in target_rcs:
+        try:
+            with open(trc, "r", encoding="utf-8", errors="ignore") as tf:
+                lines = tf.readlines()
+
+            new_lines = []
+            modified = False
+            for line in lines:
+                m = re.match(r"^(\s*export\s+(BOOTCLASSPATH|DEX2OATBOOTCLASSPATH|SYSTEMSERVERCLASSPATH)\s+)(.+)$", line)
+                if m:
+                    prefix, var_name, curr_val = m.group(1), m.group(2), m.group(3).strip()
+                    curr_parts = [p.strip() for p in curr_val.split(":") if p.strip()]
+                    for cand in verified_cp_entries.get(var_name, []):
+                        if cand not in curr_parts:
+                            curr_parts.append(cand)
+                            modified = True
+                    new_lines.append(f"{prefix}{':'.join(curr_parts)}\n")
+                else:
+                    new_lines.append(line)
+
+            if modified:
+                with open(trc, "w", encoding="utf-8") as tf:
+                    tf.writelines(new_lines)
+                updated_rc_files.append(trc)
+                logging.info(f"Updated {trc} with verified vendor classpath JARs: {dict(verified_cp_entries)}")
+        except Exception as e:
+            logging.warning(f"Failed to update target init.environ.rc ({trc}): {e}")
+
+    return updated_rc_files
+
+
+def sync_vendor_feature_build_props(source_folder_path, target_out_path):
+    """
+    Extracts non-hardware OEM feature-flag and branding properties (e.g. ro.miui.*,
+    ro.oplus.*, ro.build.version.oplusrom, ro.build.version.oneui, ro.config.*)
+    from vendor build.prop files and appends any missing keys to AOSP's system/build.prop
+    while enforcing ro.control_privapp_permissions=log.
+    Returns count of synchronized properties.
+    """
+    if not source_folder_path or not target_out_path:
+        return 0
+    if not os.path.isdir(source_folder_path) or not os.path.isdir(target_out_path):
+        return 0
+
+    vendor_props = {}
+    for root, _, files in scandir_walk(source_folder_path):
+        for fn in files:
+            if fn.endswith("build.prop"):
+                prop_path = os.path.join(root, fn)
+                try:
+                    with open(prop_path, "r", encoding="utf-8", errors="ignore") as pf:
+                        for line in pf:
+                            stripped = line.strip()
+                            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                                continue
+                            k, v = stripped.split("=", 1)
+                            k = k.strip()
+                            v = v.strip()
+                            if any(k.startswith(up) for up in UNSAFE_VENDOR_PROP_PREFIXES):
+                                continue
+                            if any(k.startswith(sp) for sp in SAFE_VENDOR_PROP_PREFIXES):
+                                vendor_props.setdefault(k, v)
+                except Exception:
+                    pass
+
+    target_prop_candidates = [
+        os.path.join(target_out_path, "system", "build.prop"),
+        os.path.join(target_out_path, "system", "system", "build.prop"),
+    ]
+    target_prop_path = next((p for p in target_prop_candidates if os.path.isfile(p)), None)
+    if not target_prop_path:
+        return 0
+
+    existing_keys = set()
+    lines = []
+    try:
+        with open(target_prop_path, "r", encoding="utf-8", errors="ignore") as tf:
+            for line in tf:
+                stripped = line.strip()
+                if stripped and not stripped.startswith("#") and "=" in stripped:
+                    k = stripped.split("=", 1)[0].strip()
+                    existing_keys.add(k)
+                    if k == "ro.control_privapp_permissions":
+                        lines.append("ro.control_privapp_permissions=log\n")
+                        continue
+                lines.append(line if line.endswith("\n") else f"{line}\n")
+    except Exception as e:
+        logging.warning(f"Failed to read {target_prop_path}: {e}")
+        return 0
+
+    added = 0
+    if "ro.control_privapp_permissions" not in existing_keys:
+        lines.append("ro.control_privapp_permissions=log\n")
+        added += 1
+
+    for k, v in sorted(vendor_props.items()):
+        if k not in existing_keys:
+            lines.append(f"{k}={v}\n")
+            existing_keys.add(k)
+            added += 1
+
+    if added > 0:
+        try:
+            with open(target_prop_path, "w", encoding="utf-8") as tf:
+                tf.writelines(lines)
+            logging.info(f"Synchronized {added} OEM feature/safety build.prop entries into {target_prop_path}")
+        except Exception as e:
+            logging.warning(f"Failed to write synchronized properties to {target_prop_path}: {e}")
+            return 0
+
+    return added
+
 
 
 
@@ -181,12 +752,12 @@ def extract_file_type_frequencies(error_list):
 
 def count_number_of_extracted_files(source_folder_path):
     """
-    Counts the number of files in the source folder.
+    Counts the number of files in the source folder across all standard and OEM partitions.
 
     :param source_folder_path: str - Path to the source folder.
     :return: dict - Number of files in the source folder per partition.
     """
-    partition_names = ["system", "vendor", "product", "system_ext", "system_other", "userdata"]
+    partition_names = PARTITION_NAME_LIST
     file_count_per_partition = defaultdict(int)
     for partition_name in partition_names:
         partition_path = os.path.join(source_folder_path, partition_name)
@@ -457,6 +1028,19 @@ def inject(aosp_path,
 
     start_time = time.time()
     logging.info(f"Injection started at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
+    global AOSP_APK_INDEX
+    core_group_snapshots = {}
+    try:
+        core_group_snapshots = snapshot_aosp_core_groups(target_out_path)
+    except Exception as e:
+        logging.warning(f"Failed to snapshot coupled core groups: {e}")
+
+    try:
+        AOSP_APK_INDEX = build_aosp_apk_index(target_out_path, aosp_path=aosp_path)
+    except Exception as e:
+        logging.warning(f"Failed to build initial AOSP APK index: {e}")
+        AOSP_APK_INDEX = None
+
     error_list, inj_obj_list, inj_partition_list, acv_result_dict = process_partitions(aosp_path,
                        target_out_path,
                        executor,
@@ -467,6 +1051,34 @@ def inject(aosp_path,
                        aosp_version,
                        tag,
                        folder_path_list)
+    # Post-injection Zygote / SystemServer / Pre-installed App hardening passes
+    try:
+        validate_and_reconcile_coupled_core_groups(
+            core_group_snapshots, source_folder_path, target_out_path, aosp_path=aosp_path
+        )
+    except Exception as e:
+        logging.error(f"Error validating coupled core groups: {e}")
+
+    try:
+        clean_stale_precompiled_art_artifacts(target_out_path)
+    except Exception as e:
+        logging.error(f"Error cleaning stale ART boot/oat artifacts: {e}")
+
+    try:
+        reconcile_init_environ_classpaths(source_folder_path, target_out_path, aosp_path=aosp_path)
+    except Exception as e:
+        logging.error(f"Error reconciling init.environ.rc classpaths: {e}")
+
+    try:
+        sync_vendor_feature_build_props(source_folder_path, target_out_path)
+    except Exception as e:
+        logging.error(f"Error synchronizing vendor feature build.prop entries: {e}")
+
+    try:
+        generate_privapp_permissions_allowlist(target_out_path, aosp_path=aosp_path)
+    except Exception as e:
+        logging.error(f"Error generating privapp-permissions allowlists: {e}")
+
     # Verify Direct Injection targets exist on filesystem and log errors for missing targets
     try:
         direct_inject_errors = verify_direct_injection_targets(inj_partition_list)
@@ -613,9 +1225,14 @@ def inject(aosp_path,
 
 def get_folders(folder_path, folder_filters):
     """
-    Get the partition folders to process.
+    Get the partition folders to process, including OEM custom partitions when present.
     """
     logging.debug(f"Directory path: {folder_path}, folder filters: {folder_filters}")
+    if not folder_filters or folder_filters == [""]:
+        effective_filters = set(PARTITION_NAME_LIST)
+    else:
+        effective_filters = set(folder_filters) | set(OEM_CUSTOM_PARTITION_MAP.keys())
+
     folders = []
     for entry in os.listdir(folder_path):
         full_path = os.path.join(folder_path, entry)
@@ -627,7 +1244,7 @@ def get_folders(folder_path, folder_filters):
     for entry in folders:
         dir_name = os.path.basename(entry)
         logging.debug(f"Directory name: {dir_name}")
-        if dir_name in folder_filters:
+        if dir_name in effective_filters:
             result_list.append(entry)
 
     logging.debug(f"Folders to process: {result_list}")
@@ -723,7 +1340,25 @@ def process_file_concurrently(aosp_path, file_path, partition_name, target_out_p
                 filename = os.path.basename(file_path)
                 file_extension = os.path.splitext(file_path)[1]
                 if module_type == "APPS" and file_extension.lower() == ".apk":
-                    error_message = handle_app_modules(file_path, aosp_path, firmware_id, cookies)
+                    target_apk_inj_path, _ = get_target_injection_path(file_path, partition_name, target_out_path)
+                    with AOSP_APK_INDEX_LOCK:
+                        allow_apk, dedup_reason = reconcile_and_deduplicate_vendor_apk(
+                            file_path,
+                            target_apk_inj_path,
+                            target_out_path,
+                            aosp_apk_index=AOSP_APK_INDEX,
+                            aosp_path=aosp_path,
+                        )
+                    if not allow_apk:
+                        error_message = f"Skipped File (Protected AOSP Package): {file_path} | {dedup_reason}"
+                    else:
+                        error_message = handle_app_modules(file_path, aosp_path, firmware_id, cookies)
+                elif file_extension.lower() == ".jar":
+                    error_message = handle_jar_module(
+                        file_path,
+                        aosp_path=aosp_path,
+                        source_root_path=EXTRACTION_ALL_FILES_PATH,
+                    )
                 elif file_extension.lower() == ".apex" or file_extension.lower() == ".capex":
                     if file_path.endswith(".capex"):
                         file_path = replace_capex_with_apex(file_path)
@@ -1118,6 +1753,14 @@ def indirect_injection(target_file_injection_path,
         logging.debug(f"Skipped indirect injection for file: {file_path} with extension: {file_ext}")
         return None, inj_partition, False
 
+    if POST_INJECTOR_CONFIG.get("ENABLE_BUILD_PROPERTY_MERGER") and file_ext == ".prop" and "build.prop" in file_name:
+        logging.debug(f"Skipping indirect injection for property file {file_path} so direct injection property merger can run cleanly.")
+        return None, inj_partition, False
+
+    if file_ext == ".xml" and ("/etc/permissions/" in file_path or "/etc/sysconfig/" in file_path):
+        logging.debug(f"Skipping indirect injection for /etc XML {file_path} so direct injection additive XML merger can run cleanly.")
+        return None, inj_partition, False
+
     if not (file_name in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS"]
             or any(keyword in file_path for keyword in POST_INJECTOR_CONFIG["ALLOW_FILE_INJECT_ALWAYS_KEYWORD_LIST"])):
         if file_ext == ".so" and POST_INJECTOR_CONFIG["ENABLE_SHARED_LIBRARIES_INJECTION_IF_NOT_EXISTS"]:
@@ -1129,8 +1772,9 @@ def indirect_injection(target_file_injection_path,
             if not is_allowed:
                 return None, inj_partition, False
 
-
-    delete_intermediate_cached_files(target_file_injection_path, file_path)
+    if os.path.exists(target_file_injection_path) and not check_file_compatibility(file_path, target_file_injection_path, module_type):
+        logging.debug(f"Incompatible file for indirect injection against target: {file_path} | {target_file_injection_path}")
+        return None, inj_partition, False
 
     logging.debug(f"File exists in target path: {target_file_injection_path}. Continue with indirect injection of {file_path}.")
     inj_obj = None
@@ -1163,6 +1807,7 @@ def indirect_injection(target_file_injection_path,
 
     is_injected = False
     if original_file_path:
+        delete_intermediate_cached_files(target_file_injection_path, file_path)
         try:
             logging.debug(f"Original file path type: {type(original_file_path).__name__}: {original_file_path}")
         except Exception:
@@ -1553,18 +2198,20 @@ def is_abi_compatible(candidate_path, file_path):
 
 def is_parent_dir_arm_and_target_arm(file_path, candidate_path):
     """
-    Prevent matching of arm to arm64 and vice versa.
+    Prevent matching of arm to arm64 and vice versa when both paths reside in explicit arm/arm64 subdirectories.
     """
     parent_dir_file_path = os.path.basename(os.path.dirname(file_path))
     parent_dir_candidate = os.path.basename(os.path.dirname(candidate_path))
 
-    is_match = False
+    if parent_dir_file_path not in ("arm", "arm64") or ("arm" not in parent_dir_candidate):
+        return True
 
+    is_match = False
     if parent_dir_file_path == "arm64":
         if "arm64" in parent_dir_candidate:
             is_match = True
     elif parent_dir_file_path == "arm":
-        if not "arm64" in parent_dir_candidate and "arm" in parent_dir_candidate:
+        if "arm64" not in parent_dir_candidate and "arm" in parent_dir_candidate:
             is_match = True
 
     logging.debug(f"Checking parent dir: {parent_dir_file_path}|{parent_dir_candidate} for {file_path}|{candidate_path}: "
@@ -1800,8 +2447,8 @@ def check_file_compatibility(file_path, candidate_path, module_type):
     is_match = True
     logging.debug(f"check_file_compatibility: {module_type}:{file_path}|{candidate_path}")
 
-    if module_type in MODULE_TYPE_ABI_COMPATIBLE and is_elf_binary(file_path):
-        logging.debug(f"File Matcher: Checking compatibility for {file_path}|{candidate_path}")
+    if is_elf_binary(file_path):
+        logging.debug(f"File Matcher: Checking ELF compatibility for {file_path}|{candidate_path}")
         candidate_arch = check_shared_object_architecture(candidate_path)
         file_arch = check_shared_object_architecture(file_path)
         logging.debug(f"File Matcher: ARCH {candidate_arch}|{file_arch} | {module_type}:{file_path}|{candidate_path}")
@@ -1809,15 +2456,19 @@ def check_file_compatibility(file_path, candidate_path, module_type):
             logging.debug(f"File Matcher: ABI not compatible: {file_path}|{candidate_path}")
             is_match = False
 
-        if not check_shared_object_architecture(candidate_path) == check_shared_object_architecture(file_path):
+        if candidate_arch != file_arch:
             logging.debug(f"File Matcher: Shared object architecture not the same: {file_path}|{candidate_path}")
             is_match = False
         else:
             logging.debug(f"File Matcher: Shared object architecture is the same: {file_path}|{candidate_path}")
 
-    if "arm" in file_path:
+    if ("/lib/" in file_path and "/lib64/" in candidate_path) or ("/lib64/" in file_path and "/lib/" in candidate_path):
+        logging.debug(f"File Matcher: lib vs lib64 directory mismatch: {file_path}|{candidate_path}")
+        is_match = False
+
+    if os.path.basename(os.path.dirname(file_path)) in ("arm", "arm64"):
         if not is_parent_dir_arm_and_target_arm(file_path, candidate_path):
-            logging.debug(f"File Matcher: Parent dir not arm: {file_path}|{candidate_path}")
+            logging.debug(f"File Matcher: Parent dir arm/arm64 mismatch: {file_path}|{candidate_path}")
             is_match = False
 
     if module_type == "JAVA_LIBRARIES":
@@ -1897,16 +2548,18 @@ def set_executable_permission(file_path):
         return False
 
 def get_target_injection_path(source_file_path, partition_name, target_out_path):
-    if partition_name == "super":
-        partition_name = "system"
+    mapped_partition = OEM_CUSTOM_PARTITION_MAP.get(partition_name, partition_name)
 
     filename = os.path.basename(source_file_path)
     file_extension = os.path.splitext(source_file_path)[1]
 
-    target_partition_path = target_out_path + partition_name
+    target_partition_path = os.path.join(target_out_path, mapped_partition)
     if not target_partition_path.endswith("/"):
         target_partition_path += "/"
     subfolder_list = get_subfolders(source_file_path, partition_name)
+    # Strip redundant leading folder if the extracted partition had a nested folder with its own name (e.g. my_product/my_product/...)
+    if subfolder_list and subfolder_list[0] == partition_name:
+        subfolder_list = subfolder_list[1:]
     if len(subfolder_list) == 0:
         target_dir_injection_path = target_partition_path
     else:
@@ -1942,6 +2595,123 @@ def get_target_injection_path(source_file_path, partition_name, target_out_path)
 
 
 
+def _strip_unsafe_hardware_features(root_elem):
+    """
+    Removes <feature> / <unavailable-feature> elements that declare physical hardware HALs
+    absent in the Goldfish/Ranchu emulator (e.g. fingerprint, biometrics, strongbox, vulkan, uwb, nfc).
+    Returns the number of removed elements.
+    """
+    removed_count = 0
+    for child in list(root_elem):
+        tag = child.tag.split("}")[-1]
+        if tag in ("feature", "unavailable-feature"):
+            feat_name = child.attrib.get("name", "")
+            if any(feat_name.startswith(prefix) for prefix in UNSAFE_HARDWARE_FEATURES):
+                root_elem.remove(child)
+                removed_count += 1
+    return removed_count
+
+
+def sanitize_and_merge_etc_xml(source_xml_path, target_xml_path=None):
+    """
+    Sanitizes a vendor /etc/permissions/*.xml or /etc/sysconfig/*.xml file by stripping
+    incompatible physical-hardware <feature> declarations, and if target_xml_path already
+    exists in AOSP (e.g. /system/etc/permissions/platform.xml), additively merges vendor
+    <permission>, <assign-permission>, <library>, and <privapp-permissions> entries into
+    AOSP's XML tree without deleting AOSP's existing entries.
+    Returns path to the sanitized/merged XML file.
+    """
+    if not source_xml_path or not os.path.exists(source_xml_path):
+        return source_xml_path
+
+    try:
+        vendor_tree = ET.parse(source_xml_path)
+        vendor_root = vendor_tree.getroot()
+    except Exception as e:
+        logging.debug(f"Could not parse XML {source_xml_path} for sanitization/merge: {e}")
+        return source_xml_path
+
+    _strip_unsafe_hardware_features(vendor_root)
+
+    if target_xml_path and os.path.exists(target_xml_path) and os.path.abspath(target_xml_path) != os.path.abspath(source_xml_path):
+        try:
+            aosp_tree = ET.parse(target_xml_path)
+            aosp_root = aosp_tree.getroot()
+            _strip_unsafe_hardware_features(aosp_root)
+
+            # Index existing AOSP elements for additive deduplicated merge
+            existing_privapp = {
+                el.attrib.get("package"): el
+                for el in aosp_root
+                if el.tag.split("}")[-1] == "privapp-permissions" and el.attrib.get("package")
+            }
+            existing_permissions = {
+                el.attrib.get("name"): el
+                for el in aosp_root
+                if el.tag.split("}")[-1] == "permission" and el.attrib.get("name")
+            }
+            existing_generic = {
+                (el.tag.split("}")[-1], tuple(sorted(el.attrib.items())))
+                for el in aosp_root
+            }
+
+            for v_el in list(vendor_root):
+                v_tag = v_el.tag.split("}")[-1]
+                if v_tag == "privapp-permissions" and v_el.attrib.get("package"):
+                    pkg = v_el.attrib["package"]
+                    if pkg in existing_privapp:
+                        target_el = existing_privapp[pkg]
+                        existing_sub = {
+                            (sub.tag.split("}")[-1], sub.attrib.get("name"))
+                            for sub in target_el
+                        }
+                        for sub in v_el:
+                            key = (sub.tag.split("}")[-1], sub.attrib.get("name"))
+                            if key not in existing_sub:
+                                target_el.append(sub)
+                                existing_sub.add(key)
+                    else:
+                        aosp_root.append(v_el)
+                        existing_privapp[pkg] = v_el
+                elif v_tag == "permission" and v_el.attrib.get("name"):
+                    perm_name = v_el.attrib["name"]
+                    if perm_name in existing_permissions:
+                        target_el = existing_permissions[perm_name]
+                        existing_gids = {
+                            sub.attrib.get("gid")
+                            for sub in target_el
+                            if sub.tag.split("}")[-1] == "group"
+                        }
+                        for sub in v_el:
+                            if sub.tag.split("}")[-1] == "group" and sub.attrib.get("gid") not in existing_gids:
+                                target_el.append(sub)
+                                existing_gids.add(sub.attrib.get("gid"))
+                    else:
+                        aosp_root.append(v_el)
+                        existing_permissions[perm_name] = v_el
+                else:
+                    sig = (v_tag, tuple(sorted(v_el.attrib.items())))
+                    if sig not in existing_generic:
+                        aosp_root.append(v_el)
+                        existing_generic.add(sig)
+
+            out_tree = aosp_tree
+        except Exception as e:
+            logging.warning(f"Failed to merge vendor XML {source_xml_path} with {target_xml_path}: {e}")
+            out_tree = vendor_tree
+    else:
+        out_tree = vendor_tree
+
+    try:
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".xml", delete=False) as tf:
+            out_path = tf.name
+        out_tree.write(out_path, encoding="utf-8", xml_declaration=True)
+        return out_path
+    except Exception as e:
+        logging.warning(f"Failed to write sanitized/merged XML for {source_xml_path}: {e}")
+        return source_xml_path
+
+
 def run_build_property_merger(source_file_path, target_file_injection_path):
     filename = os.path.basename(source_file_path)
     if not os.path.exists(PATH_PROPERTY_MERGE_CONFLICTS_DIR):
@@ -1953,15 +2723,16 @@ def run_build_property_merger(source_file_path, target_file_injection_path):
     try:
         if target_file_injection_path == source_file_path:
             logging.warning(f"Source and target property files are the same: {source_file_path}. Skipping merge.")
-            return target_file_injection_path
+            return source_file_path
+        if not os.path.exists(target_file_injection_path):
+            logging.debug(f"Target property file {target_file_injection_path} does not exist yet; filtering vendor properties into new file.")
         start_property_merge(target_file_injection_path, source_file_path, merged_prop_file_path, conflicts_out_file_path)
         if os.path.exists(merged_prop_file_path) and os.path.getsize(merged_prop_file_path) > 0:
-            schedule_copy(merged_prop_file_path, target_file_injection_path)
-            #shutil.copyfile(merged_prop_file_path, target_file_injection_path)
-            logging.debug(f"Success: Updated {target_file_injection_path} with {merged_prop_file_path}")
+            logging.debug(f"Success: Created merged property file {merged_prop_file_path} for {target_file_injection_path}")
+            return merged_prop_file_path
     except Exception as e:
         logging.error(f"An error occurred during merging build properties: {e}")
-    return target_file_injection_path
+    return source_file_path
 
 
 # Direct Injection
@@ -1975,11 +2746,14 @@ def inject_file_into_partition(source_file_path, target_file_injection_path, aos
     if POST_INJECTOR_CONFIG["ENABLE_RC_MERGER"] and filename.endswith(".rc"):
         source_file_path = run_rc_merger(source_file_path)
 
+    if filename.endswith(".xml") and ("/etc/permissions/" in target_file_injection_path or "/etc/sysconfig/" in target_file_injection_path):
+        source_file_path = sanitize_and_merge_etc_xml(source_file_path, target_file_injection_path)
+
     if POST_INJECTOR_CONFIG["ENABLE_BUILD_PROPERTY_MERGER"] and filename.endswith(".prop"):
         if "build.prop" in filename:
             logging.debug(f"File {source_file_path} is a property file and will be merged with the existing file instead of "
                          f"overwriting: {target_file_injection_path} directly")
-            run_build_property_merger(source_file_path, target_file_injection_path)
+            source_file_path = run_build_property_merger(source_file_path, target_file_injection_path)
 
     if filename in POST_INJECTOR_CONFIG["DIRECT_INJECTION_TARGET_PATH_OVERWRITE"]:
         aosp_build_out_path = get_aosp_build_out_dir(aosp_path, aosp_version)
@@ -2121,6 +2895,8 @@ def inject_file_into_obj(source_file_path, original_file_path, module_type, aosp
     Injects a file into the AOSP source code directly without matching to existing files.
     """
     filename = os.path.basename(source_file_path)
+    if POST_INJECTOR_CONFIG.get("ENABLE_RC_MERGER") and filename.endswith(".rc"):
+        source_file_path = run_rc_merger(source_file_path)
     matching_intermediate_file_list = []
     try:
         org_md5 = get_md5_from_file(original_file_path)

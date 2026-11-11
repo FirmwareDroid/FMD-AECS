@@ -25,22 +25,8 @@ import shutil
 # Ensure project root is on sys.path so `from common import get_adb_cmd` works
 # when this script is executed directly from its folder.
 _HERE = os.path.dirname(os.path.abspath(__file__))
-
-def _find_project_root(marker='common.py'):
-    p = _HERE
-    while True:
-        candidate = os.path.join(p, marker)
-        if os.path.exists(candidate):
-            return p
-        parent = os.path.dirname(p)
-        if parent == p:
-            break
-        p = parent
-    return None
-
-_PROJECT_ROOT = _find_project_root() or os.path.normpath(os.path.join(_HERE, '..', '..', '..'))
-if _PROJECT_ROOT and _PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, _PROJECT_ROOT)
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
 
 from common import get_adb_cmd, get_first_connected_device
 from test_results import append_run
@@ -56,7 +42,10 @@ LIBS_ARM64 = os.path.join(FASTBOT_DIR, 'libs', 'arm64-v8a')
 
 DEVICE_SDCARD = '/sdcard/'
 DEVICE_TMP = '/data/local/tmp/'
-DEVICE_CLASSPATH = '/sdcard/monkeyq.jar:/sdcard/framework.jar:/sdcard/fastbot-thirdpart.jar'
+DEVICE_CLASSPATH = (
+    '/data/local/tmp/monkeyq.jar:/data/local/tmp/framework.jar:/data/local/tmp/fastbot-thirdpart.jar:'
+    '/sdcard/monkeyq.jar:/sdcard/framework.jar:/sdcard/fastbot-thirdpart.jar'
+)
 DEVICE_NATIVE_SO = '/data/local/tmp/arm64-v8a/libfastbot_native.so'
 
 # Default output directory for start_apps summaries
@@ -89,9 +78,14 @@ def push_fastbot(serial=None):
     """Push Fastbot JARs and native libs to the device."""
     adb = _adb(serial)
     logger.info("Pushing Fastbot JARs to device…")
-    subprocess.check_call(adb + ['push', MONKEYQ_JAR, DEVICE_SDCARD])
-    subprocess.check_call(adb + ['push', THIRDPART_JAR, DEVICE_SDCARD])
-    subprocess.check_call(adb + ['push', FRAMEWORK_JAR, DEVICE_SDCARD])
+    for jar in (MONKEYQ_JAR, THIRDPART_JAR, FRAMEWORK_JAR):
+        subprocess.check_call(adb + ['push', jar, DEVICE_SDCARD])
+        subprocess.check_call(adb + ['push', jar, DEVICE_TMP])
+    # Android 14+ ART requires dynamically loaded DEX/JAR files to be read-only (0444)
+    subprocess.run(
+        adb + ['shell', 'chmod', '444', '/data/local/tmp/monkeyq.jar', '/data/local/tmp/framework.jar', '/data/local/tmp/fastbot-thirdpart.jar'],
+        capture_output=True
+    )
 
     so_files = sorted(glob.glob(os.path.join(LIBS_ARM64, '*.so')))
     if so_files:
@@ -130,7 +124,9 @@ def run_fastbot(package, running_minutes=60, throttle=500, serial=None):
         adb
         + ['shell',
            f'CLASSPATH={DEVICE_CLASSPATH}',
-           'exec', 'app_process', '/system/bin',
+           'LD_LIBRARY_PATH=/system/lib64:/data/local/tmp/arm64-v8a:/data/local/tmp',
+           'exec', 'app_process', '-Djava.library.path=/data/local/tmp/arm64-v8a:/data/local/tmp',
+           '/system/bin',
            'com.android.commands.monkey.Monkey',
            '-p', package,
            '--agent', 'reuseq',
@@ -141,11 +137,16 @@ def run_fastbot(package, running_minutes=60, throttle=500, serial=None):
            '-v']
     )
     cmd = [str(a) for a in cmd]
+    timeout_sec = max(120, int(running_minutes) * 60 + 120)
     logger.info(
-        "Running Fastbot2.0 on package: %s (minutes=%d, throttle=%dms): CMD: %s",
-        package, running_minutes, throttle, cmd
+        "Running Fastbot2.0 on package: %s (minutes=%d, throttle=%dms, timeout=%ds): CMD: %s",
+        package, running_minutes, throttle, timeout_sec, cmd
     )
-    return subprocess.run(cmd, text=True).returncode
+    try:
+        return subprocess.run(cmd, text=True, timeout=timeout_sec).returncode
+    except subprocess.TimeoutExpired:
+        logger.warning("Fastbot2.0 timed out after %ds on %s; treating run as completed.", timeout_sec, package)
+        return 0
 
 
 def main():
@@ -214,6 +215,15 @@ def main():
     if not ensure_native_so(serial, DEVICE_NATIVE_SO, LIBS_ARM64):
         logger.error('Required native fastbot library not available on device: %s', DEVICE_NATIVE_SO)
         logger.error('Either run with pushing enabled or ensure the file exists on the device')
+        summary = {
+            'total_packages': 1, 'started': 0, 'failed': 1, 'skipped': 0,
+            'started_by_script': 0, 'started_packages': [], 'failed_packages': [args.package],
+        }
+        failures = [{'package': args.package, 'reason': 'fastbot_missing_native_so', 'detail': DEVICE_NATIVE_SO}]
+        try:
+            append_run('fastbot', summary, failures, out_dir=os.path.join(BASE_DIR, 'out'))
+        except Exception:
+            logger.exception('Failed to write fastbot summary')
         sys.exit(3)
 
     ret = run_fastbot(args.package, args.running_minutes, args.throttle, serial)
