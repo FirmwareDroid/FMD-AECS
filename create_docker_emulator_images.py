@@ -662,7 +662,7 @@ def parse_arguments():
                         action='store_true',
                         required=False,
                         default=False,
-                        help='Resume from a previous interrupted run by skipping images already recorded in docker_images.txt or job_queue.')
+                        help='Resume from a previous interrupted run by skipping images already recorded in docker_images.txt.')
     return parser.parse_args()
 
 
@@ -863,8 +863,8 @@ def main():
                         tag = line.strip()
                         if tag:
                             processed_tags.add(tag)
-            db_tags = job_queue.get_all_job_names()
-            processed_tags.update(db_tags)
+            else:
+                logging.warning(f"Resume mode enabled, but {docker_images_file} does not exist. No images will be skipped.")
 
             original_count = len(filtered_image_list)
             filtered_image_list = [
@@ -873,8 +873,8 @@ def main():
             ]
             skipped_count = original_count - len(filtered_image_list)
             logging.info(
-                f"Resume mode enabled: skipping {skipped_count} already processed/queued image(s); "
-                f"{len(filtered_image_list)} image(s) remaining."
+                f"Resume mode enabled: loaded {len(processed_tags)} tag(s) from {docker_images_file}; "
+                f"skipping {skipped_count} of {original_count} image(s); {len(filtered_image_list)} image(s) remaining."
             )
             if not filtered_image_list:
                 logging.info("All requested images have already been processed/queued. Nothing to resume.")
