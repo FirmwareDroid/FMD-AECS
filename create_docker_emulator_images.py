@@ -4,6 +4,7 @@ import logging
 import os
 import shlex
 import shutil
+import sqlite3
 import subprocess
 import time
 from getpass import getpass
@@ -657,6 +658,11 @@ def parse_arguments():
                         required=False,
                         default=False,
                         help='If set, keeps downloaded .zip files in --input-dir instead of deleting them after extraction.')
+    parser.add_argument('--resume',
+                        action='store_true',
+                        required=False,
+                        default=False,
+                        help='Resume from a previous interrupted run by skipping images already recorded in docker_images.txt or job_queue.')
     return parser.parse_args()
 
 
@@ -694,7 +700,12 @@ def wait_for_disk_space(paths, min_free_gb, poll_interval=15):
         free_gb, min_path = get_free_space_gb(paths)
         if free_gb >= min_free_gb:
             return
-        active_jobs = job_queue.get_active_job_count()
+        try:
+            active_jobs = job_queue.get_active_job_count()
+        except sqlite3.OperationalError as e:
+            logging.warning(f"Transient SQLite error checking active jobs during disk wait ({e}); retrying in {poll_interval}s...")
+            time.sleep(poll_interval)
+            continue
         if active_jobs == 0:
             if not pruned_once:
                 logging.warning(
@@ -722,11 +733,18 @@ def wait_for_batch_capacity(batch_job_ids, max_active_jobs, paths, min_free_gb, 
     while True:
         # Check active jobs for this batch specifically (avoids deadlock if stale rows existed from an older dead run,
         # while still respecting the queue if batch_job_ids is empty).
-        if batch_job_ids is not None:
-            active_count = job_queue.get_active_job_count(batch_job_ids)
-        else:
-            active_count = job_queue.get_active_job_count()
-        status_counts = job_queue.get_queue_status_counts()
+        try:
+            if batch_job_ids is not None:
+                active_count = job_queue.get_active_job_count(batch_job_ids)
+            else:
+                active_count = job_queue.get_active_job_count()
+            status_counts = job_queue.get_queue_status_counts()
+        except sqlite3.OperationalError as e:
+            logging.warning(
+                f"Transient SQLite error checking batch capacity ({e}); retrying in {poll_interval}s..."
+            )
+            time.sleep(poll_interval)
+            continue
         if active_count <= max_active:
             break
         logging.info(
@@ -835,10 +853,35 @@ def main():
 
         script_dir = os.path.dirname(os.path.abspath(__file__))
         docker_images_file = os.path.join(script_dir, "docker_images.txt")
-        with open(docker_images_file, "w", encoding="utf-8") as f:
-            pass
-
         job_queue.init_db()
+
+        if args.resume:
+            processed_tags = set()
+            if os.path.exists(docker_images_file):
+                with open(docker_images_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        tag = line.strip()
+                        if tag:
+                            processed_tags.add(tag)
+            db_tags = job_queue.get_all_job_names()
+            processed_tags.update(db_tags)
+
+            original_count = len(filtered_image_list)
+            filtered_image_list = [
+                asset for asset in filtered_image_list
+                if os.path.basename(asset['path']).replace('.zip', '') not in processed_tags
+            ]
+            skipped_count = original_count - len(filtered_image_list)
+            logging.info(
+                f"Resume mode enabled: skipping {skipped_count} already processed/queued image(s); "
+                f"{len(filtered_image_list)} image(s) remaining."
+            )
+            if not filtered_image_list:
+                logging.info("All requested images have already been processed/queued. Nothing to resume.")
+                return
+        else:
+            with open(docker_images_file, "w", encoding="utf-8") as f:
+                pass
 
         repository_password = None
         if not args.create_local and not args.skip_push:
